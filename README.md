@@ -47,37 +47,6 @@ This application serves as our **Projet Intégré de Développement (PIDEV)**, s
 
 ---
 
-## 🏗️ Project Structure
-
-```
-skilora-tunisia/
-├── src/
-│   ├── main/java/com/skilora/
-│   │   ├── Main.java                    # Application entry point
-│   │   ├── config/                      # Database & app configuration
-│   │   ├── dao/                         # Data Access Objects
-│   │   ├── models/                      # Domain models (User, Job, etc.)
-│   │   ├── services/                    # Business logic
-│   │   ├── integration/                 # Auth, Navigation, External APIs
-│   │   ├── framework/                   # Reusable UI components
-│   │   │   ├── components/              # TLButton, TLCard, etc.
-│   │   │   ├── layouts/                 # TLAppLayout patterns
-│   │   │   └── themes/                  # Centralized theming
-│   │   └── ui/views/                    # Application views
-│   └── resources/                       # Styles, fonts, images
-├── python/                              # Python services
-│   ├── face_recognition_service.py
-│   ├── job_feed_crawler.py
-│   └── job_feed_config.json
-├── data/                                # Sample data & configs
-├── biometric_data/                      # Face encoding storage
-├── pom.xml                              # Maven configuration
-└── skilora.sql                          # Database schema
-
-```
-
----
-
 ## 🛠️ Tech Stack
 
 ### Backend/Desktop
@@ -142,24 +111,15 @@ skilora-tunisia/
 
 ## 📦 Core Modules
 
-### Data Access Layer (DAO)
-- `UserDAO` - User profile management
-- `JobOfferDAO` - Job listing operations
-- `ProfileDAO` - Talent profile handling
-- `SkillDAO` - Skill inventory
-- `ExperienceDAO` - Work experience tracking
+### 🧩 Application Core
+- **Data Access Layer**: Robust management of User Profiles, Job Listings, Skills, and Experience data.
+- **Business Logic Engine**: Powers our intelligent Matching Algorithms, Recommendations, and Notification systems.
+- **Security Services**: Handles Authentication, Authorization, and Biometric Data processing.
 
-### Business Services
-- Authentication & Authorization
-- Profile Matching Engine
-- Job Recommendation Algorithm
-- Notification System
-
-### UI Components
-- **TLButton**: Customizable buttons (Primary, Outline, Success variants)
-- **TLCard**: Reusable card containers
-- **TLAppLayout**: Standard application layout pattern
-- **Custom Theming**: Material Design color palette
+### 🎨 UI Framework
+- **Component Library**: A suite of custom, reusable JavaFX controls (Buttons, Cards, Forms).
+- **Layout System**: Adaptive application layouts for consistent user experience.
+- **Theming Engine**: Centralized styling system inspired by modern design principles.
 
 ---
 
@@ -244,8 +204,7 @@ This is an educational PIDEV project. For contributions:
 
 **Project Lead**: Team Skilora Tunisia  
 **Institution**: ESPRIT - Honoris United Universities  
-**Email**: skilora.tunisia@esprit.tn  
-**Academic Year**: 2025-2026
+**Ecademic Year**: 2025-2026
 
 ---
 
