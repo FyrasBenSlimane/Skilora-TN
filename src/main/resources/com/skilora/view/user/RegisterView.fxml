@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.shape.SVGPath?>
+<?import javafx.geometry.Insets?>
+<?import com.skilora.framework.components.TLTextField?>
+<?import com.skilora.framework.components.TLPasswordField?>
+<?import com.skilora.framework.components.TLButton?>
+
+<HBox xmlns:fx="http://javafx.com/fxml/1" 
+      fx:controller="com.skilora.user.controller.RegisterController"
+      styleClass="app-root"
+      fillHeight="true">
+    
+    <!-- LEFT SIDE (Hero) -->
+    <StackPane fx:id="heroContainer" style="-fx-background-color: #09090b;" 
+               prefWidth="500" minWidth="400" alignment="CENTER">
+        <HBox.hgrow>ALWAYS</HBox.hgrow>
+        
+        <!-- Content Layer (video/overlay added programmatically) -->
+        <VBox alignment="BOTTOM_LEFT" maxHeight="Infinity">
+            <padding><Insets top="48" right="48" bottom="48" left="48"/></padding>
+            
+            <!-- Brand -->
+            <HBox spacing="12" alignment="CENTER_LEFT">
+                <SVGPath content="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z" 
+                         style="-fx-fill: white;" scaleX="1.5" scaleY="1.5"/>
+                <Label text="Skilora Tunisia" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: white;"/>
+            </HBox>
+            
+            <Region VBox.vgrow="ALWAYS"/>
+            
+            <!-- Quote -->
+            <VBox spacing="16">
+                <Label text="Join the future of&#10;Talent Management." 
+                       style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: white;" 
+                       wrapText="true"/>
+                <Label text="Create your profile in seconds." 
+                       style="-fx-font-size: 14px; -fx-text-fill: rgba(255,255,255,0.8);"/>
+            </VBox>
+        </VBox>
+    </StackPane>
+    
+    <!-- RIGHT SIDE (Form) -->
+    <StackPane minWidth="400" alignment="CENTER">
+        <HBox.hgrow>ALWAYS</HBox.hgrow>
+        
+        <VBox spacing="24" maxWidth="380" alignment="CENTER_LEFT">
+            <!-- Header -->
+            <VBox spacing="8" alignment="CENTER_LEFT">
+                <Label text="Create an account" styleClass="h2"/>
+                <Label text="Enter your email below to create your account" styleClass="text-muted"/>
+            </VBox>
+            
+            <!-- Error Label -->
+            <Label fx:id="errorLabel" visible="false" managed="false" styleClass="text-sm, text-destructive"/>
+            
+            <!-- Form Fields -->
+            <TLTextField fx:id="fullNameField" label="Full Name" promptText=""/>
+            <TLTextField fx:id="usernameField" label="Username" promptText=""/>
+            <TLTextField fx:id="emailField" label="Email" promptText=""/>
+            <TLPasswordField fx:id="passwordField" label="Password" promptText=""/>
+            <TLPasswordField fx:id="confirmPasswordField" label="Confirm Password" promptText=""/>
+            
+            <!-- Register Button -->
+            <TLButton fx:id="registerBtn" text="Sign Up" variant="PRIMARY" maxWidth="Infinity" onAction="#handleRegister"/>
+            
+            <!-- Divider -->
+            <HBox alignment="CENTER">
+                <Label text="ALREADY HAVE AN ACCOUNT?" styleClass="text-xs, text-muted"/>
+            </HBox>
+            
+            <!-- Login Link -->
+            <HBox spacing="4" alignment="CENTER">
+                <Label text="Already have an account?" styleClass="text-muted"/>
+                <TLButton fx:id="loginLink" text="Sign In" variant="GHOST" style="-fx-padding: 0;" onAction="#openLogin"/>
+            </HBox>
+        </VBox>
+    </StackPane>
+</HBox>

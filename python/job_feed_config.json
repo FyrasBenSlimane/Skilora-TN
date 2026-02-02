@@ -1,0 +1,22 @@
+{
+  "aneti": {
+    "enabled": true,
+    "listing_url": "https://www.emploi.nat.tn/fo/Fr/global.php?page=146&FormLinks_Sorting=7&FormLinks_Sorted=7",
+    "max_jobs": 0
+  },
+  "reddit": {
+    "enabled": true,
+    "subreddits": ["jobs", "RemoteJobs", "forhire", "jobbit"],
+    "max_per_sub": 25
+  },
+  "rss": {
+    "enabled": true,
+    "feeds": [
+      ["Remote OK (RSS)", "https://remoteok.com/remote-jobs.rss"],
+      ["We Work Remotely", "https://weworkremotely.com/categories/remote-programming-jobs.rss"]
+    ],
+    "max_per_feed": 30
+  },
+  "timeout": 8,
+  "max_total_per_source": 0
+}

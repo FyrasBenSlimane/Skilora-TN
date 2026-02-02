@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+<?import com.skilora.framework.components.TLTextField?>
+<?import com.skilora.framework.components.TLButton?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.skilora.recruitment.controller.FeedController"
+      spacing="24"
+      style="-fx-background-color: transparent;">
+    <padding><Insets top="32" right="32" bottom="32" left="32"/></padding>
+    
+    <!-- Header -->
+    <HBox spacing="24" alignment="CENTER_LEFT">
+        <VBox spacing="4">
+            <Label text="Job Feed" styleClass="h2"/>
+            <Label text="Explore the latest opportunities tailored for you." styleClass="text-muted"/>
+        </VBox>
+        
+        <Region HBox.hgrow="ALWAYS"/>
+        
+        <TLButton fx:id="refreshBtn" text="Refresh" variant="GHOST" onAction="#handleRefresh"/>
+        <TLTextField fx:id="searchField" label="Search jobs..." promptText="" prefWidth="300"/>
+    </HBox>
+    
+    <!-- Filter Tabs -->
+    <ScrollPane fitToHeight="true" vbarPolicy="NEVER" hbarPolicy="NEVER" 
+                style="-fx-background-color: transparent; -fx-background: transparent;">
+        <HBox fx:id="tabsBox" spacing="12" style="-fx-padding: 0 0 8 0;"/>
+    </ScrollPane>
+    
+    <!-- Grid Content -->
+    <ScrollPane fx:id="scrollPane" fitToWidth="true" 
+                style="-fx-background-color: transparent; -fx-background: transparent;"
+                hbarPolicy="NEVER" VBox.vgrow="ALWAYS">
+        <FlowPane fx:id="grid" hgap="20" vgap="20" 
+                  style="-fx-background-color: transparent;"
+                  cache="true" cacheHint="SPEED"/>
+    </ScrollPane>
+</VBox>

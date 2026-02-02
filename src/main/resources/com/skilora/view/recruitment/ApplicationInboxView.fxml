@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+<?import com.skilora.framework.components.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.skilora.recruitment.controller.ApplicationInboxController"
+      spacing="24"
+      style="-fx-background-color: transparent;">
+    <padding><Insets top="32" right="32" bottom="32" left="32"/></padding>
+    
+    <!-- Header -->
+    <HBox spacing="24" alignment="CENTER_LEFT">
+        <VBox spacing="4">
+            <Label text="Candidatures Reçues" styleClass="h2"/>
+            <Label fx:id="statsLabel" text="0 candidatures en attente" styleClass="text-muted"/>
+        </VBox>
+        
+        <Region HBox.hgrow="ALWAYS"/>
+        
+        <HBox spacing="12">
+            <TLButton fx:id="filterBtn" text="🔍 Filtrer" variant="OUTLINE" onAction="#handleFilter"/>
+            <TLButton fx:id="refreshBtn" text="🔄 Actualiser" variant="GHOST" onAction="#handleRefresh"/>
+        </HBox>
+    </HBox>
+    
+    <!-- Filter Bar -->
+    <HBox fx:id="filterBar" spacing="12" alignment="CENTER_LEFT" managed="false" visible="false">
+        <Label text="Poste:" styleClass="text-muted"/>
+        <TLSelect fx:id="jobSelect" promptText="Tous les postes"/>
+        
+        <Label text="Statut:" styleClass="text-muted"/>
+        <TLSelect fx:id="statusSelect" promptText="Tous les statuts"/>
+        
+        <Region HBox.hgrow="ALWAYS"/>
+        
+        <TLButton text="Réinitialiser" variant="GHOST" onAction="#handleResetFilters"/>
+    </HBox>
+    
+    <!-- Applications Table -->
+    <TLTable fx:id="applicationsTable" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn fx:id="candidateCol" text="Candidat" prefWidth="200"/>
+            <TableColumn fx:id="jobCol" text="Poste" prefWidth="200"/>
+            <TableColumn fx:id="dateCol" text="Date" prefWidth="120"/>
+            <TableColumn fx:id="statusCol" text="Statut" prefWidth="150"/>
+            <TableColumn fx:id="actionsCol" text="Actions" prefWidth="200"/>
+        </columns>
+    </TLTable>
+    
+    <!-- Pagination -->
+    <HBox spacing="12" alignment="CENTER">
+        <Label fx:id="paginationLabel" text="0-0 sur 0" styleClass="text-muted"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <TLButton fx:id="prevBtn" text="←" variant="OUTLINE" onAction="#handlePrevPage"/>
+        <Label fx:id="pageLabel" text="Page 1" styleClass="text-muted"/>
+        <TLButton fx:id="nextBtn" text="→" variant="OUTLINE" onAction="#handleNextPage"/>
+    </HBox>
+</VBox>

@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+<?import com.skilora.framework.components.*?>
+<?import com.skilora.framework.components.TLSeparator?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.skilora.recruitment.controller.JobDetailsController"
+      spacing="24"
+      style="-fx-background-color: transparent;">
+    <padding><Insets top="32" right="32" bottom="32" left="32"/></padding>
+    
+    <!-- Back Button -->
+    <HBox spacing="12" alignment="CENTER_LEFT">
+        <TLButton fx:id="backBtn" text="← Retour" variant="GHOST" onAction="#handleBack"/>
+    </HBox>
+    
+    <!-- Header Section -->
+    <HBox spacing="24" alignment="TOP_LEFT">
+        <!-- Company Logo Placeholder -->
+        <VBox alignment="CENTER" style="-fx-background-color: #f0f0f0; -fx-background-radius: 8;">
+            <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+            <Label fx:id="companyInitials" text="TC" styleClass="h2"/>
+        </VBox>
+        
+        <VBox spacing="8" HBox.hgrow="ALWAYS">
+            <Label fx:id="jobTitle" text="Senior Java Developer" styleClass="h2"/>
+            <Label fx:id="companyName" text="TechCorp" styleClass="h4"/>
+            <HBox spacing="12">
+                <Label fx:id="jobLocation" text="📍 Tunis, Tunisia" styleClass="text-muted"/>
+                <Label fx:id="jobType" text="💼 Full-time" styleClass="text-muted"/>
+                <Label fx:id="postedDate" text="🕐 Posted 2 days ago" styleClass="text-muted"/>
+            </HBox>
+        </VBox>
+        
+        <VBox spacing="12" alignment="TOP_RIGHT">
+            <TLButton fx:id="applyBtn" text="Postuler" variant="PRIMARY" onAction="#handleApply"/>
+            <TLButton fx:id="saveBtn" text="💾 Enregistrer" variant="OUTLINE" onAction="#handleSave"/>
+        </VBox>
+    </HBox>
+    
+    <TLSeparator/>
+    
+    <!-- Scrollable Content -->
+    <ScrollPane fitToWidth="true" style="-fx-background-color: transparent;" VBox.vgrow="ALWAYS">
+        <VBox spacing="24">
+            <padding><Insets top="0" right="16" bottom="0" left="0"/></padding>
+            
+            <!-- Description Section -->
+            <VBox spacing="12">
+                <Label text="Description" styleClass="h3"/>
+                <Label fx:id="jobDescription" wrapText="true" styleClass="text-muted"
+                       text="We are looking for an experienced Java developer to join our growing team..."/>
+            </VBox>
+            
+            <!-- Requirements Section -->
+            <VBox spacing="12">
+                <Label text="Compétences Requises" styleClass="h3"/>
+                <FlowPane fx:id="skillsContainer" hgap="8" vgap="8"/>
+            </VBox>
+            
+            <!-- Salary Range -->
+            <VBox spacing="12">
+                <Label text="Salaire" styleClass="h3"/>
+                <Label fx:id="salaryRange" text="3000 - 5000 TND / mois" styleClass="h4"/>
+            </VBox>
+            
+            <!-- Benefits -->
+            <VBox spacing="12">
+                <Label text="Avantages" styleClass="h3"/>
+                <VBox fx:id="benefitsList" spacing="8"/>
+            </VBox>
+            
+            <!-- Application Stats -->
+            <VBox spacing="12">
+                <Label text="Statistiques" styleClass="h3"/>
+                <HBox spacing="24">
+                    <VBox spacing="4">
+                        <Label fx:id="applicantCount" text="0" styleClass="h3"/>
+                        <Label text="Candidatures" styleClass="text-muted"/>
+                    </VBox>
+                    <VBox spacing="4">
+                        <Label fx:id="viewCount" text="0" styleClass="h3"/>
+                        <Label text="Vues" styleClass="text-muted"/>
+                    </VBox>
+                </HBox>
+            </VBox>
+        </VBox>
+    </ScrollPane>
+</VBox>
