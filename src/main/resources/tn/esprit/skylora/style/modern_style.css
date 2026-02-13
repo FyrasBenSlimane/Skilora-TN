@@ -1,0 +1,152 @@
+.root {
+    -fx-font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -fx-background-color: #F9FAFB;
+}
+
+/* Navbar Style */
+.navbar {
+    -fx-background-color: #1E40AF;
+    -fx-padding: 10 20 10 20;
+    -fx-spacing: 20;
+    -fx-alignment: center-left;
+}
+
+.nav-link {
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+
+.nav-link:hover {
+    -fx-opacity: 0.8;
+}
+
+/* Ticket Card Style */
+.ticket-card {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-border-color: #E5E7EB;
+    -fx-border-width: 1;
+    -fx-padding: 20;
+    -fx-spacing: 10;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.05), 10, 0, 0, 5);
+}
+
+.ticket-card:hover {
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.1), 15, 0, 0, 8);
+    -fx-translate-y: -2;
+}
+
+.ticket-subject {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #111827;
+}
+
+.ticket-meta {
+    -fx-font-size: 13px;
+    -fx-text-fill: #6B7280;
+}
+
+/* Badge Styles */
+.badge {
+    -fx-padding: 4 12 4 12;
+    -fx-background-radius: 15;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+}
+
+/* Status Colors (Match the database strings) */
+.status-ouvert {
+    -fx-background-color: #3B82F6;
+}
+
+.status-en-cours {
+    -fx-background-color: #F59E0B;
+}
+
+.status-resolu {
+    -fx-background-color: #10B981;
+}
+
+.status-cloture {
+    -fx-background-color: #6B7280;
+}
+
+/* Priority Colors */
+.priority-low {
+    -fx-background-color: #10B981;
+}
+
+.priority-medium {
+    -fx-background-color: #3B82F6;
+}
+
+.priority-high {
+    -fx-background-color: #F59E0B;
+}
+
+.priority-urgent {
+    -fx-background-color: #EF4444;
+}
+
+/* Dashboard Styles */
+.dashboard-container {
+    -fx-padding: 30;
+    -fx-spacing: 20;
+}
+
+.section-title {
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #111827;
+}
+
+/* Button Styles */
+.btn-primary {
+    -fx-background-color: #1E40AF;
+    -fx-text-fill: white;
+    -fx-background-radius: 6;
+    -fx-padding: 8 16 8 16;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+
+.btn-primary:hover {
+    -fx-background-color: #1E3A8A;
+}
+
+.btn-success {
+    -fx-background-color: #10B981;
+    -fx-text-fill: white;
+    -fx-background-radius: 6;
+    -fx-padding: 8 16 8 16;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+
+/* Stats Cards */
+.stat-card {
+    -fx-background-color: white;
+    -fx-background-radius: 10;
+    -fx-padding: 15;
+    -fx-spacing: 5;
+    -fx-min-width: 180;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.05), 8, 0, 0, 4);
+    -fx-border-color: #F3F4F6;
+    -fx-border-radius: 10;
+}
+
+.stat-value {
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1E40AF;
+}
+
+.stat-label {
+    -fx-font-size: 13px;
+    -fx-text-fill: #6B7280;
+}

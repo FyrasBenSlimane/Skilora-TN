@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.text.Font?>
+
+<VBox prefHeight="650.0" prefWidth="500.0" style="-fx-background-color: white;" stylesheets="@/tn/esprit/skylora/style/modern_style.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="tn.esprit.skylora.controllers.TicketDetailController">
+    <children>
+        <VBox spacing="10" style="-fx-background-color: #F3F4F6; -fx-padding: 20;">
+            <children>
+                <HBox alignment="CENTER_LEFT" spacing="10">
+                    <Label fx:id="subjectLabel" styleClass="section-title" text="Détails du Ticket" wrapText="true" />
+                    <Region HBox.hgrow="ALWAYS" />
+                    <Label fx:id="statusBadge" styleClass="badge" text="OPEN" />
+                </HBox>
+                <Label fx:id="metaLabel" styleClass="ticket-meta" text="Catégorie: PAYMENT | Priorité: HIGH" />
+                <Label fx:id="descriptionLabel" text="Description du problème..." wrapText="true" style="-fx-font-size: 14px; -fx-text-fill: #374151;" />
+            </children>
+        </VBox>
+        
+        <ScrollPane fx:id="scrollPane" fitToWidth="true" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent; -fx-padding: 10;">
+            <content>
+                <VBox fx:id="messageContainer" spacing="15.0" style="-fx-padding: 10;">
+                    <!-- Messages will be added here -->
+                </VBox>
+            </content>
+        </ScrollPane>
+        
+        <Separator />
+        
+        <HBox spacing="10" style="-fx-padding: 20;">
+            <children>
+                <TextField fx:id="messageInput" HBox.hgrow="ALWAYS" promptText="Écrivez votre message..." />
+                <Button fx:id="sendButton" onAction="#handleSend" styleClass="btn-primary" text="Envoyer" />
+            </children>
+        </HBox>
+    </children>
+</VBox>

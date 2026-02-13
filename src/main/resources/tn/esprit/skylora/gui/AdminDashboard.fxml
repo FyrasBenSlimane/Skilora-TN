@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.text.Font?>
+
+<VBox prefHeight="750.0" prefWidth="1100.0" stylesheets="@/tn/esprit/skylora/style/modern_style.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="tn.esprit.skylora.controllers.AdminDashboardController">
+    <children>
+        <fx:include source="Navbar.fxml" />
+        
+        <VBox spacing="20" styleClass="dashboard-container" VBox.vgrow="ALWAYS">
+            <children>
+                <Label styleClass="section-title" text="Tableau de Bord Administrateur" />
+                
+                <!-- Stats Cards -->
+                <HBox spacing="20">
+                    <children>
+                        <VBox styleClass="stat-card" HBox.hgrow="ALWAYS">
+                            <children>
+                                <Label fx:id="totalTicketsLabel" styleClass="stat-value" text="0" />
+                                <Label styleClass="stat-label" text="Total Tickets" />
+                            </children>
+                        </VBox>
+                        <VBox styleClass="stat-card" HBox.hgrow="ALWAYS">
+                            <children>
+                                <Label fx:id="openTicketsLabel" styleClass="stat-value" text="0" style="-fx-text-fill: #3B82F6;" />
+                                <Label styleClass="stat-label" text="Tickets Ouverts" />
+                            </children>
+                        </VBox>
+                        <VBox styleClass="stat-card" HBox.hgrow="ALWAYS">
+                            <children>
+                                <Label fx:id="resolvedTicketsLabel" styleClass="stat-value" text="0" style="-fx-text-fill: #10B981;" />
+                                <Label styleClass="stat-label" text="Tickets Résolus" />
+                            </children>
+                        </VBox>
+                        <VBox styleClass="stat-card" HBox.hgrow="ALWAYS">
+                            <children>
+                                <Label fx:id="pendingTicketsLabel" styleClass="stat-value" text="0" style="-fx-text-fill: #F59E0B;" />
+                                <Label styleClass="stat-label" text="En Attente" />
+                            </children>
+                        </VBox>
+                    </children>
+                </HBox>
+                
+                <!-- Filters & Table -->
+                <VBox spacing="15" VBox.vgrow="ALWAYS" style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 12;">
+                    <children>
+                        <HBox spacing="15" alignment="CENTER_LEFT">
+                            <children>
+                                <TextField fx:id="adminSearchField" prefWidth="300.0" promptText="Rechercher par sujet ou utilisateur..." />
+                                <ComboBox fx:id="adminStatusFilter" prefWidth="150.0" promptText="Statut" />
+                                <ComboBox fx:id="adminPriorityFilter" prefWidth="150.0" promptText="Priorité" />
+                                <Region HBox.hgrow="ALWAYS" />
+                                <Button onAction="#refreshData" styleClass="btn-primary" text="Actualiser" />
+                            </children>
+                        </HBox>
+                        
+                        <TableView fx:id="adminTicketTable" VBox.vgrow="ALWAYS">
+                            <columns>
+                                <TableColumn fx:id="colAdminId" prefWidth="50.0" text="ID" />
+                                <TableColumn fx:id="colAdminSubject" prefWidth="200.0" text="Sujet" />
+                                <TableColumn fx:id="colAdminUser" prefWidth="100.0" text="Utilisateur" />
+                                <TableColumn fx:id="colAdminCategory" prefWidth="120.0" text="Catégorie" />
+                                <TableColumn fx:id="colAdminPriority" prefWidth="100.0" text="Priorité" />
+                                <TableColumn fx:id="colAdminStatus" prefWidth="100.0" text="Statut" />
+                                <TableColumn fx:id="colAdminDate" prefWidth="150.0" text="Date Création" />
+                                <TableColumn fx:id="colAdminActions" prefWidth="150.0" text="Actions" />
+                            </columns>
+                        </TableView>
+                    </children>
+                </VBox>
+            </children>
+        </VBox>
+    </children>
+</VBox>

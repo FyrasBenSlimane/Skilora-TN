@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.text.Font?>
+
+<VBox spacing="20.0" prefWidth="450.0" style="-fx-background-color: white; -fx-padding: 30;" stylesheets="@/tn/esprit/skylora/style/modern_style.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="tn.esprit.skylora.controllers.TicketModalController">
+    <children>
+        <Label fx:id="modalTitle" styleClass="section-title" text="Nouveau Ticket" />
+        
+        <VBox spacing="10">
+            <children>
+                <Label text="Sujet" styleClass="stat-label" />
+                <TextField fx:id="subjectField" promptText="Entrez le sujet du ticket" />
+            </children>
+        </VBox>
+        
+        <HBox spacing="20">
+            <children>
+                <VBox spacing="10" HBox.hgrow="ALWAYS">
+                    <children>
+                        <Label text="Catégorie" styleClass="stat-label" />
+                        <ComboBox fx:id="categoryBox" maxWidth="Infinity" />
+                    </children>
+                </VBox>
+                <VBox spacing="10" HBox.hgrow="ALWAYS">
+                    <children>
+                        <Label text="Priorité" styleClass="stat-label" />
+                        <ComboBox fx:id="priorityBox" maxWidth="Infinity" />
+                    </children>
+                </VBox>
+            </children>
+        </HBox>
+        
+        <VBox spacing="10">
+            <children>
+                <Label text="Description" styleClass="stat-label" />
+                <TextArea fx:id="descriptionArea" prefHeight="150.0" promptText="Décrivez votre problème en détail..." wrapText="true" />
+            </children>
+        </VBox>
+        
+        <Label fx:id="errorLabel" textFill="RED" visible="false" managed="false" />
+        
+        <HBox spacing="15" alignment="CENTER_RIGHT">
+            <children>
+                <Button onAction="#handleCancel" text="Annuler" style="-fx-background-color: transparent; -fx-text-fill: #6B7280;" />
+                <Button fx:id="saveButton" onAction="#handleSave" styleClass="btn-primary" text="Enregistrer" />
+            </children>
+        </HBox>
+    </children>
+</VBox>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox fx:id="rootVBox" spacing="10" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="tn.esprit.skylora.controllers.MessageTicketController">
+
+    <HBox spacing="10">
+        <TextField fx:id="tfTicketId" promptText="Ticket ID"/>
+        <TextField fx:id="tfUtilisateurId" promptText="Utilisateur ID"/>
+        <TextArea fx:id="taContenu" promptText="Contenu" prefHeight="60"/>
+    </HBox>
+
+    <HBox spacing="10">
+        <Button text="Ajouter" onAction="#ajouterMessage"/>
+        <Button text="Modifier" onAction="#modifierMessage"/>
+        <Button text="Supprimer" onAction="#supprimerMessage"/>
+    </HBox>
+
+    <TableView fx:id="tableMessages">
+        <columns>
+            <TableColumn fx:id="colId" text="ID"/>
+            <TableColumn fx:id="colTicketId" text="Ticket ID"/>
+            <TableColumn fx:id="colUtilisateurId" text="Utilisateur ID"/>
+            <TableColumn fx:id="colContenu" text="Contenu"/>
+            <TableColumn fx:id="colDateEnvoi" text="Date Envoi"/>
+        </columns>
+    </TableView>
+</VBox>

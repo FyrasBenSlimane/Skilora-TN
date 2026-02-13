@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.text.Font?>
+
+<VBox prefHeight="700.0" prefWidth="1000.0" stylesheets="@/tn/esprit/skylora/style/modern_style.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="tn.esprit.skylora.controllers.UserDashboardController">
+    <children>
+        <fx:include source="Navbar.fxml" />
+        
+        <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent;">
+            <content>
+                <VBox styleClass="dashboard-container">
+                    <children>
+                        <HBox alignment="CENTER_LEFT" spacing="20">
+                            <children>
+                                <Label styleClass="section-title" text="Mes Tickets Support" />
+                                <Region HBox.hgrow="ALWAYS" />
+                                <TextField fx:id="searchField" prefWidth="250.0" promptText="Rechercher un ticket..." />
+                                <ComboBox fx:id="statusFilter" prefWidth="150.0" promptText="Filtrer par statut" />
+                                <Button onAction="#handleNewTicket" styleClass="btn-primary" text="+ Nouveau Ticket" />
+                            </children>
+                        </HBox>
+                        
+                        <FlowPane fx:id="ticketContainer" hgap="20.0" vgap="20.0" prefWrapLength="940.0">
+                            <VBox.margin>
+                                <Insets top="30.0" />
+                            </VBox.margin>
+                            <!-- Ticket cards will be added here dynamically -->
+                        </FlowPane>
+                    </children>
+                </VBox>
+            </content>
+        </ScrollPane>
+    </children>
+</VBox>
