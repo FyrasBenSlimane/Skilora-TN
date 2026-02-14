@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import com.skilora.framework.components.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1" 
+      fx:controller="com.skilora.controller.usermanagement.DashboardController"
+      spacing="24" fillWidth="true">
+    
+    <padding>
+        <Insets top="32" right="32" bottom="32" left="32"/>
+    </padding>
+
+    <!-- Header -->
+    <VBox spacing="8" fx:id="headerSection">
+        <Label fx:id="greetingLabel" styleClass="h2"/>
+        <Label fx:id="subGreetingLabel" styleClass="text-muted"/>
+    </VBox>
+
+    <!-- Quick Actions -->
+    <VBox spacing="12" fx:id="quickActionsSection">
+        <Label text="Actions Rapides" styleClass="h3"/>
+        <FlowPane fx:id="actionsContainer" hgap="12" vgap="12"/>
+    </VBox>
+
+    <!-- Stats Grid -->
+    <VBox spacing="12" fx:id="statsSection">
+        <Label text="Statistiques" styleClass="h3"/>
+        <FlowPane fx:id="statsGrid" hgap="16" vgap="16" prefWrapLength="1000"/>
+    </VBox>
+
+    <!-- Recent Activity -->
+    <VBox spacing="16" fx:id="activitySection">
+        <Label text="Activités Récentes" styleClass="h3"/>
+        
+        <TLCard>
+             <VBox fx:id="activityList" spacing="12"/>
+        </TLCard>
+    </VBox>
+
+</VBox>

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+<?import com.skilora.framework.components.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.skilora.controller.formation.FormationsController"
+      spacing="24"
+      style="-fx-background-color: transparent;">
+    <padding><Insets top="32" right="32" bottom="32" left="32"/></padding>
+
+    <!-- Header -->
+    <VBox spacing="8">
+        <HBox spacing="16" alignment="CENTER_LEFT">
+            <VBox spacing="4">
+                <Label text="Formations" styleClass="h2"/>
+                <Label fx:id="statsLabel" text="Développez vos compétences avec nos formations recommandées" styleClass="text-muted"/>
+            </VBox>
+            <Region HBox.hgrow="ALWAYS"/>
+            <TLButton fx:id="refreshBtn" text="Actualiser" variant="OUTLINE" onAction="#handleRefresh"/>
+        </HBox>
+    </VBox>
+
+    <!-- Category Tabs -->
+    <HBox fx:id="categoryBox" spacing="8" alignment="CENTER_LEFT"/>
+
+    <!-- Search -->
+    <TLTextField fx:id="searchField" promptText="Rechercher une formation..." prefWidth="400"/>
+
+    <!-- Formations Grid -->
+    <FlowPane fx:id="formationsGrid" hgap="16" vgap="16"/>
+
+    <!-- Empty State -->
+    <VBox fx:id="emptyState" spacing="12" alignment="CENTER" visible="false" managed="false"
+          style="-fx-padding: 48;">
+        <Label text="Aucune formation disponible" styleClass="h3"/>
+        <Label text="De nouvelles formations seront bientôt disponibles." styleClass="text-muted"/>
+    </VBox>
+</VBox>

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+<?import com.skilora.framework.components.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.skilora.controller.formation.TrainingDetailController"
+      spacing="0"
+      style="-fx-background-color: transparent;">
+    
+    <!-- Header Section -->
+    <VBox styleClass="card" spacing="16" style="-fx-padding: 32;">
+        <HBox spacing="16" alignment="CENTER_LEFT">
+            <TLButton fx:id="backBtn" text="← Retour" variant="OUTLINE" onAction="#handleBack"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <TLButton fx:id="progressBtn" text="Voir le progrès" variant="SECONDARY" onAction="#handleViewProgress"/>
+        </HBox>
+        
+        <VBox spacing="12">
+            <HBox spacing="12" alignment="CENTER_LEFT">
+                <TLBadge fx:id="categoryBadge" variant="DEFAULT"/>
+                <TLBadge fx:id="levelBadge" variant="SECONDARY"/>
+            </HBox>
+            <Label fx:id="titleLabel" styleClass="h1"/>
+            <Label fx:id="descriptionLabel" styleClass="text-muted" wrapText="true"/>
+            
+            <HBox spacing="24" alignment="CENTER_LEFT">
+                <HBox spacing="8" alignment="CENTER_LEFT">
+                    <Label text="⏱" styleClass="text-muted"/>
+                    <Label fx:id="durationLabel" styleClass="text-muted"/>
+                </HBox>
+                <HBox spacing="8" alignment="CENTER_LEFT">
+                    <Label text="💰" styleClass="text-muted"/>
+                    <Label fx:id="costLabel" styleClass="text-muted"/>
+                </HBox>
+                <HBox spacing="8" alignment="CENTER_LEFT">
+                    <Label text="📚" styleClass="text-muted"/>
+                    <Label fx:id="lessonsCountLabel" styleClass="text-muted"/>
+                </HBox>
+                <HBox spacing="8" alignment="CENTER_LEFT">
+                    <Label text="📊" styleClass="text-muted"/>
+                    <Label fx:id="progressLabel" styleClass="text-muted"/>
+                </HBox>
+            </HBox>
+            
+            <!-- Action Buttons -->
+            <HBox spacing="12" alignment="CENTER_LEFT">
+                <TLButton fx:id="completeBtn" text="Marquer comme complété" variant="PRIMARY" visible="false" managed="false"/>
+            </HBox>
+        </VBox>
+    </VBox>
+
+    <!-- Content Section -->
+    <HBox spacing="24" VBox.vgrow="ALWAYS" style="-fx-padding: 24;">
+        <!-- Lessons Sidebar -->
+        <VBox spacing="12" prefWidth="320" minWidth="280" maxWidth="360">
+            <Label text="Leçons" styleClass="h3"/>
+            <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent;">
+                <VBox fx:id="lessonsList" spacing="8"/>
+            </ScrollPane>
+        </VBox>
+
+        <!-- Main Content Area -->
+        <VBox spacing="16" HBox.hgrow="ALWAYS">
+            <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent;">
+                <VBox fx:id="contentArea" spacing="16" style="-fx-padding: 24;">
+                    <Label fx:id="lessonTitleLabel" styleClass="h2"/>
+                    <Label fx:id="lessonDescriptionLabel" styleClass="text-muted" wrapText="true"/>
+                    <Separator/>
+                    <VBox fx:id="lessonContentArea" spacing="12"/>
+                </VBox>
+            </ScrollPane>
+        </VBox>
+    </HBox>
+
+</VBox>

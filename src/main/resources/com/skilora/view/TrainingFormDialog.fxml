@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import com.skilora.framework.components.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1" 
+      fx:controller="com.skilora.controller.formation.TrainingFormController"
+      spacing="20" fillWidth="true"
+      styleClass="dialog-content">
+    
+    <padding>
+        <Insets top="28" right="32" bottom="28" left="32"/>
+    </padding>
+
+    <!-- Title Field -->
+    <VBox spacing="6">
+        <HBox spacing="4" alignment="CENTER_LEFT">
+            <Label text="Titre" styleClass="label, text-sm"/>
+            <Label text="*" styleClass="text-destructive"/>
+        </HBox>
+        <TLTextField fx:id="titleField" promptText="Ex: Java Spring Boot Masterclass"/>
+        <Label fx:id="titleError" styleClass="text-xs, text-destructive" visible="false" managed="false"/>
+    </VBox>
+
+    <!-- Description Field with Character Counter -->
+    <VBox spacing="6">
+        <HBox spacing="4" alignment="CENTER_LEFT">
+            <Label text="Description" styleClass="label, text-sm"/>
+            <Label text="*" styleClass="text-destructive"/>
+        </HBox>
+        <TLTextarea fx:id="descriptionField"/>
+        <HBox spacing="8" alignment="CENTER_RIGHT">
+            <Label fx:id="descriptionError" styleClass="text-xs, text-destructive" visible="false" managed="false" HBox.hgrow="ALWAYS"/>
+            <Label fx:id="descriptionCounter" styleClass="text-xs, text-muted"/>
+        </HBox>
+    </VBox>
+
+    <!-- Cost and Duration Row -->
+    <HBox spacing="16">
+        <VBox spacing="6" HBox.hgrow="ALWAYS">
+            <HBox spacing="4" alignment="CENTER_LEFT">
+                <Label text="Coût (TND)" styleClass="label, text-sm"/>
+            </HBox>
+            <TLTextField fx:id="costField" promptText="Optionnel - Ex: 150.00"/>
+            <Label fx:id="costError" styleClass="text-xs, text-destructive" visible="false" managed="false"/>
+        </VBox>
+        <VBox spacing="6" HBox.hgrow="ALWAYS">
+            <HBox spacing="4" alignment="CENTER_LEFT">
+                <Label text="Durée (heures)" styleClass="label, text-sm"/>
+                <Label text="*" styleClass="text-destructive"/>
+            </HBox>
+            <TLTextField fx:id="durationField" promptText="40"/>
+            <Label fx:id="durationError" styleClass="text-xs, text-destructive" visible="false" managed="false"/>
+        </VBox>
+        <VBox spacing="6" HBox.hgrow="ALWAYS">
+            <HBox spacing="4" alignment="CENTER_LEFT">
+                <Label text="Nombre de leçons" styleClass="label, text-sm"/>
+                <Label text="*" styleClass="text-destructive"/>
+            </HBox>
+            <TLTextField fx:id="lessonCountField" promptText="10"/>
+            <Label fx:id="lessonCountError" styleClass="text-xs, text-destructive" visible="false" managed="false"/>
+        </VBox>
+    </HBox>
+
+    <!-- Level and Category Row -->
+    <HBox spacing="16">
+        <VBox spacing="6" HBox.hgrow="ALWAYS">
+            <HBox spacing="4" alignment="CENTER_LEFT">
+                <Label text="Niveau" styleClass="label, text-sm"/>
+                <Label text="*" styleClass="text-destructive"/>
+            </HBox>
+            <TLSelect fx:id="levelSelect"/>
+            <Label fx:id="levelError" styleClass="text-xs, text-destructive" visible="false" managed="false"/>
+        </VBox>
+        <VBox spacing="6" HBox.hgrow="ALWAYS">
+            <HBox spacing="4" alignment="CENTER_LEFT">
+                <Label text="Catégorie" styleClass="label, text-sm"/>
+                <Label text="*" styleClass="text-destructive"/>
+            </HBox>
+            <TLSelect fx:id="categorySelect"/>
+            <Label fx:id="categoryError" styleClass="text-xs, text-destructive" visible="false" managed="false"/>
+        </VBox>
+    </HBox>
+
+</VBox>
