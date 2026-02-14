@@ -1,0 +1,8 @@
+# Job feed crawler dependencies (blazing concurrent I/O only)
+# Optional: pip install -r requirements_jobs.txt
+# The script auto-installs missing packages on first run (Windows/Linux/macOS/VPS).
+
+aiohttp>=3.8.0
+beautifulsoup4>=4.11.0
+feedparser>=6.0.0
+lxml>=4.9.0

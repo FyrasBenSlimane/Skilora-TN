@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.shape.SVGPath?>
+<?import javafx.geometry.Insets?>
+<?import com.skilora.framework.components.TLButton?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.skilora.controller.BiometricAuthController"
+            fx:id="rootPane"
+            styleClass="login-card"
+            prefWidth="400"
+            style="-fx-border-color: -fx-border; -fx-border-width: 1; -fx-background-radius: 16; -fx-border-radius: 16; -fx-background-color: -fx-card; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 30, 0, 0, 8);">
+    
+    <!-- Header -->
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="10" fx:id="headerPane">
+            <padding>
+                <Insets top="20" right="24" bottom="10" left="24"/>
+            </padding>
+            
+            <!-- Shield icon -->
+            <SVGPath content="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"
+                     styleClass="svg-path" style="-fx-fill: -fx-primary;" scaleX="0.9" scaleY="0.9"/>
+            
+            <Label fx:id="titleLabel" text="Vérification Biométrique" styleClass="card-title"
+                   style="-fx-padding: 0 0 0 4;"/>
+            
+            <Region HBox.hgrow="ALWAYS"/>
+            
+            <Button fx:id="closeBtn" styleClass="window-control-btn" onAction="#handleClose">
+                <graphic>
+                    <SVGPath content="M 4.7 3.3 L 3.3 4.7 L 6.6 8 L 3.3 11.3 L 4.7 12.7 L 8 9.4 L 11.3 12.7 L 12.7 11.3 L 9.4 8 L 12.7 4.7 L 11.3 3.3 L 8 6.6 L 4.7 3.3 z"
+                              styleClass="svg-path" style="-fx-fill: -fx-muted-foreground;"/>
+                </graphic>
+            </Button>
+        </HBox>
+    </top>
+    
+    <!-- Content -->
+    <center>
+        <VBox spacing="16" alignment="CENTER">
+            <padding>
+                <Insets top="6" right="24" bottom="28" left="24"/>
+            </padding>
+            
+            <!-- Instruction -->
+            <Label text="Positionnez votre visage dans le cadre" styleClass="text-muted"
+                   style="-fx-font-size: 13px;"/>
+            
+            <!-- Preview Frame -->
+            <StackPane fx:id="frameContainer" 
+                       minWidth="340" minHeight="260" 
+                       maxWidth="340" maxHeight="260"
+                       style="-fx-background-color: #0a0a0a; -fx-background-radius: 14; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 14;">
+                
+                <ImageView fx:id="previewView" 
+                           fitWidth="340" fitHeight="260" 
+                           preserveRatio="true" scaleX="-1"
+                           style="-fx-effect: null;"/>
+                
+                <!-- Viewfinder Overlay — larger rounded corners -->
+                <SVGPath fx:id="viewfinder"
+                         content="M 75 75 L 75 55 Q 75 45 85 45 L 105 45   M 235 45 L 255 45 Q 265 45 265 55 L 265 75   M 265 185 L 265 205 Q 265 215 255 215 L 235 215   M 105 215 L 85 215 Q 75 215 75 205 L 75 185"
+                         stroke="#ffffff" opacity="0.85" strokeWidth="3"
+                         strokeLineCap="ROUND" fill="TRANSPARENT"/>
+            </StackPane>
+            
+            <!-- Confidence Bar -->
+            <VBox spacing="4" alignment="CENTER">
+                <ProgressBar fx:id="confidenceBar" prefWidth="260" prefHeight="6"
+                             progress="0" visible="false"
+                             style="-fx-background-radius: 3; -fx-border-radius: 3;"/>
+                <Label fx:id="confidenceLabel" text="" styleClass="text-xs,text-muted" 
+                       visible="false" style="-fx-font-weight: bold;"/>
+            </VBox>
+            
+            <!-- Status Label -->
+            <Label fx:id="statusLabel" text="Initialisation..." 
+                   styleClass="text-sm,text-muted" wrapText="true" 
+                   maxWidth="320" alignment="CENTER"
+                   style="-fx-font-weight: bold; -fx-text-alignment: center;"/>
+            
+            <!-- Cancel Button -->
+            <TLButton fx:id="cancelButton" text="Annuler" variant="OUTLINE" 
+                      prefWidth="140" onAction="#handleClose"/>
+        </VBox>
+    </center>
+</BorderPane>

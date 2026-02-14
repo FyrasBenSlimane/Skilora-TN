@@ -1,0 +1,375 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+<?import com.skilora.framework.components.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.skilora.finance.controller.FinanceController"
+      styleClass="app-content-wrapper" spacing="0"
+      style="-fx-background-color: -fx-background;">
+
+    <!-- TOP HEADER BAR -->
+    <HBox styleClass="app-topbar" spacing="16" alignment="CENTER_LEFT">
+        <Label text="💰 Finance Management" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <TLButton fx:id="themeToggleBtn" text="🌙 Dark" variant="GHOST" onAction="#toggleTheme"/>
+    </HBox>
+
+    <!-- TABBED INTERFACE -->
+    <TabPane VBox.vgrow="ALWAYS" tabClosingPolicy="UNAVAILABLE" style="-fx-background-color: -fx-background;">
+        
+
+        
+        <!-- TAB 1: CONTRACTS -->
+        <Tab text="📋 Contracts" closable="false">
+            <VBox spacing="12" style="-fx-padding: 16; -fx-background-color: -fx-background;">
+                
+                <TitledPane text="➕ Add Contract" animated="false" collapsible="true" expanded="false"
+                           style="-fx-text-fill: -fx-foreground;">
+                    <VBox spacing="12" style="-fx-padding: 12;">
+                        <GridPane hgap="12" vgap="12">
+                            <columnConstraints>
+                                <ColumnConstraints percentWidth="25"/>
+                                <ColumnConstraints percentWidth="25"/>
+                                <ColumnConstraints percentWidth="25"/>
+                                <ColumnConstraints percentWidth="25"/>
+                            </columnConstraints>
+                            
+                            <TLComboBox fx:id="contract_userIdCombo" label="Employee" promptText="Select or type employee"
+                                      GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                            <TLTextField fx:id="contract_companyIdField" label="Company ID" promptText="Company ID"
+                                       GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                            <TLComboBox fx:id="contract_typeCombo" label="Contract Type"
+                                      GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+                            <TLTextField fx:id="contract_positionField" label="Position" promptText="Job Position"
+                                       GridPane.columnIndex="3" GridPane.rowIndex="0"/>
+                            
+                            <TLTextField fx:id="contract_salaryField" label="Base Salary" promptText="Salary Amount"
+                                       GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                            <TLDatePicker fx:id="contract_startDatePicker" label="Start Date"
+                                       GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                            <TLDatePicker fx:id="contract_endDatePicker" label="End Date"
+                                       GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+                            <TLComboBox fx:id="contract_statusCombo" label="Status"
+                                      GridPane.columnIndex="3" GridPane.rowIndex="1"/>
+                        </GridPane>
+                        
+                        <Label fx:id="contract_errorLabel" style="-fx-text-fill: -fx-destructive; -fx-font-size: 12px;" wrapText="true" visible="false" managed="false"/>
+                        
+                        <HBox spacing="8" alignment="CENTER_LEFT">
+                            <TLButton fx:id="contract_addBtn" text="✅ Add Contract" variant="SUCCESS" onAction="#handleAddContract"/>
+                            <TLButton fx:id="contract_updateBtn" text="✏️ Update" variant="PRIMARY" onAction="#handleUpdateContract"/>
+                            <TLButton fx:id="contract_clearBtn" text="🔄 Clear" variant="OUTLINE" onAction="#handleClearContractForm"/>
+                        </HBox>
+                    </VBox>
+                </TitledPane>
+                
+                <TitledPane text="📊 Contracts List" animated="false" collapsible="true" expanded="true"
+                           VBox.vgrow="ALWAYS" maxHeight="Infinity"
+                           style="-fx-text-fill: -fx-foreground;">
+                    <VBox spacing="8" style="-fx-padding: 12;">
+                        <HBox spacing="8">
+                            <TLButton text="🔄 Refresh" variant="OUTLINE" onAction="#handleRefreshContracts"/>
+                            <TLButton fx:id="contract_deleteBtn" text="🗑️ Delete Selected" variant="DANGER" onAction="#handleDeleteContract"/>
+                            <Region HBox.hgrow="ALWAYS"/>
+                            <Label fx:id="contract_countLabel" text="Total: 0" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 14px;"/>
+                        </HBox>
+                        <TableView fx:id="contractTable" VBox.vgrow="ALWAYS" style="-fx-background-color: -fx-card;">
+                            <columns>
+                                <TableColumn fx:id="contract_idCol" text="ID" prefWidth="50"/>
+                                <TableColumn fx:id="contract_userCol" text="Employee" prefWidth="150"/>
+                                <TableColumn fx:id="contract_companyCol" text="Company ID" prefWidth="100"/>
+                                <TableColumn fx:id="contract_typeCol" text="Type" prefWidth="120"/>
+                                <TableColumn fx:id="contract_positionCol" text="Position" prefWidth="150"/>
+                                <TableColumn fx:id="contract_salaryCol" text="Salary (TND)" prefWidth="120"/>
+                                <TableColumn fx:id="contract_startCol" text="Start Date" prefWidth="120"/>
+                                <TableColumn fx:id="contract_endCol" text="End Date" prefWidth="120"/>
+                                <TableColumn fx:id="contract_statusCol" text="Status" prefWidth="100"/>
+                            </columns>
+                        </TableView>
+                    </VBox>
+                </TitledPane>
+            </VBox>
+        </Tab>
+        
+        <!-- TAB 2: BANK ACCOUNTS -->
+        <Tab text="🏦 Bank Accounts" closable="false">
+            <VBox spacing="12" style="-fx-padding: 16; -fx-background-color: -fx-background;">
+                
+                <TitledPane text="➕ Add Bank Account" animated="false" collapsible="true" expanded="false"
+                           style="-fx-text-fill: -fx-foreground;">
+                    <VBox spacing="12" style="-fx-padding: 12;">
+                        <GridPane hgap="12" vgap="12">
+                            <columnConstraints>
+                                <ColumnConstraints percentWidth="25"/>
+                                <ColumnConstraints percentWidth="25"/>
+                                <ColumnConstraints percentWidth="25"/>
+                                <ColumnConstraints percentWidth="25"/>
+                            </columnConstraints>
+                            
+                            <TLComboBox fx:id="bank_userIdCombo" label="Employee" promptText="Select or type employee"
+                                      GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                            <TLTextField fx:id="bank_nameField" label="Bank Name" promptText="Bank Name"
+                                       GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                            <TLTextField fx:id="bank_ibanField" label="IBAN" promptText="IBAN"
+                                       GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+                            <TLTextField fx:id="bank_swiftField" label="SWIFT Code" promptText="SWIFT"
+                                       GridPane.columnIndex="3" GridPane.rowIndex="0"/>
+                            
+                            <TLComboBox fx:id="bank_currencyCombo" label="Currency" promptText="Select or type currency"
+                                      GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                            <TLComboBox fx:id="bank_primaryCombo" label="Primary Account"
+                                      GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                            <TLComboBox fx:id="bank_verifiedCombo" label="Verified"
+                                      GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+                        </GridPane>
+                        
+                        <Label fx:id="bank_errorLabel" style="-fx-text-fill: -fx-destructive; -fx-font-size: 12px;" wrapText="true" visible="false" managed="false"/>
+                        
+                        <HBox spacing="8" alignment="CENTER_LEFT">
+                            <TLButton fx:id="bank_addBtn" text="✅ Add Account" variant="SUCCESS" onAction="#handleAddBankAccount"/>
+                            <TLButton fx:id="bank_updateBtn" text="✏️ Update" variant="PRIMARY" onAction="#handleUpdateBankAccount"/>
+                            <TLButton fx:id="bank_clearBtn" text="🔄 Clear" variant="OUTLINE" onAction="#handleClearBankForm"/>
+                        </HBox>
+                    </VBox>
+                </TitledPane>
+                
+                <TitledPane text="📊 Bank Accounts List" animated="false" collapsible="true" expanded="true"
+                           VBox.vgrow="ALWAYS" maxHeight="Infinity"
+                           style="-fx-text-fill: -fx-foreground;">
+                    <VBox spacing="8" style="-fx-padding: 12;">
+                        <HBox spacing="8">
+                            <TLButton text="🔄 Refresh" variant="OUTLINE" onAction="#handleRefreshBankAccounts"/>
+                            <TLButton fx:id="bank_deleteBtn" text="🗑️ Delete Selected" variant="DANGER" onAction="#handleDeleteBankAccount"/>
+                            <Region HBox.hgrow="ALWAYS"/>
+                            <Label fx:id="bank_countLabel" text="Total: 0" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 14px;"/>
+                        </HBox>
+                        <TableView fx:id="bankAccountTable" VBox.vgrow="ALWAYS" style="-fx-background-color: -fx-card;">
+                            <columns>
+                                <TableColumn fx:id="bank_idCol" text="ID" prefWidth="50"/>
+                                <TableColumn fx:id="bank_userCol" text="Employee" prefWidth="150"/>
+                                <TableColumn fx:id="bank_nameCol" text="Bank Name" prefWidth="150"/>
+                                <TableColumn fx:id="bank_ibanCol" text="IBAN" prefWidth="180"/>
+                                <TableColumn fx:id="bank_swiftCol" text="SWIFT" prefWidth="100"/>
+                                <TableColumn fx:id="bank_currencyCol" text="Currency" prefWidth="100"/>
+                                <TableColumn fx:id="bank_primaryCol" text="Primary" prefWidth="80"/>
+                                <TableColumn fx:id="bank_verifiedCol" text="Verified" prefWidth="80"/>
+                            </columns>
+                        </TableView>
+                    </VBox>
+                </TitledPane>
+            </VBox>
+        </Tab>
+        
+        <!-- TAB 3: BONUSES -->
+        <Tab text="🎁 Bonuses" closable="false">
+            <VBox spacing="12" style="-fx-padding: 16; -fx-background-color: -fx-background;">
+                
+                <TitledPane text="➕ Add Bonus" animated="false" collapsible="true" expanded="false"
+                           style="-fx-text-fill: -fx-foreground;">
+                    <VBox spacing="12" style="-fx-padding: 12;">
+                        <GridPane hgap="12" vgap="12">
+                            <columnConstraints>
+                                <ColumnConstraints percentWidth="25"/>
+                                <ColumnConstraints percentWidth="25"/>
+                                <ColumnConstraints percentWidth="50"/>
+                            </columnConstraints>
+                            
+                            <TLComboBox fx:id="bonus_userIdCombo" label="Employee" promptText="Select or type employee"
+                                      GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                            <TLTextField fx:id="bonus_amountField" label="Amount" promptText="Bonus Amount"
+                                       GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                            <TLTextField fx:id="bonus_reasonField" label="Reason" promptText="Bonus Reason"
+                                       GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+                        </GridPane>
+                        
+                        <Label fx:id="bonus_errorLabel" style="-fx-text-fill: -fx-destructive; -fx-font-size: 12px;" wrapText="true" visible="false" managed="false"/>
+                        
+                        <HBox spacing="8" alignment="CENTER_LEFT">
+                            <TLButton fx:id="bonus_addBtn" text="✅ Add Bonus" variant="SUCCESS" onAction="#handleAddBonus"/>
+                            <TLButton fx:id="bonus_updateBtn" text="✏️ Update" variant="PRIMARY" onAction="#handleUpdateBonus"/>
+                            <TLButton fx:id="bonus_clearBtn" text="🔄 Clear" variant="OUTLINE" onAction="#handleClearBonusForm"/>
+                        </HBox>
+                    </VBox>
+                </TitledPane>
+                
+                <TitledPane text="📊 Bonuses List" animated="false" collapsible="true" expanded="true"
+                           VBox.vgrow="ALWAYS" maxHeight="Infinity"
+                           style="-fx-text-fill: -fx-foreground;">
+                    <VBox spacing="8" style="-fx-padding: 12;">
+                        <HBox spacing="8">
+                            <TLButton text="🔄 Refresh" variant="OUTLINE" onAction="#handleRefreshBonuses"/>
+                            <TLButton fx:id="bonus_deleteBtn" text="🗑️ Delete Selected" variant="DANGER" onAction="#handleDeleteBonus"/>
+                            <Region HBox.hgrow="ALWAYS"/>
+                            <Label fx:id="bonus_countLabel" text="Total: 0" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 14px;"/>
+                        </HBox>
+                        <TableView fx:id="bonusTable" VBox.vgrow="ALWAYS" style="-fx-background-color: -fx-card;">
+                            <columns>
+                                <TableColumn fx:id="bonus_idCol" text="ID" prefWidth="50"/>
+                                <TableColumn fx:id="bonus_userCol" text="Employee" prefWidth="200"/>
+                                <TableColumn fx:id="bonus_amountCol" text="Amount (TND)" prefWidth="150"/>
+                                <TableColumn fx:id="bonus_reasonCol" text="Reason" prefWidth="300"/>
+                                <TableColumn fx:id="bonus_dateCol" text="Date Awarded" prefWidth="150"/>
+                            </columns>
+                        </TableView>
+                    </VBox>
+                </TitledPane>
+            </VBox>
+        </Tab>
+        
+        <!-- TAB 4: PAYSLIPS -->
+        <Tab text="📄 Payslips" closable="false">
+            <VBox spacing="12" style="-fx-padding: 16; -fx-background-color: -fx-background;">
+                
+                <TitledPane text="➕ Generate Payslip" animated="false" collapsible="true" expanded="false"
+                           style="-fx-text-fill: -fx-foreground;">
+                    <VBox spacing="12" style="-fx-padding: 12;">
+                        <GridPane hgap="12" vgap="12">
+                            <columnConstraints>
+                                <ColumnConstraints percentWidth="25"/>
+                                <ColumnConstraints percentWidth="25"/>
+                                <ColumnConstraints percentWidth="25"/>
+                                <ColumnConstraints percentWidth="25"/>
+                            </columnConstraints>
+                            
+                            <TLComboBox fx:id="payslip_userIdCombo" label="Employee" promptText="Select or type employee"
+                                      GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                            <TLComboBox fx:id="payslip_monthCombo" label="Month"
+                                      GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                            <TLComboBox fx:id="payslip_yearCombo" label="Year"
+                                      GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+                            <TLComboBox fx:id="payslip_currencyCombo" label="Currency" promptText="Select currency"
+                                      GridPane.columnIndex="3" GridPane.rowIndex="0"/>
+                            
+                            <TLTextField fx:id="payslip_baseSalaryField" label="Base Salary" promptText="Amount"
+                                       GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                            <TLTextField fx:id="payslip_overtimeField" label="Overtime Hours" promptText="Hours"
+                                       GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                            <TLTextField fx:id="payslip_overtimeRateField" label="Overtime Rate" promptText="Per Hour"
+                                       GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+                            <TLTextField fx:id="payslip_bonusesField" label="Additional Bonuses" promptText="Amount"
+                                       GridPane.columnIndex="3" GridPane.rowIndex="1"/>
+                            
+                            <TLTextField fx:id="payslip_cnssField" label="CNSS Deduction" promptText="Auto-calculated"
+                                       GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                            <TLTextField fx:id="payslip_irppField" label="IRPP Tax" promptText="Auto-calculated"
+                                       GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+                            <TLTextField fx:id="payslip_otherDeductionsField" label="Other Deductions" promptText="Amount"
+                                       GridPane.columnIndex="2" GridPane.rowIndex="2"/>
+                            <TLComboBox fx:id="payslip_statusCombo" label="Status"
+                                      GridPane.columnIndex="3" GridPane.rowIndex="2"/>
+                        </GridPane>
+                        
+                        <HBox spacing="8" style="-fx-background-color: -fx-muted; -fx-padding: 12; -fx-border-radius: 4; -fx-background-radius: 4;">
+                            <VBox spacing="4" HBox.hgrow="ALWAYS">
+                                <Label text="💰 Gross Salary:" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 12px;"/>
+                                <Label fx:id="payslip_grossLabel" text="0.00 TND" style="-fx-text-fill: -fx-foreground; -fx-font-size: 18px; -fx-font-weight: bold;"/>
+                            </VBox>
+                            <VBox spacing="4" HBox.hgrow="ALWAYS">
+                                <Label text="➖ Total Deductions:" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 12px;"/>
+                                <Label fx:id="payslip_deductionsLabel" text="0.00 TND" style="-fx-text-fill: -fx-destructive; -fx-font-size: 18px; -fx-font-weight: bold;"/>
+                            </VBox>
+                            <VBox spacing="4" HBox.hgrow="ALWAYS">
+                                <Label text="✅ Net Salary:" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 12px;"/>
+                                <Label fx:id="payslip_netLabel" text="0.00 TND" style="-fx-text-fill: -fx-foreground; -fx-font-size: 20px; -fx-font-weight: bold;"/>
+                            </VBox>
+                        </HBox>
+                        
+                        <Label fx:id="payslip_errorLabel" style="-fx-text-fill: -fx-destructive; -fx-font-size: 12px;" wrapText="true" visible="false" managed="false"/>
+                        
+                        <HBox spacing="8" alignment="CENTER_LEFT">
+                            <TLButton fx:id="payslip_calculateBtn" text="🧮 CALCULATE" variant="PRIMARY" onAction="#handleCalculatePayslip" style="-fx-font-weight: bold; -fx-font-size: 14px;"/>
+                            <TLButton fx:id="payslip_addBtn" text="✅ Save Payslip" variant="SUCCESS" onAction="#handleAddPayslip"/>
+                            <TLButton fx:id="payslip_updateBtn" text="✏️ Update" variant="PRIMARY" onAction="#handleUpdatePayslip"/>
+                            <TLButton fx:id="payslip_pdfBtn" text="📄 Export PDF" variant="OUTLINE" onAction="#handleExportPayslipPDF"/>
+                            <TLButton fx:id="payslip_clearBtn" text="🔄 Clear" variant="OUTLINE" onAction="#handleClearPayslipForm"/>
+                        </HBox>
+                    </VBox>
+                </TitledPane>
+                
+                <TitledPane text="📊 Payslips History" animated="false" collapsible="true" expanded="true"
+                           VBox.vgrow="ALWAYS" maxHeight="Infinity"
+                           style="-fx-text-fill: -fx-foreground;">
+                    <VBox spacing="8" style="-fx-padding: 12;">
+                        <HBox spacing="8">
+                            <TLButton text="🔄 Refresh" variant="OUTLINE" onAction="#handleRefreshPayslips"/>
+                            <TLButton fx:id="payslip_deleteBtn" text="🗑️ Delete Selected" variant="DANGER" onAction="#handleDeletePayslip"/>
+                            <TLButton fx:id="payslip_exportSelectedBtn" text="📥 Export Selected" variant="OUTLINE" onAction="#handleExportSelectedPayslip"/>
+                            <Region HBox.hgrow="ALWAYS"/>
+                            <Label fx:id="payslip_countLabel" text="Total: 0" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 14px;"/>
+                        </HBox>
+                        <TableView fx:id="payslipTable" VBox.vgrow="ALWAYS" style="-fx-background-color: -fx-card;">
+                            <columns>
+                                <TableColumn fx:id="payslip_idCol" text="ID" prefWidth="50"/>
+                                <TableColumn fx:id="payslip_userCol" text="Employee" prefWidth="150"/>
+                                <TableColumn fx:id="payslip_periodCol" text="Period" prefWidth="120"/>
+                                <TableColumn fx:id="payslip_baseCol" text="Base" prefWidth="100"/>
+                                <TableColumn fx:id="payslip_overtimeCol" text="Overtime" prefWidth="100"/>
+                                <TableColumn fx:id="payslip_bonusCol" text="Bonuses" prefWidth="100"/>
+                                <TableColumn fx:id="payslip_grossCol" text="Gross" prefWidth="120"/>
+                                <TableColumn fx:id="payslip_deductCol" text="Deductions" prefWidth="120"/>
+                                <TableColumn fx:id="payslip_netCol" text="Net" prefWidth="120"/>
+                                <TableColumn fx:id="payslip_statusCol" text="Status" prefWidth="100"/>
+                            </columns>
+                        </TableView>
+                    </VBox>
+                </TitledPane>
+            </VBox>
+        </Tab>
+
+        <!-- TAB 5: REPORTS & TOOLS -->
+        <Tab text="📊 Reports" closable="false">
+            <VBox spacing="16" style="-fx-padding: 16; -fx-background-color: -fx-background;">
+                
+                <!-- Employee Finance Report -->
+                <TitledPane text="📑 Employee Finance Report" animated="false" collapsible="true" expanded="true"
+                           style="-fx-text-fill: -fx-foreground;">
+                    <VBox spacing="12" style="-fx-padding: 12;">
+                        <HBox spacing="12" alignment="CENTER_LEFT">
+                            <VBox spacing="4" HBox.hgrow="ALWAYS">
+                                <Label text="Select Employee:" style="-fx-text-fill: -fx-foreground; -fx-font-size: 13px; -fx-font-weight: bold;"/>
+                                <TLComboBox fx:id="report_employeeCombo" promptText="Choose employee for report"/>
+                            </VBox>
+                            <VBox spacing="4">
+                                <Label text=" " style="-fx-font-size: 13px;"/>
+                                <TLButton fx:id="report_generateBtn" text="📄 Generate Complete PDF Report" variant="PRIMARY" onAction="#handleGenerateEmployeeReport"/>
+                            </VBox>
+                        </HBox>
+                        <Label text="This will generate a comprehensive PDF report including contracts, bank accounts, bonuses, and payslips for the selected employee." 
+                               style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 12px;" wrapText="true"/>
+                    </VBox>
+                </TitledPane>
+                
+                <!-- Tax Calculator -->
+                 <TitledPane text="🧮 Tax Calculator" animated="false" collapsible="true" expanded="true"
+                            VBox.vgrow="ALWAYS" maxHeight="Infinity"
+                            style="-fx-text-fill: -fx-foreground;">
+                     <VBox spacing="12" style="-fx-padding: 12;" VBox.vgrow="ALWAYS">
+                        <GridPane hgap="12" vgap="12">
+                            <columnConstraints>
+                                <ColumnConstraints percentWidth="33"/>
+                                <ColumnConstraints percentWidth="33"/>
+                                <ColumnConstraints percentWidth="34"/>
+                            </columnConstraints>
+                            
+                            <TLTextField fx:id="tax_grossField" label="Gross Salary" promptText="Enter amount"
+                                       GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                            <TLComboBox fx:id="tax_currencyCombo" label="Currency"
+                                      GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                            <TLButton fx:id="tax_calculateBtn" text="💰 Calculate" variant="PRIMARY" onAction="#handleCalculateTax"
+                                    GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+                        </GridPane>
+                        
+                        <TextArea fx:id="tax_resultArea" promptText="Tax breakdown will appear here..." wrapText="true" prefRowCount="20" VBox.vgrow="ALWAYS" editable="false" 
+                                 style="-fx-control-inner-background: -fx-muted; -fx-text-fill: -fx-foreground; -fx-font-size: 14px; -fx-font-family: 'Consolas', 'Monospaced'; -fx-padding: 12px; -fx-border-color: -fx-border; -fx-border-radius: 4; -fx-background-radius: 4;"/>
+                    </VBox>
+                </TitledPane>
+            </VBox>
+        </Tab>
+        
+    </TabPane>
+
+</VBox>

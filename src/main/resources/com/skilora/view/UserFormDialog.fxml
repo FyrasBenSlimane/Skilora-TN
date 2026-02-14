@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import com.skilora.framework.components.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1" 
+      fx:controller="com.skilora.controller.UserFormController"
+      spacing="16">
+
+    <!-- Account Information Section -->
+    <VBox spacing="12">
+        <Label text="Information Compte" styleClass="h4"/>
+        <Separator/>
+        
+        <TLTextField fx:id="usernameField" label="Nom d'utilisateur" 
+                     promptText="ex: jdoe"/>
+        
+        <TLTextField fx:id="fullNameField" label="Nom Complet" 
+                     promptText="ex: John Doe"/>
+    </VBox>
+
+    <!-- Security & Role Section -->
+    <VBox spacing="12">
+        <Label text="Sécurité &amp; Rôle" styleClass="h4"/>
+        <Separator/>
+        
+        <TLPasswordField fx:id="passwordField" label="Mot de passe" 
+                         promptText="******"/>
+        
+        <TLSelect fx:id="roleSelect" label="Rôle"/>
+    </VBox>
+
+</VBox>
