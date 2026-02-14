@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+<?import com.skilora.framework.components.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.skilora.controller.recruitment.ApplicationDetailsController"
+      spacing="20"
+      style="-fx-background-color: transparent;">
+    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+    
+    <!-- Candidate Info Section -->
+    <VBox spacing="12">
+        <Label text="Candidat" styleClass="h3"/>
+        <HBox spacing="16" alignment="CENTER_LEFT">
+            <TLAvatar fx:id="candidateAvatar"/>
+            <VBox spacing="4">
+                <Label fx:id="candidateNameLabel" text="Nom du candidat" styleClass="h4"/>
+            </VBox>
+        </HBox>
+    </VBox>
+    
+    <!-- Cover Letter Section -->
+    <VBox spacing="8">
+        <Label text="Lettre de motivation" styleClass="h3"/>
+        <TLTextarea fx:id="coverLetterArea"/>
+    </VBox>
+    
+    <!-- CV Section -->
+    <VBox spacing="8">
+        <Label text="CV du candidat" styleClass="h3"/>
+        <HBox spacing="12" alignment="CENTER_LEFT">
+            <TLButton fx:id="viewCvBtn" text="📄 Ouvrir le CV" variant="PRIMARY"/>
+            <Label fx:id="cvFileNameLabel" text="Aucun CV disponible" styleClass="text-muted"/>
+        </HBox>
+    </VBox>
+    
+    <!-- Close Button -->
+    <HBox spacing="12" alignment="CENTER_RIGHT">
+        <Region HBox.hgrow="ALWAYS"/>
+        <TLButton fx:id="closeBtn" text="Fermer" variant="OUTLINE"/>
+    </HBox>
+</VBox>
+

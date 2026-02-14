@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+<?import com.skilora.framework.components.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.skilora.controller.recruitment.ScheduleInterviewController"
+      spacing="20"
+      style="-fx-background-color: transparent;">
+    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+    
+    <!-- Candidate and Job Info -->
+    <VBox spacing="8">
+        <Label text="Candidat" styleClass="text-muted"/>
+        <Label fx:id="candidateLabel" text="Nom du candidat" styleClass="h4"/>
+    </VBox>
+    
+    <VBox spacing="8">
+        <Label text="Poste" styleClass="text-muted"/>
+        <Label fx:id="jobLabel" text="Titre du poste" styleClass="h4"/>
+    </VBox>
+    
+    <Separator/>
+    
+    <!-- Date and Time -->
+    <HBox spacing="16">
+        <VBox spacing="8" HBox.hgrow="ALWAYS">
+            <Label text="Date *" styleClass="text-muted"/>
+            <TLDatePicker fx:id="datePicker"/>
+        </VBox>
+        <VBox spacing="8" HBox.hgrow="ALWAYS">
+            <Label text="Heure *" styleClass="text-muted"/>
+            <TLTextField fx:id="timeField"/>
+        </VBox>
+    </HBox>
+    
+    <!-- Location -->
+    <VBox spacing="8">
+        <Label text="Lieu" styleClass="text-muted"/>
+        <TLTextField fx:id="locationField" promptText="Adresse ou lien de la réunion"/>
+    </VBox>
+    
+    <!-- Interview Type -->
+    <VBox spacing="8">
+        <Label text="Type d'entretien" styleClass="text-muted"/>
+        <TLSelect fx:id="typeSelect"/>
+    </VBox>
+    
+    <!-- Notes -->
+    <VBox spacing="8">
+        <Label text="Notes" styleClass="text-muted"/>
+        <TLTextarea fx:id="notesArea" promptText="Informations supplémentaires pour le candidat..."/>
+    </VBox>
+</VBox>
+

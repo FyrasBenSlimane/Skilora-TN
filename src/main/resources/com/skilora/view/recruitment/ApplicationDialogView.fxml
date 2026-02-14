@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+<?import com.skilora.framework.components.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.skilora.controller.recruitment.ApplicationDialogController"
+      spacing="20"
+      styleClass="dialog-content"
+      style="-fx-background-color: -fx-background;">
+    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+    
+    <!-- Title -->
+    <Label text="Postuler pour cette offre" styleClass="dialog-title"/>
+    
+    <!-- CV Upload Section -->
+    <VBox spacing="8">
+        <Label fx:id="cvLabel" text="CV *" styleClass="form-label"/>
+        <TLButton fx:id="selectCvBtn" text="Sélectionner un fichier CV" variant="OUTLINE"/>
+        <Label text="Formats acceptés: PDF, DOC, DOCX (max 5MB)" styleClass="text-muted, text-sm"/>
+    </VBox>
+    
+    <!-- Cover Letter Section -->
+    <VBox spacing="8">
+        <Label text="Lettre de motivation" styleClass="form-label"/>
+        <TLTextarea fx:id="coverLetterField" promptText="Rédigez votre lettre de motivation..." prefHeight="200"/>
+    </VBox>
+    
+    <!-- Submit Button -->
+    <HBox spacing="12" alignment="CENTER_RIGHT" styleClass="dialog-footer">
+        <TLButton fx:id="cancelBtn" text="Annuler" variant="OUTLINE"/>
+        <TLButton fx:id="submitBtn" text="Soumettre la candidature" variant="PRIMARY"/>
+    </HBox>
+</VBox>
