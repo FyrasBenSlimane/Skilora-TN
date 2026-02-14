@@ -69,7 +69,7 @@ mvn clean javafx:run
 
 ---
 
-## � Comptes de Démonstration
+## 👤 Comptes de Démonstration
 
 Pour tester l'application immédiatement, utilisez les comptes suivants :
 
