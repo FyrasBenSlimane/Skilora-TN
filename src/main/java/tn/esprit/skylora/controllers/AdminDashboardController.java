@@ -21,6 +21,7 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 
@@ -99,7 +100,7 @@ public class AdminDashboardController implements Initializable {
         setupActionsColumn();
     }
 
-    // Ajoute les boutons d'action (voir, changer statut) dans chaque ligne
+    // Ajoute les boutons d'action (voir, changer statut, supprimer) dans chaque ligne
     private void setupActionsColumn() {
         Callback<TableColumn<Ticket, Void>, TableCell<Ticket, Void>> cellFactory = new Callback<TableColumn<Ticket, Void>, TableCell<Ticket, Void>>() {
             @Override
@@ -107,11 +108,13 @@ public class AdminDashboardController implements Initializable {
                 return new TableCell<Ticket, Void>() {
                     private final Button viewBtn = new Button("👁");
                     private final Button statusBtn = new Button("⚙");
-                    private final HBox pane = new HBox(5, viewBtn, statusBtn);
+                    private final Button deleteBtn = new Button("🗑");
+                    private final HBox pane = new HBox(5, viewBtn, statusBtn, deleteBtn);
 
                     {
                         viewBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-cursor: hand;");
                         statusBtn.setStyle("-fx-background-color: #F59E0B; -fx-text-fill: white; -fx-cursor: hand;");
+                        deleteBtn.setStyle("-fx-background-color: #EF4444; -fx-text-fill: white; -fx-cursor: hand;");
 
                         viewBtn.setOnAction(event -> {
                             Ticket ticket = getTableView().getItems().get(getIndex());
@@ -121,6 +124,11 @@ public class AdminDashboardController implements Initializable {
                         statusBtn.setOnAction(event -> {
                             Ticket ticket = getTableView().getItems().get(getIndex());
                             handleQuickStatusUpdate(ticket);
+                        });
+
+                        deleteBtn.setOnAction(event -> {
+                            Ticket ticket = getTableView().getItems().get(getIndex());
+                            handleDeleteTicket(ticket);
                         });
                     }
 
@@ -223,5 +231,38 @@ public class AdminDashboardController implements Initializable {
                 e.printStackTrace();
             }
         });
+    }
+
+    // Supprime un ticket après confirmation de l'utilisateur
+    private void handleDeleteTicket(Ticket ticket) {
+        Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmAlert.setTitle("Confirmation de suppression");
+        confirmAlert.setHeaderText("Supprimer le ticket #" + ticket.getId());
+        confirmAlert.setContentText("Êtes-vous sûr de vouloir supprimer ce ticket ?\nSujet: " + ticket.getSubject() + "\n\nCette action est irréversible.");
+
+        Optional<ButtonType> result = confirmAlert.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            try {
+                serviceTicket.supprimer(ticket.getId());
+
+                // Afficher un message de succès
+                Alert successAlert = new Alert(Alert.AlertType.INFORMATION);
+                successAlert.setTitle("Suppression réussie");
+                successAlert.setHeaderText(null);
+                successAlert.setContentText("Le ticket #" + ticket.getId() + " a été supprimé avec succès.");
+                successAlert.showAndWait();
+
+                // Rafraîchir les données
+                refreshData();
+            } catch (SQLException e) {
+                // Afficher un message d'erreur
+                Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+                errorAlert.setTitle("Erreur de suppression");
+                errorAlert.setHeaderText("Impossible de supprimer le ticket");
+                errorAlert.setContentText("Une erreur s'est produite lors de la suppression du ticket:\n" + e.getMessage());
+                errorAlert.showAndWait();
+                e.printStackTrace();
+            }
+        }
     }
 }

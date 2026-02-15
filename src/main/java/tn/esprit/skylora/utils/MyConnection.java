@@ -9,7 +9,7 @@ public class MyConnection {
     private static MyConnection instance;
     private Connection cnx;
 
-    private String url = "jdbc:mysql://localhost:3306/skylora";
+    private String url = "jdbc:mysql://localhost:3306/skilora";
     private String user = "root";
     private String password = "";
 
