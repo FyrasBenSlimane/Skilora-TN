@@ -6,10 +6,10 @@ import java.sql.SQLException;
 
 public class MyConnection {
 
-    private static MyConnection instance;
-    private Connection cnx;
+    private static MyConnection instance;// 1️⃣ Instance unique
+    private Connection cnx;// 2️⃣ La vraie connexion JDBC
 
-    private String url = "jdbc:mysql://localhost:3306/skilora";
+    private String url = "jdbc:mysql://localhost:3306/skilora";// 3️⃣ Private constructor → empêche new DatabaseConnection()
     private String user = "root";
     private String password = "";
 

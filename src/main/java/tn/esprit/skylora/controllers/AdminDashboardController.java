@@ -43,9 +43,20 @@ public class AdminDashboardController implements Initializable {
     @FXML
     private ComboBox<String> adminPriorityFilter;
 
-    @FXML
-    private TableView<Ticket> adminTicketTable;
-    @FXML
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     private TableColumn<Ticket, Integer> colAdminId;
     @FXML
     private TableColumn<Ticket, String> colAdminSubject;
@@ -183,15 +194,42 @@ public class AdminDashboardController implements Initializable {
 
     // Filtre la liste des tickets affichés selon la recherche et les sélections
     private void filterData() {
-        String search = adminSearchField.getText().toLowerCase();
+
+        String search = adminSearchField.getText() != null
+                ? adminSearchField.getText().toLowerCase()
+                : "";
+
         String status = adminStatusFilter.getValue();
         String priority = adminPriorityFilter.getValue();
 
         List<Ticket> filtered = allTickets.stream()
-                .filter(t -> t.getSubject().toLowerCase().contains(search)
-                        || String.valueOf(t.getUtilisateurId()).contains(search))
-                .filter(t -> status == null || status.equals("TOUS") || t.getStatut().equals(status))
-                .filter(t -> priority == null || priority.equals("TOUS") || t.getPriorite().equals(priority))
+
+                // 🔎 Recherche texte
+                .filter(t -> {
+                    String subject = t.getSubject() != null
+                            ? t.getSubject().toLowerCase()
+                            : "";
+
+                    String userId = String.valueOf(t.getUtilisateurId());
+
+                    return subject.contains(search)
+                            || userId.contains(search);
+                })
+
+                // 📌 Filtre statut
+                .filter(t ->
+                        status == null
+                                || status.equals("TOUS")
+                                || (t.getStatut() != null && t.getStatut().equals(status))
+                )
+
+                // 📌 Filtre priorité
+                .filter(t ->
+                        priority == null
+                                || priority.equals("TOUS")
+                                || (t.getPriorite() != null && t.getPriorite().equals(priority))
+                )
+
                 .collect(Collectors.toList());
 
         observableTickets.setAll(filtered);
