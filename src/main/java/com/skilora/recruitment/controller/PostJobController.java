@@ -1,4 +1,4 @@
-package com.skilora.controller;
+package com.skilora.recruitment.controller;
 
 import com.skilora.framework.components.*;
 import com.skilora.model.entity.JobOffer;
@@ -186,7 +186,7 @@ public class PostJobController implements Initializable {
         
         TLBadge badge = new TLBadge(skill, TLBadge.Variant.SECONDARY);
         
-        TLButton removeBtn = new TLButton("×");
+        TLButton removeBtn = new TLButton("Ã—");
         removeBtn.setVariant(TLButton.ButtonVariant.GHOST);
         removeBtn.setStyle("-fx-min-width: 24; -fx-min-height: 24; -fx-padding: 0;");
         removeBtn.setOnAction(e -> skillsList.getChildren().remove(skillRow));
@@ -251,9 +251,9 @@ public class PostJobController implements Initializable {
         Label type = new Label(jobTypeSelect.getValue() != null ? jobTypeSelect.getValue() : I18n.get("postjob.no_type"));
         type.getStyleClass().add("text-muted");
         
-        Label location = new Label("📍 " + (locationField.getText().isEmpty() ? I18n.get("postjob.no_location") : locationField.getText()));
+        Label location = new Label("ðŸ“ " + (locationField.getText().isEmpty() ? I18n.get("postjob.no_location") : locationField.getText()));
         
-        Label salary = new Label("💰 " + (salaryField.getText().isEmpty() ? I18n.get("postjob.no_salary") : salaryField.getText()));
+        Label salary = new Label("ðŸ’° " + (salaryField.getText().isEmpty() ? I18n.get("postjob.no_salary") : salaryField.getText()));
         
         Label descTitle = new Label(I18n.get("postjob.description").replace(" *", ""));
         descTitle.getStyleClass().add("h4");
@@ -292,7 +292,7 @@ public class PostJobController implements Initializable {
     private void handlePublish() {
         String title = jobTitleField.getText().trim();
         if (title.isEmpty()) {
-            publishBtn.setText("⚠ " + I18n.get("postjob.title_required"));
+            publishBtn.setText("âš  " + I18n.get("postjob.title_required"));
             return;
         }
 
@@ -358,7 +358,7 @@ public class PostJobController implements Initializable {
 
                 javafx.application.Platform.runLater(() -> {
                     if (id > 0) {
-                        publishBtn.setText("✓ " + I18n.get("postjob.published"));
+                        publishBtn.setText("âœ“ " + I18n.get("postjob.published"));
                         // Return to dashboard after delay
                         Thread delayThread = new Thread(() -> {
                             try { Thread.sleep(1500); } catch (InterruptedException ignored) {
@@ -388,7 +388,7 @@ public class PostJobController implements Initializable {
     @FXML
     private void handleSaveDraft() {
         logger.debug("Saving draft...");
-        saveBtn.setText("✓ " + I18n.get("postjob.saved"));
+        saveBtn.setText("âœ“ " + I18n.get("postjob.saved"));
     }
     
     @FXML
@@ -398,3 +398,4 @@ public class PostJobController implements Initializable {
         }
     }
 }
+

@@ -1,4 +1,4 @@
-package com.skilora.controller;
+package com.skilora.recruitment.controller;
 
 import com.skilora.framework.components.TLButton;
 import com.skilora.framework.components.TLCard;
@@ -61,7 +61,7 @@ public class FormationsController implements Initializable {
         categoryGroup = new ToggleGroup();
         String[][] categories = {
             {I18n.get("formations.filter.all"), "ALL"},
-            {I18n.get("formations.filter.development"), "Développement"},
+            {I18n.get("formations.filter.development"), "DÃ©veloppement"},
             {I18n.get("formations.filter.design"), "Design"},
             {I18n.get("formations.filter.marketing"), "Marketing"},
             {I18n.get("formations.filter.data_science"), "Data Science"},
@@ -158,9 +158,9 @@ public class FormationsController implements Initializable {
         badgeRow.setAlignment(Pos.CENTER_LEFT);
         TLBadge catBadge = new TLBadge(formation.category, TLBadge.Variant.DEFAULT);
         TLBadge levelBadge = new TLBadge(formation.level, TLBadge.Variant.SECONDARY);
-        if ("Débutant".equals(formation.level) || I18n.get("formations.level.beginner").equals(formation.level)) {
+        if ("DÃ©butant".equals(formation.level) || I18n.get("formations.level.beginner").equals(formation.level)) {
             levelBadge.getStyleClass().add("badge-success");
-        } else if ("Avancé".equals(formation.level) || I18n.get("formations.level.advanced").equals(formation.level)) {
+        } else if ("AvancÃ©".equals(formation.level) || I18n.get("formations.level.advanced").equals(formation.level)) {
             levelBadge.getStyleClass().add("badge-destructive");
         }
         badgeRow.getChildren().addAll(catBadge, levelBadge);
@@ -179,9 +179,9 @@ public class FormationsController implements Initializable {
         // Provider + Duration
         HBox metaRow = new HBox(12);
         metaRow.setAlignment(Pos.CENTER_LEFT);
-        Label providerLabel = new Label("🏫 " + formation.provider);
+        Label providerLabel = new Label("ðŸ« " + formation.provider);
         providerLabel.getStyleClass().add("text-muted");
-        Label durationLabel = new Label("⏱ " + formation.duration);
+        Label durationLabel = new Label("â± " + formation.duration);
         durationLabel.getStyleClass().add("text-muted");
         metaRow.getChildren().addAll(providerLabel, durationLabel);
 
@@ -224,53 +224,53 @@ public class FormationsController implements Initializable {
     private List<Formation> getSampleFormations() {
         List<Formation> formations = new ArrayList<>();
 
-        formations.add(new Formation("Java Spring Boot Masterclass", "Développement",
-            "Apprenez à construire des applications enterprise avec Spring Boot, Spring Security et Spring Data.",
-            "Skilora Academy", "40 heures", "Intermédiaire", true, "", 0));
+        formations.add(new Formation("Java Spring Boot Masterclass", "DÃ©veloppement",
+            "Apprenez Ã  construire des applications enterprise avec Spring Boot, Spring Security et Spring Data.",
+            "Skilora Academy", "40 heures", "IntermÃ©diaire", true, "", 0));
 
-        formations.add(new Formation("React & TypeScript Avancé", "Développement",
-            "Maîtrisez React avec TypeScript, les hooks avancés, et les patterns de state management.",
-            "OpenClassrooms", "30 heures", "Avancé", false, "49 TND", 0));
+        formations.add(new Formation("React & TypeScript AvancÃ©", "DÃ©veloppement",
+            "MaÃ®trisez React avec TypeScript, les hooks avancÃ©s, et les patterns de state management.",
+            "OpenClassrooms", "30 heures", "AvancÃ©", false, "49 TND", 0));
 
         formations.add(new Formation("UX/UI Design avec Figma", "Design",
-            "Créez des interfaces utilisateur modernes et accessibles avec les meilleures pratiques UX.",
-            "Skilora Academy", "25 heures", "Débutant", true, "", 0));
+            "CrÃ©ez des interfaces utilisateur modernes et accessibles avec les meilleures pratiques UX.",
+            "Skilora Academy", "25 heures", "DÃ©butant", true, "", 0));
 
         formations.add(new Formation("Marketing Digital", "Marketing",
-            "Stratégies de marketing digital, SEO, réseaux sociaux et campagnes publicitaires.",
-            "Google Ateliers Numériques", "20 heures", "Débutant", true, "", 0));
+            "StratÃ©gies de marketing digital, SEO, rÃ©seaux sociaux et campagnes publicitaires.",
+            "Google Ateliers NumÃ©riques", "20 heures", "DÃ©butant", true, "", 0));
 
         formations.add(new Formation("Python pour la Data Science", "Data Science",
-            "Analyse de données, visualisation et machine learning avec Python, Pandas et Scikit-learn.",
-            "Coursera", "50 heures", "Intermédiaire", false, "79 TND", 0));
+            "Analyse de donnÃ©es, visualisation et machine learning avec Python, Pandas et Scikit-learn.",
+            "Coursera", "50 heures", "IntermÃ©diaire", false, "79 TND", 0));
 
-        formations.add(new Formation("Français Professionnel B2", "Langues",
-            "Perfectionnez votre français professionnel pour le monde des affaires et les entretiens.",
-            "Alliance Française", "60 heures", "Intermédiaire", false, "120 TND", 0));
+        formations.add(new Formation("FranÃ§ais Professionnel B2", "Langues",
+            "Perfectionnez votre franÃ§ais professionnel pour le monde des affaires et les entretiens.",
+            "Alliance FranÃ§aise", "60 heures", "IntermÃ©diaire", false, "120 TND", 0));
 
-        formations.add(new Formation("DevOps & CI/CD Pipeline", "Développement",
-            "Docker, Kubernetes, Jenkins et automatisation du déploiement continu.",
-            "Udemy", "35 heures", "Avancé", false, "39 TND", 0));
+        formations.add(new Formation("DevOps & CI/CD Pipeline", "DÃ©veloppement",
+            "Docker, Kubernetes, Jenkins et automatisation du dÃ©ploiement continu.",
+            "Udemy", "35 heures", "AvancÃ©", false, "39 TND", 0));
 
-        formations.add(new Formation("Leadership & Gestion d'Équipe", "Soft Skills",
-            "Développez vos compétences en leadership, communication et gestion de conflits.",
-            "Skilora Academy", "15 heures", "Débutant", true, "", 0));
+        formations.add(new Formation("Leadership & Gestion d'Ã‰quipe", "Soft Skills",
+            "DÃ©veloppez vos compÃ©tences en leadership, communication et gestion de conflits.",
+            "Skilora Academy", "15 heures", "DÃ©butant", true, "", 0));
 
-        formations.add(new Formation("Angular 17 Complet", "Développement",
-            "De zéro à héro avec Angular 17, RxJS, NgRx et les dernières fonctionnalités.",
-            "Pluralsight", "45 heures", "Intermédiaire", false, "59 TND", 0));
+        formations.add(new Formation("Angular 17 Complet", "DÃ©veloppement",
+            "De zÃ©ro Ã  hÃ©ro avec Angular 17, RxJS, NgRx et les derniÃ¨res fonctionnalitÃ©s.",
+            "Pluralsight", "45 heures", "IntermÃ©diaire", false, "59 TND", 0));
 
         formations.add(new Formation("Communication & Prise de Parole", "Soft Skills",
-            "Techniques de présentation, storytelling et communication efficace en entreprise.",
-            "Skilora Academy", "10 heures", "Débutant", true, "", 0));
+            "Techniques de prÃ©sentation, storytelling et communication efficace en entreprise.",
+            "Skilora Academy", "10 heures", "DÃ©butant", true, "", 0));
 
-        formations.add(new Formation("SQL & Bases de Données", "Data Science",
-            "Maîtrisez SQL, la modélisation de données et l'optimisation de requêtes.",
-            "Khan Academy", "20 heures", "Débutant", true, "", 0));
+        formations.add(new Formation("SQL & Bases de DonnÃ©es", "Data Science",
+            "MaÃ®trisez SQL, la modÃ©lisation de donnÃ©es et l'optimisation de requÃªtes.",
+            "Khan Academy", "20 heures", "DÃ©butant", true, "", 0));
 
         formations.add(new Formation("Anglais des Affaires C1", "Langues",
-            "Business English avancé: négociation, rédaction professionnelle et présentations.",
-            "British Council", "80 heures", "Avancé", false, "150 TND", 0));
+            "Business English avancÃ©: nÃ©gociation, rÃ©daction professionnelle et prÃ©sentations.",
+            "British Council", "80 heures", "AvancÃ©", false, "150 TND", 0));
 
         return formations;
     }
@@ -304,3 +304,4 @@ public class FormationsController implements Initializable {
         }
     }
 }
+

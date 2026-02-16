@@ -1,4 +1,4 @@
-package com.skilora.controller;
+package com.skilora.recruitment.controller;
 
 import com.skilora.model.entity.JobOpportunity;
 import com.skilora.model.service.JobService;
@@ -360,3 +360,4 @@ public class FeedController implements Initializable {
         isLoadingMore = false;
     }
 }
+

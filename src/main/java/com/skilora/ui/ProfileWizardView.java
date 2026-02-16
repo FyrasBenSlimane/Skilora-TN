@@ -1,7 +1,7 @@
 package com.skilora.ui;
 
 import com.skilora.model.entity.User;
-import com.skilora.controller.ProfileWizardController;
+import com.skilora.recruitment.controller.ProfileWizardController;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.layout.VBox;
 import org.slf4j.Logger;

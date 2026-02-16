@@ -1,4 +1,4 @@
-package com.skilora.controller;
+package com.skilora.recruitment.controller;
 
 import com.skilora.framework.components.*;
 import com.skilora.model.entity.Application;
@@ -142,3 +142,4 @@ public class ApplicationsController implements Initializable {
         }
     }
 }
+

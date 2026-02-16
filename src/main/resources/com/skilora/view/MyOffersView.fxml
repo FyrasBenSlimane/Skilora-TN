@@ -6,7 +6,7 @@
 <?import com.skilora.framework.components.*?>
 
 <VBox xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.skilora.controller.MyOffersController"
+      fx:controller="com.skilora.recruitment.controller.MyOffersController"
       spacing="24"
       style="-fx-background-color: transparent;">
     <padding><Insets top="32" right="32" bottom="32" left="32"/></padding>
@@ -34,8 +34,9 @@
     <!-- Empty State -->
     <VBox fx:id="emptyState" spacing="12" alignment="CENTER" visible="false" managed="false"
           style="-fx-padding: 48;">
-        <Label text="Aucune offre publiée" styleClass="h3"/>
-        <Label text="Commencez par créer votre première offre d'emploi." styleClass="text-muted"/>
+        <Label text="Aucune offre publiÃ©e" styleClass="h3"/>
+        <Label text="Commencez par crÃ©er votre premiÃ¨re offre d'emploi." styleClass="text-muted"/>
         <TLButton text="Publier une Offre" variant="DEFAULT" onAction="#handleNewOffer"/>
     </VBox>
 </VBox>
+

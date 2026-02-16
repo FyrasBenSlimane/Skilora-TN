@@ -1,4 +1,4 @@
-package com.skilora.controller;
+package com.skilora.recruitment.controller;
 
 import com.skilora.model.entity.Application;
 import com.skilora.model.entity.User;
@@ -210,19 +210,19 @@ public class InterviewsController implements Initializable {
         detailsRow.setAlignment(Pos.CENTER_LEFT);
 
         if (app.getJobTitle() != null) {
-            Label jobLabel = new Label("💼 " + app.getJobTitle());
+            Label jobLabel = new Label("ðŸ’¼ " + app.getJobTitle());
             jobLabel.getStyleClass().add("text-muted");
             detailsRow.getChildren().add(jobLabel);
         }
 
         if (app.getJobLocation() != null) {
-            Label locLabel = new Label("📍 " + app.getJobLocation());
+            Label locLabel = new Label("ðŸ“ " + app.getJobLocation());
             locLabel.getStyleClass().add("text-muted");
             detailsRow.getChildren().add(locLabel);
         }
 
         if (app.getAppliedDate() != null) {
-            Label dateLabel = new Label("📅 " + I18n.get("interviews.application_date") + ": " + app.getAppliedDate().format(DATE_FMT));
+            Label dateLabel = new Label("ðŸ“… " + I18n.get("interviews.application_date") + ": " + app.getAppliedDate().format(DATE_FMT));
             dateLabel.getStyleClass().add("text-muted");
             detailsRow.getChildren().add(dateLabel);
         }
@@ -279,3 +279,4 @@ public class InterviewsController implements Initializable {
         loadData();
     }
 }
+

@@ -6,14 +6,14 @@
 <?import com.skilora.framework.components.*?>
 
 <VBox xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.skilora.controller.JobDetailsController"
+      fx:controller="com.skilora.recruitment.controller.JobDetailsController"
       spacing="24"
       style="-fx-background-color: transparent;">
     <padding><Insets top="32" right="32" bottom="32" left="32"/></padding>
     
     <!-- Back Button -->
     <HBox spacing="12" alignment="CENTER_LEFT">
-        <TLButton fx:id="backBtn" text="← Retour" variant="GHOST" onAction="#handleBack"/>
+        <TLButton fx:id="backBtn" text="â† Retour" variant="GHOST" onAction="#handleBack"/>
     </HBox>
     
     <!-- Header Section -->
@@ -28,15 +28,15 @@
             <Label fx:id="jobTitle" text="Senior Java Developer" styleClass="h2"/>
             <Label fx:id="companyName" text="TechCorp" styleClass="h4"/>
             <HBox spacing="12">
-                <Label fx:id="jobLocation" text="📍 Tunis, Tunisia" styleClass="text-muted"/>
-                <Label fx:id="jobType" text="💼 Full-time" styleClass="text-muted"/>
-                <Label fx:id="postedDate" text="🕐 Posted 2 days ago" styleClass="text-muted"/>
+                <Label fx:id="jobLocation" text="ðŸ“ Tunis, Tunisia" styleClass="text-muted"/>
+                <Label fx:id="jobType" text="ðŸ’¼ Full-time" styleClass="text-muted"/>
+                <Label fx:id="postedDate" text="ðŸ• Posted 2 days ago" styleClass="text-muted"/>
             </HBox>
         </VBox>
         
         <VBox spacing="12" alignment="TOP_RIGHT">
             <TLButton fx:id="applyBtn" text="Postuler" variant="PRIMARY" onAction="#handleApply"/>
-            <TLButton fx:id="saveBtn" text="💾 Enregistrer" variant="OUTLINE" onAction="#handleSave"/>
+            <TLButton fx:id="saveBtn" text="ðŸ’¾ Enregistrer" variant="OUTLINE" onAction="#handleSave"/>
         </VBox>
     </HBox>
     
@@ -56,7 +56,7 @@
             
             <!-- Requirements Section -->
             <VBox spacing="12">
-                <Label text="Compétences Requises" styleClass="h3"/>
+                <Label text="CompÃ©tences Requises" styleClass="h3"/>
                 <FlowPane fx:id="skillsContainer" hgap="8" vgap="8"/>
             </VBox>
             
@@ -89,3 +89,4 @@
         </VBox>
     </ScrollPane>
 </VBox>
+

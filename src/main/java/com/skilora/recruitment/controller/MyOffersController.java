@@ -1,4 +1,4 @@
-package com.skilora.controller;
+package com.skilora.recruitment.controller;
 
 import com.skilora.model.entity.JobOffer;
 import com.skilora.model.entity.User;
@@ -215,24 +215,24 @@ public class MyOffersController implements Initializable {
         detailsRow.setAlignment(Pos.CENTER_LEFT);
 
         if (offer.getLocation() != null) {
-            Label locLabel = new Label("📍 " + offer.getLocation());
+            Label locLabel = new Label("ðŸ“ " + offer.getLocation());
             locLabel.getStyleClass().add("text-muted");
             detailsRow.getChildren().add(locLabel);
         }
 
         if (offer.getWorkType() != null) {
-            Label typeLabel = new Label("💼 " + offer.getWorkType());
+            Label typeLabel = new Label("ðŸ’¼ " + offer.getWorkType());
             typeLabel.getStyleClass().add("text-muted");
             detailsRow.getChildren().add(typeLabel);
         }
 
-        Label salaryLabel = new Label("💰 " + offer.getSalaryRange() + " " +
+        Label salaryLabel = new Label("ðŸ’° " + offer.getSalaryRange() + " " +
             (offer.getCurrency() != null ? offer.getCurrency() : "TND"));
         salaryLabel.getStyleClass().add("text-muted");
         detailsRow.getChildren().add(salaryLabel);
 
         if (offer.getPostedDate() != null) {
-            Label dateLabel = new Label("📅 " + offer.getPostedDate().format(DATE_FMT));
+            Label dateLabel = new Label("ðŸ“… " + offer.getPostedDate().format(DATE_FMT));
             dateLabel.getStyleClass().add("text-muted");
             detailsRow.getChildren().add(dateLabel);
         }
@@ -311,3 +311,4 @@ public class MyOffersController implements Initializable {
         thread.start();
     }
 }
+

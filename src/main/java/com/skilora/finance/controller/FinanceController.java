@@ -210,6 +210,7 @@ public class FinanceController implements Initializable {
     @FXML
     private TLComboBox<String> tax_currencyCombo;
     @FXML
+
     private TextArea tax_resultArea;
 
     @Override

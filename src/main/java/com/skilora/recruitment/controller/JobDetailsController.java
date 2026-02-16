@@ -1,4 +1,4 @@
-package com.skilora.controller;
+package com.skilora.recruitment.controller;
 
 import com.skilora.framework.components.TLBadge;
 import com.skilora.framework.components.TLButton;
@@ -68,10 +68,10 @@ public class JobDetailsController {
         }
         
         // Location & Type
-        jobLocation.setText("📍 " + (currentJob.getLocation() != null && !currentJob.getLocation().isEmpty() 
+        jobLocation.setText("ðŸ“ " + (currentJob.getLocation() != null && !currentJob.getLocation().isEmpty() 
             ? currentJob.getLocation() 
             : "Remote / " + I18n.get("jobdetails.not_specified")));
-        jobType.setText("💼 Full-time"); // Default, could be from job data
+        jobType.setText("ðŸ’¼ Full-time"); // Default, could be from job data
         
         // Posted date
         if (currentJob.getPostedDate() != null) {
@@ -81,9 +81,9 @@ public class JobDetailsController {
                 String dateText = daysAgo == 0 ? I18n.get("jobdetails.today") 
                     : daysAgo == 1 ? I18n.get("jobdetails.yesterday") 
                     : I18n.get("jobdetails.days_ago", daysAgo);
-                postedDate.setText("🕐 " + dateText);
+                postedDate.setText("ðŸ• " + dateText);
             } catch (Exception e) {
-                postedDate.setText("🕐 " + currentJob.getPostedDate());
+                postedDate.setText("ðŸ• " + currentJob.getPostedDate());
             }
         }
         
@@ -132,7 +132,7 @@ public class JobDetailsController {
         HBox benefitRow = new HBox(8);
         benefitRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         
-        Label checkIcon = new Label("✓");
+        Label checkIcon = new Label("âœ“");
         checkIcon.setStyle("-fx-text-fill: #22c55e; -fx-font-weight: bold;");
         
         Label benefitLabel = new Label(benefit);
@@ -148,13 +148,13 @@ public class JobDetailsController {
 
         // Look for common salary patterns
         java.util.regex.Matcher m = java.util.regex.Pattern
-            .compile("(\\d{1,3}[.,]?\\d{0,3})\\s*(tnd|dt|eur|€|\\$|usd)", java.util.regex.Pattern.CASE_INSENSITIVE)
+            .compile("(\\d{1,3}[.,]?\\d{0,3})\\s*(tnd|dt|eur|â‚¬|\\$|usd)", java.util.regex.Pattern.CASE_INSENSITIVE)
             .matcher(desc);
         if (m.find()) {
             return m.group(0);
         }
 
-        if (lower.contains("compétiti") || lower.contains("attracti")) {
+        if (lower.contains("compÃ©titi") || lower.contains("attracti")) {
             return I18n.get("jobdetails.salary.competitive");
         }
         return I18n.get("jobdetails.salary.negotiable");
@@ -166,12 +166,12 @@ public class JobDetailsController {
         String[][] benefitKeywords = {
             {"assurance", I18n.get("jobdetails.benefit.health")},
             {"remote", I18n.get("jobdetails.benefit.remote")},
-            {"télétravail", I18n.get("jobdetails.benefit.telework")},
+            {"tÃ©lÃ©travail", I18n.get("jobdetails.benefit.telework")},
             {"formation", I18n.get("jobdetails.benefit.training")},
             {"transport", I18n.get("jobdetails.benefit.transport")},
             {"restaurant", I18n.get("jobdetails.benefit.meal")},
             {"bonus", I18n.get("jobdetails.benefit.bonus")},
-            {"congé", I18n.get("jobdetails.benefit.leave")},
+            {"congÃ©", I18n.get("jobdetails.benefit.leave")},
             {"flexible", I18n.get("jobdetails.benefit.hours")}
         };
 
@@ -200,7 +200,7 @@ public class JobDetailsController {
     
     @FXML
     private void handleApply() {
-        applyBtn.setText("✓ " + I18n.get("jobdetails.applied"));
+        applyBtn.setText("âœ“ " + I18n.get("jobdetails.applied"));
         applyBtn.setDisable(true);
         
         if (onApply != null) {
@@ -210,10 +210,11 @@ public class JobDetailsController {
     
     @FXML
     private void handleSave() {
-        if (saveBtn.getText().contains("💾")) {
-            saveBtn.setText("❤️ " + I18n.get("jobdetails.saved"));
+        if (saveBtn.getText().contains("ðŸ’¾")) {
+            saveBtn.setText("â¤ï¸ " + I18n.get("jobdetails.saved"));
         } else {
-            saveBtn.setText("💾 " + I18n.get("jobdetails.save"));
+            saveBtn.setText("ðŸ’¾ " + I18n.get("jobdetails.save"));
         }
     }
 }
+

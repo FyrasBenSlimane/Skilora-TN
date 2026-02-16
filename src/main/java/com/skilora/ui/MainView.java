@@ -544,7 +544,7 @@ public class MainView extends TLAppLayout {
                 cachedFeedView = loader.load();
 
                 // Set callback to navigate to job details
-                com.skilora.controller.FeedController controller = loader.getController();
+                com.skilora.recruitment.controller.FeedController controller = loader.getController();
                 if (controller != null) {
                     controller.setOnJobClick(this::showJobDetails);
                 }
@@ -626,7 +626,7 @@ public class MainView extends TLAppLayout {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/ApplicationsView.fxml"));
                 VBox applicationsContent = loader.load();
 
-                com.skilora.controller.ApplicationsController controller = loader.getController();
+                com.skilora.recruitment.controller.ApplicationsController controller = loader.getController();
                 if (controller != null) {
                     controller.setCurrentUser(currentUser);
                 }
@@ -656,7 +656,7 @@ public class MainView extends TLAppLayout {
                         getClass().getResource("/com/skilora/view/ApplicationInboxView.fxml"));
                 VBox inboxContent = loader.load();
 
-                com.skilora.controller.ApplicationInboxController controller = loader.getController();
+                com.skilora.recruitment.controller.ApplicationInboxController controller = loader.getController();
                 if (controller != null) {
                     controller.setCurrentUser(currentUser);
                 }
@@ -684,7 +684,7 @@ public class MainView extends TLAppLayout {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/JobDetailsView.fxml"));
             VBox jobDetailsContent = loader.load();
 
-            com.skilora.controller.JobDetailsController controller = loader.getController();
+            com.skilora.recruitment.controller.JobDetailsController controller = loader.getController();
             if (controller != null) {
                 controller.setJob(job);
                 controller.setCallbacks(
@@ -757,7 +757,7 @@ public class MainView extends TLAppLayout {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/PostJobView.fxml"));
                 VBox postJobContent = loader.load();
 
-                com.skilora.controller.PostJobController controller = loader.getController();
+                com.skilora.recruitment.controller.PostJobController controller = loader.getController();
                 if (controller != null) {
                     controller.setOnCancel(this::showDashboard);
                     controller.setCurrentUser(currentUser);
@@ -924,7 +924,7 @@ public class MainView extends TLAppLayout {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/MyOffersView.fxml"));
             VBox myOffersContent = loader.load();
 
-            com.skilora.controller.MyOffersController controller = loader.getController();
+            com.skilora.recruitment.controller.MyOffersController controller = loader.getController();
             if (controller != null) {
                 controller.setCurrentUser(currentUser);
                 controller.setOnNewOffer(this::showPostJobView);
@@ -1020,7 +1020,7 @@ public class MainView extends TLAppLayout {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/InterviewsView.fxml"));
             VBox interviewsContent = loader.load();
 
-            com.skilora.controller.InterviewsController controller = loader.getController();
+            com.skilora.recruitment.controller.InterviewsController controller = loader.getController();
             if (controller != null) {
                 controller.setCurrentUser(currentUser);
             }

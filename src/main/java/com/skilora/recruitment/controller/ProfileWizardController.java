@@ -1,4 +1,6 @@
-package com.skilora.controller;
+package com.skilora.recruitment.controller;
+
+import com.skilora.controller.BiometricAuthController;
 
 import com.skilora.framework.components.TLButton;
 import com.skilora.framework.components.TLTextField;
@@ -102,7 +104,8 @@ public class ProfileWizardController {
 
     @FXML
     private void handleBiometricSetup() {
-        if (currentUser == null) return;
+        if (currentUser == null)
+            return;
 
         Stage ownerStage = (Stage) biometricBtn.getScene().getWindow();
         BiometricAuthController.showRegistrationDialog(ownerStage, currentUser.getUsername(), (registeredUser) -> {
@@ -127,7 +130,7 @@ public class ProfileWizardController {
             protected Void call() throws Exception {
                 // Update model with all available fields
                 currentUser.setFullName(firstNameField.getText() + " " + lastNameField.getText());
-                
+
                 // Save email if provided
                 String email = emailField != null ? emailField.getText() : null;
                 if (email != null && !email.trim().isEmpty()) {

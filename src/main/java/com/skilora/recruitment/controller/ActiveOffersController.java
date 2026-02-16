@@ -1,4 +1,4 @@
-package com.skilora.controller;
+package com.skilora.recruitment.controller;
 
 import com.skilora.model.entity.JobOffer;
 import com.skilora.model.enums.JobStatus;
@@ -191,12 +191,12 @@ public class ActiveOffersController implements Initializable {
         VBox content = new VBox(12);
         content.setPadding(new Insets(20));
 
-        // ── Top row: Title + Status Badge ──
+        // â”€â”€ Top row: Title + Status Badge â”€â”€
         HBox topRow = new HBox(12);
         topRow.setAlignment(Pos.CENTER_LEFT);
 
         VBox titleBlock = new VBox(2);
-        Label titleLabel = new Label(offer.getTitle() != null ? offer.getTitle() : "—");
+        Label titleLabel = new Label(offer.getTitle() != null ? offer.getTitle() : "â€”");
         titleLabel.getStyleClass().add("h4");
 
         if (offer.getCompanyName() != null) {
@@ -232,7 +232,7 @@ public class ActiveOffersController implements Initializable {
 
         topRow.getChildren().addAll(titleBlock, spacer, statusBadge);
 
-        // ── Details row: Location | Type | Salary | Date ──
+        // â”€â”€ Details row: Location | Type | Salary | Date â”€â”€
         HBox detailsRow = new HBox(20);
         detailsRow.setAlignment(Pos.CENTER_LEFT);
         detailsRow.setPadding(new Insets(4, 0, 4, 0));
@@ -259,7 +259,7 @@ public class ActiveOffersController implements Initializable {
                 offer.getPostedDate().format(DATE_FMT)));
         }
 
-        // ── Separator + Actions ──
+        // â”€â”€ Separator + Actions â”€â”€
         Separator sep = new Separator();
 
         HBox actionsRow = new HBox(8);
@@ -343,3 +343,4 @@ public class ActiveOffersController implements Initializable {
         thread.start();
     }
 }
+

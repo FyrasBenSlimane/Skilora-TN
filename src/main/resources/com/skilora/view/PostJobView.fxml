@@ -6,7 +6,7 @@
 <?import com.skilora.framework.components.*?>
 
 <VBox xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.skilora.controller.PostJobController"
+      fx:controller="com.skilora.recruitment.controller.PostJobController"
       spacing="24"
       style="-fx-background-color: transparent;">
     <padding><Insets top="32" right="32" bottom="32" left="32"/></padding>
@@ -15,12 +15,12 @@
     <HBox spacing="24" alignment="CENTER_LEFT">
         <VBox spacing="4">
             <Label text="Publier une Offre d'Emploi" styleClass="h2"/>
-            <Label fx:id="stepLabel" text="Étape 1 sur 3 - Informations de base" styleClass="text-muted"/>
+            <Label fx:id="stepLabel" text="Ã‰tape 1 sur 3 - Informations de base" styleClass="text-muted"/>
         </VBox>
         
         <Region HBox.hgrow="ALWAYS"/>
         
-        <TLButton fx:id="saveBtn" text="💾 Enregistrer brouillon" variant="OUTLINE" onAction="#handleSaveDraft"/>
+        <TLButton fx:id="saveBtn" text="ðŸ’¾ Enregistrer brouillon" variant="OUTLINE" onAction="#handleSaveDraft"/>
     </HBox>
     
     <!-- Progress Bar -->
@@ -30,11 +30,11 @@
             <ProgressBar fx:id="progress1" progress="1.0" maxWidth="Infinity"/>
         </VBox>
         <VBox fx:id="step2Indicator" spacing="4" alignment="CENTER" HBox.hgrow="ALWAYS">
-            <Label text="2. Compétences" styleClass="text-muted"/>
+            <Label text="2. CompÃ©tences" styleClass="text-muted"/>
             <ProgressBar fx:id="progress2" progress="0.0" maxWidth="Infinity"/>
         </VBox>
         <VBox fx:id="step3Indicator" spacing="4" alignment="CENTER" HBox.hgrow="ALWAYS">
-            <Label text="3. Aperçu" styleClass="text-muted"/>
+            <Label text="3. AperÃ§u" styleClass="text-muted"/>
             <ProgressBar fx:id="progress3" progress="0.0" maxWidth="Infinity"/>
         </VBox>
     </HBox>
@@ -48,8 +48,9 @@
     <HBox spacing="12" alignment="CENTER_RIGHT">
         <TLButton fx:id="cancelBtn" text="Annuler" variant="GHOST" onAction="#handleCancel"/>
         <Region HBox.hgrow="ALWAYS"/>
-        <TLButton fx:id="prevBtn" text="← Précédent" variant="OUTLINE" onAction="#handlePrevious" visible="false"/>
-        <TLButton fx:id="nextBtn" text="Suivant →" variant="PRIMARY" onAction="#handleNext"/>
-        <TLButton fx:id="publishBtn" text="🚀 Publier" variant="PRIMARY" onAction="#handlePublish" visible="false"/>
+        <TLButton fx:id="prevBtn" text="â† PrÃ©cÃ©dent" variant="OUTLINE" onAction="#handlePrevious" visible="false"/>
+        <TLButton fx:id="nextBtn" text="Suivant â†’" variant="PRIMARY" onAction="#handleNext"/>
+        <TLButton fx:id="publishBtn" text="ðŸš€ Publier" variant="PRIMARY" onAction="#handlePublish" visible="false"/>
     </HBox>
 </VBox>
+

@@ -1,4 +1,4 @@
-package com.skilora.controller;
+package com.skilora.recruitment.controller;
 
 import com.skilora.framework.components.TLBadge;
 import com.skilora.framework.components.TLButton;
@@ -118,7 +118,7 @@ public class ApplicationInboxController implements Initializable {
         
         // Actions column
         actionsCol.setCellFactory(col -> new TableCell<ApplicationRow, Void>() {
-            private final TLButton moreBtn = new TLButton("⋮");
+            private final TLButton moreBtn = new TLButton("â‹®");
             
             {
                 moreBtn.setVariant(TLButton.ButtonVariant.GHOST);
@@ -134,10 +134,10 @@ public class ApplicationInboxController implements Initializable {
                     
                     moreBtn.setOnAction(e -> {
                         TLDropdownMenu menu = new TLDropdownMenu();
-                        menu.addItem("👁️ " + I18n.get("inbox.view_profile"), ev -> handleViewProfile(app));
-                        menu.addItem("✅ " + I18n.get("inbox.accept"), ev -> handleAccept(app));
-                        menu.addItem("❌ " + I18n.get("inbox.reject"), ev -> handleReject(app));
-                        menu.addItem("📧 " + I18n.get("inbox.contact"), ev -> handleContact(app));
+                        menu.addItem("ðŸ‘ï¸ " + I18n.get("inbox.view_profile"), ev -> handleViewProfile(app));
+                        menu.addItem("âœ… " + I18n.get("inbox.accept"), ev -> handleAccept(app));
+                        menu.addItem("âŒ " + I18n.get("inbox.reject"), ev -> handleReject(app));
+                        menu.addItem("ðŸ“§ " + I18n.get("inbox.contact"), ev -> handleContact(app));
                         menu.show(moreBtn, javafx.geometry.Side.BOTTOM, 0, 4);
                     });
                     
@@ -330,3 +330,4 @@ public class ApplicationInboxController implements Initializable {
         public void setStatus(String status) { this.status = status; }
     }
 }
+
