@@ -57,6 +57,10 @@ public class AdminDashboardController implements Initializable {
 
 
 
+    @FXML
+    private TableView<Ticket> adminTicketTable;
+
+    @FXML
     private TableColumn<Ticket, Integer> colAdminId;
     @FXML
     private TableColumn<Ticket, String> colAdminSubject;
@@ -72,6 +76,7 @@ public class AdminDashboardController implements Initializable {
     private TableColumn<Ticket, LocalDateTime> colAdminDate;
     @FXML
     private TableColumn<Ticket, Void> colAdminActions;
+
 
     private ServiceTicket serviceTicket = new ServiceTicket();
     private List<Ticket> allTickets = new java.util.ArrayList<>();
