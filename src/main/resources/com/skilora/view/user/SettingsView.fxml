@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.String?>
+<?import javafx.collections.FXCollections?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import com.skilora.framework.components.TLSwitch?>
+<?import com.skilora.framework.components.TLSeparator?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1" 
+      fx:controller="com.skilora.user.controller.SettingsController"
+      spacing="24" fillWidth="true">
+    
+    <padding>
+        <Insets top="32" right="32" bottom="32" left="32"/>
+    </padding>
+
+    <!-- Header -->
+    <VBox spacing="8">
+        <Label fx:id="settingsTitleLabel" text="Paramètres" styleClass="h2"/>
+        <Label fx:id="settingsSubtitleLabel" text="Configurez vos préférences d'application" styleClass="text-muted"/>
+    </VBox>
+
+    <!-- Appearance Section -->
+    <VBox spacing="12">
+        <Label fx:id="appearanceLabel" text="Apparence" styleClass="h3"/>
+        <TLSeparator/>
+        
+        <HBox spacing="12" alignment="CENTER_LEFT">
+            <Label fx:id="darkModeLabel" text="Mode sombre" minWidth="200"/>
+            <TLSwitch fx:id="darkModeCheckbox"/>
+        </HBox>
+        
+        <HBox spacing="12" alignment="CENTER_LEFT">
+            <Label fx:id="animationsLabel" text="Animations" minWidth="200"/>
+            <TLSwitch fx:id="animationsCheckbox"/>
+        </HBox>
+    </VBox>
+
+    <!-- Notifications Section -->
+    <VBox spacing="12">
+        <Label fx:id="notificationsLabel" text="Notifications" styleClass="h3"/>
+        <TLSeparator/>
+        
+        <HBox spacing="12" alignment="CENTER_LEFT">
+            <Label fx:id="enableNotificationsLabel" text="Activer les notifications" minWidth="200"/>
+            <TLSwitch fx:id="notificationsCheckbox"/>
+        </HBox>
+        
+        <HBox spacing="12" alignment="CENTER_LEFT">
+            <Label fx:id="soundNotificationsLabel" text="Notifications sonores" minWidth="200"/>
+            <TLSwitch fx:id="soundNotificationsCheckbox"/>
+        </HBox>
+    </VBox>
+
+    <!-- Language Section -->
+    <VBox spacing="12">
+        <Label fx:id="languageSectionLabel" text="Langue" styleClass="h3"/>
+        <TLSeparator/>
+        
+        <HBox spacing="12" alignment="CENTER_LEFT">
+            <Label fx:id="languageLabel" text="Langue de l'interface" minWidth="200"/>
+            <ComboBox fx:id="languageComboBox" minWidth="200"/>
+        </HBox>
+    </VBox>
+
+    <!-- Buttons -->
+    <HBox spacing="12" alignment="CENTER_RIGHT">
+        <Button fx:id="saveBtn" text="Enregistrer" styleClass="btn-primary"/>
+        <Button fx:id="cancelBtn" text="Annuler" styleClass="btn-outline"/>
+    </HBox>
+
+</VBox>

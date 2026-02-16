@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+<?import com.skilora.framework.components.TLButton?>
+
+<VBox xmlns="http://javafx.com/javafx" 
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.skilora.support.controller.SupportController"
+      spacing="24" 
+      style="-fx-background-color: transparent;">
+    
+    <padding>
+        <Insets top="32" right="32" bottom="32" left="32"/>
+    </padding>
+
+    <!-- Header -->
+    <HBox spacing="16" alignment="CENTER_LEFT">
+        <VBox spacing="4">
+            <Label fx:id="titleLabel" text="Support" styleClass="h2"/>
+            <Label fx:id="subtitleLabel" text="How can we help you?" styleClass="text-muted"/>
+        </VBox>
+        <Region HBox.hgrow="ALWAYS"/>
+        <TLButton fx:id="newTicketBtn" text="Nouveau Ticket" variant="PRIMARY" onAction="#handleNewTicket"/>
+    </HBox>
+
+    <!-- Tab Navigation -->
+    <HBox fx:id="tabBox" spacing="8" alignment="CENTER_LEFT"/>
+
+    <!-- Content Pane (switches based on tab) -->
+    <VBox fx:id="contentPane" VBox.vgrow="ALWAYS"/>
+
+</VBox>

@@ -1,0 +1,67 @@
+/**
+ * shadcn/ui New York - JavaFX Utility Classes
+ *
+ * Spacing (space-x / space-y), typography, layout. Uses design tokens.
+ */
+
+/* ========== SPACING ========== */
+.p-xs { -fx-padding: 4px; }
+.p-sm { -fx-padding: 8px; }
+.p-md { -fx-padding: 16px; }
+.p-lg { -fx-padding: 24px; }
+.p-xl { -fx-padding: 32px; }
+.px-sm { -fx-padding: 0 8px; }
+.px-md { -fx-padding: 0 16px; }
+.py-sm { -fx-padding: 8px 0; }
+.py-md { -fx-padding: 16px 0; }
+
+.gap-xs { -fx-spacing: 4px; }
+.gap-sm { -fx-spacing: 8px; }
+.gap-md { -fx-spacing: 16px; }
+.gap-lg { -fx-spacing: 24px; }
+
+/* ========== TYPOGRAPHY (New York: 14px body, variable headings) ========== */
+.text-primary { -fx-text-fill: -fx-foreground; }
+.text-muted { -fx-text-fill: -fx-muted-foreground; }
+.text-destructive { -fx-text-fill: -fx-destructive; }
+
+/* Use variables from theme.css */
+.text-xs { -fx-font-size: 12px; }
+.text-sm { -fx-font-size: 14px; }
+.text-base { -fx-font-size: 16px; }
+.text-lg { -fx-font-size: 18px; }
+.text-xl { -fx-font-size: 20px; }
+.text-2xl { -fx-font-size: 24px; }
+.text-3xl { -fx-font-size: 30px; }
+.text-4xl { -fx-font-size: 36px; }
+
+.font-medium { -fx-font-weight: 500; }
+.font-semibold { -fx-font-weight: 600; }
+.font-bold { -fx-font-weight: bold; }
+.font-title { -fx-font-family: "Inter", "System", "Segoe UI", sans-serif; }
+.font-body { -fx-font-family: "Inter", "System", "Segoe UI", sans-serif; }
+
+.text-left { -fx-text-alignment: left; }
+.text-center { -fx-text-alignment: center; }
+.text-right { -fx-text-alignment: right; }
+
+/* ========== LAYOUT ========== */
+.w-full { -fx-pref-width: -1; -fx-max-width: -1; }
+.h-full { -fx-pref-height: -1; -fx-max-height: -1; }
+.items-center { -fx-alignment: center; }
+.items-start { -fx-alignment: top-left; }
+.items-end { -fx-alignment: bottom-right; }
+
+/* ========== STATE ========== */
+.disabled { -fx-opacity: 0.5; -fx-cursor: default; }
+
+/* ========== BORDER RADIUS (6px default) ========== */
+.rounded-sm { -fx-background-radius: 4px; -fx-border-radius: 4px; }
+.rounded-md { -fx-background-radius: 6px; -fx-border-radius: 6px; }
+.rounded-lg { -fx-background-radius: 6px; -fx-border-radius: 6px; }
+.rounded-full { -fx-background-radius: 9999px; -fx-border-radius: 9999px; }
+
+/* ========== SHADOW (New York) ========== */
+.shadow-sm { -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 5, 0, 0, 2); }
+.shadow-md { -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 8, 0, 0, 3); }
+.shadow-lg { -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 4); }

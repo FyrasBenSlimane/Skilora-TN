@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+<?import com.skilora.framework.components.*?>
+<?import com.skilora.framework.components.TLSeparator?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.skilora.community.controller.ErrorController"
+      spacing="32"
+      alignment="CENTER"
+      style="-fx-background-color: transparent;">
+    
+    <padding><Insets top="80" right="32" bottom="80" left="32"/></padding>
+    
+    <!-- Error Icon/Illustration -->
+    <VBox spacing="16" alignment="CENTER">
+        <Label fx:id="errorIcon" text="⚠️" style="-fx-font-size: 96px;"/>
+        <Label fx:id="errorCode" text="404" styleClass="h1" style="-fx-font-size: 72px; -fx-font-weight: bold;"/>
+    </VBox>
+    
+    <!-- Error Message -->
+    <VBox spacing="12" alignment="CENTER" maxWidth="600">
+        <Label fx:id="errorTitle" text="Page non trouvée" styleClass="h2" alignment="CENTER"/>
+        <Label fx:id="errorMessage" text="Oups! La page que vous recherchez n'existe pas ou a été déplacée." 
+               styleClass="text-muted" wrapText="true" alignment="CENTER"/>
+    </VBox>
+    
+    <!-- Actions -->
+    <VBox spacing="12" alignment="CENTER">
+        <TLButton fx:id="homeBtn" text="← Retour à l'accueil" variant="PRIMARY" onAction="#handleGoHome"/>
+        <TLButton fx:id="backBtn" text="Retour en arrière" variant="OUTLINE" onAction="#handleGoBack"/>
+    </VBox>
+    
+    <!-- Additional Info -->
+    <VBox spacing="8" alignment="CENTER">
+        <TLSeparator maxWidth="300"/>
+        <Label text="Besoin d'aide?" styleClass="text-muted"/>
+        <TLButton fx:id="supportBtn" text="Contacter le support" variant="GHOST" onAction="#handleSupport"/>
+    </VBox>
+    
+    <!-- Technical Details (expandable) -->
+    <VBox fx:id="detailsBox" spacing="8" alignment="CENTER" visible="false" managed="false">
+        <TLSeparator maxWidth="400"/>
+        <Label text="Détails techniques:" styleClass="text-muted" style="-fx-font-size: 11px;"/>
+        <Label fx:id="technicalDetails" text="" styleClass="text-muted" 
+               style="-fx-font-size: 11px; -fx-font-family: monospace;" wrapText="true"/>
+    </VBox>
+</VBox>

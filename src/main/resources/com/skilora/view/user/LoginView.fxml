@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.shape.SVGPath?>
+<?import com.skilora.framework.components.*?>
+
+<HBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.skilora.user.controller.LoginController"
+      styleClass="app-root"
+      fillHeight="true">
+
+    <!-- LEFT SIDE (Hero) -->
+    <StackPane fx:id="heroContainer" minWidth="400" prefWidth="500" style="-fx-background-color: #09090b;">
+         <!-- Video content added by controller at index 0 -->
+         
+         <!-- Overlay Content -->
+         <VBox alignment="BOTTOM_LEFT" spacing="16">
+             <style>
+                 -fx-padding: 48;
+             </style>
+             <HBox spacing="12" alignment="CENTER_LEFT">
+                 <SVGPath content="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z" 
+                          style="-fx-fill: white;" scaleX="1.5" scaleY="1.5"/>
+                 <Label text="Skilora Tunisia" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: white;"/>
+             </HBox>
+             
+             <Region VBox.vgrow="ALWAYS"/>
+             
+             <VBox spacing="16">
+                 <Label text="Connecting Tunisia's Youth&#10;to Global Opportunities." wrapText="true" 
+                        style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: white;"/>
+                 <Label text="Secure. Intelligent. Limitless." 
+                        style="-fx-font-size: 14px; -fx-text-fill: rgba(255,255,255,0.8);"/>
+             </VBox>
+         </VBox>
+    </StackPane>
+
+    <!-- RIGHT SIDE (Form) -->
+    <StackPane HBox.hgrow="ALWAYS" alignment="CENTER" minWidth="400">
+        <VBox maxWidth="380" spacing="24" alignment="CENTER_LEFT">
+            <VBox spacing="8" alignment="CENTER_LEFT">
+                <Label text="Welcome back" styleClass="h2"/>
+                <Label text="Enter your credentials to access your account" styleClass="text-muted"/>
+            </VBox>
+            
+            <Label fx:id="errorLabel" visible="false" managed="false" styleClass="text-sm, text-destructive"/>
+            
+            <TLTextField fx:id="usernameField" label="Username" promptText=""/>
+            <TLPasswordField fx:id="passwordField" label="Password" promptText=""/>
+            
+            <TLButton fx:id="loginBtn" text="Sign In" variant="PRIMARY" maxWidth="Infinity" onAction="#handleLogin"/>
+            <TLButton fx:id="biometricBtn" text="Login with Face ID" variant="OUTLINE" maxWidth="Infinity" onAction="#handleBiometricLogin"/>
+            
+            <HBox alignment="CENTER">
+                <Label text="OR CONTINUE WITH" styleClass="text-xs, text-muted"/>
+            </HBox>
+            
+            <HBox alignment="CENTER" spacing="4">
+                <Label text="Don't have an account?" styleClass="text-muted"/>
+                <TLButton fx:id="registerLink" text="Sign Up" variant="GHOST" style="-fx-padding: 0;" onAction="#openRegister"/>
+            </HBox>
+        </VBox>
+    </StackPane>
+
+</HBox>

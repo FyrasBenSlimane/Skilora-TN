@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import com.skilora.framework.components.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1" 
+      fx:controller="com.skilora.user.controller.UsersController"
+      spacing="24" fillWidth="true">
+    
+    <padding>
+        <Insets top="32" right="32" bottom="32" left="32"/>
+    </padding>
+
+    <!-- Header Section -->
+    <HBox spacing="8" alignment="CENTER_LEFT">
+        <VBox spacing="4">
+            <Label text="Gestion des Utilisateurs" styleClass="h2"/>
+            <Label text="Gérez les comptes, rôles et permissions." styleClass="text-muted"/>
+        </VBox>
+        
+        <Region HBox.hgrow="ALWAYS"/>
+        
+        <Button fx:id="addUserBtn" text="Ajouter" styleClass="btn-primary"/>
+    </HBox>
+
+    <!-- Toolbar Section -->
+    <HBox spacing="8" alignment="CENTER_LEFT">
+        <TLTextField fx:id="searchField" minWidth="300"/>
+        <Button fx:id="filterBtn" text="Filtres" styleClass="btn-outline"/>
+        <Button fx:id="columnsBtn" text="Colonnes" styleClass="btn-outline"/>
+    </HBox>
+
+    <!-- Table Section -->
+    <TableView fx:id="usersTable" VBox.vgrow="ALWAYS" styleClass="table"/>
+
+    <!-- Footer Section -->
+    <HBox spacing="16" alignment="CENTER_RIGHT">
+        <Label fx:id="rowsInfo" styleClass="text-xs, text-muted"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Pagination fx:id="pagination" maxPageIndicatorCount="5"/>
+    </HBox>
+    
+</VBox>
