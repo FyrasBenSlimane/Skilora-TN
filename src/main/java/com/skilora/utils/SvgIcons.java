@@ -69,6 +69,28 @@ public final class SvgIcons {
     public static final String GRADUATION_CAP = "M22 10l-10-5-10 5 10 5 10-5z M6 12v5c3 3 9 3 12 0v-5";
     public static final String TIMER          = "M12 5v7l4 4 M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M10 2h4";
 
+    // ── Trends & Analytics ───────────────────────────────────────────
+    public static final String TRENDING_UP    = "M23 6l-9.5 9.5-5-5L1 18 M17 6h6v6";
+    public static final String TRENDING_DOWN  = "M23 18l-9.5-9.5-5 5L1 6 M17 18h6v-6";
+    public static final String BAR_CHART      = "M18 20V10 M12 20V4 M6 20v-6";
+    public static final String ACTIVITY       = "M22 12h-4l-3 9L9 3l-3 9H2";
+    public static final String PIE_CHART      = "M21.21 15.89A10 10 0 1 1 8 2.83 M22 12A10 10 0 0 0 12 2v10z";
+
+    // ── People ────────────────────────────────────────────────────────
+    public static final String USER           = "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z";
+    public static final String USER_PLUS      = "M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M8.5 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M20 8v6 M23 11h-6";
+    public static final String USERS          = "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75";
+
+    // ── System & Security ─────────────────────────────────────────────
+    public static final String KEY            = "M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zM15.5 7.5l3 3L22 7l-3-3";
+    public static final String DATABASE       = "M12 2C6.48 2 2 4.02 2 6.5v11C2 19.98 6.48 22 12 22s10-2.02 10-4.5v-11C22 4.02 17.52 2 12 2z M2 6.5C2 8.98 6.48 11 12 11s10-2.02 10-4.5 M2 12c0 2.48 4.48 4.5 10 4.5s10-2.02 10-4.5";
+    public static final String CLIPBOARD      = "M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2 M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z";
+    public static final String TOOL           = "M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z";
+    public static final String LAYERS         = "M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5";
+    public static final String LOG_IN         = "M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4 M10 17l5-5-5-5 M15 12H3";
+    public static final String SHIELD_CHECK   = "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M9 12l2 2 4-4";
+    public static final String SERVER         = "M2 4h20v6H2z M2 14h20v6H2z M6 7h.01 M6 17h.01";
+
     // ── Misc ──────────────────────────────────────────────────────────
     public static final String STAR           = "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z";
     public static final String SPARKLES       = "M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z M19 13l.75 2.25L22 16l-2.25.75L19 19l-.75-2.25L16 16l2.25-.75L19 13z";

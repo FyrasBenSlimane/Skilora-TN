@@ -9,6 +9,7 @@ import com.skilora.user.entity.User;
 import com.skilora.community.service.DashboardStatsService;
 import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.I18n;
+import com.skilora.utils.SvgIcons;
 
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -60,12 +61,14 @@ public class DashboardController {
     private Runnable onNavigateToProfile;
     private Runnable onNavigateToFeed;
     private Runnable onNavigateToUsers;
+    private Runnable onNavigateToReports;
 
-    public void initializeContext(User user, Runnable toProfile, Runnable toFeed, Runnable toUsers) {
+    public void initializeContext(User user, Runnable toProfile, Runnable toFeed, Runnable toUsers, Runnable toReports) {
         this.currentUser = user;
         this.onNavigateToProfile = toProfile;
         this.onNavigateToFeed = toFeed;
         this.onNavigateToUsers = toUsers;
+        this.onNavigateToReports = toReports;
 
         setupGreeting();
         setupQuickActions();
@@ -91,27 +94,29 @@ public class DashboardController {
             case ADMIN:
                 actionsContainer.getChildren().addAll(
                         createQuickAction(I18n.get("dashboard.action.add_user"),
-                                "M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z",
+                                SvgIcons.USER_PLUS,
                                 onNavigateToUsers),
-                        createQuickAction(I18n.get("dashboard.action.view_reports"), "M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z",
-                                () -> TLToast.success(greetingLabel.getScene(), I18n.get("common.info"), I18n.get("dashboard.coming_soon"))));
+                        createQuickAction(I18n.get("dashboard.action.view_reports"),
+                                SvgIcons.ALERT_TRIANGLE,
+                                onNavigateToReports));
                 break;
             case EMPLOYER:
                 actionsContainer.getChildren().addAll(
-                        createQuickAction(I18n.get("dashboard.action.post_job"), "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
+                        createQuickAction(I18n.get("dashboard.action.post_job"),
+                                SvgIcons.BRIEFCASE,
                                 () -> TLToast.success(greetingLabel.getScene(), I18n.get("common.info"), I18n.get("dashboard.coming_soon"))),
                         createQuickAction(I18n.get("dashboard.action.search_candidates"),
-                                "M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z",
+                                SvgIcons.SEARCH,
                                 () -> TLToast.success(greetingLabel.getScene(), I18n.get("common.info"), I18n.get("dashboard.coming_soon"))));
                 break;
             case USER:
             default:
                 actionsContainer.getChildren().addAll(
                         createQuickAction(I18n.get("dashboard.action.update_profile"),
-                                "M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z",
+                                SvgIcons.USER,
                                 onNavigateToProfile),
                         createQuickAction(I18n.get("dashboard.action.explore_offers"),
-                                "M12 10.9c-.61 0-1.1.49-1.1 1.1s.49 1.1 1.1 1.1c.61 0 1.1-.49 1.1-1.1s-.49-1.1-1.1-1.1zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm2.19 12.19L6 18l3.81-8.19L18 6l-3.81 8.19z",
+                                SvgIcons.GLOBE,
                                 onNavigateToFeed));
                 break;
         }
@@ -231,12 +236,7 @@ public class DashboardController {
 
     private TLButton createQuickAction(String text, String svgPath, Runnable action) {
         TLButton btn = new TLButton(text, ButtonVariant.OUTLINE);
-        SVGPath icon = new SVGPath();
-        icon.setContent(svgPath);
-        icon.getStyleClass().add("svg-path");
-        icon.setScaleX(0.9);
-        icon.setScaleY(0.9);
-
+        SVGPath icon = SvgIcons.icon(svgPath, 16);
         btn.setGraphic(icon);
         btn.setContentDisplay(ContentDisplay.LEFT);
         btn.setGraphicTextGap(8);
@@ -255,12 +255,23 @@ public class DashboardController {
 
         TLTypography valueTypo = new TLTypography(value, TLTypography.Variant.H2);
 
-        TLTypography trendTypo = new TLTypography(trend, TLTypography.Variant.XS);
-        trendTypo.setStyle(positive || trend.startsWith("+")
-                ? "-fx-text-fill: -fx-success;"
-                : "-fx-text-fill: -fx-muted-foreground;");
+        // Build trend row with arrow icon
+        HBox trendRow = new HBox(4);
+        trendRow.setAlignment(Pos.CENTER_LEFT);
 
-        content.getChildren().addAll(titleTypo, valueTypo, trendTypo);
+        if (trend != null && !trend.isEmpty()) {
+            boolean isPositive = positive || trend.startsWith("+");
+            String trendColor = isPositive ? "-fx-success" : "-fx-muted-foreground";
+            String arrowPath = isPositive ? SvgIcons.TRENDING_UP : SvgIcons.TRENDING_DOWN;
+
+            SVGPath trendArrow = SvgIcons.icon(arrowPath, 12, trendColor);
+            TLTypography trendTypo = new TLTypography(trend, TLTypography.Variant.XS);
+            trendTypo.setStyle("-fx-text-fill: " + trendColor + ";");
+
+            trendRow.getChildren().addAll(trendArrow, trendTypo);
+        }
+
+        content.getChildren().addAll(titleTypo, valueTypo, trendRow);
         card.setBody(content);
         return card;
     }
@@ -269,6 +280,16 @@ public class DashboardController {
         HBox row = new HBox(12);
         row.setAlignment(Pos.CENTER_LEFT);
         row.setPadding(new javafx.geometry.Insets(8, 0, 8, 0));
+
+        // Activity-type icon
+        String iconPath = getActivityIcon(type);
+        SVGPath activityIcon = SvgIcons.icon(iconPath, 16, "-fx-muted-foreground");
+        javafx.scene.layout.StackPane iconWrap = new javafx.scene.layout.StackPane(activityIcon);
+        iconWrap.setMinSize(32, 32);
+        iconWrap.setPrefSize(32, 32);
+        iconWrap.setMaxSize(32, 32);
+        iconWrap.setStyle("-fx-background-color: -fx-muted; -fx-background-radius: 6;");
+        iconWrap.setAlignment(Pos.CENTER);
 
         VBox texts = new VBox(4);
         TLTypography typeText = new TLTypography(type, TLTypography.Variant.SM);
@@ -283,8 +304,23 @@ public class DashboardController {
         TLTypography timeText = new TLTypography(time, TLTypography.Variant.XS);
         timeText.setMuted(true);
 
-        row.getChildren().addAll(texts, spacer, timeText);
+        row.getChildren().addAll(iconWrap, texts, spacer, timeText);
         return row;
+    }
+
+    /** Map activity type strings to relevant icons. */
+    private String getActivityIcon(String type) {
+        if (type == null) return SvgIcons.ACTIVITY;
+        String lower = type.toLowerCase();
+        if (lower.contains("login") || lower.contains("connexion")) return SvgIcons.LOG_IN;
+        if (lower.contains("ticket") || lower.contains("support")) return SvgIcons.MESSAGE_CIRCLE;
+        if (lower.contains("user") || lower.contains("utilisateur")) return SvgIcons.USER;
+        if (lower.contains("offer") || lower.contains("offre")) return SvgIcons.BRIEFCASE;
+        if (lower.contains("formation") || lower.contains("course")) return SvgIcons.GRADUATION_CAP;
+        if (lower.contains("payment") || lower.contains("finance")) return SvgIcons.DOLLAR_SIGN;
+        if (lower.contains("report") || lower.contains("signal")) return SvgIcons.ALERT_TRIANGLE;
+        if (lower.contains("interview") || lower.contains("entretien")) return SvgIcons.VIDEO;
+        return SvgIcons.ACTIVITY;
     }
 
     private String getTimeBasedGreeting() {

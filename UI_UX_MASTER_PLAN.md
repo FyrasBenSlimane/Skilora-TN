@@ -39,7 +39,7 @@
 ### 1.3 Animations & Transitions
 | ID | Task | Priority | Status |
 |----|------|----------|--------|
-| G-06 | Add exit animation (fade-out 150ms) before view swap in `MainView.showView()` | MEDIUM | TODO |
+| G-06 | Add exit animation (fade-out 150ms) before view swap in `MainView.showView()` | MEDIUM | DONE |
 | G-07 | Add staggered card entry animation for grid/list views (feed, offers, applications) | LOW | TODO |
 | G-08 | Add hover scale microinteraction on cards (1.0 → 1.02, 120ms ease) | LOW | TODO |
 
@@ -68,7 +68,7 @@
 | ID | Task | Priority | Status |
 |----|------|----------|--------|
 | A-07 | Add show/hide password toggle on both password fields (TLPasswordField rewrite covers all usages) | HIGH | DONE |
-| A-08 | Add password strength indicator bar below password field (weak/fair/strong/very strong) | MEDIUM | TODO |
+| A-08 | Add password strength indicator bar below password field (weak/fair/strong/very strong) | MEDIUM | DONE |
 | A-09 | Add real-time validation feedback (green check or red X next to each field as user types) | MEDIUM | TODO |
 | A-10 | Add role selector visual: card-based selection instead of dropdown (Job Seeker / Employer / Trainer) | LOW | TODO |
 
@@ -76,7 +76,7 @@
 | ID | Task | Priority | Status |
 |----|------|----------|--------|
 | A-11 | Step indicator already themed — verify visual after matte charcoal update | LOW | DONE |
-| A-12 | OTP input: replace single text field with 6 individual digit boxes (auto-advance) | MEDIUM | TODO |
+| A-12 | OTP input: replace single text field with 6 individual digit boxes (auto-advance) | MEDIUM | DONE |
 | A-13 | Success animation on password reset completion (checkmark circle scale-in) | LOW | TODO |
 
 ### 2.4 Biometric Auth Dialog
@@ -135,7 +135,7 @@
 | ID | Task | Priority | Status |
 |----|------|----------|--------|
 | R-01 | Replace all emoji icons in job cards with SVG (MAP_PIN, BRIEFCASE, DOLLAR_SIGN, CALENDAR) | HIGH | DONE |
-| R-02 | Add card hover effect: subtle border highlight + shadow increase | MEDIUM | TODO |
+| R-02 | Add card hover effect: subtle border highlight + shadow increase | MEDIUM | DONE |
 | R-03 | Add "new" badge for jobs posted within 24h | LOW | TODO |
 | R-04 | Improve tag filter: styled pills with active state indicator | MEDIUM | TODO |
 | R-05 | Add job card save/bookmark icon (heart SVG) with toggle animation | MEDIUM | TODO |
@@ -236,7 +236,7 @@
 |----|------|----------|--------|
 | S-01 | Chatbot bubbles now use theme tokens — verify visual | LOW | DONE |
 | S-02 | Ticket list: add unread indicator dot | MEDIUM | TODO |
-| S-03 | Chatbot: add typing indicator animation (3 bouncing dots) | MEDIUM | TODO |
+| S-03 | Chatbot: add typing indicator animation (3 bouncing dots) | MEDIUM | DONE |
 | S-04 | FAQ: add search/filter within FAQ section | LOW | TODO |
 | S-05 | Feedback form: add star rating component instead of dropdown | MEDIUM | TODO |
 

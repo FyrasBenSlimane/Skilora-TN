@@ -57,9 +57,9 @@
             <Label fx:id="errorLabel" visible="false" managed="false" styleClass="text-sm, text-destructive"/>
             
             <!-- Form Fields -->
-            <TLTextField fx:id="fullNameField" label="Full Name" promptText="ex: Ahmed Ben Ali"/>
-            <TLTextField fx:id="usernameField" label="Username" promptText="ex: ahmed.benali"/>
-            <TLTextField fx:id="emailField" label="Email" promptText="ex: ahmed@example.com"/>
+            <TLTextField fx:id="fullNameField" label="Full Name" promptText="Ahmed Ben Ali"/>
+            <TLTextField fx:id="usernameField" label="Username" promptText="ahmed.benali"/>
+            <TLTextField fx:id="emailField" label="Email" promptText="ahmed@example.com"/>
             <TLPasswordField fx:id="passwordField" label="Password" promptText="Min. 8 characters"/>
             <TLPasswordField fx:id="confirmPasswordField" label="Confirm Password" promptText="Re-enter your password"/>
             

@@ -53,10 +53,10 @@
                         <ColumnConstraints percentWidth="50"/>
                     </columnConstraints>
                     
-                    <TLTextField fx:id="firstNameField" label="Prénom" promptText="Ex: Ahmed" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
-                    <TLTextField fx:id="lastNameField" label="Nom" promptText="Ex: Ben Ali" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                    <TLTextField fx:id="firstNameField" label="Prénom" promptText="Ahmed" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                    <TLTextField fx:id="lastNameField" label="Nom" promptText="Ben Ali" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
                     
-                    <TLTextField fx:id="headlineField" label="Titre / Poste actuel" promptText="Ex: Développeur Fullstack" GridPane.columnSpan="2" GridPane.rowIndex="1"/>
+                    <TLTextField fx:id="headlineField" label="Titre / Poste actuel" promptText="Développeur Fullstack" GridPane.columnSpan="2" GridPane.rowIndex="1"/>
                 </GridPane>
                 
                 <VBox spacing="8">
@@ -78,7 +78,7 @@
                     
                     <TLTextField fx:id="emailField" label="Email" disable="true" GridPane.columnIndex="0"/>
                     <TLTextField fx:id="phoneField" label="Téléphone" promptText="+216" GridPane.columnIndex="1"/>
-                    <TLTextField fx:id="locationField" label="Ville" promptText="Ex: Tunis" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                    <TLTextField fx:id="locationField" label="Ville" promptText="Tunis" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
                     <TLTextField fx:id="websiteField" label="Site Web / Portfolio" promptText="https://" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
                 </GridPane>
             </VBox>
