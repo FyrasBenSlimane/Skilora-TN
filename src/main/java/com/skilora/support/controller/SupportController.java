@@ -7,6 +7,7 @@ import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.I18n;
 import com.skilora.utils.DialogUtils;
 import com.skilora.framework.components.*;
+import javafx.animation.*;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
@@ -15,6 +16,9 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
+import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -236,10 +240,10 @@ public class SupportController implements Initializable {
 
     private TLCard createTicketCard(SupportTicket ticket) {
         TLCard card = new TLCard();
+        card.getStyleClass().add("card-interactive");
         
         VBox content = new VBox(8);
         content.setPadding(new Insets(16));
-        content.setStyle("-fx-cursor: hand;");
         
         // Header row: subject + badges
         Label cardTitle = new Label(ticket.getSubject());
@@ -276,7 +280,7 @@ public class SupportController implements Initializable {
         card.setContent(content);
         
         // Click to open ticket detail
-        content.setOnMouseClicked(e -> openTicketDetail(ticket.getId()));
+        card.setOnMouseClicked(e -> openTicketDetail(ticket.getId()));
         
         return card;
     }
@@ -612,6 +616,7 @@ public class SupportController implements Initializable {
     // ==================== Chatbot Tab ====================
 
     private VBox chatMessages;
+    private HBox typingIndicator;
     private int currentConversationId = -1;
 
     private void loadChatbotTab() {
@@ -694,7 +699,56 @@ public class SupportController implements Initializable {
         chatMessages.getChildren().add(messageBox);
     }
 
+    /**
+     * Creates and shows an animated three-dot typing indicator in the chat area.
+     * The dots pulse in sequence to indicate the bot is processing.
+     */
+    private void showTypingIndicator() {
+        if (chatMessages == null) return;
+
+        HBox container = new HBox();
+        container.setAlignment(Pos.CENTER_LEFT);
+
+        HBox dots = new HBox(6);
+        dots.setAlignment(Pos.CENTER);
+        dots.setStyle("-fx-background-color: -fx-muted; -fx-padding: 10 18; -fx-background-radius: 12;");
+
+        for (int i = 0; i < 3; i++) {
+            Circle dot = new Circle(4);
+            dot.setFill(Color.web("#888888"));
+            dot.setOpacity(0.4);
+
+            // Staggered pulse animation per dot
+            Timeline pulse = new Timeline(
+                new KeyFrame(Duration.ZERO, new KeyValue(dot.opacityProperty(), 0.4)),
+                new KeyFrame(Duration.millis(300), new KeyValue(dot.opacityProperty(), 1.0)),
+                new KeyFrame(Duration.millis(600), new KeyValue(dot.opacityProperty(), 0.4))
+            );
+            pulse.setCycleCount(Animation.INDEFINITE);
+            pulse.setDelay(Duration.millis(i * 200L));
+            pulse.play();
+
+            dots.getChildren().add(dot);
+        }
+
+        container.getChildren().add(dots);
+        typingIndicator = container;
+        chatMessages.getChildren().add(typingIndicator);
+    }
+
+    /**
+     * Removes the typing indicator from the chat area if present.
+     */
+    private void hideTypingIndicator() {
+        if (typingIndicator != null && chatMessages != null) {
+            chatMessages.getChildren().remove(typingIndicator);
+            typingIndicator = null;
+        }
+    }
+
     private void handleChatbotResponse(String userMessage) {
+        showTypingIndicator();
+
         Task<String> task = new Task<>() {
             @Override
             protected String call() {
@@ -718,7 +772,17 @@ public class SupportController implements Initializable {
         };
 
         task.setOnSucceeded(e -> {
-            Platform.runLater(() -> addChatMessage(task.getValue(), false));
+            Platform.runLater(() -> {
+                hideTypingIndicator();
+                addChatMessage(task.getValue(), false);
+            });
+        });
+
+        task.setOnFailed(e -> {
+            Platform.runLater(() -> {
+                hideTypingIndicator();
+                addChatMessage(I18n.get("chatbot.no_match"), false);
+            });
         });
 
         AppThreadPool.execute(task);

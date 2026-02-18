@@ -248,10 +248,10 @@ public class SupportAdminController implements Initializable {
 
         for (SupportTicket ticket : tickets) {
             TLCard card = new TLCard();
+            card.getStyleClass().add("card-interactive");
 
             VBox content = new VBox(8);
             content.setPadding(new Insets(16));
-            content.setStyle("-fx-cursor: hand;");
 
             // Subject header with status + priority badges
             Label subjectLabel = new Label(ticket.getSubject() != null ? ticket.getSubject() : "-");
@@ -302,7 +302,7 @@ public class SupportAdminController implements Initializable {
             ticketList.getChildren().add(card);
 
             // Click to open ticket detail 
-            content.setOnMouseClicked(e -> openTicketDetail(ticket.getId()));
+            card.setOnMouseClicked(e -> openTicketDetail(ticket.getId()));
         }
 
         ScrollPane scrollPane = new ScrollPane(ticketList);

@@ -1,6 +1,7 @@
 package com.skilora.user.controller;
 
 import com.skilora.framework.components.TLButton;
+import com.skilora.framework.components.TLOtpInput;
 import com.skilora.framework.components.TLPasswordField;
 import com.skilora.framework.components.TLTextField;
 import com.skilora.user.entity.User;
@@ -47,8 +48,12 @@ public class ForgotPasswordController {
 
     // ===== FXML - Content =====
     @FXML private VBox contentArea;
+    @FXML private VBox emailContainer;
     @FXML private Label fieldLabel;
     @FXML private TLTextField emailField;
+    @FXML private VBox otpContainer;
+    @FXML private Label otpFieldLabel;
+    @FXML private TLOtpInput otpInput;
     @FXML private VBox passwordContainer;
     @FXML private TLPasswordField newPasswordField;
     @FXML private TLPasswordField confirmPasswordField;
@@ -110,11 +115,21 @@ public class ForgotPasswordController {
         if (step2Text != null) step2Text.setText(I18n.get("forgot.step.verify"));
         if (step3Text != null) step3Text.setText(I18n.get("forgot.step.reset"));
 
+        // Enable password strength indicator on new password field
+        if (newPasswordField != null) {
+            newPasswordField.setShowStrengthIndicator(true);
+        }
+
         // Enter key support
         if (emailField != null && emailField.getControl() != null) {
             emailField.getControl().setOnKeyPressed(e -> {
                 if (e.getCode() == javafx.scene.input.KeyCode.ENTER) handleSendReset();
             });
+        }
+        // OTP input: auto-submit when all 6 digits entered + enter key support
+        if (otpInput != null) {
+            otpInput.setOnComplete(this::handleSendReset);
+            otpInput.setOnEnter(this::handleSendReset);
         }
         if (newPasswordField != null && newPasswordField.getControl() != null) {
             newPasswordField.getControl().setOnKeyPressed(e -> {
@@ -247,11 +262,11 @@ public class ForgotPasswordController {
     // ==================== STEP 2: VERIFY OTP ====================
 
     private void handleVerifyOtp() {
-        String inputOtp = emailField.getText();
+        String inputOtp = otpInput != null ? otpInput.getText() : "";
 
-        if (inputOtp == null || inputOtp.trim().isEmpty()) {
+        if (inputOtp.isEmpty() || inputOtp.length() < 6) {
             showError(I18n.get("forgot.code_required"));
-            shakeNode(emailField);
+            if (otpInput != null) shakeNode(otpInput);
             return;
         }
 
@@ -275,7 +290,11 @@ public class ForgotPasswordController {
                     Platform.runLater(() -> {
                         hideLoading();
                         showError(I18n.get("forgot.code_invalid"));
-                        shakeNode(emailField);
+                        if (otpInput != null) {
+                            shakeNode(otpInput);
+                            otpInput.clear();
+                            otpInput.focusFirst();
+                        }
                         sendBtn.setDisable(false);
                     });
                 }
@@ -406,16 +425,17 @@ public class ForgotPasswordController {
         switch (step) {
             case EMAIL -> {
                 stopOtpCountdown();
-                // Show email field, hide password fields
-                emailField.setVisible(true);
-                emailField.setManaged(true);
+                // Show email container, hide OTP and password containers
+                emailContainer.setVisible(true);
+                emailContainer.setManaged(true);
                 emailField.setText(targetEmail != null ? targetEmail : "");
                 emailField.setPromptText(I18n.get("forgot.ui.email_placeholder"));
                 emailField.setDisable(false);
-                fieldLabel.setVisible(true);
-                fieldLabel.setManaged(true);
                 fieldLabel.setText(I18n.get("forgot.ui.email_label"));
                 fieldLabel.setStyle("");
+
+                otpContainer.setVisible(false);
+                otpContainer.setManaged(false);
                 passwordContainer.setVisible(false);
                 passwordContainer.setManaged(false);
 
@@ -435,14 +455,15 @@ public class ForgotPasswordController {
                 resendSection.setManaged(false);
             }
             case OTP -> {
-                // Show code input, hide password
-                emailField.setVisible(true);
-                emailField.setManaged(true);
-                emailField.setText("");
-                emailField.setPromptText(I18n.get("forgot.enter_code"));
-                emailField.setDisable(false);
-                fieldLabel.setVisible(true);
-                fieldLabel.setManaged(true);
+                // Show OTP digit input, hide email and password containers
+                emailContainer.setVisible(false);
+                emailContainer.setManaged(false);
+
+                otpContainer.setVisible(true);
+                otpContainer.setManaged(true);
+                otpInput.clear();
+                otpInput.focusFirst();
+
                 passwordContainer.setVisible(false);
                 passwordContainer.setManaged(false);
 
@@ -450,6 +471,11 @@ public class ForgotPasswordController {
                 iconLabel.setText("");
                 titleLabel.setText(I18n.get("forgot.verify_code"));
                 subtitleLabel.setText(I18n.get("forgot.otp_instruction"));
+
+                // Timer label replaces the OTP field label
+                if (otpFieldLabel != null) {
+                    otpFieldLabel.setText(I18n.get("forgot.verify_code"));
+                }
 
                 sendBtn.setText(I18n.get("forgot.verify_code"));
                 sendBtn.setDisable(false);
@@ -468,11 +494,12 @@ public class ForgotPasswordController {
             }
             case NEW_PASSWORD -> {
                 stopOtpCountdown();
-                // Hide email field, show password fields
-                emailField.setVisible(false);
-                emailField.setManaged(false);
-                fieldLabel.setVisible(false);
-                fieldLabel.setManaged(false);
+                // Hide email and OTP, show password fields
+                emailContainer.setVisible(false);
+                emailContainer.setManaged(false);
+                otpContainer.setVisible(false);
+                otpContainer.setManaged(false);
+
                 passwordContainer.setVisible(true);
                 passwordContainer.setManaged(true);
                 newPasswordField.getControl().clear();
@@ -538,13 +565,13 @@ public class ForgotPasswordController {
         int sec = remainingSeconds % 60;
         String timeStr = String.format("%d:%02d", min, sec);
         Platform.runLater(() -> {
-            if (fieldLabel != null && currentStep == Step.OTP) {
+            if (otpFieldLabel != null && currentStep == Step.OTP) {
                 String timerColor;
                 if (remainingSeconds > 60) timerColor = "-fx-green";
                 else if (remainingSeconds > 30) timerColor = "-fx-amber";
                 else timerColor = "-fx-red";
-                fieldLabel.setText(I18n.get("forgot.code_timer").replace("{0}", timeStr));
-                fieldLabel.setStyle("-fx-font-weight: 600; -fx-text-fill: " + timerColor + ";");
+                otpFieldLabel.setText(I18n.get("forgot.code_timer").replace("{0}", timeStr));
+                otpFieldLabel.setStyle("-fx-font-size: 12px; -fx-font-weight: 600; -fx-text-fill: " + timerColor + "; -fx-alignment: center;");
             }
         });
     }
@@ -571,6 +598,10 @@ public class ForgotPasswordController {
                 if (success) {
                     showSuccess(I18n.get("forgot.code_resent"));
                     sendBtn.setDisable(false);
+                    if (otpInput != null) {
+                        otpInput.clear();
+                        otpInput.focusFirst();
+                    }
                     startOtpCountdown();
                 } else {
                     showError(I18n.get("forgot.resend_error"));

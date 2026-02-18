@@ -488,8 +488,6 @@ public class MainView extends TLAppLayout {
     }
 
     private void showDashboard() {
-        centerStack.getChildren().clear();
-        
         if (cachedDashboardView == null) {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/community/DashboardView.fxml"));
@@ -512,15 +510,14 @@ public class MainView extends TLAppLayout {
                 scrollArea.getStyleClass().add("transparent-bg");
                 
                 cachedDashboardView = scrollArea;
-                animateEntry(dashboardContent, 0);
                 
             } catch (Exception e) {
                 logger.error("Failed to load DashboardView", e);
-                centerStack.getChildren().add(new Label(I18n.get("error.loading.dashboard")));
+                switchContent(new Label(I18n.get("error.loading.dashboard")));
                 return;
             }
         }
-        centerStack.getChildren().add(cachedDashboardView);
+        switchContent(cachedDashboardView);
     }
 
 
@@ -563,13 +560,10 @@ public class MainView extends TLAppLayout {
             cachedProfileScroll.getStyleClass().add("transparent-bg");
         }
 
-        centerStack.getChildren().clear();
-        centerStack.getChildren().add(cachedProfileScroll);
+        switchContent(cachedProfileScroll);
     }
 
     private void showUsersView() {
-        centerStack.getChildren().clear();
-        
         // Always recreate users view to refresh data
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/user/UsersView.fxml"));
@@ -589,12 +583,11 @@ public class MainView extends TLAppLayout {
             }
             
             cachedUsersView = usersContent;
-            centerStack.getChildren().add(cachedUsersView);
-            animateEntry(usersContent, 0);
+            switchContent(cachedUsersView);
             
         } catch (Exception e) {
             logger.error("Failed to load UsersView", e);
-            centerStack.getChildren().add(new Label(I18n.get("error.loading.users")));
+            switchContent(new Label(I18n.get("error.loading.users")));
         }
     }
 
@@ -646,7 +639,6 @@ public class MainView extends TLAppLayout {
     }
 
     private void showFeedView() {
-        centerStack.getChildren().clear();
         if (cachedFeedView == null) {
             try {
                 javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
@@ -663,16 +655,10 @@ public class MainView extends TLAppLayout {
                 return;
             }
         }
-        centerStack.getChildren().add(cachedFeedView);
-
-        // Ensure it's visible if it was hidden or detached
-        cachedFeedView.setOpacity(1);
-        cachedFeedView.setTranslateY(0);
+        switchContent(cachedFeedView);
     }
 
     private void showSettingsView() {
-        centerStack.getChildren().clear();
-
         // Always recreate to pick up current i18n state
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/user/SettingsView.fxml"));
@@ -722,18 +708,15 @@ public class MainView extends TLAppLayout {
             }
 
             cachedSettingsView = settingsContent;
-            animateEntry(settingsContent, 0);
 
         } catch (Exception e) {
             logger.error("Failed to load SettingsView", e);
             return;
         }
-        centerStack.getChildren().add(cachedSettingsView);
+        switchContent(cachedSettingsView);
     }
 
     private void showApplicationsView() {
-        centerStack.getChildren().clear();
-        
         if (cachedApplicationsView == null) {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/recruitment/ApplicationsView.fxml"));
@@ -750,19 +733,16 @@ public class MainView extends TLAppLayout {
                 scrollArea.getStyleClass().add("transparent-bg");
                 
                 cachedApplicationsView = scrollArea;
-                animateEntry(applicationsContent, 0);
                 
             } catch (Exception e) {
                 logger.error("Failed to load ApplicationsView", e);
                 return;
             }
         }
-        centerStack.getChildren().add(cachedApplicationsView);
+        switchContent(cachedApplicationsView);
     }
 
     private void showApplicationInboxView() {
-        centerStack.getChildren().clear();
-        
         if (cachedApplicationInboxView == null) {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/recruitment/ApplicationInboxView.fxml"));
@@ -779,19 +759,16 @@ public class MainView extends TLAppLayout {
                 scrollArea.getStyleClass().add("transparent-bg");
                 
                 cachedApplicationInboxView = scrollArea;
-                animateEntry(inboxContent, 0);
                 
             } catch (Exception e) {
                 logger.error("Failed to load ApplicationInboxView", e);
                 return;
             }
         }
-        centerStack.getChildren().add(cachedApplicationInboxView);
+        switchContent(cachedApplicationInboxView);
     }
 
     public void showJobDetails(com.skilora.recruitment.entity.JobOpportunity job) {
-        centerStack.getChildren().clear();
-        
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/recruitment/JobDetailsView.fxml"));
             VBox jobDetailsContent = loader.load();
@@ -813,8 +790,7 @@ public class MainView extends TLAppLayout {
             scrollArea.setFitToHeight(true);
             scrollArea.setStyle("-fx-background-color: transparent;");
             
-            centerStack.getChildren().add(scrollArea);
-            animateEntry(jobDetailsContent, 0);
+            switchContent(scrollArea);
             
         } catch (Exception e) {
             logger.error("Failed to load JobDetailsView", e);
@@ -838,9 +814,49 @@ public class MainView extends TLAppLayout {
         pt.play();
     }
 
+    /**
+     * Switch the center content with a smooth crossfade transition.
+     * Fades out the current view (120ms), swaps, and fades in the new view (200ms).
+     */
+    private void switchContent(Node newView) {
+        if (centerStack.getChildren().isEmpty()) {
+            // No previous content — just add and fade in
+            centerStack.getChildren().add(newView);
+            animateEntry(newView, 0);
+            return;
+        }
+
+        // If the same node is already showing, skip transition
+        if (centerStack.getChildren().size() == 1 && centerStack.getChildren().get(0) == newView) {
+            return;
+        }
+
+        // Fade out current content, then swap
+        Node currentView = centerStack.getChildren().get(centerStack.getChildren().size() - 1);
+        FadeTransition fadeOut = new FadeTransition(Duration.millis(120), currentView);
+        fadeOut.setFromValue(1.0);
+        fadeOut.setToValue(0.0);
+        fadeOut.setOnFinished(e -> {
+            centerStack.getChildren().clear();
+            newView.setOpacity(0);
+            newView.setTranslateY(8);
+            centerStack.getChildren().add(newView);
+
+            FadeTransition fadeIn = new FadeTransition(Duration.millis(200), newView);
+            fadeIn.setFromValue(0);
+            fadeIn.setToValue(1);
+
+            TranslateTransition slideIn = new TranslateTransition(Duration.millis(200), newView);
+            slideIn.setFromY(8);
+            slideIn.setToY(0);
+
+            javafx.animation.ParallelTransition enterAnim = new javafx.animation.ParallelTransition(newView, fadeIn, slideIn);
+            enterAnim.play();
+        });
+        fadeOut.play();
+    }
+
     private void showNotificationsView() {
-        centerStack.getChildren().clear();
-        
         if (cachedNotificationsView == null) {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/community/NotificationsView.fxml"));
@@ -852,19 +868,16 @@ public class MainView extends TLAppLayout {
                 scrollArea.getStyleClass().add("transparent-bg");
                 
                 cachedNotificationsView = scrollArea;
-                animateEntry(notificationsContent, 0);
                 
             } catch (Exception e) {
                 logger.error("Failed to load NotificationsView", e);
                 return;
             }
         }
-        centerStack.getChildren().add(cachedNotificationsView);
+        switchContent(cachedNotificationsView);
     }
 
     private void showPostJobView() {
-        centerStack.getChildren().clear();
-        
         if (cachedPostJobView == null) {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/recruitment/PostJobView.fxml"));
@@ -882,19 +895,16 @@ public class MainView extends TLAppLayout {
                 scrollArea.getStyleClass().add("transparent-bg");
                 
                 cachedPostJobView = scrollArea;
-                animateEntry(postJobContent, 0);
                 
             } catch (Exception e) {
                 logger.error("Failed to load PostJobView", e);
                 return;
             }
         }
-        centerStack.getChildren().add(cachedPostJobView);
+        switchContent(cachedPostJobView);
     }
 
     public void showError(com.skilora.community.controller.ErrorController.ErrorType type, String message, String details) {
-        centerStack.getChildren().clear();
-        
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/community/ErrorView.fxml"));
             VBox errorContent = loader.load();
@@ -915,8 +925,7 @@ public class MainView extends TLAppLayout {
                 );
             }
             
-            centerStack.getChildren().add(errorContent);
-            animateEntry(errorContent, 0);
+            switchContent(errorContent);
             
         } catch (Exception e) {
             logger.error("Failed to load ErrorView", e);
@@ -924,8 +933,6 @@ public class MainView extends TLAppLayout {
     }
 
     private void showMyOffersView() {
-        centerStack.getChildren().clear();
-
         // Always recreate to refresh data
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/recruitment/MyOffersView.fxml"));
@@ -943,8 +950,7 @@ public class MainView extends TLAppLayout {
             scrollArea.getStyleClass().add("transparent-bg");
 
             cachedMyOffersView = scrollArea;
-            centerStack.getChildren().add(cachedMyOffersView);
-            animateEntry(myOffersContent, 0);
+            switchContent(cachedMyOffersView);
 
         } catch (Exception e) {
             logger.error("Failed to load MyOffersView", e);
@@ -952,8 +958,6 @@ public class MainView extends TLAppLayout {
     }
 
     private void showActiveOffersView() {
-        centerStack.getChildren().clear();
-
         // Always recreate to refresh data
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/recruitment/ActiveOffersView.fxml"));
@@ -965,8 +969,7 @@ public class MainView extends TLAppLayout {
             scrollArea.getStyleClass().add("transparent-bg");
 
             cachedActiveOffersView = scrollArea;
-            centerStack.getChildren().add(cachedActiveOffersView);
-            animateEntry(activeOffersContent, 0);
+            switchContent(cachedActiveOffersView);
 
         } catch (Exception e) {
             logger.error("Failed to load ActiveOffersView", e);
@@ -974,8 +977,6 @@ public class MainView extends TLAppLayout {
     }
 
     private void showFormationsView() {
-        centerStack.getChildren().clear();
-
         if (cachedFormationsView == null) {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/formation/FormationsView.fxml"));
@@ -993,19 +994,16 @@ public class MainView extends TLAppLayout {
                 scrollArea.getStyleClass().add("transparent-bg");
 
                 cachedFormationsView = scrollArea;
-                animateEntry(formationsContent, 0);
 
             } catch (Exception e) {
                 logger.error("Failed to load FormationsView", e);
                 return;
             }
         }
-        centerStack.getChildren().add(cachedFormationsView);
+        switchContent(cachedFormationsView);
     }
 
     private void showSupportView() {
-        centerStack.getChildren().clear();
-
         // Clear notification dot when support is opened
         if (supportNotificationDot != null) {
             supportNotificationDot.setVisible(false);
@@ -1029,14 +1027,13 @@ public class MainView extends TLAppLayout {
                     scrollArea.getStyleClass().add("transparent-bg");
 
                     cachedSupportAdminView = scrollArea;
-                    animateEntry(adminContent, 0);
 
                 } catch (Exception e) {
                     logger.error("Failed to load SupportAdminView", e);
                     return;
                 }
             }
-            centerStack.getChildren().add(cachedSupportAdminView);
+            switchContent(cachedSupportAdminView);
             return;
         }
 
@@ -1057,18 +1054,16 @@ public class MainView extends TLAppLayout {
                 scrollArea.getStyleClass().add("transparent-bg");
 
                 cachedSupportView = scrollArea;
-                animateEntry(supportContent, 0);
 
             } catch (Exception e) {
                 logger.error("Failed to load SupportView", e);
             }
         }
 
-        centerStack.getChildren().add(cachedSupportView);
+        switchContent(cachedSupportView);
     }
 
     private void showCommunityView() {
-        centerStack.getChildren().clear();
         if (cachedCommunityView == null) {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/community/CommunityView.fxml"));
@@ -1078,17 +1073,14 @@ public class MainView extends TLAppLayout {
                     controller.initializeContext(currentUser);
                 }
                 cachedCommunityView = communityContent;
-                animateEntry(communityContent, 0);
             } catch (Exception e) {
                 logger.error("Failed to load CommunityView", e);
             }
         }
-        centerStack.getChildren().add(cachedCommunityView);
+        switchContent(cachedCommunityView);
     }
 
     private void showReportsView() {
-        centerStack.getChildren().clear();
-
         // Always recreate to refresh data
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/community/ReportsView.fxml"));
@@ -1100,8 +1092,7 @@ public class MainView extends TLAppLayout {
             scrollArea.getStyleClass().add("transparent-bg");
 
             cachedReportsView = scrollArea;
-            centerStack.getChildren().add(cachedReportsView);
-            animateEntry(reportsContent, 0);
+            switchContent(cachedReportsView);
 
         } catch (Exception e) {
             logger.error("Failed to load ReportsView", e);
@@ -1109,8 +1100,6 @@ public class MainView extends TLAppLayout {
     }
 
     private void showFinanceView() {
-        centerStack.getChildren().clear();
-
         if (cachedFinanceView == null) {
             try {
                 // Admin/Employer see FinanceAdminView, others see FinanceView
@@ -1138,19 +1127,16 @@ public class MainView extends TLAppLayout {
                 scrollArea.getStyleClass().add("transparent-bg");
 
                 cachedFinanceView = scrollArea;
-                animateEntry(financeContent, 0);
 
             } catch (Exception e) {
                 logger.error("Failed to load FinanceView", e);
                 return;
             }
         }
-        centerStack.getChildren().add(cachedFinanceView);
+        switchContent(cachedFinanceView);
     }
 
     private void showInterviewsView() {
-        centerStack.getChildren().clear();
-
         // Always recreate to refresh data
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/recruitment/InterviewsView.fxml"));
@@ -1167,8 +1153,7 @@ public class MainView extends TLAppLayout {
             scrollArea.getStyleClass().add("transparent-bg");
 
             cachedInterviewsView = scrollArea;
-            centerStack.getChildren().add(cachedInterviewsView);
-            animateEntry(interviewsContent, 0);
+            switchContent(cachedInterviewsView);
 
         } catch (Exception e) {
             logger.error("Failed to load InterviewsView", e);

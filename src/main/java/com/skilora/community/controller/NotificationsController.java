@@ -162,6 +162,7 @@ public class NotificationsController implements Initializable {
         content.getChildren().add(header);
         
         card.getContent().add(content);
+        card.getStyleClass().add("card-interactive");
         card.setOnMouseClicked(e -> {
             if (!notif.isRead()) {
                 AppThreadPool.execute(() -> {

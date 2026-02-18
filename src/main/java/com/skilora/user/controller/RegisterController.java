@@ -74,6 +74,11 @@ public class RegisterController implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         setupEventHandlers();
         initializeVideo();
+
+        // Enable password strength indicator on the main password field
+        if (passwordField != null) {
+            passwordField.setShowStrengthIndicator(true);
+        }
     }
 
     private void setupEventHandlers() {

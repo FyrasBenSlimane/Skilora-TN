@@ -337,8 +337,8 @@ public class CommunityController implements Initializable {
         card.setContent(content);
 
         // Click to open conversation
+        card.getStyleClass().add("card-interactive");
         card.setOnMouseClicked(e -> openConversation(conv));
-        card.setCursor(javafx.scene.Cursor.HAND);
         return card;
     }
 
