@@ -20,7 +20,7 @@
         
         <Region HBox.hgrow="ALWAYS"/>
         
-        <TLButton fx:id="saveBtn" text="💾 Enregistrer brouillon" variant="OUTLINE" onAction="#handleSaveDraft"/>
+        <TLButton fx:id="saveBtn" text="Enregistrer brouillon" variant="OUTLINE" onAction="#handleSaveDraft"/>
     </HBox>
     
     <!-- Progress Bar -->
@@ -48,8 +48,8 @@
     <HBox spacing="12" alignment="CENTER_RIGHT">
         <TLButton fx:id="cancelBtn" text="Annuler" variant="GHOST" onAction="#handleCancel"/>
         <Region HBox.hgrow="ALWAYS"/>
-        <TLButton fx:id="prevBtn" text="← Précédent" variant="OUTLINE" onAction="#handlePrevious" visible="false"/>
-        <TLButton fx:id="nextBtn" text="Suivant →" variant="PRIMARY" onAction="#handleNext"/>
-        <TLButton fx:id="publishBtn" text="🚀 Publier" variant="PRIMARY" onAction="#handlePublish" visible="false"/>
+        <TLButton fx:id="prevBtn" text="Précédent" variant="OUTLINE" onAction="#handlePrevious" visible="false"/>
+        <TLButton fx:id="nextBtn" text="Suivant" variant="PRIMARY" onAction="#handleNext"/>
+        <TLButton fx:id="publishBtn" text="Publier" variant="PRIMARY" onAction="#handlePublish" visible="false"/>
     </HBox>
 </VBox>

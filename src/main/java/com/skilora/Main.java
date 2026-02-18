@@ -10,6 +10,7 @@ import com.skilora.ui.AppFontLoader;
 import com.skilora.config.DatabaseInitializer;
 import com.skilora.framework.layouts.TLWindow;
 import com.skilora.framework.utils.WindowConfig;
+import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.I18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,15 +27,17 @@ public class Main extends Application {
     @Override
     public void start(Stage primaryStage) {
         // Initialize Database in Background (Non-blocking startup)
-        new Thread(() -> {
-            DatabaseInitializer.initialize();
-        }).start();
+        AppThreadPool.execute(() -> DatabaseInitializer.initialize());
 
         // Register shutdown hook to close database connections
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            AppThreadPool.shutdown();
             try {
                 com.skilora.config.DatabaseConfig.getInstance().closeConnection();
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                // Best-effort shutdown — connection may already be closed
+                System.err.println("Shutdown cleanup: " + e.getMessage());
+            }
         }));
 
         // Prewarm heavy assets (Video)

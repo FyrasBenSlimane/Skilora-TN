@@ -14,13 +14,13 @@
     
     <!-- Back Button -->
     <HBox spacing="12" alignment="CENTER_LEFT">
-        <TLButton fx:id="backBtn" text="← Retour" variant="GHOST" onAction="#handleBack"/>
+        <TLButton fx:id="backBtn" text="Retour" variant="GHOST" onAction="#handleBack"/>
     </HBox>
     
     <!-- Header Section -->
     <HBox spacing="24" alignment="TOP_LEFT">
         <!-- Company Logo Placeholder -->
-        <VBox alignment="CENTER" style="-fx-background-color: #f0f0f0; -fx-background-radius: 8;">
+        <VBox alignment="CENTER" style="-fx-background-color: -fx-muted; -fx-background-radius: 8;">
             <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
             <Label fx:id="companyInitials" text="TC" styleClass="h2"/>
         </VBox>
@@ -29,15 +29,15 @@
             <Label fx:id="jobTitle" text="Senior Java Developer" styleClass="h2"/>
             <Label fx:id="companyName" text="TechCorp" styleClass="h4"/>
             <HBox spacing="12">
-                <Label fx:id="jobLocation" text="📍 Tunis, Tunisia" styleClass="text-muted"/>
-                <Label fx:id="jobType" text="💼 Full-time" styleClass="text-muted"/>
-                <Label fx:id="postedDate" text="🕐 Posted 2 days ago" styleClass="text-muted"/>
+                <Label fx:id="jobLocation" text="Tunis, Tunisia" styleClass="text-muted"/>
+                <Label fx:id="jobType" text="Full-time" styleClass="text-muted"/>
+                <Label fx:id="postedDate" text="Posted 2 days ago" styleClass="text-muted"/>
             </HBox>
         </VBox>
         
         <VBox spacing="12" alignment="TOP_RIGHT">
             <TLButton fx:id="applyBtn" text="Postuler" variant="PRIMARY" onAction="#handleApply"/>
-            <TLButton fx:id="saveBtn" text="💾 Enregistrer" variant="OUTLINE" onAction="#handleSave"/>
+            <TLButton fx:id="saveBtn" text="Enregistrer" variant="OUTLINE" onAction="#handleSave"/>
         </VBox>
     </HBox>
     

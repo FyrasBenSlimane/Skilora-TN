@@ -76,4 +76,20 @@ public class BlogArticle {
     
     public String getAuthorPhoto() { return authorPhoto; }
     public void setAuthorPhoto(String authorPhoto) { this.authorPhoto = authorPhoto; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        BlogArticle that = (BlogArticle) o;
+        return id == that.id;
+    }
+
+    @Override
+    public int hashCode() { return Integer.hashCode(id); }
+
+    @Override
+    public String toString() {
+        return "BlogArticle{id=" + id + ", title='" + title + "', category='" + category + "', isPublished=" + isPublished + "}";
+    }
 }

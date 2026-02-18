@@ -14,7 +14,7 @@
       fillHeight="true">
     
     <!-- LEFT SIDE (Hero) -->
-    <StackPane fx:id="heroContainer" style="-fx-background-color: #09090b;" 
+    <StackPane fx:id="heroContainer" styleClass="auth-hero" 
                prefWidth="500" minWidth="400" alignment="CENTER">
         <HBox.hgrow>ALWAYS</HBox.hgrow>
         
@@ -57,11 +57,11 @@
             <Label fx:id="errorLabel" visible="false" managed="false" styleClass="text-sm, text-destructive"/>
             
             <!-- Form Fields -->
-            <TLTextField fx:id="fullNameField" label="Full Name" promptText=""/>
-            <TLTextField fx:id="usernameField" label="Username" promptText=""/>
-            <TLTextField fx:id="emailField" label="Email" promptText=""/>
-            <TLPasswordField fx:id="passwordField" label="Password" promptText=""/>
-            <TLPasswordField fx:id="confirmPasswordField" label="Confirm Password" promptText=""/>
+            <TLTextField fx:id="fullNameField" label="Full Name" promptText="ex: Ahmed Ben Ali"/>
+            <TLTextField fx:id="usernameField" label="Username" promptText="ex: ahmed.benali"/>
+            <TLTextField fx:id="emailField" label="Email" promptText="ex: ahmed@example.com"/>
+            <TLPasswordField fx:id="passwordField" label="Password" promptText="Min. 8 characters"/>
+            <TLPasswordField fx:id="confirmPasswordField" label="Confirm Password" promptText="Re-enter your password"/>
             
             <!-- Register Button -->
             <TLButton fx:id="registerBtn" text="Sign Up" variant="PRIMARY" maxWidth="Infinity" onAction="#handleRegister"/>

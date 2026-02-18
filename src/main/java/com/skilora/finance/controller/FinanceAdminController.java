@@ -4,6 +4,7 @@ import com.skilora.framework.components.*;
 import com.skilora.user.entity.*;
 import com.skilora.finance.entity.*;
 import com.skilora.finance.service.*;
+import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.DialogUtils;
 import com.skilora.utils.I18n;
 import javafx.application.Platform;
@@ -103,7 +104,7 @@ public class FinanceAdminController implements Initializable {
             });
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void displayContracts(List<EmploymentContract> contracts) {
@@ -260,7 +261,7 @@ public class FinanceAdminController implements Initializable {
             logger.error("Failed to create contract", task.getException());
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     // ==================== Payroll Generation Tab ====================
@@ -348,7 +349,7 @@ public class FinanceAdminController implements Initializable {
             });
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void generatePayslipForContract(int contractId, int month, int year, VBox resultsArea) {
@@ -378,7 +379,7 @@ public class FinanceAdminController implements Initializable {
             logger.error("Failed to generate payslip for contract {}", contractId, task.getException());
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     // ==================== Payment Processing Tab ====================
@@ -410,7 +411,7 @@ public class FinanceAdminController implements Initializable {
             });
         });
 
-        new Thread(contractTask).start();
+        AppThreadPool.execute(contractTask);
     }
 
     private void loadPendingPayslips(List<EmploymentContract> contracts) {
@@ -448,7 +449,7 @@ public class FinanceAdminController implements Initializable {
                 });
             });
 
-            new Thread(task).start();
+            AppThreadPool.execute(task);
         }
 
         ScrollPane scrollPane = new ScrollPane(payslipList);
@@ -513,7 +514,7 @@ public class FinanceAdminController implements Initializable {
                     logger.error("Failed to mark payslip {} as paid", payslipId, task.getException());
                 });
 
-                new Thread(task).start();
+                AppThreadPool.execute(task);
             }
         });
     }
@@ -548,7 +549,7 @@ public class FinanceAdminController implements Initializable {
             });
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void displayExchangeRates(List<ExchangeRate> rates) {
@@ -613,7 +614,7 @@ public class FinanceAdminController implements Initializable {
             @Override
             protected ReportData call() throws Exception {
                 List<EmploymentContract> activeContracts = contractService.findByStatus("ACTIVE");
-                List<EmploymentContract> allContracts = contractService.findByStatus("ACTIVE");
+                List<EmploymentContract> allContracts = contractService.findAll();
 
                 BigDecimal totalPayroll = BigDecimal.ZERO;
                 for (EmploymentContract c : activeContracts) {
@@ -643,7 +644,7 @@ public class FinanceAdminController implements Initializable {
             });
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void displayReports(ReportData data) {
@@ -705,7 +706,7 @@ public class FinanceAdminController implements Initializable {
         emptyState.setPadding(new Insets(48));
 
         Label label = new Label(message);
-        label.setStyle("-fx-font-size: 14px; -fx-text-fill: #666;");
+        label.setStyle("-fx-font-size: 14px; -fx-text-fill: -fx-muted-foreground;");
 
         emptyState.getChildren().add(label);
         return emptyState;

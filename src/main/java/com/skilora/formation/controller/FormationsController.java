@@ -6,14 +6,15 @@ import com.skilora.framework.components.TLBadge;
 import com.skilora.framework.components.TLTextField;
 import com.skilora.framework.components.TLSeparator;
 import com.skilora.framework.components.TLProgress;
+import com.skilora.framework.components.TLToast;
 import com.skilora.formation.entity.Formation;
 import com.skilora.formation.entity.Enrollment;
 import com.skilora.user.entity.User;
 import com.skilora.formation.service.FormationService;
 import com.skilora.formation.service.EnrollmentService;
 import com.skilora.formation.enums.FormationLevel;
+import com.skilora.utils.UiUtils;
 
-import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
@@ -26,7 +27,6 @@ import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.util.Duration;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +39,9 @@ import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 
+import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.I18n;
+import com.skilora.utils.SvgIcons;
 
 /**
  * FormationsController - Training/Courses view for job seekers.
@@ -104,8 +106,11 @@ public class FormationsController implements Initializable {
             applyFilters();
         }));
 
-        task.setOnFailed(e -> logger.error("Failed to load user enrollments", task.getException()));
-        new Thread(task).start();
+        task.setOnFailed(e -> {
+            logger.error("Failed to load user enrollments", task.getException());
+            TLToast.error(formationsGrid.getScene(), I18n.get("common.error"), I18n.get("error.failed_load_enrollments"));
+        });
+        AppThreadPool.execute(task);
     }
 
     private void setupCategories() {
@@ -142,9 +147,7 @@ public class FormationsController implements Initializable {
 
     private void setupSearch() {
         if (searchField != null && searchField.getControl() != null) {
-            PauseTransition pause = new PauseTransition(Duration.millis(300));
-            pause.setOnFinished(e -> applyFilters());
-            searchField.getControl().setOnKeyReleased(e -> pause.playFromStart());
+            UiUtils.debounce(searchField.getControl(), 300, this::applyFilters);
         }
     }
 
@@ -170,7 +173,7 @@ public class FormationsController implements Initializable {
             });
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void applyFilters() {
@@ -254,9 +257,11 @@ public class FormationsController implements Initializable {
         // Provider + Duration
         HBox metaRow = new HBox(12);
         metaRow.setAlignment(Pos.CENTER_LEFT);
-        Label providerLabel = new Label("🏫 " + (formation.getProvider() != null ? formation.getProvider() : ""));
+        Label providerLabel = new Label(formation.getProvider() != null ? formation.getProvider() : "");
+        providerLabel.setGraphic(SvgIcons.icon(SvgIcons.GRADUATION_CAP, 14, "-fx-muted-foreground"));
         providerLabel.getStyleClass().add("text-muted");
-        Label durationLabel = new Label("⏱ " + I18n.get("formations.duration", formation.getDurationHours()));
+        Label durationLabel = new Label(I18n.get("formations.duration", formation.getDurationHours()));
+        durationLabel.setGraphic(SvgIcons.icon(SvgIcons.TIMER, 14, "-fx-muted-foreground"));
         durationLabel.getStyleClass().add("text-muted");
         metaRow.getChildren().addAll(providerLabel, durationLabel);
 
@@ -330,7 +335,7 @@ public class FormationsController implements Initializable {
             logger.error("Failed to enroll", task.getException());
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     @FXML

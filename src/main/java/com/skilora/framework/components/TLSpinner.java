@@ -46,22 +46,10 @@ public class TLSpinner extends StackPane {
         Arc arc = new Arc(0, 0, radius, radius, 0, 270);
         arc.getStyleClass().add("spinner-arc");
         arc.setFill(null);
-        arc.setStroke(javafx.scene.paint.Color.web("#a1a1aa")); // muted-foreground fallback
+        arc.setStyle("-fx-stroke: -fx-muted-foreground;");
         arc.setStrokeWidth(size.strokeWidth);
         arc.setStrokeLineCap(StrokeLineCap.ROUND);
         arc.setStrokeType(StrokeType.CENTERED);
-
-        // Apply theme color via CSS lookup once scene is available
-        sceneProperty().addListener((obs, oldScene, newScene) -> {
-            if (newScene != null) {
-                // Use CSS pseudo-class compatible approach: bind stroke to theme token
-                try {
-                    arc.setStroke((javafx.scene.paint.Color) newScene.getRoot().
-                            getProperties().getOrDefault("-fx-muted-foreground",
-                                    javafx.scene.paint.Color.web("#a1a1aa")));
-                } catch (Exception ignored) { /* fallback already set */ }
-            }
-        });
 
         setMinSize(size.diameter, size.diameter);
         setPrefSize(size.diameter, size.diameter);

@@ -38,4 +38,20 @@ public class Message {
     
     public String getSenderName() { return senderName; }
     public void setSenderName(String senderName) { this.senderName = senderName; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Message that = (Message) o;
+        return id == that.id;
+    }
+
+    @Override
+    public int hashCode() { return Integer.hashCode(id); }
+
+    @Override
+    public String toString() {
+        return "Message{id=" + id + ", conversationId=" + conversationId + ", senderId=" + senderId + ", isRead=" + isRead + "}";
+    }
 }

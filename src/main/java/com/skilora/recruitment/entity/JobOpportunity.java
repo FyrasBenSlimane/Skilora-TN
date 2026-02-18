@@ -1,5 +1,7 @@
 package com.skilora.recruitment.entity;
 
+import java.util.Objects;
+
 /**
  * JobOpportunity Entity
  * 
@@ -72,5 +74,21 @@ public class JobOpportunity {
 
     public void setRawId(String rawId) {
         this.rawId = rawId;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        JobOpportunity that = (JobOpportunity) o;
+        return Objects.equals(url, that.url);
+    }
+
+    @Override
+    public int hashCode() { return Objects.hash(url); }
+
+    @Override
+    public String toString() {
+        return "JobOpportunity{title='" + title + "', source='" + source + "', location='" + location + "', url='" + url + "'}";
     }
 }

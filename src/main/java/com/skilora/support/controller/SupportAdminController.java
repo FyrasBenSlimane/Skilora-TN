@@ -4,6 +4,7 @@ import com.skilora.framework.components.*;
 import com.skilora.user.entity.*;
 import com.skilora.support.entity.*;
 import com.skilora.support.service.*;
+import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.DialogUtils;
 import com.skilora.utils.I18n;
 import javafx.application.Platform;
@@ -111,10 +112,36 @@ public class SupportAdminController implements Initializable {
 
     private void applyTicketFilters(String status, String priority) {
         String allLabel = I18n.get("support.admin.filter.all");
+        boolean hasStatus = !allLabel.equals(status);
+        boolean hasPriority = !allLabel.equals(priority);
 
-        if (!allLabel.equals(status)) {
+        if (hasStatus && hasPriority) {
+            // Both filters active — load by status, then filter by priority client-side
+            VBox ticketArea = getOrCreateTicketArea();
+            ticketArea.getChildren().clear();
+            ticketArea.getChildren().add(createLoadingIndicator());
+
+            Task<List<SupportTicket>> task = new Task<>() {
+                @Override
+                protected List<SupportTicket> call() {
+                    return ticketService.findByStatus(status);
+                }
+            };
+            task.setOnSucceeded(e -> {
+                List<SupportTicket> result = task.getValue();
+                List<SupportTicket> filtered = (result != null ? result : List.<SupportTicket>of()).stream()
+                        .filter(t -> priority.equalsIgnoreCase(t.getPriority()))
+                        .toList();
+                Platform.runLater(() -> displayTickets(filtered, ticketArea));
+            });
+            task.setOnFailed(e -> {
+                logger.error("Failed to load filtered tickets", task.getException());
+                TLToast.error(contentPane.getScene(), I18n.get("common.error"), I18n.get("error.failed_load_tickets"));
+            });
+            AppThreadPool.execute(task);
+        } else if (hasStatus) {
             loadTicketsByStatus(status);
-        } else if (!allLabel.equals(priority)) {
+        } else if (hasPriority) {
             loadTicketsByPriority(priority);
         } else {
             loadAllTickets();
@@ -146,7 +173,7 @@ public class SupportAdminController implements Initializable {
             });
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void loadTicketsByStatus(String status) {
@@ -166,9 +193,12 @@ public class SupportAdminController implements Initializable {
             Platform.runLater(() -> displayTickets(tickets, ticketArea));
         });
 
-        task.setOnFailed(e -> logger.error("Failed to load tickets by status", task.getException()));
+        task.setOnFailed(e -> {
+            logger.error("Failed to load tickets by status", task.getException());
+            TLToast.error(contentPane.getScene(), I18n.get("common.error"), I18n.get("error.failed_load_tickets"));
+        });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void loadTicketsByPriority(String priority) {
@@ -188,9 +218,12 @@ public class SupportAdminController implements Initializable {
             Platform.runLater(() -> displayTickets(tickets, ticketArea));
         });
 
-        task.setOnFailed(e -> logger.error("Failed to load tickets by priority", task.getException()));
+        task.setOnFailed(e -> {
+            logger.error("Failed to load tickets by priority", task.getException());
+            TLToast.error(contentPane.getScene(), I18n.get("common.error"), I18n.get("error.failed_load_tickets"));
+        });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private VBox getOrCreateTicketArea() {
@@ -308,10 +341,10 @@ public class SupportAdminController implements Initializable {
                 Platform.runLater(() -> showTicketDetailView(ticket, messages));
             });
 
-            new Thread(msgTask).start();
+            AppThreadPool.execute(msgTask);
         });
 
-        new Thread(ticketTask).start();
+        AppThreadPool.execute(ticketTask);
     }
 
     private void showTicketDetailView(SupportTicket ticket, List<TicketMessage> messages) {
@@ -538,7 +571,7 @@ public class SupportAdminController implements Initializable {
             Platform.runLater(() -> DialogUtils.showError(I18n.get("message.error"), I18n.get("error.db.operation")));
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void assignTicket(int ticketId, int adminId) {
@@ -550,9 +583,12 @@ public class SupportAdminController implements Initializable {
         };
 
         task.setOnSucceeded(e -> Platform.runLater(() -> openTicketDetail(ticketId)));
-        task.setOnFailed(e -> logger.error("Failed to assign ticket {}", ticketId, task.getException()));
+        task.setOnFailed(e -> {
+            logger.error("Failed to assign ticket {}", ticketId, task.getException());
+            TLToast.error(contentPane.getScene(), I18n.get("common.error"), I18n.get("error.failed_assign_ticket"));
+        });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void updateTicketStatus(int ticketId, String status) {
@@ -565,9 +601,12 @@ public class SupportAdminController implements Initializable {
             };
 
             task.setOnSucceeded(e -> Platform.runLater(() -> openTicketDetail(ticketId)));
-            task.setOnFailed(e -> logger.error("Failed to update ticket {} status", ticketId, task.getException()));
+            task.setOnFailed(e -> {
+                logger.error("Failed to update ticket {} status", ticketId, task.getException());
+                TLToast.error(contentPane.getScene(), I18n.get("common.error"), I18n.get("error.failed_update_ticket"));
+            });
 
-            new Thread(task).start();
+            AppThreadPool.execute(task);
         };
 
         // Confirmation for destructive actions
@@ -598,7 +637,7 @@ public class SupportAdminController implements Initializable {
                     TLToast.success(contentPane.getScene(), I18n.get("message.success"), I18n.get("ticket.deleted"));
                     showTicketsTab();
                 }));
-                new Thread(task).start();
+                AppThreadPool.execute(task);
             }
         });
     }
@@ -612,7 +651,7 @@ public class SupportAdminController implements Initializable {
         Task<List<FAQArticle>> task = new Task<>() {
             @Override
             protected List<FAQArticle> call() {
-                return faqService.findAll();
+                return faqService.findAllIncludingDrafts();
             }
         };
 
@@ -621,9 +660,12 @@ public class SupportAdminController implements Initializable {
             Platform.runLater(() -> displayFAQAdmin(articles));
         });
 
-        task.setOnFailed(e -> logger.error("Failed to load FAQ articles", task.getException()));
+        task.setOnFailed(e -> {
+            logger.error("Failed to load FAQ articles", task.getException());
+            TLToast.error(contentPane.getScene(), I18n.get("common.error"), I18n.get("error.failed_load_faq"));
+        });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void displayFAQAdmin(List<FAQArticle> articles) {
@@ -747,7 +789,7 @@ public class SupportAdminController implements Initializable {
         };
         task.setOnSucceeded(e -> Platform.runLater(this::showFAQTab));
         task.setOnFailed(e -> logger.error("Failed to save FAQ article", task.getException()));
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void deleteFAQ(int id) {
@@ -760,7 +802,7 @@ public class SupportAdminController implements Initializable {
                         };
                         task.setOnSucceeded(e -> Platform.runLater(this::showFAQTab));
                         task.setOnFailed(e -> logger.error("Failed to delete FAQ article {}", id, task.getException()));
-                        new Thread(task).start();
+                        AppThreadPool.execute(task);
                     }
                 });
     }
@@ -782,7 +824,7 @@ public class SupportAdminController implements Initializable {
         });
 
         task.setOnFailed(e -> logger.error("Failed to load auto responses", task.getException()));
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void displayAutoResponses(List<AutoResponse> responses) {
@@ -916,7 +958,7 @@ public class SupportAdminController implements Initializable {
         };
         task.setOnSucceeded(e -> Platform.runLater(this::showAutoResponsesTab));
         task.setOnFailed(e -> logger.error("Failed to save auto response", task.getException()));
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void toggleAutoResponse(int id) {
@@ -926,7 +968,7 @@ public class SupportAdminController implements Initializable {
         };
         task.setOnSucceeded(e -> Platform.runLater(this::showAutoResponsesTab));
         task.setOnFailed(e -> logger.error("Failed to toggle auto response {}", id, task.getException()));
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void deleteAutoResponse(int id) {
@@ -939,7 +981,7 @@ public class SupportAdminController implements Initializable {
                         };
                         task.setOnSucceeded(e -> Platform.runLater(this::showAutoResponsesTab));
                         task.setOnFailed(e -> logger.error("Failed to delete auto response {}", id, task.getException()));
-                        new Thread(task).start();
+                        AppThreadPool.execute(task);
                     }
                 });
     }
@@ -961,7 +1003,7 @@ public class SupportAdminController implements Initializable {
         });
 
         task.setOnFailed(e -> logger.error("Failed to load feedback", task.getException()));
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void displayFeedback(List<UserFeedback> feedbackList) {
@@ -1042,7 +1084,7 @@ public class SupportAdminController implements Initializable {
         };
         task.setOnSucceeded(e -> Platform.runLater(this::showFeedbackTab));
         task.setOnFailed(e -> logger.error("Failed to resolve feedback {}", id, task.getException()));
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void deleteFeedback(int id) {
@@ -1055,7 +1097,7 @@ public class SupportAdminController implements Initializable {
                         };
                         task.setOnSucceeded(e -> Platform.runLater(this::showFeedbackTab));
                         task.setOnFailed(e -> logger.error("Failed to delete feedback {}", id, task.getException()));
-                        new Thread(task).start();
+                        AppThreadPool.execute(task);
                     }
                 });
     }
@@ -1090,7 +1132,7 @@ public class SupportAdminController implements Initializable {
             });
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void displayStats(StatsData stats) {
@@ -1130,7 +1172,7 @@ public class SupportAdminController implements Initializable {
         emptyState.setAlignment(Pos.CENTER);
         emptyState.setPadding(new Insets(48));
         Label label = new Label(message);
-        label.setStyle("-fx-font-size: 14px; -fx-text-fill: #666;");
+        label.setStyle("-fx-font-size: 14px; -fx-text-fill: -fx-muted-foreground;");
         emptyState.getChildren().add(label);
         return emptyState;
     }

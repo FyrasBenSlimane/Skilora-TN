@@ -5,6 +5,7 @@ import com.skilora.config.DatabaseConfig;
 import com.skilora.recruitment.entity.JobOffer;
 import com.skilora.recruitment.entity.JobOpportunity;
 import com.skilora.recruitment.enums.JobStatus;
+import com.skilora.utils.AppThreadPool;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -321,9 +322,7 @@ public class JobService {
                 isCacheWarm = true;
 
                 // Async Persistence (Don't block)
-                Thread persistThread = new Thread(() -> persistJobs(response.jobs));
-                persistThread.setDaemon(true);
-                persistThread.start();
+                AppThreadPool.execute(() -> persistJobs(response.jobs));
             }
         } catch (Exception e) {
             logger.error("Failed to reload job cache from JSON", e);
@@ -335,7 +334,7 @@ public class JobService {
      * Note: The callback handling of Platform.runLater() is done by Controller.
      */
     public void refreshFeed(Runnable onComplete) {
-        Thread thread = new Thread(() -> {
+        AppThreadPool.execute(() -> {
             try {
                 // 1. Run Crawler
                 ProcessBuilder pb = new ProcessBuilder(findPythonCommand(), "python/job_feed_crawler.py");
@@ -354,8 +353,6 @@ public class JobService {
                 }
             }
         });
-        thread.setDaemon(true);
-        thread.start();
     }
 
     // ==================== External Job Persistence ====================
@@ -566,7 +563,10 @@ public class JobService {
                         .redirectErrorStream(true).start();
                 int rc = p.waitFor();
                 if (rc == 0) return cmd;
-            } catch (Exception ignored) { }
+            } catch (Exception e) {
+                // Expected: command not found, skip to next candidate
+                logger.debug("Python candidate '{}' not available: {}", cmd, e.getMessage());
+            }
         }
         return "python3";
     }

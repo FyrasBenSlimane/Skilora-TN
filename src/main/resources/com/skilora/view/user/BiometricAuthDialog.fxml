@@ -55,7 +55,7 @@
             <StackPane fx:id="frameContainer" 
                        minWidth="340" minHeight="260" 
                        maxWidth="340" maxHeight="260"
-                       style="-fx-background-color: #0a0a0a; -fx-background-radius: 14; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 14;">
+                       style="-fx-background-color: -fx-background; -fx-background-radius: 14; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 14;">
                 
                 <ImageView fx:id="previewView" 
                            fitWidth="340" fitHeight="260" 
@@ -65,8 +65,8 @@
                 <!-- Viewfinder Overlay — larger rounded corners -->
                 <SVGPath fx:id="viewfinder"
                          content="M 75 75 L 75 55 Q 75 45 85 45 L 105 45   M 235 45 L 255 45 Q 265 45 265 55 L 265 75   M 265 185 L 265 205 Q 265 215 255 215 L 235 215   M 105 215 L 85 215 Q 75 215 75 205 L 75 185"
-                         stroke="#ffffff" opacity="0.85" strokeWidth="3"
-                         strokeLineCap="ROUND" fill="TRANSPARENT"/>
+                         opacity="0.85" strokeLineCap="ROUND" fill="TRANSPARENT"
+                         style="-fx-stroke: -fx-foreground; -fx-stroke-width: 3;"/>
             </StackPane>
             
             <!-- Confidence Bar -->

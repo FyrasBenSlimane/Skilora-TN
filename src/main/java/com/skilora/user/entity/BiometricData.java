@@ -1,5 +1,7 @@
 package com.skilora.user.entity;
 
+import java.util.Objects;
+
 /**
  * BiometricData Entity
  * 
@@ -42,5 +44,21 @@ public class BiometricData {
 
     public void setRegisteredAt(long registeredAt) {
         this.registeredAt = registeredAt;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        BiometricData that = (BiometricData) o;
+        return Objects.equals(username, that.username);
+    }
+
+    @Override
+    public int hashCode() { return Objects.hash(username); }
+
+    @Override
+    public String toString() {
+        return "BiometricData{username='" + username + "', registeredAt=" + registeredAt + "}";
     }
 }

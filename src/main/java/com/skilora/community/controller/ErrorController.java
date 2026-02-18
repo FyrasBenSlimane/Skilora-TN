@@ -2,6 +2,7 @@ package com.skilora.community.controller;
 
 import com.skilora.framework.components.TLButton;
 import com.skilora.utils.I18n;
+import com.skilora.utils.SvgIcons;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
@@ -34,41 +35,42 @@ public class ErrorController {
     public void setError(ErrorType type, String message, String details) {
         switch (type) {
             case NOT_FOUND -> {
-                errorIcon.setText("🔍");
+                errorIcon.setGraphic(SvgIcons.icon(SvgIcons.SEARCH, 64, "-fx-muted-foreground"));
                 errorCode.setText("404");
                 errorTitle.setText(I18n.get("errorpage.not_found"));
                 errorMessage.setText(message != null ? message : 
                     I18n.get("errorpage.not_found.desc"));
             }
             case SERVER_ERROR -> {
-                errorIcon.setText("⚠️");
+                errorIcon.setGraphic(SvgIcons.icon(SvgIcons.ALERT_TRIANGLE, 64, "-fx-destructive"));
                 errorCode.setText("500");
                 errorTitle.setText(I18n.get("errorpage.server_error"));
                 errorMessage.setText(message != null ? message : 
                     I18n.get("errorpage.server_error.desc"));
             }
             case NETWORK_ERROR -> {
-                errorIcon.setText("📡");
+                errorIcon.setGraphic(SvgIcons.icon(SvgIcons.WIFI, 64, "-fx-muted-foreground"));
                 errorCode.setText("---");
                 errorTitle.setText(I18n.get("errorpage.connection_error"));
                 errorMessage.setText(message != null ? message : 
                     I18n.get("errorpage.connection_error.desc"));
             }
             case UNAUTHORIZED -> {
-                errorIcon.setText("🔒");
+                errorIcon.setGraphic(SvgIcons.icon(SvgIcons.LOCK, 64, "-fx-muted-foreground"));
                 errorCode.setText("403");
                 errorTitle.setText(I18n.get("errorpage.access_denied"));
                 errorMessage.setText(message != null ? message : 
                     I18n.get("errorpage.access_denied.desc"));
             }
             case GENERIC -> {
-                errorIcon.setText("⚠️");
+                errorIcon.setGraphic(SvgIcons.icon(SvgIcons.ALERT_TRIANGLE, 64, "-fx-amber"));
                 errorCode.setText("!");
                 errorTitle.setText(I18n.get("errorpage.generic"));
                 errorMessage.setText(message != null ? message : 
                     I18n.get("errorpage.generic.desc"));
             }
         }
+        homeBtn.setGraphic(SvgIcons.icon(SvgIcons.ARROW_LEFT, 14));
         
         if (details != null && !details.isEmpty()) {
             technicalDetails.setText(details);

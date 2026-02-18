@@ -58,11 +58,24 @@ public class TicketMessageService {
     }
 
     public List<TicketMessage> findByTicketId(int ticketId) {
+        return findByTicketId(ticketId, false);
+    }
+
+    /**
+     * Returns only public (non-internal) messages for a ticket.
+     * Use this for the user-facing view to prevent admin internal notes from leaking.
+     */
+    public List<TicketMessage> findByTicketIdPublic(int ticketId) {
+        return findByTicketId(ticketId, true);
+    }
+
+    private List<TicketMessage> findByTicketId(int ticketId, boolean excludeInternal) {
         String sql = """
             SELECT tm.*, u.full_name as sender_name, u.role as sender_role
             FROM ticket_messages tm
             LEFT JOIN users u ON tm.sender_id = u.id
             WHERE tm.ticket_id = ?
+            """ + (excludeInternal ? "AND tm.is_internal = FALSE\n" : "") + """
             ORDER BY tm.created_date ASC
             """;
         List<TicketMessage> messages = new ArrayList<>();

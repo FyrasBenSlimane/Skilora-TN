@@ -3,6 +3,7 @@ package com.skilora.finance.service;
 import com.skilora.config.DatabaseConfig;
 import com.skilora.finance.entity.EmploymentContract;
 import com.skilora.finance.entity.Payslip;
+import com.skilora.utils.ResultSetUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -199,6 +200,12 @@ public class PayslipService {
      */
     public Payslip generatePayslip(int contractId, int month, int year) {
         try {
+            // 0. Guard against duplicate payslip for same contract+period
+            if (existsForPeriod(contractId, month, year)) {
+                logger.warn("Payslip already exists for contract {} period {}/{} — skipping", contractId, month, year);
+                return null;
+            }
+
             // 1. Get contract
             EmploymentContract contract = ContractService.getInstance().findById(contractId);
             if (contract == null) {
@@ -264,6 +271,27 @@ public class PayslipService {
     // ==================== Private Helpers ====================
 
     /**
+     * Checks whether a payslip already exists for the given contract and period.
+     */
+    private boolean existsForPeriod(int contractId, int month, int year) {
+        String sql = "SELECT COUNT(*) FROM payslips WHERE contract_id = ? AND period_month = ? AND period_year = ?";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, contractId);
+            stmt.setInt(2, month);
+            stmt.setInt(3, year);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1) > 0;
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Failed to check existing payslip for contract {} period {}/{}", contractId, month, year, e);
+        }
+        return false;
+    }
+
+    /**
      * Maps a ResultSet row to a Payslip entity.
      * Uses getBigDecimal for all monetary fields.
      */
@@ -293,9 +321,7 @@ public class PayslipService {
         p.setCreatedDate(createdDate != null ? createdDate.toLocalDateTime() : null);
 
         // Transient fields
-        try {
-            p.setUserName(rs.getString("user_name"));
-        } catch (SQLException ignored) {}
+        p.setUserName(ResultSetUtils.getOptionalString(rs, "user_name"));
 
         return p;
     }

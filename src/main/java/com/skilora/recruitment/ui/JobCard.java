@@ -3,6 +3,7 @@ package com.skilora.recruitment.ui;
 import com.skilora.recruitment.entity.JobOpportunity;
 import com.skilora.framework.components.TLButton;
 import com.skilora.framework.components.TLButton.ButtonVariant;
+import com.skilora.utils.I18n;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
@@ -83,7 +84,7 @@ public class JobCard extends VBox {
         buttonRow.setAlignment(Pos.CENTER);
         
         if (onCardClick != null) {
-            TLButton viewBtn = new TLButton("View Details", ButtonVariant.OUTLINE);
+            TLButton viewBtn = new TLButton(I18n.get("jobcard.view_details"), ButtonVariant.OUTLINE);
             viewBtn.setMaxWidth(Double.MAX_VALUE);
             HBox.setHgrow(viewBtn, Priority.ALWAYS);
             viewBtn.setOnAction(e -> {
@@ -93,7 +94,7 @@ public class JobCard extends VBox {
             buttonRow.getChildren().add(viewBtn);
         }
 
-        TLButton applyBtn = new TLButton("Apply", ButtonVariant.PRIMARY);
+        TLButton applyBtn = new TLButton(I18n.get("jobcard.apply"), ButtonVariant.PRIMARY);
         applyBtn.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(applyBtn, Priority.ALWAYS);
         applyBtn.setOnAction(e -> {

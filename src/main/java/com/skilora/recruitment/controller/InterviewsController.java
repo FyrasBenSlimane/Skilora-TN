@@ -7,6 +7,7 @@ import com.skilora.framework.components.TLButton;
 import com.skilora.framework.components.TLCard;
 import com.skilora.framework.components.TLBadge;
 import com.skilora.framework.components.TLSeparator;
+import com.skilora.framework.components.TLToast;
 
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
@@ -32,8 +33,10 @@ import java.util.stream.Collectors;
 
 import javafx.scene.control.ButtonType;
 
+import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.DialogUtils;
 import com.skilora.utils.I18n;
+import com.skilora.utils.SvgIcons;
 
 /**
  * InterviewsController - Employer interview management.
@@ -123,9 +126,7 @@ public class InterviewsController implements Initializable {
             statsLabel.setText(I18n.get("interviews.error"));
         });
 
-        Thread thread = new Thread(task, "InterviewsLoader");
-        thread.setDaemon(true);
-        thread.start();
+        AppThreadPool.execute(task);
     }
 
     private void applyFilters() {
@@ -211,19 +212,22 @@ public class InterviewsController implements Initializable {
         detailsRow.setAlignment(Pos.CENTER_LEFT);
 
         if (app.getJobTitle() != null) {
-            Label jobLabel = new Label("💼 " + app.getJobTitle());
+            Label jobLabel = new Label(app.getJobTitle());
+            jobLabel.setGraphic(SvgIcons.icon(SvgIcons.BRIEFCASE, 14, "-fx-muted-foreground"));
             jobLabel.getStyleClass().add("text-muted");
             detailsRow.getChildren().add(jobLabel);
         }
 
         if (app.getJobLocation() != null) {
-            Label locLabel = new Label("📍 " + app.getJobLocation());
+            Label locLabel = new Label(app.getJobLocation());
+            locLabel.setGraphic(SvgIcons.icon(SvgIcons.MAP_PIN, 14, "-fx-muted-foreground"));
             locLabel.getStyleClass().add("text-muted");
             detailsRow.getChildren().add(locLabel);
         }
 
         if (app.getAppliedDate() != null) {
-            Label dateLabel = new Label("📅 " + I18n.get("interviews.application_date") + ": " + app.getAppliedDate().format(DATE_FMT));
+            Label dateLabel = new Label(I18n.get("interviews.application_date") + ": " + app.getAppliedDate().format(DATE_FMT));
+            dateLabel.setGraphic(SvgIcons.icon(SvgIcons.CALENDAR, 14, "-fx-muted-foreground"));
             dateLabel.getStyleClass().add("text-muted");
             detailsRow.getChildren().add(dateLabel);
         }
@@ -278,11 +282,12 @@ public class InterviewsController implements Initializable {
             }
         });
 
-        task.setOnFailed(e -> logger.error("Failed to update status", task.getException()));
+        task.setOnFailed(e -> {
+            logger.error("Failed to update status", task.getException());
+            TLToast.error(interviewsContainer.getScene(), I18n.get("common.error"), I18n.get("error.failed_update_status"));
+        });
 
-        Thread thread = new Thread(task, "UpdateStatus");
-        thread.setDaemon(true);
-        thread.start();
+        AppThreadPool.execute(task);
     }
 
     @FXML

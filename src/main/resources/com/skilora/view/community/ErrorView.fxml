@@ -16,7 +16,7 @@
     
     <!-- Error Icon/Illustration -->
     <VBox spacing="16" alignment="CENTER">
-        <Label fx:id="errorIcon" text="⚠️" style="-fx-font-size: 96px;"/>
+        <Label fx:id="errorIcon" text="" style="-fx-font-size: 96px;"/>
         <Label fx:id="errorCode" text="404" styleClass="h1" style="-fx-font-size: 72px; -fx-font-weight: bold;"/>
     </VBox>
     
@@ -29,7 +29,7 @@
     
     <!-- Actions -->
     <VBox spacing="12" alignment="CENTER">
-        <TLButton fx:id="homeBtn" text="← Retour à l'accueil" variant="PRIMARY" onAction="#handleGoHome"/>
+        <TLButton fx:id="homeBtn" text="Retour à l'accueil" variant="PRIMARY" onAction="#handleGoHome"/>
         <TLButton fx:id="backBtn" text="Retour en arrière" variant="OUTLINE" onAction="#handleGoBack"/>
     </VBox>
     

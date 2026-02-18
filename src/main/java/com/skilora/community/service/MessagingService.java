@@ -83,7 +83,7 @@ public class MessagingService {
             JOIN users u2 ON c.participant_2 = u2.id
             WHERE (c.participant_1 = ? OR c.participant_2 = ?)
             AND ((c.participant_1 = ? AND c.is_archived_1 = FALSE) OR (c.participant_2 = ? AND c.is_archived_2 = FALSE))
-            ORDER BY c.last_message_date DESC NULLS LAST
+            ORDER BY c.last_message_date IS NULL, c.last_message_date DESC
             """;
         
         try (Connection conn = DatabaseConfig.getInstance().getConnection();

@@ -68,7 +68,11 @@ public class BiometricService {
                             .info("Using Python command: {}", cmd);
                     return cmd;
                 }
-            } catch (Exception ignored) { }
+            } catch (Exception e) {
+                // Expected: command not found, skip to next candidate
+                LoggerFactory.getLogger(BiometricService.class)
+                        .debug("Python candidate '{}' not available: {}", cmd, e.getMessage());
+            }
         }
         return "python3"; // fallback
     }

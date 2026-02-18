@@ -9,6 +9,7 @@ import com.skilora.framework.components.TLPasswordField;
 import com.skilora.framework.components.TLButton;
 import com.skilora.user.service.MediaCache;
 import com.skilora.utils.Validators;
+import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.I18n;
 
 import org.slf4j.Logger;
@@ -141,7 +142,7 @@ public class RegisterController implements Initializable {
         registerBtn.setDisable(true);
         registerBtn.setText(I18n.get("register.creating_account"));
 
-        Thread registerThread = new Thread(() -> {
+        AppThreadPool.execute(() -> {
             try {
                 User newUser = new User(username, password, Role.USER, fullName);
                 newUser.setEmail(email);
@@ -154,9 +155,7 @@ public class RegisterController implements Initializable {
                     registerBtn.setText(I18n.get("register.sign_up"));
                 });
             }
-        }, "RegisterThread");
-        registerThread.setDaemon(true);
-        registerThread.start();
+        });
     }
 
     private void showError(String message) {
@@ -181,7 +180,7 @@ public class RegisterController implements Initializable {
                 controller.setStage(stage);
             }
 
-            TLWindow root = new TLWindow(stage, "Login", loginRoot);
+            TLWindow root = new TLWindow(stage, I18n.get("window.title.login"), loginRoot);
             stage.getScene().setRoot(root);
         } catch (Exception e) {
             logger.error("Failed to load LoginView: " + e.getMessage(), e);

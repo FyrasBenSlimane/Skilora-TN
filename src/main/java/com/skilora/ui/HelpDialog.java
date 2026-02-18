@@ -29,16 +29,16 @@ public class HelpDialog {
 
         // Quick Links Section
         VBox quickLinksSection = createSection(I18n.get("help.quick_links"),
-            createHelpItem("\uD83D\uDCDA " + I18n.get("help.documentation"), I18n.get("help.documentation.desc"), null),
-            createHelpItem("\uD83C\uDFA5 " + I18n.get("help.tutorials"), I18n.get("help.tutorials.desc"), null),
-            createHelpItem("\uD83D\uDCA1 " + I18n.get("help.faq"), I18n.get("help.faq.desc"), null)
+            createHelpItem(I18n.get("help.documentation"), I18n.get("help.documentation.desc"), null),
+            createHelpItem(I18n.get("help.tutorials"), I18n.get("help.tutorials.desc"), null),
+            createHelpItem(I18n.get("help.faq"), I18n.get("help.faq.desc"), null)
         );
 
         // Contact Section
         VBox contactSection = createSection(I18n.get("help.contact"),
-            createHelpItem("\uD83D\uDCE7 " + I18n.get("help.email"), "support@skilora.tn", "mailto:support@skilora.tn"),
-            createHelpItem("\uD83D\uDCDE " + I18n.get("help.phone"), "+216 XX XXX XXX", "tel:+216XXXXXXXX"),
-            createHelpItem("\uD83C\uDF10 " + I18n.get("help.website"), "www.skilora.tn", "https://skilora.tn")
+            createHelpItem(I18n.get("help.email"), "support@skilora.tn", "mailto:support@skilora.tn"),
+            createHelpItem(I18n.get("help.phone"), "+216 XX XXX XXX", "tel:+216XXXXXXXX"),
+            createHelpItem(I18n.get("help.website"), "www.skilora.tn", "https://skilora.tn")
         );
 
         // Version Info

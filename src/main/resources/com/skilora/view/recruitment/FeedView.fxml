@@ -22,7 +22,7 @@
         <Region HBox.hgrow="ALWAYS"/>
         
         <TLButton fx:id="refreshBtn" text="Refresh" variant="GHOST" onAction="#handleRefresh"/>
-        <TLTextField fx:id="searchField" label="Search jobs..." promptText="" prefWidth="300"/>
+        <TLTextField fx:id="searchField" label="Search jobs..." promptText="Search by title, company, location..." prefWidth="300"/>
     </HBox>
     
     <!-- Filter Tabs -->

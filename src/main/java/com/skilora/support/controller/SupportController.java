@@ -3,6 +3,7 @@ package com.skilora.support.controller;
 import com.skilora.user.entity.*;
 import com.skilora.support.entity.*;
 import com.skilora.support.service.*;
+import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.I18n;
 import com.skilora.utils.DialogUtils;
 import com.skilora.framework.components.*;
@@ -182,7 +183,7 @@ public class SupportController implements Initializable {
             });
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     // ==================== Tickets List ====================
@@ -206,7 +207,7 @@ public class SupportController implements Initializable {
             logger.error("Failed to load tickets", task.getException());
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void displayTickets(List<SupportTicket> tickets) {
@@ -300,7 +301,7 @@ public class SupportController implements Initializable {
             Task<List<TicketMessage>> msgTask = new Task<>() {
                 @Override
                 protected List<TicketMessage> call() {
-                    return messageService.findByTicketId(ticketId);
+                    return messageService.findByTicketIdPublic(ticketId);
                 }
             };
 
@@ -309,10 +310,10 @@ public class SupportController implements Initializable {
                 Platform.runLater(() -> showTicketDetailView(ticket, messages));
             });
 
-            new Thread(msgTask).start();
+            AppThreadPool.execute(msgTask);
         });
 
-        new Thread(ticketTask).start();
+        AppThreadPool.execute(ticketTask);
     }
 
     private void showTicketDetailView(SupportTicket ticket, List<TicketMessage> messages) {
@@ -493,7 +494,7 @@ public class SupportController implements Initializable {
             Platform.runLater(() -> DialogUtils.showError(I18n.get("message.error"), I18n.get("error.db.operation")));
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void closeTicket(int ticketId) {
@@ -509,7 +510,7 @@ public class SupportController implements Initializable {
                     }
                 };
                 task.setOnSucceeded(e -> Platform.runLater(() -> openTicketDetail(ticketId)));
-                new Thread(task).start();
+                AppThreadPool.execute(task);
             }
         });
     }
@@ -530,7 +531,7 @@ public class SupportController implements Initializable {
                     TLToast.success(contentPane.getScene(), I18n.get("message.success"), I18n.get("ticket.deleted"));
                     loadTicketsTab();
                 }));
-                new Thread(task).start();
+                AppThreadPool.execute(task);
             }
         });
     }
@@ -550,7 +551,7 @@ public class SupportController implements Initializable {
             Platform.runLater(() -> displayFAQ(articles));
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void displayFAQ(List<FAQArticle> articles) {
@@ -632,9 +633,20 @@ public class SupportController implements Initializable {
         // Welcome message
         addChatMessage(I18n.get("chatbot.welcome"), false);
         
-        // Start a conversation
+        // Start a conversation on a background thread to avoid blocking the UI
         if (currentUser != null) {
-            currentConversationId = chatbotService.startConversation(currentUser.getId());
+            Task<Integer> startTask = new Task<>() {
+                @Override
+                protected Integer call() {
+                    return chatbotService.startConversation(currentUser.getId());
+                }
+            };
+            startTask.setOnSucceeded(ev -> currentConversationId = startTask.getValue());
+            startTask.setOnFailed(ev -> {
+                logger.error("Failed to start chatbot conversation", startTask.getException());
+                TLToast.error(contentPane.getScene(), I18n.get("common.error"), I18n.get("error.failed_start_chatbot"));
+            });
+            AppThreadPool.execute(startTask);
         }
         
         HBox inputBox = new HBox(8);
@@ -674,8 +686,8 @@ public class SupportController implements Initializable {
         msgLabel.setWrapText(true);
         msgLabel.setMaxWidth(400);
         msgLabel.setStyle(isUser ? 
-            "-fx-background-color: -fx-accent; -fx-text-fill: white; -fx-padding: 10 14; -fx-background-radius: 12;" :
-            "-fx-background-color: -fx-control-inner-background; -fx-padding: 10 14; -fx-background-radius: 12;"
+            "-fx-background-color: -fx-primary; -fx-text-fill: -fx-primary-foreground; -fx-padding: 10 14; -fx-background-radius: 12;" :
+            "-fx-background-color: -fx-muted; -fx-text-fill: -fx-foreground; -fx-padding: 10 14; -fx-background-radius: 12;"
         );
         
         messageBox.getChildren().add(msgLabel);
@@ -709,7 +721,7 @@ public class SupportController implements Initializable {
             Platform.runLater(() -> addChatMessage(task.getValue(), false));
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void escalateChatToTicket() {
@@ -767,7 +779,7 @@ public class SupportController implements Initializable {
                     loadTicketsTab();
                 }));
                 
-                new Thread(task).start();
+                AppThreadPool.execute(task);
             }
         });
     }
@@ -840,7 +852,7 @@ public class SupportController implements Initializable {
             });
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     // ==================== Helper Methods ====================

@@ -19,7 +19,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.ResourceBundle;
 
+import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.I18n;
+import com.skilora.utils.SvgIcons;
 
 /**
  * ApplicationsController - Kanban board for tracking job applications (Job Seeker view)
@@ -35,6 +37,10 @@ public class ApplicationsController implements Initializable {
     @FXML private Label reviewingCount;
     @FXML private Label interviewingCount;
     @FXML private Label offerCount;
+    @FXML private Label appliedHeader;
+    @FXML private Label reviewingHeader;
+    @FXML private Label interviewingHeader;
+    @FXML private Label offerHeader;
     
     @FXML private VBox appliedColumn;
     @FXML private VBox reviewingColumn;
@@ -47,7 +53,11 @@ public class ApplicationsController implements Initializable {
     
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        // Data loads after setCurrentUser is called
+        refreshBtn.setGraphic(SvgIcons.icon(SvgIcons.REFRESH, 14));
+        if (appliedHeader != null) appliedHeader.setGraphic(SvgIcons.icon(SvgIcons.FILE_TEXT, 14));
+        if (reviewingHeader != null) reviewingHeader.setGraphic(SvgIcons.icon(SvgIcons.EYE, 14));
+        if (interviewingHeader != null) interviewingHeader.setGraphic(SvgIcons.icon(SvgIcons.MESSAGE_CIRCLE, 14));
+        if (offerHeader != null) offerHeader.setGraphic(SvgIcons.icon(SvgIcons.SPARKLES, 14));
     }
 
     public void setCurrentUser(User user) {
@@ -98,7 +108,7 @@ public class ApplicationsController implements Initializable {
             logger.error("Failed to load applications", task.getException());
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void updateCounts() {

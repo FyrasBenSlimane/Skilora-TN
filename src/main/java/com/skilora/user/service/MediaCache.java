@@ -1,5 +1,6 @@
 package com.skilora.user.service;
 
+import com.skilora.utils.AppThreadPool;
 import javafx.application.Platform;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
@@ -45,7 +46,7 @@ public class MediaCache {
             return;
         isLoading.set(true);
 
-        Thread preloader = new Thread(() -> {
+        AppThreadPool.execute(() -> {
             try {
                 URL resource = getClass().getResource("/com/skilora/assets/videos/hero.mp4");
                 if (resource == null) {
@@ -96,12 +97,7 @@ public class MediaCache {
             } finally {
                 isLoading.set(false);
             }
-        }, "MediaCache-Preloader");
-
-        preloader.setDaemon(true);
-        // Normal priority - don't starve other initialization
-        preloader.setPriority(Thread.NORM_PRIORITY);
-        preloader.start();
+        });
     }
 
     /**

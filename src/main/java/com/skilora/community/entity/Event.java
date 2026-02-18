@@ -84,4 +84,20 @@ public class Event {
     
     public boolean isAttending() { return isAttending; }
     public void setAttending(boolean attending) { isAttending = attending; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Event that = (Event) o;
+        return id == that.id;
+    }
+
+    @Override
+    public int hashCode() { return Integer.hashCode(id); }
+
+    @Override
+    public String toString() {
+        return "Event{id=" + id + ", title='" + title + "', eventType=" + eventType + ", status=" + status + "}";
+    }
 }

@@ -21,8 +21,8 @@
         <Region HBox.hgrow="ALWAYS"/>
         
         <HBox spacing="12">
-            <TLButton fx:id="markAllBtn" text="✓ Tout marquer lu" variant="OUTLINE" onAction="#handleMarkAllRead"/>
-            <TLButton fx:id="clearBtn" text="🗑️ Effacer tout" variant="GHOST" onAction="#handleClearAll"/>
+            <TLButton fx:id="markAllBtn" text="Tout marquer lu" variant="OUTLINE" onAction="#handleMarkAllRead"/>
+            <TLButton fx:id="clearBtn" text="Effacer tout" variant="GHOST" onAction="#handleClearAll"/>
         </HBox>
     </HBox>
     

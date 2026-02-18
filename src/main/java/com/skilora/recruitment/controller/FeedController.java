@@ -5,9 +5,10 @@ import com.skilora.recruitment.service.JobService;
 import com.skilora.recruitment.ui.JobCard;
 import com.skilora.framework.components.TLButton;
 import com.skilora.framework.components.TLTextField;
+import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.I18n;
+import com.skilora.utils.UiUtils;
 
-import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
@@ -19,7 +20,6 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.geometry.Insets;
-import javafx.util.Duration;
 
 import java.net.URL;
 import java.util.HashMap;
@@ -83,14 +83,11 @@ public class FeedController implements Initializable {
 
     private void setupEventHandlers() {
         // Debounce Search
-        PauseTransition pause = new PauseTransition(Duration.millis(300));
-        pause.setOnFinished(e -> {
-            String currentTag = getCurrentTagText();
-            filterJobsByTag(currentTag, searchField.getText());
-        });
-
         if (searchField != null && searchField.getControl() != null) {
-            searchField.getControl().setOnKeyReleased(e -> pause.playFromStart());
+            UiUtils.debounce(searchField.getControl(), 300, () -> {
+                String currentTag = getCurrentTagText();
+                filterJobsByTag(currentTag, searchField.getText());
+            });
         }
 
         // Infinite scroll
@@ -144,9 +141,7 @@ public class FeedController implements Initializable {
             allJobs = List.of();
         });
 
-        Thread thread = new Thread(loadTask, "FeedLoader");
-        thread.setDaemon(true);
-        thread.start();
+        AppThreadPool.execute(loadTask);
     }
 
     /**

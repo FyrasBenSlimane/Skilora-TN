@@ -8,6 +8,7 @@ import com.skilora.user.entity.Profile;
 import com.skilora.user.service.BiometricService;
 import com.skilora.user.service.ProfileService;
 import com.skilora.user.service.UserService;
+import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.ImageUtils;
 
 import org.slf4j.Logger;
@@ -326,22 +327,24 @@ public class ProfileWizardController {
     }
 
     private void updateBiometricStatus() {
-        Thread t = new Thread(() -> {
-            boolean hasBiometric = BiometricService.getInstance().hasBiometricData(currentUser.getUsername());
-            javafx.application.Platform.runLater(() -> {
-                if (hasBiometric) {
-                    biometricStatusLabel.setText(I18n.get("profile.biometric.status.configured"));
-                    biometricStatusLabel.setStyle("-fx-text-fill: -fx-success; -fx-font-weight: bold;");
-                    biometricBtn.setText(I18n.get("profile.biometric.reconfigure"));
-                } else {
-                    biometricStatusLabel.setText(I18n.get("profile.biometric.status.not_configured"));
-                    biometricStatusLabel.setStyle("-fx-text-fill: -fx-destructive; -fx-font-weight: bold;");
-                    biometricBtn.setText(I18n.get("profile.biometric.configure"));
-                }
-            });
-        }, "BiometricStatusThread");
-        t.setDaemon(true);
-        t.start();
+        AppThreadPool.execute(() -> {
+            try {
+                boolean hasBiometric = BiometricService.getInstance().hasBiometricData(currentUser.getUsername());
+                javafx.application.Platform.runLater(() -> {
+                    if (hasBiometric) {
+                        biometricStatusLabel.setText(I18n.get("profile.biometric.status.configured"));
+                        biometricStatusLabel.setStyle("-fx-text-fill: -fx-success; -fx-font-weight: bold;");
+                        biometricBtn.setText(I18n.get("profile.biometric.reconfigure"));
+                    } else {
+                        biometricStatusLabel.setText(I18n.get("profile.biometric.status.not_configured"));
+                        biometricStatusLabel.setStyle("-fx-text-fill: -fx-destructive; -fx-font-weight: bold;");
+                        biometricBtn.setText(I18n.get("profile.biometric.configure"));
+                    }
+                });
+            } catch (Exception e) {
+                logger.error("Failed to check biometric status", e);
+            }
+        });
     }
 
     @FXML
@@ -443,6 +446,6 @@ public class ProfileWizardController {
             logger.error("Failed to save profile", e.getSource().getException());
         });
 
-        new Thread(saveTask).start();
+        AppThreadPool.execute(saveTask);
     }
 }

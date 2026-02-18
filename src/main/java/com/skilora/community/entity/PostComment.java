@@ -36,4 +36,20 @@ public class PostComment {
     
     public String getAuthorPhoto() { return authorPhoto; }
     public void setAuthorPhoto(String authorPhoto) { this.authorPhoto = authorPhoto; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        PostComment that = (PostComment) o;
+        return id == that.id;
+    }
+
+    @Override
+    public int hashCode() { return Integer.hashCode(id); }
+
+    @Override
+    public String toString() {
+        return "PostComment{id=" + id + ", postId=" + postId + ", authorId=" + authorId + "}";
+    }
 }

@@ -28,4 +28,20 @@ public class EventRsvp {
     
     public LocalDateTime getRsvpDate() { return rsvpDate; }
     public void setRsvpDate(LocalDateTime rsvpDate) { this.rsvpDate = rsvpDate; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        EventRsvp that = (EventRsvp) o;
+        return id == that.id;
+    }
+
+    @Override
+    public int hashCode() { return Integer.hashCode(id); }
+
+    @Override
+    public String toString() {
+        return "EventRsvp{id=" + id + ", eventId=" + eventId + ", userId=" + userId + ", status='" + status + "'}";
+    }
 }

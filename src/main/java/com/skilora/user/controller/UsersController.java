@@ -5,8 +5,12 @@ import com.skilora.framework.components.TLButton.ButtonVariant;
 import com.skilora.user.entity.User;
 import com.skilora.user.enums.Role;
 import com.skilora.user.service.UserService;
+import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.DialogUtils;
 import com.skilora.utils.I18n;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -21,6 +25,8 @@ import javafx.concurrent.Task;
 import javafx.geometry.Side;
 
 public class UsersController {
+
+    private static final Logger logger = LoggerFactory.getLogger(UsersController.class);
 
     @FXML
     private Button addUserBtn;
@@ -298,16 +304,18 @@ public class UsersController {
                             I18n.get("users.delete.confirm_title"),
                             I18n.get("users.delete.confirm_msg", u.getUsername())).ifPresent(response -> {
                                 if (response == ButtonType.OK) {
-                                    Thread t = new Thread(() -> {
-                                        userService.deleteUser(u.getId());
-                                        javafx.application.Platform.runLater(() -> {
-                                            if (onRefreshView != null) {
-                                                onRefreshView.run();
-                                            }
-                                        });
-                                    }, "DeleteUserThread");
-                                    t.setDaemon(true);
-                                    t.start();
+                                    AppThreadPool.execute(() -> {
+                                        try {
+                                            userService.deleteUser(u.getId());
+                                            javafx.application.Platform.runLater(() -> {
+                                                if (onRefreshView != null) {
+                                                    onRefreshView.run();
+                                                }
+                                            });
+                                        } catch (Exception ex) {
+                                            logger.error("Failed to delete user", ex);
+                                        }
+                                    });
                                 }
                             });
                 });
@@ -374,7 +382,7 @@ public class UsersController {
             usersTable.setPlaceholder(new Label(I18n.get("users.error.detail")));
         });
 
-        new Thread(loadTask).start();
+        AppThreadPool.execute(loadTask);
     }
 
     private void applyFilters() {

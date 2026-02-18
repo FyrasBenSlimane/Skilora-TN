@@ -29,7 +29,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.ResourceBundle;
 
+import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.I18n;
+import com.skilora.utils.SvgIcons;
 
 /**
  * NotificationsController - Display and manage user notifications from DB
@@ -51,7 +53,8 @@ public class NotificationsController implements Initializable {
     
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        // Data loads after setCurrentUser
+        markAllBtn.setGraphic(SvgIcons.icon(SvgIcons.CHECK, 14));
+        clearBtn.setGraphic(SvgIcons.icon(SvgIcons.TRASH, 14));
     }
 
     public void setCurrentUser(User user) {
@@ -79,7 +82,7 @@ public class NotificationsController implements Initializable {
             statsLabel.setText(I18n.get("common.error"));
         });
 
-        new Thread(task, "NotifLoadThread") {{ setDaemon(true); }}.start();
+        AppThreadPool.execute(task);
     }
     
     private void displayNotifications() {
@@ -119,7 +122,8 @@ public class NotificationsController implements Initializable {
         HBox header = new HBox(12);
         header.setAlignment(Pos.CENTER_LEFT);
         
-        Label icon = new Label(notif.getIcon() != null ? notif.getIcon() : "🔔");
+        Label icon = new Label();
+        icon.setGraphic(SvgIcons.icon(SvgIcons.BELL, 20, "-fx-muted-foreground"));
         icon.setStyle("-fx-font-size: 24px;");
         
         VBox textBox = new VBox(4);
@@ -160,11 +164,15 @@ public class NotificationsController implements Initializable {
         card.getContent().add(content);
         card.setOnMouseClicked(e -> {
             if (!notif.isRead()) {
-                new Thread(() -> {
-                    notificationService.markAsRead(notif.getId());
-                    notif.setRead(true);
-                    Platform.runLater(this::displayNotifications);
-                }, "MarkReadThread").start();
+                AppThreadPool.execute(() -> {
+                    try {
+                        notificationService.markAsRead(notif.getId());
+                        notif.setRead(true);
+                        Platform.runLater(this::displayNotifications);
+                    } catch (Exception ex) {
+                        logger.error("Failed to mark notification as read", ex);
+                    }
+                });
             }
         });
         
@@ -194,21 +202,29 @@ public class NotificationsController implements Initializable {
     @FXML
     private void handleMarkAllRead() {
         if (currentUser == null) return;
-        new Thread(() -> {
-            notificationService.markAllAsRead(currentUser.getId());
-            notifications.forEach(n -> n.setRead(true));
-            Platform.runLater(this::displayNotifications);
-        }, "MarkAllReadThread").start();
+        AppThreadPool.execute(() -> {
+            try {
+                notificationService.markAllAsRead(currentUser.getId());
+                notifications.forEach(n -> n.setRead(true));
+                Platform.runLater(this::displayNotifications);
+            } catch (Exception e) {
+                logger.error("Failed to mark all notifications as read", e);
+            }
+        });
     }
     
     @FXML
     private void handleClearAll() {
         if (currentUser == null) return;
-        new Thread(() -> {
-            notificationService.clearAll(currentUser.getId());
-            notifications.clear();
-            Platform.runLater(this::displayNotifications);
-        }, "ClearAllThread").start();
+        AppThreadPool.execute(() -> {
+            try {
+                notificationService.clearAll(currentUser.getId());
+                notifications.clear();
+                Platform.runLater(this::displayNotifications);
+            } catch (Exception e) {
+                logger.error("Failed to clear all notifications", e);
+            }
+        });
     }
     
     @FXML

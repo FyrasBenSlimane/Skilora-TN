@@ -20,7 +20,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.ResourceBundle;
 
+import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.I18n;
+import com.skilora.utils.SvgIcons;
 
 /**
  * PostJobController - 3-step wizard for posting job opportunities
@@ -65,6 +67,11 @@ public class PostJobController implements Initializable {
     
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        saveBtn.setGraphic(SvgIcons.icon(SvgIcons.SAVE, 14));
+        prevBtn.setGraphic(SvgIcons.icon(SvgIcons.ARROW_LEFT, 14));
+        nextBtn.setGraphic(SvgIcons.icon(SvgIcons.ARROW_RIGHT, 14));
+        nextBtn.setContentDisplay(javafx.scene.control.ContentDisplay.RIGHT);
+        publishBtn.setGraphic(SvgIcons.icon(SvgIcons.SEND, 14));
         createStepViews();
         showStep(1);
     }
@@ -76,11 +83,13 @@ public class PostJobController implements Initializable {
         this.currentUser = user;
         // Resolve company in background
         if (user != null) {
-            Thread t = new Thread(() -> {
-                this.companyId = JobService.getInstance().getOrCreateEmployerCompanyId(user.getId(), user.getFullName());
-            }, "CompanyResolverThread");
-            t.setDaemon(true);
-            t.start();
+            AppThreadPool.execute(() -> {
+                try {
+                    this.companyId = JobService.getInstance().getOrCreateEmployerCompanyId(user.getId(), user.getFullName());
+                } catch (Exception e) {
+                    logger.error("Failed to resolve employer company ID", e);
+                }
+            });
         }
     }
     
@@ -250,9 +259,11 @@ public class PostJobController implements Initializable {
         Label type = new Label(jobTypeSelect.getValue() != null ? jobTypeSelect.getValue() : I18n.get("postjob.no_type"));
         type.getStyleClass().add("text-muted");
         
-        Label location = new Label("📍 " + (locationField.getText().isEmpty() ? I18n.get("postjob.no_location") : locationField.getText()));
+        Label location = new Label(locationField.getText().isEmpty() ? I18n.get("postjob.no_location") : locationField.getText());
+        location.setGraphic(SvgIcons.icon(SvgIcons.MAP_PIN, 14, "-fx-muted-foreground"));
         
-        Label salary = new Label("💰 " + (salaryField.getText().isEmpty() ? I18n.get("postjob.no_salary") : salaryField.getText()));
+        Label salary = new Label(salaryField.getText().isEmpty() ? I18n.get("postjob.no_salary") : salaryField.getText());
+        salary.setGraphic(SvgIcons.icon(SvgIcons.DOLLAR_SIGN, 14, "-fx-muted-foreground"));
         
         Label descTitle = new Label(I18n.get("postjob.description").replace(" *", ""));
         descTitle.getStyleClass().add("h4");
@@ -291,14 +302,15 @@ public class PostJobController implements Initializable {
     private void handlePublish() {
         String title = jobTitleField.getText().trim();
         if (title.isEmpty()) {
-            publishBtn.setText("⚠ " + I18n.get("postjob.title_required"));
+            publishBtn.setGraphic(SvgIcons.icon(SvgIcons.ALERT_TRIANGLE, 14, "-fx-destructive"));
+            publishBtn.setText(I18n.get("postjob.title_required"));
             return;
         }
 
         publishBtn.setDisable(true);
         publishBtn.setText(I18n.get("postjob.publishing"));
 
-        new Thread(() -> {
+        AppThreadPool.execute(() -> {
             try {
                 // Ensure companyId is resolved before publishing
                 int resolvedCompanyId = companyId;
@@ -326,7 +338,10 @@ public class PostJobController implements Initializable {
                     try {
                         offer.setSalaryMin(Double.parseDouble(parts[0].trim()));
                         offer.setSalaryMax(Double.parseDouble(parts[1].trim()));
-                    } catch (NumberFormatException ignored) {}
+                    } catch (NumberFormatException e) {
+                        // Expected: user typed non-numeric salary range, leave min/max unset
+                        logger.debug("Could not parse salary range: {}", salaryText);
+                    }
                 }
 
                 // Map contract type to work type
@@ -357,18 +372,17 @@ public class PostJobController implements Initializable {
 
                 javafx.application.Platform.runLater(() -> {
                     if (id > 0) {
-                        publishBtn.setText("✓ " + I18n.get("postjob.published"));
+                        publishBtn.setGraphic(SvgIcons.icon(SvgIcons.CHECK, 14));
+                        publishBtn.setText(I18n.get("postjob.published"));
                         // Return to dashboard after delay
-                        Thread delayThread = new Thread(() -> {
+                        AppThreadPool.execute(() -> {
                             try { Thread.sleep(1500); } catch (InterruptedException ignored) {
                                 Thread.currentThread().interrupt();
                             }
                             javafx.application.Platform.runLater(() -> {
                                 if (onCancel != null) onCancel.run();
                             });
-                        }, "PublishDelayThread");
-                        delayThread.setDaemon(true);
-                        delayThread.start();
+                        });
                     } else {
                         publishBtn.setText(I18n.get("postjob.publish_error"));
                         publishBtn.setDisable(false);
@@ -381,13 +395,14 @@ public class PostJobController implements Initializable {
                     publishBtn.setDisable(false);
                 });
             }
-        }).start();
+        });
     }
     
     @FXML
     private void handleSaveDraft() {
         logger.debug("Saving draft...");
-        saveBtn.setText("✓ " + I18n.get("postjob.saved"));
+        saveBtn.setGraphic(SvgIcons.icon(SvgIcons.CHECK, 14));
+        saveBtn.setText(I18n.get("postjob.saved"));
     }
     
     @FXML

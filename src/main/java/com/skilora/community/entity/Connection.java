@@ -53,4 +53,20 @@ public class Connection {
     
     public String getOtherUserPhoto() { return otherUserPhoto; }
     public void setOtherUserPhoto(String otherUserPhoto) { this.otherUserPhoto = otherUserPhoto; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Connection that = (Connection) o;
+        return id == that.id;
+    }
+
+    @Override
+    public int hashCode() { return Integer.hashCode(id); }
+
+    @Override
+    public String toString() {
+        return "Connection{id=" + id + ", userId1=" + userId1 + ", userId2=" + userId2 + ", status=" + status + "}";
+    }
 }

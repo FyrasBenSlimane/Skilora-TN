@@ -21,8 +21,8 @@
         <Region HBox.hgrow="ALWAYS"/>
         
         <HBox spacing="12">
-            <TLButton fx:id="filterBtn" text="🔍 Filtrer" variant="OUTLINE" onAction="#handleFilter"/>
-            <TLButton fx:id="refreshBtn" text="🔄 Actualiser" variant="GHOST" onAction="#handleRefresh"/>
+            <TLButton fx:id="filterBtn" text="Filtrer" variant="OUTLINE" onAction="#handleFilter"/>
+            <TLButton fx:id="refreshBtn" text="Actualiser" variant="GHOST" onAction="#handleRefresh"/>
         </HBox>
     </HBox>
     
@@ -54,8 +54,8 @@
     <HBox spacing="12" alignment="CENTER">
         <Label fx:id="paginationLabel" text="0-0 sur 0" styleClass="text-muted"/>
         <Region HBox.hgrow="ALWAYS"/>
-        <TLButton fx:id="prevBtn" text="←" variant="OUTLINE" onAction="#handlePrevPage"/>
+        <TLButton fx:id="prevBtn" text="" variant="OUTLINE" onAction="#handlePrevPage"/>
         <Label fx:id="pageLabel" text="Page 1" styleClass="text-muted"/>
-        <TLButton fx:id="nextBtn" text="→" variant="OUTLINE" onAction="#handleNextPage"/>
+        <TLButton fx:id="nextBtn" text="" variant="OUTLINE" onAction="#handleNextPage"/>
     </HBox>
 </VBox>

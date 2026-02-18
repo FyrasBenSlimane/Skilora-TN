@@ -38,4 +38,20 @@ public class GroupMember {
     
     public String getUserPhoto() { return userPhoto; }
     public void setUserPhoto(String userPhoto) { this.userPhoto = userPhoto; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        GroupMember that = (GroupMember) o;
+        return id == that.id;
+    }
+
+    @Override
+    public int hashCode() { return Integer.hashCode(id); }
+
+    @Override
+    public String toString() {
+        return "GroupMember{id=" + id + ", groupId=" + groupId + ", userId=" + userId + ", role='" + role + "'}";
+    }
 }

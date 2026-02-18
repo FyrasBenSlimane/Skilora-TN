@@ -1,12 +1,14 @@
 package com.skilora.user.controller;
 
-import com.skilora.config.DatabaseConfig;
 import com.skilora.framework.components.TLButton;
 import com.skilora.framework.components.TLPasswordField;
 import com.skilora.framework.components.TLTextField;
 import com.skilora.user.entity.User;
+import com.skilora.user.service.OtpService;
 import com.skilora.user.service.UserService;
 import com.skilora.community.service.EmailService;
+import com.skilora.utils.AppThreadPool;
+import com.skilora.utils.SvgIcons;
 import com.skilora.utils.Validators;
 import javafx.animation.*;
 import javafx.application.Platform;
@@ -23,9 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import com.skilora.utils.I18n;
 
-import java.security.SecureRandom;
-import java.sql.*;
-import java.time.LocalDateTime;
+
 import java.util.Optional;
 
 /**
@@ -70,35 +70,38 @@ public class ForgotPasswordController {
     private enum Step { EMAIL, OTP, NEW_PASSWORD }
     private Step currentStep = Step.EMAIL;
 
-    private static final int OTP_EXPIRY_SECONDS = 120;
+    private static final int OTP_EXPIRY_SECONDS = OtpService.getInstance().getExpirySeconds();
     private Timeline countdownTimeline;
     private int remainingSeconds;
 
-    // Style constants for step indicator
-    private static final String STEP_ACTIVE_BG = "-fx-background-color: #fafafa; -fx-background-radius: 16;";
-    private static final String STEP_ACTIVE_TEXT = "-fx-font-size: 13px; -fx-font-weight: 700; -fx-text-fill: #18181b;";
-    private static final String STEP_ACTIVE_LABEL = "-fx-font-size: 11px; -fx-text-fill: #fafafa;";
-    private static final String STEP_DONE_BG = "-fx-background-color: #22c55e; -fx-background-radius: 16;";
-    private static final String STEP_DONE_TEXT = "-fx-font-size: 13px; -fx-font-weight: 700; -fx-text-fill: #ffffff;";
-    private static final String STEP_DONE_LABEL = "-fx-font-size: 11px; -fx-text-fill: #22c55e;";
-    private static final String STEP_INACTIVE_BG = "-fx-background-color: #3f3f46; -fx-background-radius: 16;";
-    private static final String STEP_INACTIVE_TEXT = "-fx-font-size: 13px; -fx-font-weight: 700; -fx-text-fill: #a1a1aa;";
-    private static final String STEP_INACTIVE_LABEL = "-fx-font-size: 11px; -fx-text-fill: #71717a;";
-    private static final String CONNECTOR_DONE = "-fx-background-color: #22c55e; -fx-background-radius: 1;";
-    private static final String CONNECTOR_PENDING = "-fx-background-color: #3f3f46; -fx-background-radius: 1;";
+    // Style constants for step indicator (use theme tokens)
+    private static final String STEP_ACTIVE_BG = "-fx-background-color: -fx-primary; -fx-background-radius: 16;";
+    private static final String STEP_ACTIVE_TEXT = "-fx-font-size: 13px; -fx-font-weight: 700; -fx-text-fill: -fx-primary-foreground;";
+    private static final String STEP_ACTIVE_LABEL = "-fx-font-size: 11px; -fx-text-fill: -fx-primary;";
+    private static final String STEP_DONE_BG = "-fx-background-color: -fx-green; -fx-background-radius: 16;";
+    private static final String STEP_DONE_TEXT = "-fx-font-size: 13px; -fx-font-weight: 700; -fx-text-fill: -fx-green-foreground;";
+    private static final String STEP_DONE_LABEL = "-fx-font-size: 11px; -fx-text-fill: -fx-green;";
+    private static final String STEP_INACTIVE_BG = "-fx-background-color: -fx-muted; -fx-background-radius: 16;";
+    private static final String STEP_INACTIVE_TEXT = "-fx-font-size: 13px; -fx-font-weight: 700; -fx-text-fill: -fx-muted-foreground;";
+    private static final String STEP_INACTIVE_LABEL = "-fx-font-size: 11px; -fx-text-fill: -fx-muted-foreground;";
+    private static final String CONNECTOR_DONE = "-fx-background-color: -fx-green; -fx-background-radius: 1;";
+    private static final String CONNECTOR_PENDING = "-fx-background-color: -fx-muted; -fx-background-radius: 1;";
 
-    private final SecureRandom secureRandom = new SecureRandom();
+    private final OtpService otpService = OtpService.getInstance();
 
     @FXML
     public void initialize() {
         // Apply i18n to labels
-        if (iconLabel != null) iconLabel.setText("\uD83D\uDD10");
+        if (iconLabel != null) iconLabel.setGraphic(SvgIcons.icon(SvgIcons.LOCK, 24));
         if (titleLabel != null) titleLabel.setText(I18n.get("forgot.ui.title"));
         if (subtitleLabel != null) subtitleLabel.setText(I18n.get("forgot.ui.subtitle"));
         if (fieldLabel != null) fieldLabel.setText(I18n.get("forgot.ui.email_label"));
         if (notReceivedLabel != null) notReceivedLabel.setText(I18n.get("forgot.ui.not_received"));
         if (sendBtn != null) sendBtn.setText(I18n.get("forgot.send_code"));
-        if (backBtn != null) backBtn.setText("\u2190 " + I18n.get("forgot.back_to_login"));
+        if (backBtn != null) {
+            backBtn.setGraphic(SvgIcons.icon(SvgIcons.ARROW_LEFT, 14));
+            backBtn.setText(I18n.get("forgot.back_to_login"));
+        }
         if (resendBtn != null) resendBtn.setText(I18n.get("forgot.resend"));
         if (emailField != null) emailField.setPromptText(I18n.get("forgot.ui.email_placeholder"));
 
@@ -197,7 +200,7 @@ public class ForgotPasswordController {
         showLoading(I18n.get("forgot.sending"));
         sendBtn.setDisable(true);
 
-        Thread sendThread = new Thread(() -> {
+        AppThreadPool.execute(() -> {
             try {
                 Optional<User> userOpt = UserService.getInstance().findByEmail(email);
                 if (userOpt.isEmpty()) {
@@ -212,8 +215,8 @@ public class ForgotPasswordController {
                 targetEmail = email;
                 targetUserId = userOpt.get().getId();
 
-                String otp = generateOtp();
-                storeOtpInDatabase(targetUserId, otp);
+                String otp = otpService.generate();
+                otpService.store(targetUserId, otp);
 
                 EmailService.getInstance().sendOtpEmail(email, otp).thenAccept(success -> {
                     Platform.runLater(() -> {
@@ -238,9 +241,7 @@ public class ForgotPasswordController {
                     sendBtn.setDisable(false);
                 });
             }
-        }, "PasswordResetThread");
-        sendThread.setDaemon(true);
-        sendThread.start();
+        });
     }
 
     // ==================== STEP 2: VERIFY OTP ====================
@@ -258,11 +259,11 @@ public class ForgotPasswordController {
         sendBtn.setDisable(true);
         String trimmedOtp = inputOtp.trim();
 
-        Thread verifyThread = new Thread(() -> {
+        AppThreadPool.execute(() -> {
             try {
-                boolean valid = verifyOtpFromDatabase(targetUserId, trimmedOtp);
+                boolean valid = otpService.verify(targetUserId, trimmedOtp);
                 if (valid) {
-                    markOtpUsed(targetUserId, trimmedOtp);
+                    otpService.markUsed(targetUserId, trimmedOtp);
                     Platform.runLater(() -> {
                         hideLoading();
                         showSuccess(I18n.get("forgot.code_valid"));
@@ -286,9 +287,7 @@ public class ForgotPasswordController {
                     sendBtn.setDisable(false);
                 });
             }
-        }, "OtpVerifyThread");
-        verifyThread.setDaemon(true);
-        verifyThread.start();
+        });
     }
 
     // ==================== STEP 3: NEW PASSWORD ====================
@@ -319,7 +318,7 @@ public class ForgotPasswordController {
         showLoading(I18n.get("forgot.updating"));
         sendBtn.setDisable(true);
 
-        Thread updateThread = new Thread(() -> {
+        AppThreadPool.execute(() -> {
             try {
                 boolean updated = UserService.getInstance().updatePassword(targetUserId, newPassword);
                 Platform.runLater(() -> {
@@ -339,9 +338,7 @@ public class ForgotPasswordController {
                     sendBtn.setDisable(false);
                 });
             }
-        }, "PasswordUpdateThread");
-        updateThread.setDaemon(true);
-        updateThread.start();
+        });
     }
 
     private void showPasswordUpdatedSuccess() {
@@ -359,7 +356,8 @@ public class ForgotPasswordController {
             fadeOut.play();
         }
 
-        iconLabel.setText("\u2705");
+        iconLabel.setGraphic(SvgIcons.icon(SvgIcons.CHECK_CIRCLE, 32, "-fx-green"));
+        iconLabel.setText("");
         titleLabel.setText(I18n.get("forgot.password_updated"));
         subtitleLabel.setText(I18n.get("forgot.redirect_login"));
 
@@ -421,7 +419,8 @@ public class ForgotPasswordController {
                 passwordContainer.setVisible(false);
                 passwordContainer.setManaged(false);
 
-                iconLabel.setText("\uD83D\uDD10");
+                iconLabel.setGraphic(SvgIcons.icon(SvgIcons.LOCK, 24));
+                iconLabel.setText("");
                 titleLabel.setText(I18n.get("forgot.ui.title"));
                 subtitleLabel.setText(I18n.get("forgot.ui.subtitle"));
 
@@ -429,7 +428,8 @@ public class ForgotPasswordController {
                 sendBtn.setDisable(false);
                 sendBtn.setVisible(true);
                 sendBtn.setManaged(true);
-                backBtn.setText("\u2190 " + I18n.get("forgot.back_to_login"));
+                backBtn.setGraphic(SvgIcons.icon(SvgIcons.ARROW_LEFT, 14));
+                backBtn.setText(I18n.get("forgot.back_to_login"));
 
                 resendSection.setVisible(false);
                 resendSection.setManaged(false);
@@ -446,7 +446,8 @@ public class ForgotPasswordController {
                 passwordContainer.setVisible(false);
                 passwordContainer.setManaged(false);
 
-                iconLabel.setText("\uD83D\uDCE8");
+                iconLabel.setGraphic(SvgIcons.icon(SvgIcons.MAIL, 24));
+                iconLabel.setText("");
                 titleLabel.setText(I18n.get("forgot.verify_code"));
                 subtitleLabel.setText(I18n.get("forgot.otp_instruction"));
 
@@ -454,7 +455,8 @@ public class ForgotPasswordController {
                 sendBtn.setDisable(false);
                 sendBtn.setVisible(true);
                 sendBtn.setManaged(true);
-                backBtn.setText("\u2190 " + I18n.get("forgot.step.email"));
+                backBtn.setGraphic(SvgIcons.icon(SvgIcons.ARROW_LEFT, 14));
+                backBtn.setText(I18n.get("forgot.step.email"));
 
                 // Show resend section
                 resendSection.setVisible(true);
@@ -476,7 +478,8 @@ public class ForgotPasswordController {
                 newPasswordField.getControl().clear();
                 confirmPasswordField.getControl().clear();
 
-                iconLabel.setText("\uD83D\uDD12");
+                iconLabel.setGraphic(SvgIcons.icon(SvgIcons.SHIELD, 24));
+                iconLabel.setText("");
                 titleLabel.setText(I18n.get("forgot.new_password_label"));
                 subtitleLabel.setText(I18n.get("forgot.new_password_subtitle"));
 
@@ -484,7 +487,8 @@ public class ForgotPasswordController {
                 sendBtn.setDisable(false);
                 sendBtn.setVisible(true);
                 sendBtn.setManaged(true);
-                backBtn.setText("\u2190 " + I18n.get("forgot.step.verify"));
+                backBtn.setGraphic(SvgIcons.icon(SvgIcons.ARROW_LEFT, 14));
+                backBtn.setText(I18n.get("forgot.step.verify"));
 
                 resendSection.setVisible(false);
                 resendSection.setManaged(false);
@@ -536,9 +540,9 @@ public class ForgotPasswordController {
         Platform.runLater(() -> {
             if (fieldLabel != null && currentStep == Step.OTP) {
                 String timerColor;
-                if (remainingSeconds > 60) timerColor = "#22c55e";
-                else if (remainingSeconds > 30) timerColor = "#f59e0b";
-                else timerColor = "#dc2626";
+                if (remainingSeconds > 60) timerColor = "-fx-green";
+                else if (remainingSeconds > 30) timerColor = "-fx-amber";
+                else timerColor = "-fx-red";
                 fieldLabel.setText(I18n.get("forgot.code_timer").replace("{0}", timeStr));
                 fieldLabel.setStyle("-fx-font-weight: 600; -fx-text-fill: " + timerColor + ";");
             }
@@ -558,8 +562,8 @@ public class ForgotPasswordController {
         hideMessages();
         showLoading(I18n.get("forgot.resending"));
 
-        String otp = generateOtp();
-        storeOtpInDatabase(targetUserId, otp);
+        String otp = otpService.generate();
+        otpService.store(targetUserId, otp);
 
         EmailService.getInstance().sendOtpEmail(targetEmail, otp).thenAccept(success -> {
             Platform.runLater(() -> {
@@ -611,61 +615,6 @@ public class ForgotPasswordController {
             case EMAIL -> {
                 if (onBack != null) onBack.run();
             }
-        }
-    }
-
-    // ==================== OTP Database Operations ====================
-
-    private String generateOtp() {
-        int code = 100000 + secureRandom.nextInt(900000);
-        return String.valueOf(code);
-    }
-
-    private void storeOtpInDatabase(int userId, String otp) {
-        String invalidateSql = "UPDATE password_reset_tokens SET used = TRUE WHERE user_id = ? AND used = FALSE";
-        String insertSql = "INSERT INTO password_reset_tokens (user_id, otp_code, expires_at) VALUES (?, ?, ?)";
-
-        try (Connection conn = DatabaseConfig.getInstance().getConnection()) {
-            try (PreparedStatement stmt = conn.prepareStatement(invalidateSql)) {
-                stmt.setInt(1, userId);
-                stmt.executeUpdate();
-            }
-            try (PreparedStatement stmt = conn.prepareStatement(insertSql)) {
-                stmt.setInt(1, userId);
-                stmt.setString(2, otp);
-                stmt.setTimestamp(3, Timestamp.valueOf(LocalDateTime.now().plusSeconds(OTP_EXPIRY_SECONDS)));
-                stmt.executeUpdate();
-            }
-        } catch (SQLException e) {
-            logger.error("Failed to store OTP for user id: {}", userId, e);
-        }
-    }
-
-    private boolean verifyOtpFromDatabase(int userId, String otp) {
-        String sql = "SELECT 1 FROM password_reset_tokens " +
-                "WHERE user_id = ? AND otp_code = ? AND used = FALSE AND expires_at > NOW()";
-        try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, userId);
-            stmt.setString(2, otp);
-            try (ResultSet rs = stmt.executeQuery()) {
-                return rs.next();
-            }
-        } catch (SQLException e) {
-            logger.error("Failed to verify OTP for user id: {}", userId, e);
-        }
-        return false;
-    }
-
-    private void markOtpUsed(int userId, String otp) {
-        String sql = "UPDATE password_reset_tokens SET used = TRUE WHERE user_id = ? AND otp_code = ?";
-        try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, userId);
-            stmt.setString(2, otp);
-            stmt.executeUpdate();
-        } catch (SQLException e) {
-            logger.error("Failed to mark OTP as used for user id: {}", userId, e);
         }
     }
 

@@ -65,7 +65,7 @@ public class UserFormController {
         // Username validation (format + length)
         String usernameError = Validators.validateUsername(usernameField.getText());
         if (usernameError != null) {
-            usernameField.getControl().setStyle("-fx-border-color: #dc2626;");
+            usernameField.getControl().setStyle("-fx-border-color: -fx-destructive;");
             valid = false;
         } else {
             usernameField.getControl().setStyle("");
@@ -74,7 +74,7 @@ public class UserFormController {
         // Full name validation (format + length)
         String fullNameError = Validators.validateFullName(fullNameField.getText());
         if (fullNameError != null) {
-            fullNameField.getControl().setStyle("-fx-border-color: #dc2626;");
+            fullNameField.getControl().setStyle("-fx-border-color: -fx-destructive;");
             valid = false;
         } else {
             fullNameField.getControl().setStyle("");
@@ -85,7 +85,7 @@ public class UserFormController {
         if (email != null && !email.trim().isEmpty()) {
             String emailError = Validators.validateEmail(email);
             if (emailError != null) {
-                emailField.getControl().setStyle("-fx-border-color: #dc2626;");
+                emailField.getControl().setStyle("-fx-border-color: -fx-destructive;");
                 valid = false;
             } else {
                 emailField.getControl().setStyle("");
@@ -98,7 +98,7 @@ public class UserFormController {
         if (existingUser == null) {
             String passwordError = Validators.validatePasswordStrength(passwordField.getText());
             if (passwordError != null) {
-                passwordField.getControl().setStyle("-fx-border-color: #dc2626;");
+                passwordField.getControl().setStyle("-fx-border-color: -fx-destructive;");
                 valid = false;
             } else {
                 passwordField.getControl().setStyle("");
@@ -109,7 +109,7 @@ public class UserFormController {
             if (password != null && !password.isEmpty()) {
                 String passwordError = Validators.validatePasswordStrength(password);
                 if (passwordError != null) {
-                    passwordField.getControl().setStyle("-fx-border-color: #dc2626;");
+                    passwordField.getControl().setStyle("-fx-border-color: -fx-destructive;");
                     valid = false;
                 } else {
                     passwordField.getControl().setStyle("");
@@ -119,7 +119,7 @@ public class UserFormController {
         
         // Role validation
         if (roleSelect.getValue() == null) {
-            roleSelect.setStyle("-fx-border-color: #dc2626;");
+            roleSelect.setStyle("-fx-border-color: -fx-destructive;");
             valid = false;
         } else {
             roleSelect.setStyle("");

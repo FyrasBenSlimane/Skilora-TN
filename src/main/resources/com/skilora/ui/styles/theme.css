@@ -6,8 +6,8 @@
  */
 
 .root {
-    /* ========== COLOR PALETTE (Zinc/Stone - Dark) ========== */
-    -fx-background: #09090b;
+    /* ========== COLOR PALETTE (Matte Charcoal - Dark) ========== */
+    -fx-background: #191a1c;
     -fx-foreground: #fafafa;
     -fx-primary: #fafafa;
     -fx-primary-foreground: #18181b;
@@ -26,14 +26,14 @@
     -fx-accent-foreground: #fafafa;
     -fx-accent-hover: #3f3f46;
 
-    -fx-border: #27272a;
+    -fx-border: #2a2b2e;
     -fx-input: #27272a;
     -fx-ring: #fafafa;
 
-    -fx-card: #09090b;
+    -fx-card: #1e1f22;
     -fx-card-foreground: #fafafa;
 
-    -fx-popover: #09090b;
+    -fx-popover: #1e1f22;
     -fx-popover-foreground: #fafafa;
 
     -fx-destructive: #ef4444;
@@ -43,9 +43,9 @@
     -fx-success: #fafafa;
     -fx-success-foreground: #18181b;
     -fx-warning: #a1a1aa;
-    -fx-warning-foreground: #09090b;
+    -fx-warning-foreground: #191a1c;
     -fx-info: #a1a1aa;
-    -fx-info-foreground: #09090b;
+    -fx-info-foreground: #191a1c;
 
     -fx-selection-bg: #27272a;
     -fx-selection-fg: #fafafa;
@@ -57,6 +57,16 @@
     -fx-success-bg: rgba(250, 250, 250, 0.1);
     -fx-warning-bg: rgba(161, 161, 170, 0.1);
     -fx-info-bg: rgba(161, 161, 170, 0.1);
+
+    /* ========== FIXED SEMANTIC COLORS (theme-independent) ========== */
+    -fx-green: #22c55e;
+    -fx-green-foreground: #ffffff;
+    -fx-amber: #f59e0b;
+    -fx-amber-foreground: #ffffff;
+    -fx-red: #ef4444;
+    -fx-red-foreground: #ffffff;
+    -fx-blue: #3b82f6;
+    -fx-blue-foreground: #ffffff;
 
     /* ========== TYPOGRAPHY (Inter / System) ========== */
     -fx-font-family: "Inter", "System", "Segoe UI", sans-serif;
@@ -91,6 +101,7 @@
     /* ========== JAVA FX RESETS ========== */
     -fx-focus-color: transparent;
     -fx-faint-focus-color: transparent;
+    -fx-background-color: -fx-background;
     -fx-background-insets: 0;
 }
 
@@ -147,16 +158,25 @@
     -fx-success-bg: rgba(24, 24, 27, 0.1);
     -fx-warning-bg: rgba(82, 82, 91, 0.1);
     -fx-info-bg: rgba(113, 113, 122, 0.1);
+
+    /* ========== FIXED SEMANTIC COLORS (same hues, adjusted for light bg) ========== */
+    -fx-green: #16a34a;
+    -fx-green-foreground: #ffffff;
+    -fx-amber: #d97706;
+    -fx-amber-foreground: #ffffff;
+    -fx-red: #dc2626;
+    -fx-red-foreground: #ffffff;
+    -fx-blue: #2563eb;
+    -fx-blue-foreground: #ffffff;
 }
 
 /* Auth Hero Section */
 .auth-hero {
-    -fx-background-color: linear-gradient(to bottom right, #18181b, #09090b);
+    -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, #1e1f22, #131415);
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.4), 10, 0, 0, 0);
-    -fx-padding: 48px;
 }
 
 .root.light .auth-hero {
-    -fx-background-color: linear-gradient(to bottom right, #f4f4f5, #e4e4e7);
+    -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, #f4f4f5, #e4e4e7);
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 10, 0, 0, 0);
 }

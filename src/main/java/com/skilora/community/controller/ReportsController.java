@@ -6,6 +6,7 @@ import com.skilora.framework.components.TLButton;
 import com.skilora.framework.components.TLCard;
 import com.skilora.framework.components.TLBadge;
 import com.skilora.framework.components.TLSeparator;
+import com.skilora.framework.components.TLToast;
 
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 
+import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.I18n;
 
 /**
@@ -110,7 +112,7 @@ public class ReportsController implements Initializable {
             statsLabel.setText(I18n.get("common.error"));
         });
 
-        new Thread(task, "ReportsLoader") {{ setDaemon(true); }}.start();
+        AppThreadPool.execute(task);
     }
 
     private void applyFilters() {
@@ -240,9 +242,12 @@ public class ReportsController implements Initializable {
             }
         });
 
-        task.setOnFailed(e -> logger.error("Failed to update report status", task.getException()));
+        task.setOnFailed(e -> {
+            logger.error("Failed to update report status", task.getException());
+            TLToast.error(reportsContainer.getScene(), I18n.get("common.error"), I18n.get("error.failed_update_report"));
+        });
 
-        new Thread(task, "UpdateReportStatus") {{ setDaemon(true); }}.start();
+        AppThreadPool.execute(task);
     }
 
     private String getStatusDisplayName(String status) {

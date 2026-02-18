@@ -27,14 +27,19 @@ public class EmailService {
     private static volatile EmailService instance;
 
     private EmailService() {
-        // TODO: Move back to env vars after testing
         String envEmail = System.getenv("SKILORA_MAIL_EMAIL");
         String envPassword = System.getenv("SKILORA_MAIL_PASSWORD");
 
-        this.fromEmail = (envEmail != null && !envEmail.isBlank()) ? envEmail : "firaszx232@gmail.com";
-        this.fromPassword = (envPassword != null && !envPassword.isBlank()) ? envPassword : "lgqu ninc tzec lnvp";
+        if (envEmail == null || envEmail.isBlank() || envPassword == null || envPassword.isBlank()) {
+            logger.warn("Email credentials not set. Set SKILORA_MAIL_EMAIL and SKILORA_MAIL_PASSWORD environment variables.");
+        }
 
-        logger.info("EmailService initialized with: {}", this.fromEmail);
+        this.fromEmail = (envEmail != null && !envEmail.isBlank()) ? envEmail : "";
+        this.fromPassword = (envPassword != null && !envPassword.isBlank()) ? envPassword : "";
+
+        if (!this.fromEmail.isBlank()) {
+            logger.info("EmailService initialized with: {}", this.fromEmail);
+        }
     }
 
     public static EmailService getInstance() {

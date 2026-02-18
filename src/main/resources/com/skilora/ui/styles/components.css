@@ -621,7 +621,7 @@
     -fx-border-radius: 8px;
     -fx-padding: 0;
     -fx-spacing: 0;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 2, 0, 0, 1); /* shadow-sm */
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.18), 8, 0, 0, 2); /* subtle luxury lift */
 }
 .card-elevated {
     -fx-border-color: -fx-border;

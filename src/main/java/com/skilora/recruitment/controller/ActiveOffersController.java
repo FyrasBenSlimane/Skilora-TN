@@ -8,10 +8,12 @@ import com.skilora.framework.components.TLCard;
 import com.skilora.framework.components.TLBadge;
 import com.skilora.framework.components.TLTextField;
 import com.skilora.framework.components.TLSeparator;
+import com.skilora.framework.components.TLToast;
+import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.DialogUtils;
 import com.skilora.utils.I18n;
+import com.skilora.utils.UiUtils;
 
-import javafx.animation.PauseTransition;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -25,7 +27,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.SVGPath;
-import javafx.util.Duration;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,9 +111,7 @@ public class ActiveOffersController implements Initializable {
 
     private void setupSearch() {
         if (searchField != null && searchField.getControl() != null) {
-            PauseTransition pause = new PauseTransition(Duration.millis(300));
-            pause.setOnFinished(e -> applyFilters());
-            searchField.getControl().setOnKeyReleased(e -> pause.playFromStart());
+            UiUtils.debounce(searchField.getControl(), 300, this::applyFilters);
         }
     }
 
@@ -134,9 +133,7 @@ public class ActiveOffersController implements Initializable {
             statsLabel.setText(I18n.get("common.error"));
         });
 
-        Thread thread = new Thread(task, "ActiveOffersLoader");
-        thread.setDaemon(true);
-        thread.start();
+        AppThreadPool.execute(task);
     }
 
     private void applyFilters() {
@@ -328,11 +325,12 @@ public class ActiveOffersController implements Initializable {
                         applyFilters();
                     }
                 });
-                task.setOnFailed(e -> logger.error("Failed to delete offer", task.getException()));
+                task.setOnFailed(e -> {
+                    logger.error("Failed to delete offer", task.getException());
+                    TLToast.error(offersContainer.getScene(), I18n.get("common.error"), I18n.get("error.failed_delete_offer"));
+                });
 
-                Thread thread = new Thread(task, "AdminDeleteOffer");
-                thread.setDaemon(true);
-                thread.start();
+                AppThreadPool.execute(task);
             }
         });
     }
@@ -351,11 +349,12 @@ public class ActiveOffersController implements Initializable {
                     }
                 };
                 task.setOnSucceeded(e -> applyFilters());
-                task.setOnFailed(e -> logger.error("Failed to close offer", task.getException()));
+                task.setOnFailed(e -> {
+                    logger.error("Failed to close offer", task.getException());
+                    TLToast.error(offersContainer.getScene(), I18n.get("common.error"), I18n.get("error.failed_close_offer"));
+                });
 
-                Thread thread = new Thread(task, "AdminCloseOffer");
-                thread.setDaemon(true);
-                thread.start();
+                AppThreadPool.execute(task);
             }
         });
     }

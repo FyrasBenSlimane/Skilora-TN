@@ -21,7 +21,7 @@
         
         <Region HBox.hgrow="ALWAYS"/>
         
-        <TLButton fx:id="refreshBtn" text="🔄 Actualiser" variant="GHOST" onAction="#handleRefresh"/>
+        <TLButton fx:id="refreshBtn" text="Actualiser" variant="GHOST" onAction="#handleRefresh"/>
     </HBox>
     
     <!-- Kanban Board -->
@@ -29,7 +29,7 @@
         <!-- Applied Column -->
         <VBox spacing="12" style="-fx-background-color: rgba(100, 116, 139, 0.05); -fx-background-radius: 8; -fx-padding: 16;" HBox.hgrow="ALWAYS">
             <HBox spacing="8" alignment="CENTER_LEFT">
-                <Label text="📝 Postulé" styleClass="h4"/>
+                <Label fx:id="appliedHeader" text="Postulé" styleClass="h4"/>
                 <Region HBox.hgrow="ALWAYS"/>
                 <Label fx:id="appliedCount" text="0" styleClass="badge"/>
             </HBox>
@@ -42,7 +42,7 @@
         <!-- Under Review Column -->
         <VBox spacing="12" style="-fx-background-color: rgba(59, 130, 246, 0.05); -fx-background-radius: 8; -fx-padding: 16;" HBox.hgrow="ALWAYS">
             <HBox spacing="8" alignment="CENTER_LEFT">
-                <Label text="👀 En cours" styleClass="h4"/>
+                <Label fx:id="reviewingHeader" text="En cours" styleClass="h4"/>
                 <Region HBox.hgrow="ALWAYS"/>
                 <Label fx:id="reviewingCount" text="0" styleClass="badge"/>
             </HBox>
@@ -55,7 +55,7 @@
         <!-- Interviewing Column -->
         <VBox spacing="12" style="-fx-background-color: rgba(234, 179, 8, 0.05); -fx-background-radius: 8; -fx-padding: 16;" HBox.hgrow="ALWAYS">
             <HBox spacing="8" alignment="CENTER_LEFT">
-                <Label text="💬 Entretien" styleClass="h4"/>
+                <Label fx:id="interviewingHeader" text="Entretien" styleClass="h4"/>
                 <Region HBox.hgrow="ALWAYS"/>
                 <Label fx:id="interviewingCount" text="0" styleClass="badge"/>
             </HBox>
@@ -68,7 +68,7 @@
         <!-- Offer Column -->
         <VBox spacing="12" style="-fx-background-color: rgba(34, 197, 94, 0.05); -fx-background-radius: 8; -fx-padding: 16;" HBox.hgrow="ALWAYS">
             <HBox spacing="8" alignment="CENTER_LEFT">
-                <Label text="🎉 Offre" styleClass="h4"/>
+                <Label fx:id="offerHeader" text="Offre" styleClass="h4"/>
                 <Region HBox.hgrow="ALWAYS"/>
                 <Label fx:id="offerCount" text="0" styleClass="badge"/>
             </HBox>

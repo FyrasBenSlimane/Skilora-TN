@@ -86,6 +86,26 @@ public class FAQService {
         return articles;
     }
 
+    /**
+     * Returns ALL FAQ articles including unpublished drafts.
+     * Use this for admin views where drafts need to be visible.
+     */
+    public List<FAQArticle> findAllIncludingDrafts() {
+        String sql = "SELECT * FROM faq_articles ORDER BY created_date DESC";
+        List<FAQArticle> articles = new ArrayList<>();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            
+            while (rs.next()) {
+                articles.add(mapResultSet(rs));
+            }
+        } catch (SQLException e) {
+            logger.error("Failed to find all FAQ articles (including drafts)", e);
+        }
+        return articles;
+    }
+
     public List<FAQArticle> findByCategory(String category) {
         String sql = "SELECT * FROM faq_articles WHERE category = ? AND is_published = TRUE ORDER BY created_date DESC";
         List<FAQArticle> articles = new ArrayList<>();

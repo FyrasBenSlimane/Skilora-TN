@@ -12,7 +12,7 @@
       fillHeight="true">
 
     <!-- LEFT SIDE (Hero) -->
-    <StackPane fx:id="heroContainer" minWidth="400" prefWidth="500" style="-fx-background-color: #09090b;">
+    <StackPane fx:id="heroContainer" minWidth="400" prefWidth="500" styleClass="auth-hero">
          <!-- Video content added by controller at index 0 -->
          
          <!-- Overlay Content -->
@@ -47,14 +47,15 @@
             
             <Label fx:id="errorLabel" visible="false" managed="false" styleClass="text-sm, text-destructive"/>
             
-            <TLTextField fx:id="usernameField" label="Username" promptText=""/>
-            <TLPasswordField fx:id="passwordField" label="Password" promptText=""/>
-            
-            <HBox alignment="CENTER_RIGHT">
-                <TLButton fx:id="forgotPasswordLink" text="Forgot password?" variant="GHOST"
-                          style="-fx-padding: 2 0 2 0; -fx-font-size: 13px; -fx-text-fill: #a1a1aa; -fx-underline: true;"
-                          onAction="#openForgotPassword"/>
-            </HBox>
+            <TLTextField fx:id="usernameField" label="Username" promptText="Enter your username"/>
+            <VBox spacing="4">
+                <TLPasswordField fx:id="passwordField" label="Password" promptText="Enter your password"/>
+                <HBox alignment="CENTER_RIGHT">
+                    <TLButton fx:id="forgotPasswordLink" text="Forgot password?" variant="GHOST"
+                              style="-fx-padding: 0; -fx-font-size: 13px; -fx-text-fill: -fx-muted-foreground; -fx-underline: true;"
+                              onAction="#openForgotPassword"/>
+                </HBox>
+            </VBox>
             
             <TLButton fx:id="loginBtn" text="Sign In" variant="PRIMARY" maxWidth="Infinity" onAction="#handleLogin"/>
             <TLButton fx:id="biometricBtn" text="Login with Face ID" variant="OUTLINE" maxWidth="Infinity" onAction="#handleBiometricLogin"/>

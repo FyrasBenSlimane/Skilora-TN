@@ -46,4 +46,20 @@ public class Achievement {
     
     public int getPoints() { return points; }
     public void setPoints(int points) { this.points = points; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Achievement that = (Achievement) o;
+        return id == that.id;
+    }
+
+    @Override
+    public int hashCode() { return Integer.hashCode(id); }
+
+    @Override
+    public String toString() {
+        return "Achievement{id=" + id + ", userId=" + userId + ", title='" + title + "', rarity=" + rarity + ", points=" + points + "}";
+    }
 }

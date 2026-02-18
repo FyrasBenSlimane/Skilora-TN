@@ -13,6 +13,7 @@ import com.skilora.user.controller.UserFormController;
 import com.skilora.user.controller.SettingsController;
 import com.skilora.formation.controller.FormationsController;
 import com.skilora.user.ui.ProfileWizardView;
+import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.I18n;
 
 import org.slf4j.Logger;
@@ -302,6 +303,8 @@ public class MainView extends TLAppLayout {
         profileBtn.setAlignment(Pos.CENTER_LEFT);
         profileBtn.setFocusTraversable(false);
         profileBtn.getStyleClass().add("profile-btn");
+        profileBtn.setTextOverrun(javafx.scene.control.OverrunStyle.ELLIPSIS);
+        profileBtn.setEllipsisString("\u2026");
 
         Region profileSpacerLeft = new Region();
         Region profileSpacerRight = new Region();
@@ -437,7 +440,7 @@ public class MainView extends TLAppLayout {
                 this::showSupportView);
 
         supportNotificationDot = new Circle(4);
-        supportNotificationDot.setFill(javafx.scene.paint.Color.web("#ef4444"));
+        supportNotificationDot.setStyle("-fx-fill: -fx-red;");
         supportNotificationDot.setVisible(false);
         supportNotificationDot.setManaged(false);
 
@@ -481,7 +484,7 @@ public class MainView extends TLAppLayout {
                 supportNotificationDot.setVisible(hasUnread);
             }
         });
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void showDashboard() {

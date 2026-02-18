@@ -71,4 +71,20 @@ public class Post {
     
     public boolean isLikedByCurrentUser() { return isLikedByCurrentUser; }
     public void setLikedByCurrentUser(boolean likedByCurrentUser) { isLikedByCurrentUser = likedByCurrentUser; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Post that = (Post) o;
+        return id == that.id;
+    }
+
+    @Override
+    public int hashCode() { return Integer.hashCode(id); }
+
+    @Override
+    public String toString() {
+        return "Post{id=" + id + ", authorId=" + authorId + ", postType=" + postType + ", likesCount=" + likesCount + "}";
+    }
 }

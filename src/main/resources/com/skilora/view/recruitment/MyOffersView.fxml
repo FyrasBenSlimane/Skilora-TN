@@ -36,6 +36,6 @@
           style="-fx-padding: 48;">
         <Label text="Aucune offre publiée" styleClass="h3"/>
         <Label text="Commencez par créer votre première offre d'emploi." styleClass="text-muted"/>
-        <TLButton text="Publier une Offre" variant="DEFAULT" onAction="#handleNewOffer"/>
+        <TLButton text="Publier une Offre" variant="PRIMARY" onAction="#handleNewOffer"/>
     </VBox>
 </VBox>

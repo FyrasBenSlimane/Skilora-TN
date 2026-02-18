@@ -36,7 +36,7 @@
                             <TLButton fx:id="uploadPhotoBtn" text="Changer la photo" onAction="#handleUploadPhoto"/>
                             <TLButton fx:id="removePhotoBtn" text="Supprimer" variant="GHOST" onAction="#handleRemovePhoto"/>
                         </HBox>
-                        <Label fx:id="photoStatusLabel" text="PNG, JPG, GIF, WebP \u2022 Max 5 Mo" styleClass="text-muted, text-xs"/>
+                        <Label fx:id="photoStatusLabel" text="PNG, JPG, GIF, WebP &#x2022; Max 5 Mo" styleClass="text-muted, text-xs"/>
                     </VBox>
                 </HBox>
             </VBox>

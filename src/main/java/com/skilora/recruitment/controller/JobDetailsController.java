@@ -4,6 +4,7 @@ import com.skilora.framework.components.TLBadge;
 import com.skilora.framework.components.TLButton;
 import com.skilora.recruitment.entity.JobOpportunity;
 import com.skilora.utils.I18n;
+import com.skilora.utils.SvgIcons;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.layout.FlowPane;
@@ -39,9 +40,12 @@ public class JobDetailsController {
     private JobOpportunity currentJob;
     private Runnable onBack;
     private Runnable onApply;
+    private boolean jobSaved = false;
     
     public void setJob(JobOpportunity job) {
         this.currentJob = job;
+        backBtn.setGraphic(SvgIcons.icon(SvgIcons.ARROW_LEFT, 14));
+        saveBtn.setGraphic(SvgIcons.icon(SvgIcons.BOOKMARK, 14));
         populateJobDetails();
     }
     
@@ -68,10 +72,12 @@ public class JobDetailsController {
         }
         
         // Location & Type
-        jobLocation.setText("📍 " + (currentJob.getLocation() != null && !currentJob.getLocation().isEmpty() 
+        jobLocation.setGraphic(SvgIcons.icon(SvgIcons.MAP_PIN, 14, "-fx-muted-foreground"));
+        jobLocation.setText((currentJob.getLocation() != null && !currentJob.getLocation().isEmpty() 
             ? currentJob.getLocation() 
             : I18n.get("jobdetails.remote") + " / " + I18n.get("jobdetails.not_specified")));
-        jobType.setText("💼 " + I18n.get("jobdetails.type.fulltime")); // Default when no type data available
+        jobType.setGraphic(SvgIcons.icon(SvgIcons.BRIEFCASE, 14, "-fx-muted-foreground"));
+        jobType.setText(I18n.get("jobdetails.type.fulltime")); // Default when no type data available
         
         // Posted date
         if (currentJob.getPostedDate() != null) {
@@ -81,9 +87,11 @@ public class JobDetailsController {
                 String dateText = daysAgo == 0 ? I18n.get("jobdetails.today") 
                     : daysAgo == 1 ? I18n.get("jobdetails.yesterday") 
                     : I18n.get("jobdetails.days_ago", daysAgo);
-                postedDate.setText("🕐 " + dateText);
+                postedDate.setGraphic(SvgIcons.icon(SvgIcons.CLOCK, 14, "-fx-muted-foreground"));
+                postedDate.setText(dateText);
             } catch (Exception e) {
-                postedDate.setText("🕐 " + currentJob.getPostedDate());
+                postedDate.setGraphic(SvgIcons.icon(SvgIcons.CLOCK, 14, "-fx-muted-foreground"));
+                postedDate.setText(currentJob.getPostedDate());
             }
         }
         
@@ -134,8 +142,8 @@ public class JobDetailsController {
         HBox benefitRow = new HBox(8);
         benefitRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         
-        Label checkIcon = new Label("✓");
-        checkIcon.setStyle("-fx-text-fill: #22c55e; -fx-font-weight: bold;");
+        Label checkIcon = new Label();
+        checkIcon.setGraphic(SvgIcons.icon(SvgIcons.CHECK, 14, "-fx-green"));
         
         Label benefitLabel = new Label(benefit);
         benefitLabel.getStyleClass().add("text-muted");
@@ -202,8 +210,19 @@ public class JobDetailsController {
     
     @FXML
     private void handleApply() {
-        applyBtn.setText("✓ " + I18n.get("jobdetails.applied"));
+        applyBtn.setGraphic(SvgIcons.icon(SvgIcons.CHECK, 14));
+        applyBtn.setText(I18n.get("jobdetails.applied"));
         applyBtn.setDisable(true);
+        
+        // Open the job URL in the default browser
+        if (currentJob != null && currentJob.getUrl() != null && !currentJob.getUrl().isBlank()) {
+            try {
+                java.awt.Desktop.getDesktop().browse(new java.net.URI(currentJob.getUrl()));
+            } catch (Exception ex) {
+                // Fallback: just log
+                System.err.println("Failed to open URL: " + currentJob.getUrl());
+            }
+        }
         
         if (onApply != null) {
             onApply.run();
@@ -212,10 +231,13 @@ public class JobDetailsController {
     
     @FXML
     private void handleSave() {
-        if (saveBtn.getText().contains("💾")) {
-            saveBtn.setText("❤️ " + I18n.get("jobdetails.saved"));
+        jobSaved = !jobSaved;
+        if (jobSaved) {
+            saveBtn.setGraphic(SvgIcons.filledIcon(SvgIcons.HEART, 14, "-fx-red"));
+            saveBtn.setText(I18n.get("jobdetails.saved"));
         } else {
-            saveBtn.setText("💾 " + I18n.get("jobdetails.save"));
+            saveBtn.setGraphic(SvgIcons.icon(SvgIcons.BOOKMARK, 14));
+            saveBtn.setText(I18n.get("jobdetails.save"));
         }
     }
 }

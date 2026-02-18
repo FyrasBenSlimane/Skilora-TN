@@ -4,6 +4,7 @@ import com.skilora.framework.components.*;
 import com.skilora.user.entity.*;
 import com.skilora.finance.entity.*;
 import com.skilora.finance.service.*;
+import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.DialogUtils;
 import com.skilora.utils.I18n;
 import javafx.application.Platform;
@@ -103,7 +104,7 @@ public class FinanceController implements Initializable {
             });
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void displayContract(EmploymentContract contract) {
@@ -192,7 +193,7 @@ public class FinanceController implements Initializable {
             });
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void displayPayslips(List<Payslip> payslips) {
@@ -281,7 +282,7 @@ public class FinanceController implements Initializable {
             });
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void displayBankAccounts(List<BankAccount> accounts) {
@@ -409,7 +410,7 @@ public class FinanceController implements Initializable {
             logger.error("Failed to create bank account", task.getException());
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     // ==================== History Tab ====================
@@ -452,7 +453,7 @@ public class FinanceController implements Initializable {
             });
         });
 
-        new Thread(task).start();
+        AppThreadPool.execute(task);
     }
 
     private void displaySalaryHistory(List<SalaryHistory> history) {
@@ -528,7 +529,7 @@ public class FinanceController implements Initializable {
                     logger.error("Failed to sign contract {}", contractId, task.getException());
                 });
 
-                new Thread(task).start();
+                AppThreadPool.execute(task);
             }
         });
     }
@@ -556,7 +557,7 @@ public class FinanceController implements Initializable {
         emptyState.setPadding(new Insets(48));
 
         Label label = new Label(message);
-        label.setStyle("-fx-font-size: 14px; -fx-text-fill: #666;");
+        label.setStyle("-fx-font-size: 14px; -fx-text-fill: -fx-muted-foreground;");
 
         emptyState.getChildren().add(label);
         return emptyState;

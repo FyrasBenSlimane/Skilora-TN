@@ -2,6 +2,7 @@ package com.skilora.finance.service;
 
 import com.skilora.config.DatabaseConfig;
 import com.skilora.finance.entity.EmploymentContract;
+import com.skilora.utils.ResultSetUtils;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -19,6 +20,17 @@ public class ContractService {
     private static volatile ContractService instance;
 
     private ContractService() {}
+
+    /** Base SELECT with JOINs for user_name, employer_name, job_title. */
+    private static final String BASE_SELECT =
+            "SELECT c.*, " +
+            "u.full_name AS user_name, " +
+            "e.full_name AS employer_name, " +
+            "j.title AS job_title " +
+            "FROM employment_contracts c " +
+            "LEFT JOIN users u ON c.user_id = u.id " +
+            "LEFT JOIN users e ON c.employer_id = e.id " +
+            "LEFT JOIN job_offers j ON c.job_offer_id = j.id";
 
     public static ContractService getInstance() {
         if (instance == null) {
@@ -95,15 +107,7 @@ public class ContractService {
      * Finds a contract by ID with JOINs for user_name, employer_name, job_title.
      */
     public EmploymentContract findById(int id) throws SQLException {
-        String sql = "SELECT c.*, " +
-                "u.full_name AS user_name, " +
-                "e.full_name AS employer_name, " +
-                "j.title AS job_title " +
-                "FROM employment_contracts c " +
-                "LEFT JOIN users u ON c.user_id = u.id " +
-                "LEFT JOIN users e ON c.employer_id = e.id " +
-                "LEFT JOIN job_offers j ON c.job_offer_id = j.id " +
-                "WHERE c.id = ?";
+        String sql = BASE_SELECT + " WHERE c.id = ?";
 
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -122,15 +126,7 @@ public class ContractService {
      * Finds all contracts for a user, ordered by created_date DESC.
      */
     public List<EmploymentContract> findByUserId(int userId) throws SQLException {
-        String sql = "SELECT c.*, " +
-                "u.full_name AS user_name, " +
-                "e.full_name AS employer_name, " +
-                "j.title AS job_title " +
-                "FROM employment_contracts c " +
-                "LEFT JOIN users u ON c.user_id = u.id " +
-                "LEFT JOIN users e ON c.employer_id = e.id " +
-                "LEFT JOIN job_offers j ON c.job_offer_id = j.id " +
-                "WHERE c.user_id = ? ORDER BY c.created_date DESC";
+        String sql = BASE_SELECT + " WHERE c.user_id = ? ORDER BY c.created_date DESC";
 
         return executeQuery(sql, userId);
     }
@@ -139,15 +135,7 @@ public class ContractService {
      * Finds all contracts for an employer.
      */
     public List<EmploymentContract> findByEmployerId(int employerId) throws SQLException {
-        String sql = "SELECT c.*, " +
-                "u.full_name AS user_name, " +
-                "e.full_name AS employer_name, " +
-                "j.title AS job_title " +
-                "FROM employment_contracts c " +
-                "LEFT JOIN users u ON c.user_id = u.id " +
-                "LEFT JOIN users e ON c.employer_id = e.id " +
-                "LEFT JOIN job_offers j ON c.job_offer_id = j.id " +
-                "WHERE c.employer_id = ?";
+        String sql = BASE_SELECT + " WHERE c.employer_id = ?";
 
         return executeQuery(sql, employerId);
     }
@@ -156,15 +144,7 @@ public class ContractService {
      * Finds the active contract for a user (LIMIT 1).
      */
     public EmploymentContract findActiveByUserId(int userId) throws SQLException {
-        String sql = "SELECT c.*, " +
-                "u.full_name AS user_name, " +
-                "e.full_name AS employer_name, " +
-                "j.title AS job_title " +
-                "FROM employment_contracts c " +
-                "LEFT JOIN users u ON c.user_id = u.id " +
-                "LEFT JOIN users e ON c.employer_id = e.id " +
-                "LEFT JOIN job_offers j ON c.job_offer_id = j.id " +
-                "WHERE c.user_id = ? AND c.status = 'ACTIVE' LIMIT 1";
+        String sql = BASE_SELECT + " WHERE c.user_id = ? AND c.status = 'ACTIVE' LIMIT 1";
 
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -180,18 +160,27 @@ public class ContractService {
     }
 
     /**
+     * Finds all contracts regardless of status.
+     */
+    public List<EmploymentContract> findAll() throws SQLException {
+        String sql = BASE_SELECT + " ORDER BY c.created_date DESC";
+
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            List<EmploymentContract> contracts = new ArrayList<>();
+            while (rs.next()) {
+                contracts.add(mapResultSet(rs));
+            }
+            return contracts;
+        }
+    }
+
+    /**
      * Finds all contracts with a given status.
      */
     public List<EmploymentContract> findByStatus(String status) throws SQLException {
-        String sql = "SELECT c.*, " +
-                "u.full_name AS user_name, " +
-                "e.full_name AS employer_name, " +
-                "j.title AS job_title " +
-                "FROM employment_contracts c " +
-                "LEFT JOIN users u ON c.user_id = u.id " +
-                "LEFT JOIN users e ON c.employer_id = e.id " +
-                "LEFT JOIN job_offers j ON c.job_offer_id = j.id " +
-                "WHERE c.status = ?";
+        String sql = BASE_SELECT + " WHERE c.status = ?";
 
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -347,15 +336,9 @@ public class ContractService {
         contract.setCreatedDate(createdDate != null ? createdDate.toLocalDateTime() : null);
 
         // Transient fields from JOINs
-        try {
-            contract.setUserName(rs.getString("user_name"));
-        } catch (SQLException ignored) {}
-        try {
-            contract.setEmployerName(rs.getString("employer_name"));
-        } catch (SQLException ignored) {}
-        try {
-            contract.setJobTitle(rs.getString("job_title"));
-        } catch (SQLException ignored) {}
+        contract.setUserName(ResultSetUtils.getOptionalString(rs, "user_name"));
+        contract.setEmployerName(ResultSetUtils.getOptionalString(rs, "employer_name"));
+        contract.setJobTitle(ResultSetUtils.getOptionalString(rs, "job_title"));
 
         return contract;
     }

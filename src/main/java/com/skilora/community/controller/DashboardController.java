@@ -3,9 +3,11 @@ package com.skilora.community.controller;
 import com.skilora.framework.components.TLButton;
 import com.skilora.framework.components.TLButton.ButtonVariant;
 import com.skilora.framework.components.TLCard;
+import com.skilora.framework.components.TLToast;
 import com.skilora.framework.components.TLTypography;
 import com.skilora.user.entity.User;
 import com.skilora.community.service.DashboardStatsService;
+import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.I18n;
 
 import javafx.application.Platform;
@@ -77,7 +79,7 @@ public class DashboardController {
                 ? currentUser.getFullName().split(" ")[0]
                 : currentUser.getUsername();
 
-        greetingLabel.setText(greeting + ", " + name + " \uD83D\uDC4B");
+        greetingLabel.setText(greeting + ", " + name);
         subGreetingLabel.setText(I18n.get("dashboard.sub_greeting",
                 currentUser.getRole().getDisplayName().toLowerCase()));
     }
@@ -91,14 +93,16 @@ public class DashboardController {
                         createQuickAction(I18n.get("dashboard.action.add_user"),
                                 "M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z",
                                 onNavigateToUsers),
-                        createQuickAction(I18n.get("dashboard.action.view_reports"), "M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z", null));
+                        createQuickAction(I18n.get("dashboard.action.view_reports"), "M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z",
+                                () -> TLToast.success(greetingLabel.getScene(), I18n.get("common.info"), I18n.get("dashboard.coming_soon"))));
                 break;
             case EMPLOYER:
                 actionsContainer.getChildren().addAll(
-                        createQuickAction(I18n.get("dashboard.action.post_job"), "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z", null),
+                        createQuickAction(I18n.get("dashboard.action.post_job"), "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
+                                () -> TLToast.success(greetingLabel.getScene(), I18n.get("common.info"), I18n.get("dashboard.coming_soon"))),
                         createQuickAction(I18n.get("dashboard.action.search_candidates"),
                                 "M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z",
-                                null));
+                                () -> TLToast.success(greetingLabel.getScene(), I18n.get("common.info"), I18n.get("dashboard.coming_soon"))));
                 break;
             case USER:
             default:
@@ -125,7 +129,7 @@ public class DashboardController {
         // Show loading placeholders
         statsGrid.getChildren().add(createStatCard(I18n.get("common.loading"), "...", "", false));
 
-        new Thread(() -> {
+        AppThreadPool.execute(() -> {
             try {
                 int userId = currentUser.getId();
                 switch (currentUser.getRole()) {
@@ -182,13 +186,13 @@ public class DashboardController {
                     statsGrid.getChildren().add(createStatCard(I18n.get("common.error"), "—", "", false));
                 });
             }
-        }, "DashboardStatsThread").start();
+        });
     }
 
     private void setupActivity() {
         activityList.getChildren().clear();
 
-        new Thread(() -> {
+        AppThreadPool.execute(() -> {
             try {
                 List<DashboardStatsService.ActivityItem> items = statsService.getRecentActivity(currentUser, 5);
                 Platform.runLater(() -> {
@@ -209,7 +213,7 @@ public class DashboardController {
             } catch (Exception e) {
                 logger.error("Failed to load dashboard activity", e);
             }
-        }, "DashboardActivityThread").start();
+        });
     }
 
     private String formatRelativeTime(LocalDateTime time) {

@@ -32,8 +32,10 @@ import java.util.ResourceBundle;
 
 import javafx.scene.control.ButtonType;
 
+import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.DialogUtils;
 import com.skilora.utils.I18n;
+import com.skilora.utils.SvgIcons;
 
 /**
  * ApplicationInboxController - Manage incoming job applications (Employer view)
@@ -63,7 +65,7 @@ public class ApplicationInboxController implements Initializable {
     @FXML private TLButton nextBtn;
     
     private User currentUser;
-    private ObservableList<ApplicationRow> applications;
+    private ObservableList<ApplicationRow> allApplications;
     private final ApplicationService applicationService = ApplicationService.getInstance();
     private int currentPage = 0;
     private final int itemsPerPage = 10;
@@ -72,7 +74,10 @@ public class ApplicationInboxController implements Initializable {
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         setupTable();
-        // Data loads after setCurrentUser is called
+        filterBtn.setGraphic(SvgIcons.icon(SvgIcons.SEARCH, 14));
+        refreshBtn.setGraphic(SvgIcons.icon(SvgIcons.REFRESH, 14));
+        prevBtn.setGraphic(SvgIcons.icon(SvgIcons.ARROW_LEFT, 14));
+        nextBtn.setGraphic(SvgIcons.icon(SvgIcons.ARROW_RIGHT, 14));
     }
 
     public void setCurrentUser(User user) {
@@ -137,10 +142,10 @@ public class ApplicationInboxController implements Initializable {
                     
                     moreBtn.setOnAction(e -> {
                         TLDropdownMenu menu = new TLDropdownMenu();
-                        menu.addItem("👁️ " + I18n.get("inbox.view_profile"), ev -> handleViewProfile(app));
-                        menu.addItem("✅ " + I18n.get("inbox.accept"), ev -> handleAccept(app));
-                        menu.addItem("❌ " + I18n.get("inbox.reject"), ev -> handleReject(app));
-                        menu.addItem("📧 " + I18n.get("inbox.contact"), ev -> handleContact(app));
+                        menu.addItem(I18n.get("inbox.view_profile"), ev -> handleViewProfile(app));
+                        menu.addItem(I18n.get("inbox.accept"), ev -> handleAccept(app));
+                        menu.addItem(I18n.get("inbox.reject"), ev -> handleReject(app));
+                        menu.addItem(I18n.get("inbox.contact"), ev -> handleContact(app));
                         menu.show(moreBtn, javafx.geometry.Side.BOTTOM, 0, 4);
                     });
                     
@@ -163,11 +168,11 @@ public class ApplicationInboxController implements Initializable {
 
         task.setOnSucceeded(e -> {
             List<Application> dbApps = task.getValue();
-            applications = FXCollections.observableArrayList();
+            allApplications = FXCollections.observableArrayList();
 
             for (Application app : dbApps) {
                 String displayStatus = mapStatusToI18nKey(app.getStatus());
-                applications.add(new ApplicationRow(
+                allApplications.add(new ApplicationRow(
                         app.getId(),
                         app.getCandidateName() != null ? app.getCandidateName() : I18n.get("inbox.candidate_num", app.getCandidateProfileId()),
                         app.getJobTitle() != null ? app.getJobTitle() : I18n.get("inbox.offer_num", app.getJobOfferId()),
@@ -176,9 +181,9 @@ public class ApplicationInboxController implements Initializable {
                 ));
             }
 
-            applicationsTable.setItems(applications);
+            currentPage = 0;
             updateStats();
-            updatePagination();
+            applyPagination();
         });
 
         task.setOnFailed(e -> {
@@ -186,7 +191,7 @@ public class ApplicationInboxController implements Initializable {
             logger.error("Failed to load applications", task.getException());
         });
 
-        new Thread(task, "AppLoadThread") {{ setDaemon(true); }}.start();
+        AppThreadPool.execute(task);
     }
 
     private String mapStatusToI18nKey(Status status) {
@@ -201,32 +206,41 @@ public class ApplicationInboxController implements Initializable {
     }
     
     private void updateStats() {
-        long pending = applications.stream().filter(a ->
+        long pending = allApplications.stream().filter(a ->
                 a.getStatus().equals("PENDING") || a.getStatus().equals("REVIEW")).count();
         statsLabel.setText(I18n.get("inbox.pending", pending));
     }
-    
-    private void updatePagination() {
-        int total = applications.size();
+
+    private void applyPagination() {
+        int total = allApplications.size();
         if (total == 0) {
+            applicationsTable.setItems(FXCollections.observableArrayList());
             paginationLabel.setText("0 " + I18n.get("inbox.of") + " 0");
             pageLabel.setText(I18n.get("inbox.page", 1));
             prevBtn.setDisable(true);
             nextBtn.setDisable(true);
             return;
         }
-        int start = currentPage * itemsPerPage + 1;
-        int end = Math.min((currentPage + 1) * itemsPerPage, total);
-        
-        paginationLabel.setText(start + "-" + end + " " + I18n.get("inbox.of") + " " + total);
+        int start = currentPage * itemsPerPage;
+        int end = Math.min(start + itemsPerPage, total);
+
+        ObservableList<ApplicationRow> pageItems = FXCollections.observableArrayList(
+                allApplications.subList(start, end));
+        applicationsTable.setItems(pageItems);
+
+        paginationLabel.setText((start + 1) + "-" + end + " " + I18n.get("inbox.of") + " " + total);
         pageLabel.setText(I18n.get("inbox.page", currentPage + 1));
-        
+
         prevBtn.setDisable(currentPage == 0);
         nextBtn.setDisable(end >= total);
     }
     
     private void handleViewProfile(ApplicationRow app) {
-        logger.debug("Viewing profile: {}", app.getCandidateName());
+        DialogUtils.showInfo(I18n.get("inbox.view_profile"),
+            I18n.get("inbox.candidate") + ": " + app.getCandidateName()
+            + "\n" + I18n.get("inbox.job") + ": " + app.getJobTitle()
+            + "\n" + I18n.get("inbox.date") + ": " + app.getApplicationDate()
+            + "\n" + I18n.get("inbox.status") + ": " + app.getStatus());
     }
     
     private void handleAccept(ApplicationRow app) {
@@ -235,7 +249,7 @@ public class ApplicationInboxController implements Initializable {
             I18n.get("inbox.accept.confirm.message", app.getCandidateName())
         ).ifPresent(result -> {
             if (result == ButtonType.OK) {
-                Thread t = new Thread(() -> {
+                AppThreadPool.execute(() -> {
                     try {
                         applicationService.updateStatus(app.getApplicationId(), Status.ACCEPTED);
                         javafx.application.Platform.runLater(() -> {
@@ -246,9 +260,7 @@ public class ApplicationInboxController implements Initializable {
                     } catch (Exception ex) {
                         logger.error("Failed to accept application", ex);
                     }
-                }, "AcceptAppThread");
-                t.setDaemon(true);
-                t.start();
+                });
             }
         });
     }
@@ -259,7 +271,7 @@ public class ApplicationInboxController implements Initializable {
             I18n.get("inbox.reject.confirm.message", app.getCandidateName())
         ).ifPresent(result -> {
             if (result == ButtonType.OK) {
-                Thread t = new Thread(() -> {
+                AppThreadPool.execute(() -> {
                     try {
                         applicationService.updateStatus(app.getApplicationId(), Status.REJECTED);
                         javafx.application.Platform.runLater(() -> {
@@ -270,15 +282,14 @@ public class ApplicationInboxController implements Initializable {
                     } catch (Exception ex) {
                         logger.error("Failed to reject application", ex);
                     }
-                }, "RejectAppThread");
-                t.setDaemon(true);
-                t.start();
+                });
             }
         });
     }
     
     private void handleContact(ApplicationRow app) {
-        logger.debug("Contacting: {}", app.getCandidateName());
+        DialogUtils.showInfo(I18n.get("inbox.contact"),
+            I18n.get("inbox.contact.info", app.getCandidateName()));
     }
     
     @FXML
@@ -303,16 +314,16 @@ public class ApplicationInboxController implements Initializable {
     private void handlePrevPage() {
         if (currentPage > 0) {
             currentPage--;
-            updatePagination();
+            applyPagination();
         }
     }
     
     @FXML
     private void handleNextPage() {
-        int maxPage = (applications.size() - 1) / itemsPerPage;
+        int maxPage = (allApplications.size() - 1) / itemsPerPage;
         if (currentPage < maxPage) {
             currentPage++;
-            updatePagination();
+            applyPagination();
         }
     }
     

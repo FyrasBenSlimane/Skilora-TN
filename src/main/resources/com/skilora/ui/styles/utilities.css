@@ -58,7 +58,7 @@
 /* ========== BORDER RADIUS (6px default) ========== */
 .rounded-sm { -fx-background-radius: 4px; -fx-border-radius: 4px; }
 .rounded-md { -fx-background-radius: 6px; -fx-border-radius: 6px; }
-.rounded-lg { -fx-background-radius: 6px; -fx-border-radius: 6px; }
+.rounded-lg { -fx-background-radius: 8px; -fx-border-radius: 8px; }
 .rounded-full { -fx-background-radius: 9999px; -fx-border-radius: 9999px; }
 
 /* ========== SHADOW (New York) ========== */

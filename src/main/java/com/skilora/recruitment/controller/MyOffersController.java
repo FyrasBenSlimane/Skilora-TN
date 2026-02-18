@@ -9,8 +9,9 @@ import com.skilora.framework.components.TLCard;
 import com.skilora.framework.components.TLBadge;
 import com.skilora.framework.components.TLTextField;
 import com.skilora.framework.components.TLSeparator;
+import com.skilora.framework.components.TLToast;
+import com.skilora.utils.UiUtils;
 
-import javafx.animation.PauseTransition;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -23,7 +24,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.util.Duration;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,8 +34,10 @@ import java.util.List;
 import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 
+import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.DialogUtils;
 import com.skilora.utils.I18n;
+import com.skilora.utils.SvgIcons;
 
 import javafx.scene.control.ButtonType;
 
@@ -108,9 +110,7 @@ public class MyOffersController implements Initializable {
 
     private void setupSearch() {
         if (searchField != null && searchField.getControl() != null) {
-            PauseTransition pause = new PauseTransition(Duration.millis(300));
-            pause.setOnFinished(e -> applyFilters());
-            searchField.getControl().setOnKeyReleased(e -> pause.playFromStart());
+            UiUtils.debounce(searchField.getControl(), 300, this::applyFilters);
         }
     }
 
@@ -134,9 +134,7 @@ public class MyOffersController implements Initializable {
             statsLabel.setText(I18n.get("myoffers.error"));
         });
 
-        Thread thread = new Thread(task, "MyOffersLoader");
-        thread.setDaemon(true);
-        thread.start();
+        AppThreadPool.execute(task);
     }
 
     private void applyFilters() {
@@ -218,24 +216,28 @@ public class MyOffersController implements Initializable {
         detailsRow.setAlignment(Pos.CENTER_LEFT);
 
         if (offer.getLocation() != null) {
-            Label locLabel = new Label("📍 " + offer.getLocation());
+            Label locLabel = new Label(offer.getLocation());
+            locLabel.setGraphic(SvgIcons.icon(SvgIcons.MAP_PIN, 14, "-fx-muted-foreground"));
             locLabel.getStyleClass().add("text-muted");
             detailsRow.getChildren().add(locLabel);
         }
 
         if (offer.getWorkType() != null) {
-            Label typeLabel = new Label("💼 " + offer.getWorkType());
+            Label typeLabel = new Label(offer.getWorkType());
+            typeLabel.setGraphic(SvgIcons.icon(SvgIcons.BRIEFCASE, 14, "-fx-muted-foreground"));
             typeLabel.getStyleClass().add("text-muted");
             detailsRow.getChildren().add(typeLabel);
         }
 
-        Label salaryLabel = new Label("💰 " + offer.getSalaryRange() + " " +
+        Label salaryLabel = new Label(offer.getSalaryRange() + " " +
             (offer.getCurrency() != null ? offer.getCurrency() : "TND"));
+        salaryLabel.setGraphic(SvgIcons.icon(SvgIcons.DOLLAR_SIGN, 14, "-fx-muted-foreground"));
         salaryLabel.getStyleClass().add("text-muted");
         detailsRow.getChildren().add(salaryLabel);
 
         if (offer.getPostedDate() != null) {
-            Label dateLabel = new Label("📅 " + offer.getPostedDate().format(DATE_FMT));
+            Label dateLabel = new Label(offer.getPostedDate().format(DATE_FMT));
+            dateLabel.setGraphic(SvgIcons.icon(SvgIcons.CALENDAR, 14, "-fx-muted-foreground"));
             dateLabel.getStyleClass().add("text-muted");
             detailsRow.getChildren().add(dateLabel);
         }
@@ -296,11 +298,12 @@ public class MyOffersController implements Initializable {
                         applyFilters();
                     }
                 });
-                task.setOnFailed(e -> logger.error("Failed to delete offer", task.getException()));
+                task.setOnFailed(e -> {
+                    logger.error("Failed to delete offer", task.getException());
+                    TLToast.error(offersContainer.getScene(), I18n.get("common.error"), I18n.get("error.failed_delete_offer"));
+                });
 
-                Thread thread = new Thread(task, "DeleteOffer");
-                thread.setDaemon(true);
-                thread.start();
+                AppThreadPool.execute(task);
             }
         });
     }
@@ -319,11 +322,12 @@ public class MyOffersController implements Initializable {
                     }
                 };
                 task.setOnSucceeded(e -> applyFilters());
-                task.setOnFailed(e -> logger.error("Failed to close offer", task.getException()));
+                task.setOnFailed(e -> {
+                    logger.error("Failed to close offer", task.getException());
+                    TLToast.error(offersContainer.getScene(), I18n.get("common.error"), I18n.get("error.failed_close_offer"));
+                });
 
-                Thread thread = new Thread(task, "CloseOffer");
-                thread.setDaemon(true);
-                thread.start();
+                AppThreadPool.execute(task);
             }
         });
     }

@@ -3,6 +3,7 @@ package com.skilora.user.controller;
 import com.skilora.user.service.BiometricService;
 import com.skilora.user.service.CameraDevice;
 import com.skilora.user.service.FastCameraManager;
+import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.I18n;
 
 import org.json.JSONObject;
@@ -228,7 +229,7 @@ public class BiometricAuthController implements Initializable {
     // ═══════════════════════════════════════════════════════════════════════
 
     private void startCamera() {
-        Thread cameraThread = new Thread(() -> {
+        AppThreadPool.execute(() -> {
             webcam = FastCameraManager.getInstance().getPrewarmedCamera();
             if (webcam == null) {
                 webcam = FastCameraManager.getInstance().getCameraFast();
@@ -242,7 +243,7 @@ public class BiometricAuthController implements Initializable {
                 });
 
                 // High-FPS preview thread (decoupled from verification)
-                Thread previewThread = new Thread(() -> {
+                AppThreadPool.execute(() -> {
                     while (isRunning.get()) {
                         if (webcam.isOpen()) {
                             BufferedImage bimg = webcam.getImage();
@@ -258,9 +259,7 @@ public class BiometricAuthController implements Initializable {
                             break;
                         }
                     }
-                }, "CameraPreviewThread");
-                previewThread.setDaemon(true);
-                previewThread.start();
+                });
 
                 // Small warmup delay
                 try { Thread.sleep(600); } catch (InterruptedException e) { Thread.currentThread().interrupt(); return; }
@@ -274,9 +273,7 @@ public class BiometricAuthController implements Initializable {
             } else {
                 Platform.runLater(() -> statusLabel.setText(I18n.get("biometric.status.camera_unavailable")));
             }
-        }, "CameraStartThread");
-        cameraThread.setDaemon(true);
-        cameraThread.start();
+        });
     }
 
     // ── Registration Loop (with duplicate prevention) ───────────────────
@@ -484,22 +481,19 @@ public class BiometricAuthController implements Initializable {
 
     private void animateViewfinderSuccess() {
         if (viewfinder != null) {
-            viewfinder.setStroke(javafx.scene.paint.Color.web("#22c55e"));
-            viewfinder.setStrokeWidth(4);
+            viewfinder.setStyle("-fx-stroke: -fx-green; -fx-stroke-width: 4;");
         }
     }
 
     private void animateViewfinderError() {
         if (viewfinder != null) {
-            viewfinder.setStroke(javafx.scene.paint.Color.web("#ef4444"));
-            viewfinder.setStrokeWidth(4);
+            viewfinder.setStyle("-fx-stroke: -fx-red; -fx-stroke-width: 4;");
         }
     }
 
     private void animateViewfinderScanning() {
         if (viewfinder != null) {
-            viewfinder.setStroke(javafx.scene.paint.Color.web("#3b82f6"));
-            viewfinder.setStrokeWidth(3);
+            viewfinder.setStyle("-fx-stroke: -fx-blue; -fx-stroke-width: 3;");
         }
     }
 

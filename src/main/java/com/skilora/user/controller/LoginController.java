@@ -9,7 +9,9 @@ import com.skilora.framework.components.TLTextField;
 import com.skilora.framework.components.TLPasswordField;
 import com.skilora.framework.components.TLButton;
 import com.skilora.user.service.MediaCache;
+import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.I18n;
+import com.skilora.utils.SvgIcons;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -115,41 +117,48 @@ public class LoginController implements Initializable {
         loginBtn.setDisable(true);
         loginBtn.setText(I18n.get("login.signing_in"));
 
-        Thread loginThread = new Thread(() -> {
-            // All DB calls run on background thread
-            boolean lockedOut = authService.isLockedOut(username);
-            if (lockedOut) {
-                int minutes = authService.getRemainingLockoutMinutes(username);
+        AppThreadPool.execute(() -> {
+            try {
+                // All DB calls run on background thread
+                boolean lockedOut = authService.isLockedOut(username);
+                if (lockedOut) {
+                    int minutes = authService.getRemainingLockoutMinutes(username);
+                    Platform.runLater(() -> {
+                        showError(I18n.get("login.error.locked").replace("{0}", String.valueOf(minutes)));
+                        loginBtn.setDisable(false);
+                        loginBtn.setText(I18n.get("login.sign_in"));
+                    });
+                    return;
+                }
+
+                Optional<User> user = authService.login(username, password);
+
+                // Check lockout state on background thread (not UI thread)
+                boolean lockedAfterAttempt = !user.isPresent() && authService.isLockedOut(username);
+                int lockMinutes = lockedAfterAttempt ? authService.getRemainingLockoutMinutes(username) : 0;
+
                 Platform.runLater(() -> {
-                    showError(I18n.get("login.error.locked").replace("{0}", String.valueOf(minutes)));
+                    if (user.isPresent()) {
+                        openDashboard(user.get());
+                    } else {
+                        if (lockedAfterAttempt) {
+                            showError(I18n.get("login.error.too_many_attempts").replace("{0}", String.valueOf(lockMinutes)));
+                        } else {
+                            showError(I18n.get("login.error.invalid_credentials"));
+                        }
+                        loginBtn.setDisable(false);
+                        loginBtn.setText(I18n.get("login.sign_in"));
+                    }
+                });
+            } catch (Exception e) {
+                logger.error("Login failed unexpectedly", e);
+                Platform.runLater(() -> {
+                    showError(I18n.get("login.error.unexpected"));
                     loginBtn.setDisable(false);
                     loginBtn.setText(I18n.get("login.sign_in"));
                 });
-                return;
             }
-
-            Optional<User> user = authService.login(username, password);
-
-            // Check lockout state on background thread (not UI thread)
-            boolean lockedAfterAttempt = !user.isPresent() && authService.isLockedOut(username);
-            int lockMinutes = lockedAfterAttempt ? authService.getRemainingLockoutMinutes(username) : 0;
-
-            Platform.runLater(() -> {
-                if (user.isPresent()) {
-                    openDashboard(user.get());
-                } else {
-                    if (lockedAfterAttempt) {
-                        showError(I18n.get("login.error.too_many_attempts").replace("{0}", String.valueOf(lockMinutes)));
-                    } else {
-                        showError(I18n.get("login.error.invalid_credentials"));
-                    }
-                    loginBtn.setDisable(false);
-                    loginBtn.setText(I18n.get("login.sign_in"));
-                }
-            });
-        }, "LoginThread");
-        loginThread.setDaemon(true);
-        loginThread.start();
+        });
     }
 
     @FXML
@@ -162,12 +171,23 @@ public class LoginController implements Initializable {
         String targetUser = username.isEmpty() ? null : username;
 
         BiometricAuthController.showDialog(stage, targetUser, (detectedUsername) -> {
-            Optional<User> user = authService.getUser(detectedUsername);
-            if (user.isPresent()) {
-                openDashboard(user.get());
-            } else {
-                showError(I18n.get("login.error.user_not_found").replace("{0}", detectedUsername));
-            }
+            AppThreadPool.execute(() -> {
+                try {
+                    Optional<User> user = authService.getUser(detectedUsername);
+                    Platform.runLater(() -> {
+                        if (user.isPresent()) {
+                            openDashboard(user.get());
+                        } else {
+                            showError(I18n.get("login.error.user_not_found").replace("{0}", detectedUsername));
+                        }
+                    });
+                } catch (Exception e) {
+                    logger.error("Biometric login failed unexpectedly", e);
+                    Platform.runLater(() -> {
+                        showError(I18n.get("login.error.unexpected"));
+                    });
+                }
+            });
         });
     }
 
@@ -196,7 +216,7 @@ public class LoginController implements Initializable {
                             loginController.setStage(stage);
                         }
 
-                        TLWindow root = new TLWindow(stage, "Login", loginRoot);
+                        TLWindow root = new TLWindow(stage, I18n.get("window.title.login"), loginRoot);
                         stage.getScene().setRoot(root);
                     } catch (Exception ex) {
                         logger.error("Failed to load LoginView: " + ex.getMessage(), ex);
@@ -204,7 +224,7 @@ public class LoginController implements Initializable {
                 });
             }
 
-            TLWindow root = new TLWindow(stage, "Forgot Password", forgotRoot);
+            TLWindow root = new TLWindow(stage, I18n.get("window.title.forgot_password"), forgotRoot);
             stage.getScene().setRoot(root);
         } catch (Exception e) {
             logger.error("Failed to load ForgotPasswordView: " + e.getMessage(), e);
@@ -227,7 +247,7 @@ public class LoginController implements Initializable {
                 controller.setStage(stage);
             }
 
-            TLWindow root = new TLWindow(stage, "Create Account", registerRoot);
+            TLWindow root = new TLWindow(stage, I18n.get("window.title.create_account"), registerRoot);
             stage.getScene().setRoot(root);
         } catch (Exception e) {
             logger.error("Failed to load RegisterView: " + e.getMessage(), e);
@@ -271,7 +291,7 @@ public class LoginController implements Initializable {
      * If not, shows a styled reminder dialog offering to set up face recognition.
      */
     private void checkBiometricReminder(User user) {
-        Thread bioThread = new Thread(() -> {
+        AppThreadPool.execute(() -> {
             try {
                 boolean hasBiometric = com.skilora.user.service.BiometricService.getInstance()
                         .hasBiometricData(user.getUsername());
@@ -284,8 +304,6 @@ public class LoginController implements Initializable {
                 // Silently ignore — not critical
             }
         });
-        bioThread.setDaemon(true);
-        bioThread.start();
     }
 
     /**
@@ -296,7 +314,7 @@ public class LoginController implements Initializable {
         dialog.initOwner(stage);
 
         // Header
-        dialog.setDialogTitle("\uD83D\uDD12 " + com.skilora.utils.I18n.get("login.biometric.title")); // 🔒
+        dialog.setDialogTitle(com.skilora.utils.I18n.get("login.biometric.title"));
         dialog.setDescription(com.skilora.utils.I18n.get("login.biometric.description"));
 
         // Content — icon + benefits list
@@ -315,11 +333,14 @@ public class LoginController implements Initializable {
         iconRow.setPadding(new Insets(8, 0, 8, 0));
 
         // Benefits
-        Label benefit1 = new Label("✓  " + com.skilora.utils.I18n.get("login.biometric.feature.instant"));
+        Label benefit1 = new Label(com.skilora.utils.I18n.get("login.biometric.feature.instant"));
+        benefit1.setGraphic(SvgIcons.icon(SvgIcons.CHECK, 14, "-fx-green"));
         benefit1.getStyleClass().add("text-sm");
-        Label benefit2 = new Label("✓  " + com.skilora.utils.I18n.get("login.biometric.feature.security"));
+        Label benefit2 = new Label(com.skilora.utils.I18n.get("login.biometric.feature.security"));
+        benefit2.setGraphic(SvgIcons.icon(SvgIcons.CHECK, 14, "-fx-green"));
         benefit2.getStyleClass().add("text-sm");
-        Label benefit3 = new Label("✓  " + com.skilora.utils.I18n.get("login.biometric.feature.easy"));
+        Label benefit3 = new Label(com.skilora.utils.I18n.get("login.biometric.feature.easy"));
+        benefit3.setGraphic(SvgIcons.icon(SvgIcons.CHECK, 14, "-fx-green"));
         benefit3.getStyleClass().add("text-sm");
 
         VBox benefitsBox = new VBox(8, benefit1, benefit2, benefit3);

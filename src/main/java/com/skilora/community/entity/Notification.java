@@ -19,7 +19,7 @@ public class Notification {
 
     public Notification() {
         this.type = "INFO";
-        this.icon = "🔔";
+        this.icon = null;
         this.read = false;
     }
 
@@ -61,4 +61,20 @@ public class Notification {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Notification that = (Notification) o;
+        return id == that.id;
+    }
+
+    @Override
+    public int hashCode() { return Integer.hashCode(id); }
+
+    @Override
+    public String toString() {
+        return "Notification{id=" + id + ", userId=" + userId + ", type='" + type + "', title='" + title + "', read=" + read + "}";
+    }
 }

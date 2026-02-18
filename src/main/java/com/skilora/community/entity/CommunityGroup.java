@@ -55,4 +55,20 @@ public class CommunityGroup {
     
     public boolean isMember() { return isMember; }
     public void setMember(boolean member) { isMember = member; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        CommunityGroup that = (CommunityGroup) o;
+        return id == that.id;
+    }
+
+    @Override
+    public int hashCode() { return Integer.hashCode(id); }
+
+    @Override
+    public String toString() {
+        return "CommunityGroup{id=" + id + ", name='" + name + "', category='" + category + "', memberCount=" + memberCount + "}";
+    }
 }
