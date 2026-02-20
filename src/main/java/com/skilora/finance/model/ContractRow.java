@@ -1,16 +1,16 @@
 package com.skilora.finance.model;
 
 public class ContractRow {
-    private int id, userId, companyId;
-    private String employeeName, type, position, startDate, endDate, status;
+    private int id, userId;
+    private String employeeName, companyName, type, position, startDate, endDate, status;
     private double salary;
 
-    public ContractRow(int id, int userId, String employeeName, int companyId, String type, String position,
+    public ContractRow(int id, int userId, String employeeName, String companyName, String type, String position,
             double salary, String startDate, String endDate, String status) {
         this.id = id;
         this.userId = userId;
         this.employeeName = employeeName;
-        this.companyId = companyId;
+        this.companyName = companyName;
         this.type = type;
         this.position = position;
         this.salary = salary;
@@ -39,12 +39,12 @@ public class ContractRow {
         this.employeeName = employeeName;
     }
 
-    public int getCompanyId() {
-        return companyId;
+    public String getCompanyName() {
+        return companyName;
     }
 
-    public void setCompanyId(int companyId) {
-        this.companyId = companyId;
+    public void setCompanyName(String companyName) {
+        this.companyName = companyName;
     }
 
     public String getType() {

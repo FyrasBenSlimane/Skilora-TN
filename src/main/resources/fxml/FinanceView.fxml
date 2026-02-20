@@ -79,7 +79,7 @@
                         </HBox>
                         <TableView fx:id="contractTable" VBox.vgrow="ALWAYS" style="-fx-background-color: -fx-card;">
                             <columns>
-                                <TableColumn fx:id="contract_idCol" text="ID" prefWidth="50"/>
+                                <TableColumn fx:id="contract_idCol" text="ID" prefWidth="50" visible="false"/>
                                 <TableColumn fx:id="contract_userCol" text="Employee" prefWidth="150"/>
                                 <TableColumn fx:id="contract_companyCol" text="Company ID" prefWidth="100"/>
                                 <TableColumn fx:id="contract_typeCol" text="Type" prefWidth="120"/>
@@ -149,7 +149,7 @@
                         </HBox>
                         <TableView fx:id="bankAccountTable" VBox.vgrow="ALWAYS" style="-fx-background-color: -fx-card;">
                             <columns>
-                                <TableColumn fx:id="bank_idCol" text="ID" prefWidth="50"/>
+                                <TableColumn fx:id="bank_idCol" text="ID" prefWidth="50" visible="false"/>
                                 <TableColumn fx:id="bank_userCol" text="Employee" prefWidth="150"/>
                                 <TableColumn fx:id="bank_nameCol" text="Bank Name" prefWidth="150"/>
                                 <TableColumn fx:id="bank_ibanCol" text="IBAN" prefWidth="180"/>
@@ -208,7 +208,7 @@
                         </HBox>
                         <TableView fx:id="bonusTable" VBox.vgrow="ALWAYS" style="-fx-background-color: -fx-card;">
                             <columns>
-                                <TableColumn fx:id="bonus_idCol" text="ID" prefWidth="50"/>
+                                <TableColumn fx:id="bonus_idCol" text="ID" prefWidth="50" visible="false"/>
                                 <TableColumn fx:id="bonus_userCol" text="Employee" prefWidth="200"/>
                                 <TableColumn fx:id="bonus_amountCol" text="Amount (TND)" prefWidth="150"/>
                                 <TableColumn fx:id="bonus_reasonCol" text="Reason" prefWidth="300"/>
@@ -303,7 +303,7 @@
                         </HBox>
                         <TableView fx:id="payslipTable" VBox.vgrow="ALWAYS" style="-fx-background-color: -fx-card;">
                             <columns>
-                                <TableColumn fx:id="payslip_idCol" text="ID" prefWidth="50"/>
+                                <TableColumn fx:id="payslip_idCol" text="ID" prefWidth="50" visible="false"/>
                                 <TableColumn fx:id="payslip_userCol" text="Employee" prefWidth="150"/>
                                 <TableColumn fx:id="payslip_periodCol" text="Period" prefWidth="120"/>
                                 <TableColumn fx:id="payslip_baseCol" text="Base" prefWidth="100"/>

@@ -70,7 +70,7 @@
                 </HBox>
                 <TableView fx:id="myContractTable" VBox.vgrow="ALWAYS" editable="false" style="-fx-background-color: -fx-card;">
                     <columns>
-                        <TableColumn fx:id="my_contract_idCol" text="ID" prefWidth="50"/>
+                        <TableColumn fx:id="my_contract_idCol" text="ID" prefWidth="50" visible="false"/>
                         <TableColumn fx:id="my_contract_companyCol" text="Société" prefWidth="100"/>
                         <TableColumn fx:id="my_contract_typeCol" text="Type" prefWidth="120"/>
                         <TableColumn fx:id="my_contract_positionCol" text="Poste" prefWidth="180"/>
@@ -94,7 +94,7 @@
                 </HBox>
                 <TableView fx:id="myBankTable" VBox.vgrow="ALWAYS" editable="false" style="-fx-background-color: -fx-card;">
                     <columns>
-                        <TableColumn fx:id="my_bank_idCol" text="ID" prefWidth="50"/>
+                        <TableColumn fx:id="my_bank_idCol" text="ID" prefWidth="50" visible="false"/>
                         <TableColumn fx:id="my_bank_nameCol" text="Banque" prefWidth="180"/>
                         <TableColumn fx:id="my_bank_ibanCol" text="IBAN" prefWidth="200"/>
                         <TableColumn fx:id="my_bank_swiftCol" text="SWIFT" prefWidth="120"/>
@@ -117,7 +117,7 @@
                 </HBox>
                 <TableView fx:id="myBonusTable" VBox.vgrow="ALWAYS" editable="false" style="-fx-background-color: -fx-card;">
                     <columns>
-                        <TableColumn fx:id="my_bonus_idCol" text="ID" prefWidth="60"/>
+                        <TableColumn fx:id="my_bonus_idCol" text="ID" prefWidth="60" visible="false"/>
                         <TableColumn fx:id="my_bonus_amountCol" text="Montant (TND)" prefWidth="180"/>
                         <TableColumn fx:id="my_bonus_reasonCol" text="Motif" prefWidth="350"/>
                         <TableColumn fx:id="my_bonus_dateCol" text="Date" prefWidth="180"/>
@@ -137,7 +137,7 @@
                 </HBox>
                 <TableView fx:id="myPayslipTable" VBox.vgrow="ALWAYS" editable="false" style="-fx-background-color: -fx-card;">
                     <columns>
-                        <TableColumn fx:id="my_payslip_idCol" text="ID" prefWidth="50"/>
+                        <TableColumn fx:id="my_payslip_idCol" text="ID" prefWidth="50" visible="false"/>
                         <TableColumn fx:id="my_payslip_periodCol" text="Période" prefWidth="120"/>
                         <TableColumn fx:id="my_payslip_baseCol" text="Base" prefWidth="120"/>
                         <TableColumn fx:id="my_payslip_overtimeCol" text="H. Supp." prefWidth="120"/>

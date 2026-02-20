@@ -47,7 +47,7 @@ public class FinanceService {
     // --- CONTRACTS ---
     public List<ContractRow> getAllContracts() throws SQLException {
         List<ContractRow> list = new ArrayList<>();
-        String sql = "SELECT c.*, u.full_name FROM contracts c JOIN users u ON c.user_id = u.id";
+        String sql = "SELECT c.*, u.full_name, co.name as company_name FROM contracts c JOIN users u ON c.user_id = u.id LEFT JOIN companies co ON c.company_id = co.id";
         try (Connection conn = getConnection();
                 PreparedStatement stmt = conn.prepareStatement(sql)) {
             ResultSet rs = stmt.executeQuery();
@@ -56,7 +56,7 @@ public class FinanceService {
                         rs.getInt("id"),
                         rs.getInt("user_id"),
                         rs.getString("full_name"),
-                        rs.getInt("company_id"),
+                        rs.getString("company_name") != null ? rs.getString("company_name") : "N/A",
                         rs.getString("type"),
                         rs.getString("position"),
                         rs.getDouble("salary"),
@@ -69,11 +69,23 @@ public class FinanceService {
     }
 
     public void addContract(ContractRow c) throws SQLException {
+        // First, we need to find the company ID based on the name, because contracts
+        // table likely stores company_id
+        // But wait, the user said "il faut faire une jointure".
+        // If the input is company name, we need to resolve it to an ID or maybe insert
+        // it?
+        // Let's assume for now we look up the ID from the name.
+
+        int companyId = getCompanyIdByName(c.getCompanyName());
+        if (companyId == -1) {
+            throw new SQLException("Company not found: " + c.getCompanyName());
+        }
+
         String sql = "INSERT INTO contracts (user_id, company_id, type, position, salary, start_date, end_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = getConnection();
                 PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, c.getUserId());
-            stmt.setInt(2, c.getCompanyId());
+            stmt.setInt(2, companyId);
             stmt.setString(3, c.getType());
             stmt.setString(4, c.getPosition());
             stmt.setDouble(5, c.getSalary());
@@ -83,6 +95,20 @@ public class FinanceService {
             stmt.setString(8, c.getStatus());
             stmt.executeUpdate();
         }
+    }
+
+    // Helper to resolve company name to ID
+    private int getCompanyIdByName(String name) throws SQLException {
+        String sql = "SELECT id FROM companies WHERE name = ?";
+        try (Connection conn = getConnection();
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, name);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("id");
+            }
+        }
+        return -1;
     }
 
     public void updateContract(ContractRow c) throws SQLException {
@@ -291,7 +317,7 @@ public class FinanceService {
      */
     public List<ContractRow> getContractsByUserId(int userId) throws SQLException {
         List<ContractRow> list = new ArrayList<>();
-        String sql = "SELECT c.*, u.full_name FROM contracts c JOIN users u ON c.user_id = u.id WHERE c.user_id = ?";
+        String sql = "SELECT c.*, u.full_name, co.name as company_name FROM contracts c JOIN users u ON c.user_id = u.id LEFT JOIN companies co ON c.company_id = co.id WHERE c.user_id = ?";
         try (Connection conn = getConnection();
                 PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, userId);
@@ -301,7 +327,7 @@ public class FinanceService {
                         rs.getInt("id"),
                         rs.getInt("user_id"),
                         rs.getString("full_name"),
-                        rs.getInt("company_id"),
+                        rs.getString("company_name") != null ? rs.getString("company_name") : "N/A",
                         rs.getString("type"),
                         rs.getString("position"),
                         rs.getDouble("salary"),

@@ -40,7 +40,7 @@ public class EmployeurFinanceController implements Initializable {
     @FXML
     private TableColumn<ContractRow, Integer> my_contract_idCol;
     @FXML
-    private TableColumn<ContractRow, Integer> my_contract_companyCol;
+    private TableColumn<ContractRow, String> my_contract_companyCol;
     @FXML
     private TableColumn<ContractRow, String> my_contract_typeCol;
     @FXML
@@ -154,7 +154,7 @@ public class EmployeurFinanceController implements Initializable {
 
     private void initializeContractTable() {
         my_contract_idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
-        my_contract_companyCol.setCellValueFactory(new PropertyValueFactory<>("companyId"));
+        my_contract_companyCol.setCellValueFactory(new PropertyValueFactory<>("companyName"));
         my_contract_typeCol.setCellValueFactory(new PropertyValueFactory<>("type"));
         my_contract_positionCol.setCellValueFactory(new PropertyValueFactory<>("position"));
         my_contract_salaryCol.setCellValueFactory(new PropertyValueFactory<>("salary"));

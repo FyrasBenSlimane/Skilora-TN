@@ -16,12 +16,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Test d'Intégration CRUD COMPLET
- * 
- * Ce fichier teste toutes les entités du module Finance en conditions réelles.
- * Cela correspond à la méthode "Workshop" (Sans Mock).
- */
+
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FinanceServiceTest {
 

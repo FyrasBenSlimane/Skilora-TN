@@ -24,6 +24,7 @@ import java.io.File;
 import java.net.URL;
 import java.time.LocalDate;
 import java.util.*;
+import com.skilora.utils.DialogUtils;
 
 public class FinanceController implements Initializable {
 
@@ -36,7 +37,7 @@ public class FinanceController implements Initializable {
     @FXML
     private TLComboBox<String> contract_userIdCombo; // Changed back to String
     @FXML
-    private TLTextField contract_companyIdField;
+    private TLTextField contract_companyIdField; // Keeps FXML ID but stores Name now
     @FXML
     private TLComboBox<String> contract_typeCombo;
     @FXML
@@ -58,7 +59,7 @@ public class FinanceController implements Initializable {
     @FXML
     private TableColumn<ContractRow, String> contract_userCol;
     @FXML
-    private TableColumn<ContractRow, Integer> contract_companyCol;
+    private TableColumn<ContractRow, String> contract_companyCol;
     @FXML
     private TableColumn<ContractRow, String> contract_typeCol;
     @FXML
@@ -255,7 +256,7 @@ public class FinanceController implements Initializable {
 
         contract_idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
         contract_userCol.setCellValueFactory(new PropertyValueFactory<>("employeeName"));
-        contract_companyCol.setCellValueFactory(new PropertyValueFactory<>("companyId"));
+        contract_companyCol.setCellValueFactory(new PropertyValueFactory<>("companyName"));
         contract_typeCol.setCellValueFactory(new PropertyValueFactory<>("type"));
         contract_positionCol.setCellValueFactory(new PropertyValueFactory<>("position"));
         contract_salaryCol.setCellValueFactory(new PropertyValueFactory<>("salary"));
@@ -273,8 +274,8 @@ public class FinanceController implements Initializable {
             showFieldError(contract_errorLabel, "Please select an employee!");
             return;
         }
-        if (!isValidInteger(contract_companyIdField.getText())) {
-            showFieldError(contract_errorLabel, "Invalid Company ID!");
+        if (contract_companyIdField.getText().isEmpty()) {
+            showFieldError(contract_errorLabel, "Company Name is required!");
             return;
         }
         if (contract_salaryField.getText().isEmpty() || !isValidDouble(contract_salaryField.getText())) {
@@ -288,7 +289,7 @@ public class FinanceController implements Initializable {
 
         String emp = contract_userIdCombo.getValue();
         ContractRow contract = new ContractRow(contractData.size() + 1, extractUserId(emp), extractUserName(emp),
-                Integer.parseInt(contract_companyIdField.getText()), contract_typeCombo.getValue(),
+                contract_companyIdField.getText(), contract_typeCombo.getValue(),
                 contract_positionField.getText(), Double.parseDouble(contract_salaryField.getText()),
                 contract_startDatePicker.getValue().toString(),
                 contract_endDatePicker.getValue() != null ? contract_endDatePicker.getValue().toString() : "",
@@ -324,15 +325,19 @@ public class FinanceController implements Initializable {
     @FXML
     private void handleDeleteContract() {
         if (selectedContract != null) {
-            try {
-                FinanceService.getInstance().deleteContract(selectedContract.getId());
-                loadSampleData();
-            } catch (Exception e) {
-                showFieldError(contract_errorLabel, e.getMessage());
+            Optional<ButtonType> result = DialogUtils.showConfirmation("Delete Contract",
+                    "Are you sure you want to delete the contract for " + selectedContract.getEmployeeName() + "?");
+            if (result.isPresent() && result.get() == ButtonType.OK) {
+                try {
+                    FinanceService.getInstance().deleteContract(selectedContract.getId());
+                    loadSampleData();
+                    updateContractCount();
+                    handleClearContractForm();
+                    showSuccess("Contract deleted!");
+                } catch (Exception e) {
+                    showFieldError(contract_errorLabel, e.getMessage());
+                }
             }
-            updateContractCount();
-            handleClearContractForm();
-            showSuccess("Contract deleted!");
         }
     }
 
@@ -357,7 +362,7 @@ public class FinanceController implements Initializable {
         if (selectedContract != null) {
             String emp = getEmployeeStringById(selectedContract.getUserId());
             contract_userIdCombo.setValue(emp);
-            contract_companyIdField.setText(String.valueOf(selectedContract.getCompanyId()));
+            contract_companyIdField.setText(selectedContract.getCompanyName());
             contract_positionField.setText(selectedContract.getPosition());
             contract_salaryField.setText(String.valueOf(selectedContract.getSalary()));
             if (!selectedContract.getStartDate().isEmpty()) {
@@ -465,15 +470,19 @@ public class FinanceController implements Initializable {
     @FXML
     private void handleDeleteBankAccount() {
         if (selectedBank != null) {
-            try {
-                FinanceService.getInstance().deleteBankAccount(selectedBank.getId());
-                loadSampleData();
-            } catch (Exception e) {
-                showFieldError(bank_errorLabel, e.getMessage());
+            Optional<ButtonType> result = DialogUtils.showConfirmation("Delete Bank Account",
+                    "Are you sure you want to delete the bank account " + selectedBank.getIban() + "?");
+            if (result.isPresent() && result.get() == ButtonType.OK) {
+                try {
+                    FinanceService.getInstance().deleteBankAccount(selectedBank.getId());
+                    loadSampleData();
+                    updateBankCount();
+                    handleClearBankForm();
+                    showSuccess("Bank account deleted!");
+                } catch (Exception e) {
+                    showFieldError(bank_errorLabel, e.getMessage());
+                }
             }
-            updateBankCount();
-            handleClearBankForm();
-            showSuccess("Bank account deleted!");
         }
     }
 
@@ -584,15 +593,19 @@ public class FinanceController implements Initializable {
     @FXML
     private void handleDeleteBonus() {
         if (selectedBonus != null) {
-            try {
-                FinanceService.getInstance().deleteBonus(selectedBonus.getId());
-                loadSampleData();
-            } catch (Exception e) {
-                showFieldError(bonus_errorLabel, e.getMessage());
+            Optional<ButtonType> result = DialogUtils.showConfirmation("Delete Bonus",
+                    "Are you sure you want to delete this bonus (" + selectedBonus.getAmount() + ")?");
+            if (result.isPresent() && result.get() == ButtonType.OK) {
+                try {
+                    FinanceService.getInstance().deleteBonus(selectedBonus.getId());
+                    loadSampleData();
+                    updateBonusCount();
+                    handleClearBonusForm();
+                    showSuccess("Bonus deleted!");
+                } catch (Exception e) {
+                    showFieldError(bonus_errorLabel, e.getMessage());
+                }
             }
-            updateBonusCount();
-            handleClearBonusForm();
-            showSuccess("Bonus deleted!");
         }
     }
 
@@ -757,15 +770,19 @@ public class FinanceController implements Initializable {
     @FXML
     private void handleDeletePayslip() {
         if (selectedPayslip != null) {
-            try {
-                FinanceService.getInstance().deletePayslip(selectedPayslip.getId());
-                loadSampleData();
-            } catch (Exception e) {
-                showFieldError(payslip_errorLabel, e.getMessage());
+            Optional<ButtonType> result = DialogUtils.showConfirmation("Delete Payslip",
+                    "Are you sure you want to delete the payslip for " + selectedPayslip.getPeriod() + "?");
+            if (result.isPresent() && result.get() == ButtonType.OK) {
+                try {
+                    FinanceService.getInstance().deletePayslip(selectedPayslip.getId());
+                    loadSampleData();
+                    updatePayslipCount();
+                    handleClearPayslipForm();
+                    showSuccess("Payslip deleted!");
+                } catch (Exception e) {
+                    showFieldError(payslip_errorLabel, e.getMessage());
+                }
             }
-            updatePayslipCount();
-            handleClearPayslipForm();
-            showSuccess("Payslip deleted!");
         }
     }
 
