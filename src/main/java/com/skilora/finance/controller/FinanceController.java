@@ -18,7 +18,8 @@ import com.skilora.finance.model.PayslipRow;
 import com.skilora.finance.service.FinanceService;
 // Using specific Finance model
 import com.skilora.model.service.UserService;
-import com.skilora.model.entity.User; // Required only for UserService return type
+import com.skilora.model.entity.User;
+import javafx.collections.transformation.FilteredList;
 
 import java.io.File;
 import java.net.URL;
@@ -28,6 +29,8 @@ import com.skilora.utils.DialogUtils;
 
 public class FinanceController implements Initializable {
 
+    @FXML
+    private TLTextField mainSearchField;
     @FXML
     private TLButton themeToggleBtn;
     private boolean isDarkMode = true;
@@ -75,6 +78,7 @@ public class FinanceController implements Initializable {
     @FXML
     private Label contract_countLabel;
     private ObservableList<ContractRow> contractData = FXCollections.observableArrayList();
+    private FilteredList<ContractRow> filteredContracts;
     private ContractRow selectedContract = null;
 
     // Bank Accounts
@@ -115,6 +119,7 @@ public class FinanceController implements Initializable {
     @FXML
     private Label bank_countLabel;
     private ObservableList<BankAccountRow> bankData = FXCollections.observableArrayList();
+    private FilteredList<BankAccountRow> filteredBanks;
     private BankAccountRow selectedBank = null;
 
     // Bonuses
@@ -141,6 +146,7 @@ public class FinanceController implements Initializable {
     @FXML
     private Label bonus_countLabel;
     private ObservableList<BonusRow> bonusData = FXCollections.observableArrayList();
+    private FilteredList<BonusRow> filteredBonuses;
     private BonusRow selectedBonus = null;
 
     // Payslips (Creative!)
@@ -201,18 +207,40 @@ public class FinanceController implements Initializable {
     @FXML
     private Label payslip_countLabel;
     private ObservableList<PayslipRow> payslipData = FXCollections.observableArrayList();
+    private FilteredList<PayslipRow> filteredPayslips;
     private PayslipRow selectedPayslip = null;
 
     // Reports
     @FXML
-    private TLComboBox<String> report_employeeCombo; // Changed back to String
+    private TLComboBox<String> report_employeeCombo;
     @FXML
     private TLTextField tax_grossField;
     @FXML
     private TLComboBox<String> tax_currencyCombo;
     @FXML
+    private TextArea tax_resultArea; // conservé caché pour compatibilité
 
-    private TextArea tax_resultArea;
+    // Nouveaux labels résultats Tax Calculator (cartes KPI)
+    @FXML
+    private javafx.scene.layout.VBox tax_resultsBox;
+    @FXML
+    private javafx.scene.layout.VBox tax_hintBox;
+    @FXML
+    private Label tax_grossResult;
+    @FXML
+    private Label tax_cnssResult;
+    @FXML
+    private Label tax_irppResult;
+    @FXML
+    private Label tax_totalDeductResult;
+    @FXML
+    private Label tax_netResult;
+    @FXML
+    private Label tax_rateResult;
+    @FXML
+    private Label tax_summaryLabel;
+    @FXML
+    private Label tax_employeeLabelResult;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -226,6 +254,7 @@ public class FinanceController implements Initializable {
             initializeBonusTab();
             initializePayslipTab();
             initializeReportsTab();
+            setupSearchFilter();
             loadSampleData();
         } catch (Throwable e) {
             e.printStackTrace();
@@ -248,6 +277,13 @@ public class FinanceController implements Initializable {
 
     // Continue dans le prochain fichier...
 
+    @FXML
+    private void setupContractsTable() {
+        // Just for compatibility if called elsewhere, but let's use
+        // initializeContractTab()
+        initializeContractTab();
+    }
+
     // CONTRACTS
     private void initializeContractTab() {
         contract_typeCombo
@@ -263,7 +299,9 @@ public class FinanceController implements Initializable {
         contract_startCol.setCellValueFactory(new PropertyValueFactory<>("startDate"));
         contract_endCol.setCellValueFactory(new PropertyValueFactory<>("endDate"));
         contract_statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
-        contractTable.setItems(contractData);
+
+        filteredContracts = new FilteredList<>(contractData, p -> true);
+        contractTable.setItems(filteredContracts);
         contractTable.setOnMouseClicked(e -> onContractSelected());
     }
 
@@ -308,11 +346,22 @@ public class FinanceController implements Initializable {
     @FXML
     private void handleUpdateContract() {
         if (selectedContract != null) {
-            String emp = contract_userIdCombo.getValue();
-            selectedContract.setUserId(extractUserId(emp));
-            selectedContract.setEmployeeName(extractUserName(emp));
-            selectedContract.setSalary(Double.parseDouble(contract_salaryField.getText()));
             try {
+                String emp = contract_userIdCombo.getValue();
+                if (emp == null)
+                    throw new Exception("Please select an employee!");
+
+                selectedContract.setUserId(extractUserId(emp));
+                selectedContract.setEmployeeName(extractUserName(emp));
+                selectedContract.setCompanyName(contract_companyIdField.getText());
+                selectedContract.setType(contract_typeCombo.getValue());
+                selectedContract.setPosition(contract_positionField.getText());
+                selectedContract.setSalary(Double.parseDouble(contract_salaryField.getText()));
+                selectedContract.setStartDate(contract_startDatePicker.getValue().toString());
+                selectedContract.setEndDate(
+                        contract_endDatePicker.getValue() != null ? contract_endDatePicker.getValue().toString() : "");
+                selectedContract.setStatus(contract_statusCombo.getValue());
+
                 FinanceService.getInstance().updateContract(selectedContract);
                 loadSampleData();
                 showSuccess("Contract updated!");
@@ -375,7 +424,10 @@ public class FinanceController implements Initializable {
     }
 
     private void updateContractCount() {
-        contract_countLabel.setText("Total: " + contractData.size());
+        if (filteredContracts != null)
+            contract_countLabel.setText("Total: " + filteredContracts.size());
+        else
+            contract_countLabel.setText("Total: " + contractData.size());
     }
 
     // BANK ACCOUNTS - Methods to be added at line 471
@@ -392,7 +444,9 @@ public class FinanceController implements Initializable {
         bank_currencyCol.setCellValueFactory(new PropertyValueFactory<>("currency"));
         bank_primaryCol.setCellValueFactory(new PropertyValueFactory<>("isPrimary"));
         bank_verifiedCol.setCellValueFactory(new PropertyValueFactory<>("isVerified"));
-        bankAccountTable.setItems(bankData);
+
+        filteredBanks = new FilteredList<>(bankData, p -> true);
+        bankAccountTable.setItems(filteredBanks);
         bankAccountTable.setOnMouseClicked(e -> onBankSelected());
     }
 
@@ -455,9 +509,19 @@ public class FinanceController implements Initializable {
     @FXML
     private void handleUpdateBankAccount() {
         if (selectedBank != null) {
-            selectedBank.setBankName(bank_nameField.getText());
-            selectedBank.setIban(bank_ibanField.getText());
             try {
+                String emp = bank_userIdCombo.getValue();
+                if (emp == null)
+                    throw new Exception("Please select an employee!");
+
+                selectedBank.setUserId(extractUserId(emp));
+                selectedBank.setBankName(bank_nameField.getText());
+                selectedBank.setIban(bank_ibanField.getText());
+                selectedBank.setSwift(bank_swiftField.getText());
+                selectedBank.setCurrency(CurrencyHelper.getCurrencyCode(bank_currencyCombo.getValue()));
+                selectedBank.setIsPrimary("Yes".equals(bank_primaryCombo.getValue()));
+                selectedBank.setIsVerified("Yes".equals(bank_verifiedCombo.getValue()));
+
                 FinanceService.getInstance().updateBankAccount(selectedBank);
                 loadSampleData();
                 showSuccess("Bank account updated!");
@@ -517,7 +581,10 @@ public class FinanceController implements Initializable {
     }
 
     private void updateBankCount() {
-        bank_countLabel.setText("Total: " + bankData.size());
+        if (filteredBanks != null)
+            bank_countLabel.setText("Total: " + filteredBanks.size());
+        else
+            bank_countLabel.setText("Total: " + bankData.size());
     }
 
     // BONUSES
@@ -527,7 +594,9 @@ public class FinanceController implements Initializable {
         bonus_amountCol.setCellValueFactory(new PropertyValueFactory<>("amount"));
         bonus_reasonCol.setCellValueFactory(new PropertyValueFactory<>("reason"));
         bonus_dateCol.setCellValueFactory(new PropertyValueFactory<>("dateAwarded"));
-        bonusTable.setItems(bonusData);
+
+        filteredBonuses = new FilteredList<>(bonusData, p -> true);
+        bonusTable.setItems(filteredBonuses);
         bonusTable.setOnMouseClicked(e -> onBonusSelected());
     }
 
@@ -578,9 +647,16 @@ public class FinanceController implements Initializable {
     @FXML
     private void handleUpdateBonus() {
         if (selectedBonus != null) {
-            selectedBonus.setAmount(Double.parseDouble(bonus_amountField.getText()));
-            selectedBonus.setReason(bonus_reasonField.getText());
             try {
+                String emp = bonus_userIdCombo.getValue();
+                if (emp == null)
+                    throw new Exception("Please select an employee!");
+
+                selectedBonus.setUserId(extractUserId(emp));
+                selectedBonus.setEmployeeName(extractUserName(emp));
+                selectedBonus.setAmount(Double.parseDouble(bonus_amountField.getText()));
+                selectedBonus.setReason(bonus_reasonField.getText());
+
                 FinanceService.getInstance().updateBonus(selectedBonus);
                 loadSampleData();
                 showSuccess("Bonus updated!");
@@ -632,7 +708,10 @@ public class FinanceController implements Initializable {
     }
 
     private void updateBonusCount() {
-        bonus_countLabel.setText("Total: " + bonusData.size());
+        if (filteredBonuses != null)
+            bonus_countLabel.setText("Total: " + filteredBonuses.size());
+        else
+            bonus_countLabel.setText("Total: " + bonusData.size());
     }
 
     // PAYSLIPS (CREATIVE!)
@@ -652,7 +731,9 @@ public class FinanceController implements Initializable {
         payslip_deductCol.setCellValueFactory(new PropertyValueFactory<>("totalDeductions"));
         payslip_netCol.setCellValueFactory(new PropertyValueFactory<>("net"));
         payslip_statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
-        payslipTable.setItems(payslipData);
+
+        filteredPayslips = new FilteredList<>(payslipData, p -> true);
+        payslipTable.setItems(filteredPayslips);
         payslipTable.setOnMouseClicked(e -> onPayslipSelected());
     }
 
@@ -756,8 +837,25 @@ public class FinanceController implements Initializable {
     @FXML
     private void handleUpdatePayslip() {
         if (selectedPayslip != null) {
-            handleCalculatePayslip();
             try {
+                String emp = payslip_userIdCombo.getValue();
+                if (emp == null)
+                    throw new Exception("Please select an employee!");
+
+                // Recalculate based on current fields
+                handleCalculatePayslip();
+
+                selectedPayslip.setUserId(extractUserId(emp));
+                selectedPayslip.setEmployeeName(extractUserName(emp));
+                selectedPayslip.setMonth(Integer.parseInt(String.valueOf(payslip_monthCombo.getValue())));
+                selectedPayslip.setYear(Integer.parseInt(String.valueOf(payslip_yearCombo.getValue())));
+                selectedPayslip.setBaseSalary(parseDouble(payslip_baseSalaryField.getText(), 0));
+                selectedPayslip.setOvertime(parseDouble(payslip_overtimeField.getText(), 0));
+                selectedPayslip.setBonuses(parseDouble(payslip_bonusesField.getText(), 0));
+                selectedPayslip.setOtherDeductions(parseDouble(payslip_otherDeductionsField.getText(), 0));
+                selectedPayslip.setCurrency(CurrencyHelper.getCurrencyCode(payslip_currencyCombo.getValue()));
+                selectedPayslip.setStatus(payslip_statusCombo.getValue());
+
                 FinanceService.getInstance().updatePayslip(selectedPayslip);
                 loadSampleData();
                 showSuccess("Payslip updated!");
@@ -837,7 +935,10 @@ public class FinanceController implements Initializable {
     }
 
     private void updatePayslipCount() {
-        payslip_countLabel.setText("Total: " + payslipData.size());
+        if (filteredPayslips != null)
+            payslip_countLabel.setText("Total: " + filteredPayslips.size());
+        else
+            payslip_countLabel.setText("Total: " + payslipData.size());
     }
 
     // REPORTS
@@ -872,42 +973,121 @@ public class FinanceController implements Initializable {
             // VALIDATION
             String error;
             if ((error = ValidationHelper.validatePositiveNumber(tax_grossField.getText(), "Gross salary")) != null) {
-                tax_resultArea.setText("❌ " + error);
-                tax_resultArea.setStyle("-fx-control-inner-background: #2a2a2a; -fx-text-fill: #ef4444;");
+                // Afficher erreur dans le hint box
+                if (tax_hintBox != null) {
+                    tax_hintBox.setVisible(true);
+                    tax_hintBox.setManaged(true);
+                }
+                if (tax_resultsBox != null) {
+                    tax_resultsBox.setVisible(false);
+                    tax_resultsBox.setManaged(false);
+                }
+                if (tax_resultArea != null)
+                    tax_resultArea.setText("❌ " + error);
                 return;
             }
 
             double gross = Double.parseDouble(tax_grossField.getText().trim());
             double cnss = gross * 0.0918;
             double irpp = (gross - cnss) * 0.26;
-            double net = gross - cnss - irpp;
+            double totalDeduct = cnss + irpp;
+            double net = gross - totalDeduct;
+            double taux = (totalDeduct / gross) * 100;
             String currency = tax_currencyCombo.getValue() != null ? tax_currencyCombo.getValue() : "TND";
 
-            String result = String.format(
-                    "═══════════════════════════════\n" +
-                            "       💰 TAX BREAKDOWN 💰       \n" +
-                            "═══════════════════════════════\n\n" +
-                            "Gross Salary:       %,.2f %s\n" +
-                            "CNSS (9.18%%):       -%,.2f %s\n" +
-                            "IRPP (26%%):         -%,.2f %s\n" +
-                            "───────────────────────────────\n" +
-                            "Total Deductions:   -%,.2f %s\n" +
-                            "═══════════════════════════════\n" +
-                            "✅ NET SALARY:       %,.2f %s\n" +
-                            "═══════════════════════════════",
-                    gross, currency,
-                    cnss, currency,
-                    irpp, currency,
-                    (cnss + irpp), currency,
-                    net, currency);
+            // ── Mise à jour des cartes KPI ──
+            if (tax_grossResult != null)
+                tax_grossResult.setText(String.format("%,.2f %s", gross, currency));
+            if (tax_cnssResult != null)
+                tax_cnssResult.setText(String.format("- %,.2f %s", cnss, currency));
+            if (tax_irppResult != null)
+                tax_irppResult.setText(String.format("- %,.2f %s", irpp, currency));
+            if (tax_totalDeductResult != null)
+                tax_totalDeductResult.setText(String.format("- %,.2f %s", totalDeduct, currency));
+            if (tax_netResult != null)
+                tax_netResult.setText(String.format("%,.2f %s", net, currency));
+            if (tax_rateResult != null)
+                tax_rateResult.setText(String.format("%.1f %%", taux));
+            if (tax_summaryLabel != null)
+                tax_summaryLabel.setText(String.format(
+                        "Brut: %,.2f %s  |  CNSS: %,.2f %s  |  IRPP: %,.2f %s\nTotal retenu: %,.2f %s  |  Net à percevoir: %,.2f %s",
+                        gross, currency, cnss, currency, irpp, currency, totalDeduct, currency, net, currency));
+            if (tax_employeeLabelResult != null)
+                tax_employeeLabelResult.setText("Calculé le "
+                        + java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")));
 
-            tax_resultArea.setText(result);
-            tax_resultArea.setStyle(
-                    "-fx-control-inner-background: #2a2a2a; -fx-text-fill: #ffffff; -fx-font-family: 'Consolas', 'Monaco', monospace; -fx-font-size: 14px;");
+            // ── Afficher les résultats, cacher le hint ──
+            if (tax_resultsBox != null) {
+                tax_resultsBox.setVisible(true);
+                tax_resultsBox.setManaged(true);
+            }
+            if (tax_hintBox != null) {
+                tax_hintBox.setVisible(false);
+                tax_hintBox.setManaged(false);
+            }
+
+            // Compatibilité: garder aussi le TextArea caché renseigné
+            if (tax_resultArea != null) {
+                tax_resultArea.setText(String.format(
+                        "Brut: %,.2f %s | CNSS: %,.2f | IRPP: %,.2f | Net: %,.2f %s",
+                        gross, currency, cnss, irpp, net, currency));
+            }
+
         } catch (Exception e) {
-            tax_resultArea.setText("❌ ERROR: Please enter a valid number!");
-            tax_resultArea.setStyle("-fx-control-inner-background: #2a2a2a; -fx-text-fill: #ef4444;");
+            if (tax_resultArea != null)
+                tax_resultArea.setText("❌ ERROR: Please enter a valid number!");
         }
+    }
+
+    private void setupSearchFilter() {
+        if (mainSearchField != null) {
+            mainSearchField.getControl().textProperty().addListener((obs, oldV, newV) -> {
+                applyGlobalFilter(newV);
+            });
+        }
+    }
+
+    private void applyGlobalFilter(String searchText) {
+        if (searchText == null)
+            searchText = "";
+        final String lowerCaseFilter = searchText.toLowerCase();
+
+        if (filteredContracts != null) {
+            filteredContracts.setPredicate(row -> {
+                if (lowerCaseFilter.isEmpty())
+                    return true;
+                return row.getEmployeeName().toLowerCase().contains(lowerCaseFilter);
+            });
+        }
+
+        if (filteredBanks != null) {
+            filteredBanks.setPredicate(row -> {
+                if (lowerCaseFilter.isEmpty())
+                    return true;
+                return row.getEmployeeName().toLowerCase().contains(lowerCaseFilter);
+            });
+        }
+
+        if (filteredBonuses != null) {
+            filteredBonuses.setPredicate(row -> {
+                if (lowerCaseFilter.isEmpty())
+                    return true;
+                return row.getEmployeeName().toLowerCase().contains(lowerCaseFilter);
+            });
+        }
+
+        if (filteredPayslips != null) {
+            filteredPayslips.setPredicate(row -> {
+                if (lowerCaseFilter.isEmpty())
+                    return true;
+                return row.getEmployeeName().toLowerCase().contains(lowerCaseFilter);
+            });
+        }
+
+        updateContractCount();
+        updateBankCount();
+        updateBonusCount();
+        updatePayslipCount();
     }
 
     @FXML
@@ -1051,20 +1231,13 @@ public class FinanceController implements Initializable {
         });
     }
 
-    private boolean isValidInteger(String text) {
-        try {
-            Integer.parseInt(text);
-            return true;
-        } catch (Exception e) {
+    private boolean isValidDouble(String s) {
+        if (s == null || s.isEmpty())
             return false;
-        }
-    }
-
-    private boolean isValidDouble(String text) {
         try {
-            Double.parseDouble(text);
+            Double.parseDouble(s);
             return true;
-        } catch (Exception e) {
+        } catch (NumberFormatException e) {
             return false;
         }
     }

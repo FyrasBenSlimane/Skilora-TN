@@ -38,7 +38,8 @@ public class Main extends Application {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
                 com.skilora.config.DatabaseConfig.getInstance().closeConnection();
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }));
 
         // Prewarm heavy assets (Video)
@@ -52,7 +53,11 @@ public class Main extends Application {
 
         try {
             // Load LoginView from FXML
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/LoginView.fxml"));
+            java.net.URL fxmlUrl = getClass().getResource("/com/skilora/view/LoginView.fxml");
+            if (fxmlUrl == null) {
+                throw new RuntimeException("FXML introuvable: /com/skilora/view/LoginView.fxml");
+            }
+            FXMLLoader loader = new FXMLLoader(fxmlUrl);
             HBox loginRoot = loader.load();
 
             // Pass stage to controller
@@ -73,7 +78,15 @@ public class Main extends Application {
             primaryStage.show();
 
         } catch (Exception e) {
-            logger.error("Failed to load LoginView: " + e.getMessage(), e);
+            // AFFICHER L'ERREUR COMPLETE (ne pas avaler silencieusement !)
+            logger.error("========================================");
+            logger.error("ERREUR CRITIQUE AU DEMARRAGE !");
+            logger.error("Message: " + e.getMessage());
+            logger.error("Cause: " + (e.getCause() != null ? e.getCause().getMessage() : "aucune"));
+            logger.error("========================================", e);
+            e.printStackTrace(); // Visible meme sans SLF4J
+            // Fermer proprement au lieu de tourner en arriere-plan sans fenetre
+            javafx.application.Platform.exit();
         }
     }
 

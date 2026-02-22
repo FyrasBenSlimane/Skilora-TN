@@ -558,8 +558,12 @@
 
 /* ========== INPUT ========== */
 /* Base input style: h-9 typically */
+/* NOTE: -fx-control-inner-background used instead of -fx-background to avoid
+   the JavaFX CSS loop: Region's internal -fx-background property conflicts
+   with our theme token of the same name. */
 .text-input, .text-field {
-    -fx-background-color: -fx-background;
+    -fx-control-inner-background: -fx-background;
+    -fx-background-color: -fx-control-inner-background;
     -fx-background-insets: 0;
     -fx-text-fill: -fx-foreground;
     -fx-background-radius: 6px;
@@ -577,7 +581,8 @@
     -fx-border-color: derive(-fx-input, -10%);
 }
 .text-input:focused {
-    -fx-background-color: -fx-background;
+    -fx-control-inner-background: -fx-background;
+    -fx-background-color: -fx-control-inner-background;
     -fx-background-insets: 0;
     -fx-border-color: -fx-ring;
     -fx-border-width: 2px;
@@ -1052,7 +1057,8 @@
 
 /* ========== TEXTAREA ========== */
 .textarea, .text-area {
-    -fx-background-color: -fx-background;
+    -fx-control-inner-background: -fx-background;
+    -fx-background-color: -fx-control-inner-background;
     -fx-text-fill: -fx-foreground;
     -fx-background-radius: 6px;
     -fx-border-color: -fx-input;
@@ -1062,10 +1068,12 @@
     -fx-font-size: 13px;
     -fx-wrap-text: true;
 }
-.textarea:focused {
+.text-area > .scroll-pane > .viewport > .content {
+    -fx-background-color: -fx-control-inner-background;
+}
+.textarea:focused, .text-area:focused {
     -fx-border-color: -fx-ring;
     -fx-border-width: 2px;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 5, 0, 0, 2);
 }
 .textarea-error { -fx-border-color: -fx-destructive; -fx-border-width: 1px; -fx-border-radius: 6px; }
 .textarea-success { -fx-border-color: -fx-success; -fx-border-width: 1px; -fx-border-radius: 6px; }

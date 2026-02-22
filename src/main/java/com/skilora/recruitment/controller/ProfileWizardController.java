@@ -4,8 +4,10 @@ import com.skilora.controller.BiometricAuthController;
 
 import com.skilora.framework.components.TLButton;
 import com.skilora.framework.components.TLTextField;
+import com.skilora.model.entity.Profile;
 import com.skilora.model.entity.User;
 import com.skilora.model.service.BiometricService;
+import com.skilora.model.service.ProfileService;
 import com.skilora.model.service.UserService;
 
 import org.slf4j.Logger;
@@ -51,30 +53,59 @@ public class ProfileWizardController {
     private TLButton biometricBtn;
 
     private User currentUser;
+    private Profile userProfile;
     private UserService userService;
+    private ProfileService profileService;
     private Runnable onProfileUpdated;
 
     public void initializeContext(User user, Runnable onProfileUpdated) {
         this.currentUser = user;
         this.onProfileUpdated = onProfileUpdated;
         this.userService = UserService.getInstance();
+        this.profileService = ProfileService.getInstance();
 
-        populateFields();
+        loadProfileAndPopulate();
     }
 
-    private void populateFields() {
+    private void loadProfileAndPopulate() {
         if (currentUser == null)
             return;
 
-        // Split name for demo purposes if separate fields not available in entity
-        if (currentUser.getFullName() != null) {
-            String[] parts = currentUser.getFullName().split(" ", 2);
-            firstNameField.setText(parts[0]);
-            if (parts.length > 1)
-                lastNameField.setText(parts[1]);
-        }
+        Task<Profile> loadTask = new Task<>() {
+            @Override
+            protected Profile call() throws Exception {
+                return profileService.findProfileByUserId(currentUser.getId());
+            }
+        };
 
-        // Populate email from user entity
+        loadTask.setOnSucceeded(e -> {
+            this.userProfile = loadTask.getValue();
+            if (this.userProfile == null) {
+                this.userProfile = new Profile();
+                this.userProfile.setUserId(currentUser.getId());
+                // Fallback from user full name if exists
+                if (currentUser.getFullName() != null) {
+                    String[] parts = currentUser.getFullName().split(" ", 2);
+                    this.userProfile.setFirstName(parts[0]);
+                    if (parts.length > 1)
+                        this.userProfile.setLastName(parts[1]);
+                }
+            }
+            populateFields();
+        });
+
+        new Thread(loadTask).start();
+    }
+
+    private void populateFields() {
+        if (currentUser == null || userProfile == null)
+            return;
+
+        firstNameField.setText(userProfile.getFirstName() != null ? userProfile.getFirstName() : "");
+        lastNameField.setText(userProfile.getLastName() != null ? userProfile.getLastName() : "");
+        phoneField.setText(userProfile.getPhone() != null ? userProfile.getPhone() : "");
+        locationField.setText(userProfile.getLocation() != null ? userProfile.getLocation() : "");
+
         if (emailField != null && currentUser.getEmail() != null) {
             emailField.setText(currentUser.getEmail());
         }
@@ -128,16 +159,26 @@ public class ProfileWizardController {
         Task<Void> saveTask = new Task<>() {
             @Override
             protected Void call() throws Exception {
-                // Update model with all available fields
+                // 1. Update User Record
                 currentUser.setFullName(firstNameField.getText() + " " + lastNameField.getText());
-
-                // Save email if provided
                 String email = emailField != null ? emailField.getText() : null;
                 if (email != null && !email.trim().isEmpty()) {
                     currentUser.setEmail(email.trim());
                 }
-
                 userService.saveUser(currentUser);
+
+                // 2. Update Profile Record
+                if (userProfile == null) {
+                    userProfile = new Profile();
+                    userProfile.setUserId(currentUser.getId());
+                }
+                userProfile.setFirstName(firstNameField.getText());
+                userProfile.setLastName(lastNameField.getText());
+                userProfile.setPhone(phoneField.getText());
+                userProfile.setLocation(locationField.getText());
+
+                profileService.saveProfile(userProfile);
+
                 return null;
             }
         };

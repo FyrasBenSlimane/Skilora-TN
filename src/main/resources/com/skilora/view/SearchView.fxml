@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import com.skilora.framework.components.*?>
+<?import javafx.scene.shape.SVGPath?>
+
+<VBox xmlns="http://javafx.com/fxml" 
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.skilora.controller.SearchController"
+      spacing="24" 
+      styleClass="view-container">
+    
+    <padding>
+        <Insets top="32" right="40" bottom="32" left="40"/>
+    </padding>
+
+    <!-- Header Section -->
+    <VBox spacing="8">
+        <HBox alignment="CENTER_LEFT" spacing="12">
+            <TLTypography text="%search.advanced.title" variant="H2"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <TLBadge text="Admin Tool" variant="SECONDARY"/>
+        </HBox>
+        <TLTypography text="%search.advanced.subtitle" variant="P" muted="true"/>
+    </VBox>
+
+    <!-- Search Input Section -->
+    <TLCard>
+        <body>
+            <HBox spacing="12" alignment="CENTER_LEFT">
+                <TLTextField fx:id="searchField" promptText="%search.placeholder" HBox.hgrow="ALWAYS">
+                    <control>
+                        <TextField styleClass="search-field" prefHeight="45"/>
+                    </control>
+                </TLTextField>
+                <TLButton fx:id="searchBtn" text="%search.button" variant="PRIMARY">
+                    <graphic>
+                        <SVGPath content="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" 
+                                 styleClass="svg-path" scaleX="0.9" scaleY="0.9"/>
+                    </graphic>
+                </TLButton>
+            </HBox>
+         body>
+    </TLCard>
+
+    <!-- Results Section -->
+    <VBox spacing="16" fx:id="resultsContainer" VBox.vgrow="ALWAYS">
+        <Label fx:id="resultsCountLabel" styleClass="h4"/>
+        <ScrollPane fitToWidth="true" styleClass="transparent-bg" VBox.vgrow="ALWAYS">
+            <VBox fx:id="resultsList" spacing="12"/>
+        </ScrollPane>
+    </VBox>
+
+</VBox>

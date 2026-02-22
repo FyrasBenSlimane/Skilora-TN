@@ -3,141 +3,172 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.geometry.Insets?>
-<?import com.skilora.framework.components.*?>
 
+<!--
+  UserFinanceView.fxml — Role USER (Consultation Finance, lecture seule).
+  Design restaure pour correspondre au reste de l'application (style Dark/Premium).
+  Utilise les tokens CSS standards (-fx-background, -fx-card, etc.).
+-->
 <VBox xmlns="http://javafx.com/javafx"
       xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.skilora.finance.controller.UserFinanceController"
-      styleClass="app-content-wrapper" spacing="0"
+      spacing="0"
       style="-fx-background-color: -fx-background;">
 
     <!-- TOP HEADER BAR -->
-    <HBox styleClass="app-topbar" spacing="16" alignment="CENTER_LEFT">
-        <Label text="👁️ Consultation Finance (Mode USER)" style="-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+    <HBox spacing="16" alignment="CENTER_LEFT"
+          style="-fx-padding: 20 28; -fx-background-color: -fx-card; -fx-border-color: -fx-border; -fx-border-width: 0 0 1 0;">
+        <Label text="💰 Consultation Finance"
+               style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
         <Region HBox.hgrow="ALWAYS"/>
-        <Label text="🔒 Mode Lecture Seule" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 13px; -fx-font-weight: bold;"/>
-        <TLButton text="🔄 Rafraîchir Tout" variant="OUTLINE" onAction="#handleRefreshAll"/>
+        <Label text="Lecture Seule"
+               style="-fx-text-fill: #3b82f6; -fx-font-size: 13px; -fx-font-weight: bold; -fx-background-color: rgba(59,130,246,0.1); -fx-padding: 4 10; -fx-background-radius: 10;"/>
+        <Button text="Actualiser" onAction="#handleRefreshAll"
+                style="-fx-background-color: transparent; -fx-border-color: -fx-border; -fx-border-radius: 6; -fx-border-width: 1; -fx-text-fill: -fx-foreground; -fx-padding: 6 14; -fx-cursor: hand;"/>
     </HBox>
 
-    <!-- SUMMARY CARDS -->
-    <HBox spacing="16" style="-fx-padding: 16; -fx-background-color: -fx-background;">
-        <VBox spacing="4" HBox.hgrow="ALWAYS" style="-fx-background-color: -fx-card; -fx-padding: 16; -fx-border-radius: 8; -fx-background-radius: 8; -fx-border-color: -fx-border; -fx-border-width: 1;">
-            <Label text="👥 Employés" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 12px;"/>
-            <Label fx:id="summary_totalEmployees" text="0" style="-fx-text-fill: -fx-foreground; -fx-font-size: 28px; -fx-font-weight: bold;"/>
-        </VBox>
-        <VBox spacing="4" HBox.hgrow="ALWAYS" style="-fx-background-color: -fx-card; -fx-padding: 16; -fx-border-radius: 8; -fx-background-radius: 8; -fx-border-color: -fx-border; -fx-border-width: 1;">
-            <Label text="📋 Contrats" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 12px;"/>
-            <Label fx:id="summary_totalContracts" text="0" style="-fx-text-fill: -fx-foreground; -fx-font-size: 28px; -fx-font-weight: bold;"/>
-        </VBox>
-        <VBox spacing="4" HBox.hgrow="ALWAYS" style="-fx-background-color: -fx-card; -fx-padding: 16; -fx-border-radius: 8; -fx-background-radius: 8; -fx-border-color: -fx-border; -fx-border-width: 1;">
-            <Label text="📄 Bulletins de Paie" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 12px;"/>
-            <Label fx:id="summary_totalPayslips" text="0" style="-fx-text-fill: -fx-foreground; -fx-font-size: 28px; -fx-font-weight: bold;"/>
-        </VBox>
-        <VBox spacing="4" HBox.hgrow="ALWAYS" style="-fx-background-color: -fx-card; -fx-padding: 16; -fx-border-radius: 8; -fx-background-radius: 8; -fx-border-color: -fx-border; -fx-border-width: 1;">
-            <Label text="🎁 Primes" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 12px;"/>
-            <Label fx:id="summary_totalBonuses" text="0" style="-fx-text-fill: -fx-foreground; -fx-font-size: 28px; -fx-font-weight: bold;"/>
-        </VBox>
-    </HBox>
+    <ScrollPane VBox.vgrow="ALWAYS" fitToWidth="true" style="-fx-background-color: transparent; -fx-background: transparent;">
+        <VBox spacing="24" style="-fx-padding: 24;">
+            
+            <!-- SUMMARY CARDS -->
+            <HBox spacing="20">
+                <VBox spacing="8" HBox.hgrow="ALWAYS"
+                      style="-fx-background-color: -fx-card; -fx-padding: 20; -fx-background-radius: 12; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 12;">
+                    <Label text="TOTAL EMPLOYES" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 11px; -fx-font-weight: bold;"/>
+                    <Label fx:id="summary_totalEmployees" text="0"
+                           style="-fx-text-fill: -fx-foreground; -fx-font-size: 28px; -fx-font-weight: bold;"/>
+                </VBox>
+                <VBox spacing="8" HBox.hgrow="ALWAYS"
+                      style="-fx-background-color: -fx-card; -fx-padding: 20; -fx-background-radius: 12; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 12;">
+                    <Label text="CONTRATS ACTIFS" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 11px; -fx-font-weight: bold;"/>
+                    <Label fx:id="summary_totalContracts" text="0"
+                           style="-fx-text-fill: #a855f7; -fx-font-size: 28px; -fx-font-weight: bold;"/>
+                </VBox>
+                <VBox spacing="8" HBox.hgrow="ALWAYS"
+                      style="-fx-background-color: -fx-card; -fx-padding: 20; -fx-background-radius: 12; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 12;">
+                    <Label text="BULLETINS EMIS" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 11px; -fx-font-weight: bold;"/>
+                    <Label fx:id="summary_totalPayslips" text="0"
+                           style="-fx-text-fill: #22c55e; -fx-font-size: 28px; -fx-font-weight: bold;"/>
+                </VBox>
+                <VBox spacing="8" HBox.hgrow="ALWAYS"
+                      style="-fx-background-color: -fx-card; -fx-padding: 20; -fx-background-radius: 12; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 12;">
+                    <Label text="PRIMES ACCORDEES" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 11px; -fx-font-weight: bold;"/>
+                    <Label fx:id="summary_totalBonuses" text="0"
+                           style="-fx-text-fill: #eab308; -fx-font-size: 28px; -fx-font-weight: bold;"/>
+                </VBox>
+            </HBox>
 
-    <!-- TABBED INTERFACE (READ-ONLY) -->
-    <TabPane VBox.vgrow="ALWAYS" tabClosingPolicy="UNAVAILABLE" style="-fx-background-color: -fx-background;">
+            <!-- TABBED CONTENT -->
+            <VBox style="-fx-background-color: -fx-card; -fx-background-radius: 16; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 16; -fx-overflow: hidden;">
+                <TabPane tabClosingPolicy="UNAVAILABLE" style="-fx-background-color: transparent;">
+                    
+                    <!-- TAB 1: CONTRATS -->
+                    <Tab text="📋 Contrats">
+                        <VBox spacing="14" style="-fx-padding: 20;">
+                            <HBox alignment="CENTER_LEFT">
+                                <Label text="Liste globale des contrats" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                                <Region HBox.hgrow="ALWAYS"/>
+                                <Label fx:id="contract_countLabel" text="Total: 0" style="-fx-text-fill: -fx-muted-foreground;"/>
+                            </HBox>
+                            <TableView fx:id="contractTable" prefHeight="400" style="-fx-background-color: transparent;">
+                                <columns>
+                                    <TableColumn fx:id="contract_userCol" text="Employe" prefWidth="180"/>
+                                    <TableColumn fx:id="contract_companyCol" text="Societe" prefWidth="150"/>
+                                    <TableColumn fx:id="contract_typeCol" text="Type" prefWidth="100"/>
+                                    <TableColumn fx:id="contract_positionCol" text="Poste" prefWidth="180"/>
+                                    <TableColumn fx:id="contract_salaryCol" text="Salaire" prefWidth="130"/>
+                                    <TableColumn fx:id="contract_statusCol" text="Statut" prefWidth="100"/>
+                                </columns>
+                                <placeholder>
+                                    <Label text="Aucun contrat enregistre." style="-fx-text-fill: -fx-muted-foreground;"/>
+                                </placeholder>
+                            </TableView>
+                        </VBox>
+                    </Tab>
 
-        <!-- TAB 1: ALL CONTRACTS (Read-Only) -->
-        <Tab text="📋 Contrats" closable="false">
-            <VBox spacing="12" style="-fx-padding: 16; -fx-background-color: -fx-background;">
-                <HBox spacing="8" alignment="CENTER_LEFT">
-                    <Label text="📋 Liste de tous les contrats gérés par l'administrateur" style="-fx-text-fill: -fx-foreground; -fx-font-size: 14px; -fx-font-weight: bold;"/>
-                    <Region HBox.hgrow="ALWAYS"/>
-                    <TLButton text="🔄 Rafraîchir" variant="OUTLINE" onAction="#handleRefreshContracts"/>
-                    <Label fx:id="contract_countLabel" text="Total: 0" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 14px;"/>
-                </HBox>
-                <TableView fx:id="contractTable" VBox.vgrow="ALWAYS" editable="false" style="-fx-background-color: -fx-card;">
-                    <columns>
-                        <TableColumn fx:id="contract_idCol" text="ID" prefWidth="50"/>
-                        <TableColumn fx:id="contract_userCol" text="Employé" prefWidth="150"/>
-                        <TableColumn fx:id="contract_companyCol" text="Société" prefWidth="100"/>
-                        <TableColumn fx:id="contract_typeCol" text="Type" prefWidth="120"/>
-                        <TableColumn fx:id="contract_positionCol" text="Poste" prefWidth="150"/>
-                        <TableColumn fx:id="contract_salaryCol" text="Salaire (TND)" prefWidth="120"/>
-                        <TableColumn fx:id="contract_startCol" text="Date Début" prefWidth="120"/>
-                        <TableColumn fx:id="contract_endCol" text="Date Fin" prefWidth="120"/>
-                        <TableColumn fx:id="contract_statusCol" text="Statut" prefWidth="100"/>
-                    </columns>
-                </TableView>
+                    <!-- TAB 2: COMPTES BANCAIRES -->
+                    <Tab text="🏦 Comptes Bancaires">
+                        <VBox spacing="14" style="-fx-padding: 20;">
+                            <HBox alignment="CENTER_LEFT">
+                                <Label text="Détails bancaires des employés" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                                <Region HBox.hgrow="ALWAYS"/>
+                                <Label fx:id="bank_countLabel" text="Total: 0" style="-fx-text-fill: -fx-muted-foreground;"/>
+                            </HBox>
+                            <TableView fx:id="bankAccountTable" prefHeight="400" style="-fx-background-color: transparent;">
+                                <columns>
+                                    <TableColumn fx:id="bank_userCol" text="Employe" prefWidth="180"/>
+                                    <TableColumn fx:id="bank_nameCol" text="Banque" prefWidth="180"/>
+                                    <TableColumn fx:id="bank_ibanCol" text="IBAN" prefWidth="220"/>
+                                    <TableColumn fx:id="bank_currencyCol" text="Devise" prefWidth="80"/>
+                                </columns>
+                                <placeholder>
+                                    <Label text="Aucun compte bancaire trouve." style="-fx-text-fill: -fx-muted-foreground;"/>
+                                </placeholder>
+                            </TableView>
+                        </VBox>
+                    </Tab>
+
+                    <!-- TAB 3: BULLETINS -->
+                    <Tab text="📄 Bulletins de Paie">
+                        <VBox spacing="14" style="-fx-padding: 20;">
+                            <HBox alignment="CENTER_LEFT">
+                                <Label text="Historique des paiements" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                                <Region HBox.hgrow="ALWAYS"/>
+                                <Label fx:id="payslip_countLabel" text="Total: 0" style="-fx-text-fill: -fx-muted-foreground;"/>
+                            </HBox>
+                            <TableView fx:id="payslipTable" prefHeight="400" style="-fx-background-color: transparent;">
+                                <columns>
+                                    <TableColumn fx:id="payslip_userCol" text="Employe" prefWidth="180"/>
+                                    <TableColumn fx:id="payslip_periodCol" text="Periode" prefWidth="100"/>
+                                    <TableColumn fx:id="payslip_netCol" text="Net (TND)" prefWidth="130"/>
+                                    <TableColumn fx:id="payslip_statusCol" text="Statut" prefWidth="100"/>
+                                </columns>
+                                <placeholder>
+                                    <Label text="Aucun bulletin trouve." style="-fx-text-fill: -fx-muted-foreground;"/>
+                                </placeholder>
+                            </TableView>
+                        </VBox>
+                    </Tab>
+
+                    <!-- TAB 4: PRIMES -->
+                    <Tab text="🎁 Primes">
+                        <VBox spacing="14" style="-fx-padding: 20;">
+                            <HBox alignment="CENTER_LEFT">
+                                <Label text="Récapitulatif des primes" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                                <Region HBox.hgrow="ALWAYS"/>
+                                <Label fx:id="bonus_countLabel" text="Total: 0" style="-fx-text-fill: -fx-muted-foreground;"/>
+                            </HBox>
+                            <TableView fx:id="bonusTable" prefHeight="400" style="-fx-background-color: transparent;">
+                                <columns>
+                                    <TableColumn fx:id="bonus_userCol" text="Employe" prefWidth="180"/>
+                                    <TableColumn fx:id="bonus_amountCol" text="Montant" prefWidth="120"/>
+                                    <TableColumn fx:id="bonus_reasonCol" text="Motif" prefWidth="250"/>
+                                    <TableColumn fx:id="bonus_dateCol" text="Date" prefWidth="120"/>
+                                </columns>
+                                <placeholder>
+                                    <Label text="Aucune prime enregistree." style="-fx-text-fill: -fx-muted-foreground;"/>
+                                </placeholder>
+                            </TableView>
+                        </VBox>
+                    </Tab>
+
+                </TabPane>
             </VBox>
-        </Tab>
+        </VBox>
+    </ScrollPane>
 
-        <!-- TAB 2: ALL BANK ACCOUNTS (Read-Only) -->
-        <Tab text="🏦 Comptes Bancaires" closable="false">
-            <VBox spacing="12" style="-fx-padding: 16; -fx-background-color: -fx-background;">
-                <HBox spacing="8" alignment="CENTER_LEFT">
-                    <Label text="🏦 Liste de tous les comptes bancaires" style="-fx-text-fill: -fx-foreground; -fx-font-size: 14px; -fx-font-weight: bold;"/>
-                    <Region HBox.hgrow="ALWAYS"/>
-                    <TLButton text="🔄 Rafraîchir" variant="OUTLINE" onAction="#handleRefreshBankAccounts"/>
-                    <Label fx:id="bank_countLabel" text="Total: 0" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 14px;"/>
-                </HBox>
-                <TableView fx:id="bankAccountTable" VBox.vgrow="ALWAYS" editable="false" style="-fx-background-color: -fx-card;">
-                    <columns>
-                        <TableColumn fx:id="bank_idCol" text="ID" prefWidth="50"/>
-                        <TableColumn fx:id="bank_userCol" text="Employé" prefWidth="150"/>
-                        <TableColumn fx:id="bank_nameCol" text="Banque" prefWidth="150"/>
-                        <TableColumn fx:id="bank_ibanCol" text="IBAN" prefWidth="180"/>
-                        <TableColumn fx:id="bank_swiftCol" text="SWIFT" prefWidth="100"/>
-                        <TableColumn fx:id="bank_currencyCol" text="Devise" prefWidth="100"/>
-                        <TableColumn fx:id="bank_primaryCol" text="Principal" prefWidth="80"/>
-                        <TableColumn fx:id="bank_verifiedCol" text="Vérifié" prefWidth="80"/>
-                    </columns>
-                </TableView>
-            </VBox>
-        </Tab>
-
-        <!-- TAB 3: ALL BONUSES (Read-Only) -->
-        <Tab text="🎁 Primes" closable="false">
-            <VBox spacing="12" style="-fx-padding: 16; -fx-background-color: -fx-background;">
-                <HBox spacing="8" alignment="CENTER_LEFT">
-                    <Label text="🎁 Liste de toutes les primes attribuées" style="-fx-text-fill: -fx-foreground; -fx-font-size: 14px; -fx-font-weight: bold;"/>
-                    <Region HBox.hgrow="ALWAYS"/>
-                    <TLButton text="🔄 Rafraîchir" variant="OUTLINE" onAction="#handleRefreshBonuses"/>
-                    <Label fx:id="bonus_countLabel" text="Total: 0" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 14px;"/>
-                </HBox>
-                <TableView fx:id="bonusTable" VBox.vgrow="ALWAYS" editable="false" style="-fx-background-color: -fx-card;">
-                    <columns>
-                        <TableColumn fx:id="bonus_idCol" text="ID" prefWidth="50"/>
-                        <TableColumn fx:id="bonus_userCol" text="Employé" prefWidth="200"/>
-                        <TableColumn fx:id="bonus_amountCol" text="Montant (TND)" prefWidth="150"/>
-                        <TableColumn fx:id="bonus_reasonCol" text="Motif" prefWidth="300"/>
-                        <TableColumn fx:id="bonus_dateCol" text="Date" prefWidth="150"/>
-                    </columns>
-                </TableView>
-            </VBox>
-        </Tab>
-
-        <!-- TAB 4: ALL PAYSLIPS (Read-Only) -->
-        <Tab text="📄 Bulletins de Paie" closable="false">
-            <VBox spacing="12" style="-fx-padding: 16; -fx-background-color: -fx-background;">
-                <HBox spacing="8" alignment="CENTER_LEFT">
-                    <Label text="📄 Historique de tous les bulletins de paie" style="-fx-text-fill: -fx-foreground; -fx-font-size: 14px; -fx-font-weight: bold;"/>
-                    <Region HBox.hgrow="ALWAYS"/>
-                    <TLButton text="🔄 Rafraîchir" variant="OUTLINE" onAction="#handleRefreshPayslips"/>
-                    <Label fx:id="payslip_countLabel" text="Total: 0" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 14px;"/>
-                </HBox>
-                <TableView fx:id="payslipTable" VBox.vgrow="ALWAYS" editable="false" style="-fx-background-color: -fx-card;">
-                    <columns>
-                        <TableColumn fx:id="payslip_idCol" text="ID" prefWidth="50"/>
-                        <TableColumn fx:id="payslip_userCol" text="Employé" prefWidth="150"/>
-                        <TableColumn fx:id="payslip_periodCol" text="Période" prefWidth="120"/>
-                        <TableColumn fx:id="payslip_baseCol" text="Base" prefWidth="100"/>
-                        <TableColumn fx:id="payslip_overtimeCol" text="H. Supp." prefWidth="100"/>
-                        <TableColumn fx:id="payslip_bonusCol" text="Primes" prefWidth="100"/>
-                        <TableColumn fx:id="payslip_grossCol" text="Brut" prefWidth="120"/>
-                        <TableColumn fx:id="payslip_deductCol" text="Déductions" prefWidth="120"/>
-                        <TableColumn fx:id="payslip_netCol" text="Net" prefWidth="120"/>
-                        <TableColumn fx:id="payslip_statusCol" text="Statut" prefWidth="100"/>
-                    </columns>
-                </TableView>
-            </VBox>
-        </Tab>
-
-    </TabPane>
+    <!-- Champs masqués requis par UserFinanceController pour éviter NullPointerException -->
+    <fx:define>
+        <TableColumn fx:id="contract_startCol"/>
+        <TableColumn fx:id="contract_endCol"/>
+        <TableColumn fx:id="bank_swiftCol"/>
+        <TableColumn fx:id="bank_primaryCol"/>
+        <TableColumn fx:id="bank_verifiedCol"/>
+        <TableColumn fx:id="payslip_baseCol"/>
+        <TableColumn fx:id="payslip_overtimeCol"/>
+        <TableColumn fx:id="payslip_bonusCol"/>
+        <TableColumn fx:id="payslip_grossCol"/>
+        <TableColumn fx:id="payslip_deductCol"/>
+    </fx:define>
 
 </VBox>

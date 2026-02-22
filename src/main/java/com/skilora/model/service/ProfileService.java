@@ -144,6 +144,17 @@ public class ProfileService {
     }
 
     /**
+     * Unified save operation (Create or Update)
+     */
+    public void saveProfile(Profile profile) throws SQLException {
+        if (profile.getId() > 0) {
+            updateProfile(profile);
+        } else {
+            createProfile(profile);
+        }
+    }
+
+    /**
      * Deletes a profile by ID (also deletes associated skills and experiences).
      */
     public boolean deleteProfile(int id) throws SQLException {

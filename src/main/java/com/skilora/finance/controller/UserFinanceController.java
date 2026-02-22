@@ -31,11 +31,9 @@ public class UserFinanceController implements Initializable {
     @FXML
     private TableView<ContractRow> contractTable;
     @FXML
-    private TableColumn<ContractRow, Integer> contract_idCol;
-    @FXML
     private TableColumn<ContractRow, String> contract_userCol;
     @FXML
-    private TableColumn<ContractRow, Integer> contract_companyCol;
+    private TableColumn<ContractRow, String> contract_companyCol;
     @FXML
     private TableColumn<ContractRow, String> contract_typeCol;
     @FXML
@@ -54,8 +52,6 @@ public class UserFinanceController implements Initializable {
     // ==================== BANK ACCOUNTS TABLE ====================
     @FXML
     private TableView<BankAccountRow> bankAccountTable;
-    @FXML
-    private TableColumn<BankAccountRow, Integer> bank_idCol;
     @FXML
     private TableColumn<BankAccountRow, String> bank_userCol;
     @FXML
@@ -77,8 +73,6 @@ public class UserFinanceController implements Initializable {
     @FXML
     private TableView<BonusRow> bonusTable;
     @FXML
-    private TableColumn<BonusRow, Integer> bonus_idCol;
-    @FXML
     private TableColumn<BonusRow, String> bonus_userCol;
     @FXML
     private TableColumn<BonusRow, Double> bonus_amountCol;
@@ -92,8 +86,6 @@ public class UserFinanceController implements Initializable {
     // ==================== PAYSLIPS TABLE ====================
     @FXML
     private TableView<PayslipRow> payslipTable;
-    @FXML
-    private TableColumn<PayslipRow, Integer> payslip_idCol;
     @FXML
     private TableColumn<PayslipRow, String> payslip_userCol;
     @FXML
@@ -139,9 +131,8 @@ public class UserFinanceController implements Initializable {
     // ==================== TABLE INITIALIZATION ====================
 
     private void initializeContractTable() {
-        contract_idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
         contract_userCol.setCellValueFactory(new PropertyValueFactory<>("employeeName"));
-        contract_companyCol.setCellValueFactory(new PropertyValueFactory<>("companyId"));
+        contract_companyCol.setCellValueFactory(new PropertyValueFactory<>("companyName"));
         contract_typeCol.setCellValueFactory(new PropertyValueFactory<>("type"));
         contract_positionCol.setCellValueFactory(new PropertyValueFactory<>("position"));
         contract_salaryCol.setCellValueFactory(new PropertyValueFactory<>("salary"));
@@ -151,7 +142,6 @@ public class UserFinanceController implements Initializable {
     }
 
     private void initializeBankTable() {
-        bank_idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
         bank_userCol.setCellValueFactory(new PropertyValueFactory<>("employeeName"));
         bank_nameCol.setCellValueFactory(new PropertyValueFactory<>("bankName"));
         bank_ibanCol.setCellValueFactory(new PropertyValueFactory<>("iban"));
@@ -162,7 +152,6 @@ public class UserFinanceController implements Initializable {
     }
 
     private void initializeBonusTable() {
-        bonus_idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
         bonus_userCol.setCellValueFactory(new PropertyValueFactory<>("employeeName"));
         bonus_amountCol.setCellValueFactory(new PropertyValueFactory<>("amount"));
         bonus_reasonCol.setCellValueFactory(new PropertyValueFactory<>("reason"));
@@ -170,15 +159,14 @@ public class UserFinanceController implements Initializable {
     }
 
     private void initializePayslipTable() {
-        payslip_idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
         payslip_userCol.setCellValueFactory(new PropertyValueFactory<>("employeeName"));
         payslip_periodCol.setCellValueFactory(new PropertyValueFactory<>("period"));
         payslip_baseCol.setCellValueFactory(new PropertyValueFactory<>("baseSalary"));
-        payslip_overtimeCol.setCellValueFactory(new PropertyValueFactory<>("overtimeAmount"));
-        payslip_bonusCol.setCellValueFactory(new PropertyValueFactory<>("bonusAmount"));
-        payslip_grossCol.setCellValueFactory(new PropertyValueFactory<>("grossSalary"));
+        payslip_overtimeCol.setCellValueFactory(new PropertyValueFactory<>("overtimeTotal"));
+        payslip_bonusCol.setCellValueFactory(new PropertyValueFactory<>("bonuses"));
+        payslip_grossCol.setCellValueFactory(new PropertyValueFactory<>("gross"));
         payslip_deductCol.setCellValueFactory(new PropertyValueFactory<>("totalDeductions"));
-        payslip_netCol.setCellValueFactory(new PropertyValueFactory<>("netSalary"));
+        payslip_netCol.setCellValueFactory(new PropertyValueFactory<>("net"));
         payslip_statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
     }
 

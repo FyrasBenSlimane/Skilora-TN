@@ -20,9 +20,11 @@
         
         <Region HBox.hgrow="ALWAYS"/>
         
+        <TLTextField fx:id="searchField" promptText="Rechercher un candidat..." prefWidth="250"/>
+        
         <HBox spacing="12">
-            <TLButton fx:id="filterBtn" text="ðŸ” Filtrer" variant="OUTLINE" onAction="#handleFilter"/>
-            <TLButton fx:id="refreshBtn" text="ðŸ”„ Actualiser" variant="GHOST" onAction="#handleRefresh"/>
+            <TLButton fx:id="filterBtn" text="🔍 Filtrer" variant="OUTLINE" onAction="#handleFilter"/>
+            <TLButton fx:id="refreshBtn" text="🔄 Actualiser" variant="GHOST" onAction="#handleRefresh"/>
         </HBox>
     </HBox>
     

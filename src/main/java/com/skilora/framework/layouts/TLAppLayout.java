@@ -74,7 +74,8 @@ public class TLAppLayout extends BorderPane {
 
         double targetWidth = collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED;
 
-        // PERFORMANCE: Only animate prefWidth; set min/max directly to avoid 3x layout invalidations per frame
+        // PERFORMANCE: Only animate prefWidth; set min/max directly to avoid 3x layout
+        // invalidations per frame
         sidebar.setMinWidth(targetWidth);
         sidebar.setMaxWidth(targetWidth);
 
@@ -218,17 +219,25 @@ public class TLAppLayout extends BorderPane {
      * in DemoView).
      */
     public static void applyStylesheets(javafx.scene.Scene scene) {
-        String theme = TLAppLayout.class.getResource(STYLESHEET_THEME).toExternalForm();
-        String components = TLAppLayout.class.getResource(STYLESHEET_COMPONENTS).toExternalForm();
-        String utilities = TLAppLayout.class.getResource(STYLESHEET_UTILITIES).toExternalForm();
-        scene.getStylesheets().addAll(theme, components, utilities);
+        for (String path : new String[] { STYLESHEET_THEME, STYLESHEET_COMPONENTS, STYLESHEET_UTILITIES }) {
+            java.net.URL url = TLAppLayout.class.getResource(path);
+            if (url != null) {
+                scene.getStylesheets().add(url.toExternalForm());
+            } else {
+                System.err.println("[TLAppLayout] AVERTISSEMENT: Fichier CSS introuvable: " + path);
+            }
+        }
     }
 
     public static void applyStylesheets(javafx.scene.control.DialogPane pane) {
-        String theme = TLAppLayout.class.getResource(STYLESHEET_THEME).toExternalForm();
-        String components = TLAppLayout.class.getResource(STYLESHEET_COMPONENTS).toExternalForm();
-        String utilities = TLAppLayout.class.getResource(STYLESHEET_UTILITIES).toExternalForm();
-        pane.getStylesheets().addAll(theme, components, utilities);
+        for (String path : new String[] { STYLESHEET_THEME, STYLESHEET_COMPONENTS, STYLESHEET_UTILITIES }) {
+            java.net.URL url = TLAppLayout.class.getResource(path);
+            if (url != null) {
+                pane.getStylesheets().add(url.toExternalForm());
+            } else {
+                System.err.println("[TLAppLayout] AVERTISSEMENT: Fichier CSS introuvable: " + path);
+            }
+        }
     }
 
     /**

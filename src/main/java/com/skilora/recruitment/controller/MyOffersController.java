@@ -45,13 +45,20 @@ public class MyOffersController implements Initializable {
     private static final Logger logger = LoggerFactory.getLogger(MyOffersController.class);
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    @FXML private Label statsLabel;
-    @FXML private HBox filterBox;
-    @FXML private TLTextField searchField;
-    @FXML private VBox offersContainer;
-    @FXML private VBox emptyState;
-    @FXML private TLButton refreshBtn;
-    @FXML private TLButton newOfferBtn;
+    @FXML
+    private Label statsLabel;
+    @FXML
+    private HBox filterBox;
+    @FXML
+    private TLTextField searchField;
+    @FXML
+    private VBox offersContainer;
+    @FXML
+    private VBox emptyState;
+    @FXML
+    private TLButton refreshBtn;
+    @FXML
+    private TLButton newOfferBtn;
 
     private final JobService jobService = JobService.getInstance();
     private User currentUser;
@@ -59,6 +66,8 @@ public class MyOffersController implements Initializable {
     private List<JobOffer> allOffers;
     private ToggleGroup filterGroup;
     private String currentFilter = "ALL";
+
+    private java.util.function.Consumer<JobOffer> onEditOffer;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -75,13 +84,17 @@ public class MyOffersController implements Initializable {
         this.onNewOffer = onNewOffer;
     }
 
+    public void setOnEditOffer(java.util.function.Consumer<JobOffer> onEditOffer) {
+        this.onEditOffer = onEditOffer;
+    }
+
     private void setupFilters() {
         filterGroup = new ToggleGroup();
         String[][] filters = {
-            {I18n.get("myoffers.filter.all"), "ALL"},
-            {I18n.get("myoffers.filter.open"), "OPEN"},
-            {I18n.get("myoffers.filter.draft"), "DRAFT"},
-            {I18n.get("myoffers.filter.closed"), "CLOSED"}
+                { I18n.get("myoffers.filter.all"), "ALL" },
+                { I18n.get("myoffers.filter.open"), "OPEN" },
+                { I18n.get("myoffers.filter.draft"), "DRAFT" },
+                { I18n.get("myoffers.filter.closed"), "CLOSED" }
         };
 
         for (String[] f : filters) {
@@ -89,7 +102,8 @@ public class MyOffersController implements Initializable {
             btn.setUserData(f[1]);
             btn.getStyleClass().add("chip-filter");
             btn.setToggleGroup(filterGroup);
-            if ("ALL".equals(f[1])) btn.setSelected(true);
+            if ("ALL".equals(f[1]))
+                btn.setSelected(true);
 
             btn.setOnAction(e -> {
                 if (btn.isSelected()) {
@@ -112,7 +126,8 @@ public class MyOffersController implements Initializable {
     }
 
     private void loadData() {
-        if (currentUser == null) return;
+        if (currentUser == null)
+            return;
 
         Task<List<JobOffer>> task = new Task<>() {
             @Override
@@ -137,28 +152,30 @@ public class MyOffersController implements Initializable {
     }
 
     private void applyFilters() {
-        if (allOffers == null) return;
+        if (allOffers == null)
+            return;
 
         String query = searchField != null ? searchField.getText() : "";
         String lowerQuery = query == null ? "" : query.toLowerCase();
 
         List<JobOffer> filtered = allOffers.stream()
-            .filter(o -> {
-                if (!"ALL".equals(currentFilter)) {
-                    try {
-                        if (o.getStatus() != JobStatus.valueOf(currentFilter)) return false;
-                    } catch (IllegalArgumentException ex) {
-                        return false;
+                .filter(o -> {
+                    if (!"ALL".equals(currentFilter)) {
+                        try {
+                            if (o.getStatus() != JobStatus.valueOf(currentFilter))
+                                return false;
+                        } catch (IllegalArgumentException ex) {
+                            return false;
+                        }
                     }
-                }
-                if (!lowerQuery.isEmpty()) {
-                    String title = o.getTitle() != null ? o.getTitle().toLowerCase() : "";
-                    String loc = o.getLocation() != null ? o.getLocation().toLowerCase() : "";
-                    return title.contains(lowerQuery) || loc.contains(lowerQuery);
-                }
-                return true;
-            })
-            .collect(Collectors.toList());
+                    if (!lowerQuery.isEmpty()) {
+                        String title = o.getTitle() != null ? o.getTitle().toLowerCase() : "";
+                        String loc = o.getLocation() != null ? o.getLocation().toLowerCase() : "";
+                        return title.contains(lowerQuery) || loc.contains(lowerQuery);
+                    }
+                    return true;
+                })
+                .collect(Collectors.toList());
 
         renderOffers(filtered);
     }
@@ -196,9 +213,8 @@ public class MyOffersController implements Initializable {
         titleLabel.getStyleClass().add("h4");
 
         TLBadge statusBadge = new TLBadge(
-            offer.getStatus() != null ? offer.getStatus().getDisplayName() : I18n.get("myoffers.draft"),
-            TLBadge.Variant.DEFAULT
-        );
+                offer.getStatus() != null ? offer.getStatus().getDisplayName() : I18n.get("myoffers.draft"),
+                TLBadge.Variant.DEFAULT);
         if (offer.getStatus() == JobStatus.OPEN || offer.getStatus() == JobStatus.ACTIVE) {
             statusBadge.getStyleClass().add("badge-success");
         } else if (offer.getStatus() == JobStatus.CLOSED) {
@@ -227,7 +243,7 @@ public class MyOffersController implements Initializable {
         }
 
         Label salaryLabel = new Label("ðŸ’° " + offer.getSalaryRange() + " " +
-            (offer.getCurrency() != null ? offer.getCurrency() : "TND"));
+                (offer.getCurrency() != null ? offer.getCurrency() : "TND"));
         salaryLabel.getStyleClass().add("text-muted");
         detailsRow.getChildren().add(salaryLabel);
 
@@ -244,7 +260,10 @@ public class MyOffersController implements Initializable {
         actionsRow.setAlignment(Pos.CENTER_RIGHT);
 
         TLButton editBtn = new TLButton("Modifier", TLButton.ButtonVariant.OUTLINE);
-        editBtn.setOnAction(e -> logger.info("Edit offer: {}", offer.getId()));
+        editBtn.setOnAction(e -> {
+            if (onEditOffer != null)
+                onEditOffer.accept(offer);
+        });
 
         TLButton deleteBtn = new TLButton("Supprimer", TLButton.ButtonVariant.GHOST);
         deleteBtn.getStyleClass().add("text-destructive");
@@ -311,4 +330,3 @@ public class MyOffersController implements Initializable {
         thread.start();
     }
 }
-

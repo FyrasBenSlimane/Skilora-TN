@@ -84,6 +84,10 @@ public class PayslipRow {
         return overtime;
     }
 
+    public void setOvertime(double overtime) {
+        this.overtime = overtime;
+    }
+
     public double getOvertimeTotal() {
         return overtimeTotal;
     }
@@ -133,6 +137,10 @@ public class PayslipRow {
 
     public String getCurrency() {
         return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
     }
 
     public String getStatus() {

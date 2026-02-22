@@ -22,39 +22,61 @@ import java.util.ResourceBundle;
 import com.skilora.utils.I18n;
 
 /**
- * ApplicationsController - Kanban board for tracking job applications (Job Seeker view)
+ * ApplicationsController - Kanban board for tracking job applications (Job
+ * Seeker view)
  */
 public class ApplicationsController implements Initializable {
 
     private static final Logger logger = LoggerFactory.getLogger(ApplicationsController.class);
 
-    @FXML private Label statsLabel;
-    @FXML private TLButton refreshBtn;
-    
-    @FXML private Label appliedCount;
-    @FXML private Label reviewingCount;
-    @FXML private Label interviewingCount;
-    @FXML private Label offerCount;
-    
-    @FXML private VBox appliedColumn;
-    @FXML private VBox reviewingColumn;
-    @FXML private VBox interviewingColumn;
-    @FXML private VBox offerColumn;
+    @FXML
+    private Label statsLabel;
+    @FXML
+    private TLButton refreshBtn;
+    @FXML
+    private TLTextField searchField;
+
+    @FXML
+    private Label appliedCount;
+    @FXML
+    private Label reviewingCount;
+    @FXML
+    private Label interviewingCount;
+    @FXML
+    private Label offerCount;
+
+    @FXML
+    private VBox appliedColumn;
+    @FXML
+    private VBox reviewingColumn;
+    @FXML
+    private VBox interviewingColumn;
+    @FXML
+    private VBox offerColumn;
 
     private User currentUser;
+    private List<Application> allApplications;
     private final ApplicationService applicationService = ApplicationService.getInstance();
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy");
-    
+
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        // Data loads after setCurrentUser is called
+        setupSearch();
+    }
+
+    private void setupSearch() {
+        if (searchField != null) {
+            searchField.getControl().textProperty().addListener((obs, old, newValue) -> {
+                renderApplications(allApplications);
+            });
+        }
     }
 
     public void setCurrentUser(User user) {
         this.currentUser = user;
         loadApplications();
     }
-    
+
     private void loadApplications() {
         appliedColumn.getChildren().clear();
         reviewingColumn.getChildren().clear();
@@ -68,29 +90,15 @@ public class ApplicationsController implements Initializable {
                 // Get profile ID for this user
                 var profile = ProfileService.getInstance()
                         .findProfileByUserId(currentUser.getId());
-                if (profile == null) return List.of();
+                if (profile == null)
+                    return List.of();
                 return applicationService.getApplicationsByProfile(profile.getId());
             }
         };
 
         task.setOnSucceeded(e -> {
-            List<Application> apps = task.getValue();
-            for (Application app : apps) {
-                TLCard card = createApplicationCard(
-                        app.getJobTitle() != null ? app.getJobTitle() : I18n.get("applications.offer_num", app.getJobOfferId()),
-                        app.getCompanyName() != null ? app.getCompanyName() : "",
-                        app.getAppliedDate() != null ? app.getAppliedDate().format(DATE_FMT) : "");
-
-                switch (app.getStatus()) {
-                    case PENDING -> appliedColumn.getChildren().add(card);
-                    case REVIEWING -> reviewingColumn.getChildren().add(card);
-                    case INTERVIEW -> interviewingColumn.getChildren().add(card);
-                    case OFFER, ACCEPTED -> offerColumn.getChildren().add(card);
-                    case REJECTED -> {} // Could add a rejected column if desired
-                }
-            }
-
-            updateCounts();
+            allApplications = task.getValue();
+            renderApplications(allApplications);
         });
 
         task.setOnFailed(e -> {
@@ -99,6 +107,42 @@ public class ApplicationsController implements Initializable {
         });
 
         new Thread(task).start();
+    }
+
+    private void renderApplications(List<Application> apps) {
+        if (apps == null)
+            return;
+
+        appliedColumn.getChildren().clear();
+        reviewingColumn.getChildren().clear();
+        interviewingColumn.getChildren().clear();
+        offerColumn.getChildren().clear();
+
+        String query = searchField.getText().toLowerCase();
+
+        for (Application app : apps) {
+            String title = app.getJobTitle() != null ? app.getJobTitle() : "";
+            String company = app.getCompanyName() != null ? app.getCompanyName() : "";
+
+            if (!query.isEmpty() && !title.toLowerCase().contains(query) && !company.toLowerCase().contains(query)) {
+                continue;
+            }
+
+            TLCard card = createApplicationCard(
+                    !title.isEmpty() ? title : I18n.get("applications.offer_num", app.getJobOfferId()),
+                    company,
+                    app.getAppliedDate() != null ? app.getAppliedDate().format(DATE_FMT) : "");
+
+            switch (app.getStatus()) {
+                case PENDING -> appliedColumn.getChildren().add(card);
+                case REVIEWING -> reviewingColumn.getChildren().add(card);
+                case INTERVIEW -> interviewingColumn.getChildren().add(card);
+                case OFFER, ACCEPTED -> offerColumn.getChildren().add(card);
+                case REJECTED -> {
+                }
+            }
+        }
+        updateCounts();
     }
 
     private void updateCounts() {
@@ -111,30 +155,30 @@ public class ApplicationsController implements Initializable {
                 + interviewingColumn.getChildren().size() + offerColumn.getChildren().size();
         statsLabel.setText(I18n.get("applications.count", total));
     }
-    
+
     private TLCard createApplicationCard(String title, String company, String date) {
         TLCard card = new TLCard();
-        
+
         VBox content = new VBox(8);
         content.setPadding(new Insets(12));
-        
+
         Label titleLabel = new Label(title);
         titleLabel.getStyleClass().add("h4");
         titleLabel.setWrapText(true);
-        
+
         Label companyLabel = new Label(company);
         companyLabel.getStyleClass().add("text-muted");
-        
+
         Label dateLabel = new Label(date);
         dateLabel.setStyle("-fx-font-size: 11px;");
         dateLabel.getStyleClass().add("text-muted");
-        
+
         content.getChildren().addAll(titleLabel, companyLabel, dateLabel);
         card.getContent().add(content);
-        
+
         return card;
     }
-    
+
     @FXML
     private void handleRefresh() {
         if (currentUser != null) {
@@ -142,4 +186,3 @@ public class ApplicationsController implements Initializable {
         }
     }
 }
-

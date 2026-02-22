@@ -3,6 +3,7 @@ package com.skilora.ui;
 import com.skilora.framework.layouts.TLAppLayout;
 import com.skilora.framework.components.*;
 import com.skilora.framework.components.TLButton.ButtonVariant;
+import com.skilora.model.entity.JobOffer;
 import com.skilora.model.entity.User;
 import com.skilora.framework.layouts.TLWindow;
 import com.skilora.framework.utils.WindowConfig;
@@ -61,6 +62,7 @@ public class MainView extends TLAppLayout {
     private Node cachedFinanceView;
     private Node cachedUserFinanceView;
     private Node cachedEmployeurFinanceView;
+    private Node cachedSearchView;
 
     public MainView(User user) {
         super();
@@ -184,6 +186,9 @@ public class MainView extends TLAppLayout {
                                 this::showActiveOffersView),
                         createNavButton(I18n.get("nav.reports"), "M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z",
                                 this::showReportsView),
+                        createNavButton(I18n.get("nav.search"),
+                                "M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z",
+                                this::showSearchView),
                         createNavButton("Finance",
                                 "M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z",
                                 this::showFinanceView),
@@ -241,7 +246,8 @@ public class MainView extends TLAppLayout {
                 break;
         }
 
-        // User Profile Section (Bottom of Sidebar) – wrapped so avatar is centered when
+        // User Profile Section (Bottom of Sidebar) â€“ wrapped so avatar is centered
+        // when
         // collapsed
         Region sidebarSpacer = new Region();
         VBox.setVgrow(sidebarSpacer, Priority.ALWAYS);
@@ -326,7 +332,7 @@ public class MainView extends TLAppLayout {
 
     /**
      * Default initials from display name when no avatar image is available (e.g.
-     * "Admin User" → "AU").
+     * "Admin User" â†’ "AU").
      */
     private void updateSidebarAvatar() {
         if (sidebarAvatar == null)
@@ -750,33 +756,38 @@ public class MainView extends TLAppLayout {
     }
 
     private void showPostJobView() {
+        showPostJobView(null);
+    }
+
+    public void showPostJobView(JobOffer existingOffer) {
         centerStack.getChildren().clear();
 
-        if (cachedPostJobView == null) {
-            try {
-                FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/PostJobView.fxml"));
-                VBox postJobContent = loader.load();
+        // Recreate to ensure the controller state is fresh when editing
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/PostJobView.fxml"));
+            VBox postJobContent = loader.load();
 
-                com.skilora.recruitment.controller.PostJobController controller = loader.getController();
-                if (controller != null) {
-                    controller.setOnCancel(this::showDashboard);
-                    controller.setCurrentUser(currentUser);
+            com.skilora.recruitment.controller.PostJobController controller = loader.getController();
+            if (controller != null) {
+                controller.setOnCancel(this::showDashboard);
+                controller.setCurrentUser(currentUser);
+                if (existingOffer != null) {
+                    controller.setEditingOffer(existingOffer);
                 }
-
-                TLScrollArea scrollArea = new TLScrollArea(postJobContent);
-                scrollArea.setFitToWidth(true);
-                scrollArea.setFitToHeight(true);
-                scrollArea.getStyleClass().add("transparent-bg");
-
-                cachedPostJobView = scrollArea;
-                animateEntry(postJobContent, 0);
-
-            } catch (Exception e) {
-                logger.error("Failed to load PostJobView", e);
-                return;
             }
+
+            TLScrollArea scrollArea = new TLScrollArea(postJobContent);
+            scrollArea.setFitToWidth(true);
+            scrollArea.setFitToHeight(true);
+            scrollArea.getStyleClass().add("transparent-bg");
+
+            // We don't cache the editing view as it depends on parameters
+            centerStack.getChildren().add(scrollArea);
+            animateEntry(postJobContent, 0);
+
+        } catch (Exception e) {
+            logger.error("Failed to load PostJobView", e);
         }
-        centerStack.getChildren().add(cachedPostJobView);
     }
 
     public void showForgotPasswordView() {
@@ -828,7 +839,7 @@ public class MainView extends TLAppLayout {
     }
 
     /**
-     * USER role: Read-only consultation of ALL admin finance data.
+     * USER role: Read-only consultation of ALL finance data (admin view).
      */
     private void showUserFinanceView() {
         centerStack.getChildren().clear();
@@ -847,7 +858,7 @@ public class MainView extends TLAppLayout {
                 animateEntry(financeContent, 0);
             } catch (Exception e) {
                 logger.error("Failed to load UserFinanceView", e);
-                centerStack.getChildren().add(new Label("Error loading User Finance: " + e.getMessage()));
+                centerStack.getChildren().add(new Label("Error loading Finance: " + e.getMessage()));
                 return;
             }
         }
@@ -855,34 +866,39 @@ public class MainView extends TLAppLayout {
     }
 
     /**
-     * EMPLOYER role: Read-only consultation of own personal payroll data.
+     * EMPLOYER role: Rich personal payroll dashboard.
+     * Uses the same TLScrollArea pattern as showUserFinanceView.
      */
     private void showEmployeurFinanceView() {
         centerStack.getChildren().clear();
 
-        // Always recreate to ensure fresh data for the logged-in employee
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/EmployeurFinanceView.fxml"));
-            VBox financeContent = loader.load();
+            javafx.scene.Node root = loader.load();
 
-            // Inject the current user ID into the controller
+            // Inject the current user ID — controller fetches real name from DB
             com.skilora.finance.controller.EmployeurFinanceController controller = loader.getController();
             if (controller != null) {
-                controller.setEmployeeId(currentUser.getId(), currentUser.getFullName());
+                String nameHint = currentUser.getFullName() != null
+                        ? currentUser.getFullName()
+                        : currentUser.getUsername();
+                controller.setEmployeeId(currentUser.getId(), nameHint);
             }
 
-            TLScrollArea scrollArea = new TLScrollArea(financeContent);
+            TLScrollArea scrollArea = new TLScrollArea(root);
             scrollArea.setFitToWidth(true);
-            scrollArea.setFitToHeight(true);
+            // scrollArea.setFitToHeight(true); // Don't fit to height to allow vertical
+            // scrolling
             scrollArea.getStyleClass().add("transparent-bg");
 
             cachedEmployeurFinanceView = scrollArea;
-            centerStack.getChildren().add(cachedEmployeurFinanceView);
-            animateEntry(financeContent, 0);
+            centerStack.getChildren().add(scrollArea);
+            animateEntry(root, 0);
 
         } catch (Exception e) {
             logger.error("Failed to load EmployeurFinanceView", e);
-            centerStack.getChildren().add(new Label("Error loading Employer Finance: " + e.getMessage()));
+            centerStack.getChildren().add(new Label(
+                    "Erreur chargement Ma Paie: " + e.getMessage()));
         }
     }
 
@@ -928,6 +944,7 @@ public class MainView extends TLAppLayout {
             if (controller != null) {
                 controller.setCurrentUser(currentUser);
                 controller.setOnNewOffer(this::showPostJobView);
+                controller.setOnEditOffer(this::showPostJobView);
             }
 
             TLScrollArea scrollArea = new TLScrollArea(myOffersContent);
@@ -1037,5 +1054,30 @@ public class MainView extends TLAppLayout {
         } catch (Exception e) {
             logger.error("Failed to load InterviewsView", e);
         }
+    }
+
+    private void showSearchView() {
+        centerStack.getChildren().clear();
+
+        if (cachedSearchView == null) {
+            try {
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/SearchView.fxml"));
+                VBox searchContent = loader.load();
+
+                TLScrollArea scrollArea = new TLScrollArea(searchContent);
+                scrollArea.setFitToWidth(true);
+                scrollArea.setFitToHeight(true);
+                scrollArea.getStyleClass().add("transparent-bg");
+
+                cachedSearchView = scrollArea;
+                animateEntry(searchContent, 0);
+
+            } catch (Exception e) {
+                logger.error("Failed to load SearchView", e);
+                centerStack.getChildren().add(new Label(I18n.get("error.loading.search")));
+                return;
+            }
+        }
+        centerStack.getChildren().add(cachedSearchView);
     }
 }

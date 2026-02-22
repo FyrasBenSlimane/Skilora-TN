@@ -16,6 +16,8 @@ import org.slf4j.LoggerFactory;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
+import com.skilora.framework.components.TLTextField;
+import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.geometry.Pos;
@@ -39,49 +41,85 @@ public class ApplicationInboxController implements Initializable {
 
     private static final Logger logger = LoggerFactory.getLogger(ApplicationInboxController.class);
 
-    @FXML private Label statsLabel;
-    @FXML private TLButton filterBtn;
-    @FXML private TLButton refreshBtn;
-    @FXML private HBox filterBar;
-    
-    @FXML private TLSelect<String> jobSelect;
-    @FXML private TLSelect<String> statusSelect;
-    
-    @FXML private TLTable<ApplicationRow> applicationsTable;
-    @FXML private TableColumn<ApplicationRow, String> candidateCol;
-    @FXML private TableColumn<ApplicationRow, String> jobCol;
-    @FXML private TableColumn<ApplicationRow, String> dateCol;
-    @FXML private TableColumn<ApplicationRow, String> statusCol;
-    @FXML private TableColumn<ApplicationRow, Void> actionsCol;
-    
-    @FXML private Label paginationLabel;
-    @FXML private Label pageLabel;
-    @FXML private TLButton prevBtn;
-    @FXML private TLButton nextBtn;
-    
+    @FXML
+    private Label statsLabel;
+    @FXML
+    private TLButton filterBtn;
+    @FXML
+    private TLButton refreshBtn;
+    @FXML
+    private TLTextField searchField;
+    @FXML
+    private HBox filterBar;
+
+    @FXML
+    private TLSelect<String> jobSelect;
+    @FXML
+    private TLSelect<String> statusSelect;
+
+    @FXML
+    private TLTable<ApplicationRow> applicationsTable;
+    @FXML
+    private TableColumn<ApplicationRow, String> candidateCol;
+    @FXML
+    private TableColumn<ApplicationRow, String> jobCol;
+    @FXML
+    private TableColumn<ApplicationRow, String> dateCol;
+    @FXML
+    private TableColumn<ApplicationRow, String> statusCol;
+    @FXML
+    private TableColumn<ApplicationRow, Void> actionsCol;
+
+    @FXML
+    private Label paginationLabel;
+    @FXML
+    private Label pageLabel;
+    @FXML
+    private TLButton prevBtn;
+    @FXML
+    private TLButton nextBtn;
+
     private User currentUser;
     private ObservableList<ApplicationRow> applications;
+    private FilteredList<ApplicationRow> filteredApplications;
     private final ApplicationService applicationService = ApplicationService.getInstance();
     private int currentPage = 0;
     private final int itemsPerPage = 10;
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    
-    @Override
+
     public void initialize(URL location, ResourceBundle resources) {
         setupTable();
+        setupSearch();
         // Data loads after setCurrentUser is called
+    }
+
+    private void setupSearch() {
+        if (searchField != null) {
+            searchField.getControl().textProperty().addListener((obs, old, newValue) -> {
+                if (filteredApplications != null) {
+                    filteredApplications.setPredicate(app -> {
+                        if (newValue == null || newValue.isEmpty())
+                            return true;
+                        String lower = newValue.toLowerCase();
+                        return app.getCandidateName().toLowerCase().contains(lower);
+                    });
+                    currentPage = 0; // Reset to first page on search
+                    updatePagination();
+                }
+            });
+        }
     }
 
     public void setCurrentUser(User user) {
         this.currentUser = user;
         loadApplications();
     }
-    
+
     private void setupTable() {
         candidateCol.setCellValueFactory(new PropertyValueFactory<>("candidateName"));
         jobCol.setCellValueFactory(new PropertyValueFactory<>("jobTitle"));
         dateCol.setCellValueFactory(new PropertyValueFactory<>("applicationDate"));
-        
+
         // Status column with badges
         statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
         statusCol.setCellFactory(col -> new TableCell<ApplicationRow, String>() {
@@ -101,7 +139,8 @@ public class ApplicationInboxController implements Initializable {
                             break;
                         case "OFFER":
                         case "ACCEPTED":
-                            badge = new TLBadge(status.equals("OFFER") ? I18n.get("inbox.status.offer") : I18n.get("inbox.status.accepted"), TLBadge.Variant.SUCCESS);
+                            badge = new TLBadge(status.equals("OFFER") ? I18n.get("inbox.status.offer")
+                                    : I18n.get("inbox.status.accepted"), TLBadge.Variant.SUCCESS);
                             break;
                         case "REJECTED":
                             badge = new TLBadge(I18n.get("inbox.status.rejected"), TLBadge.Variant.DESTRUCTIVE);
@@ -115,15 +154,15 @@ public class ApplicationInboxController implements Initializable {
                 }
             }
         });
-        
+
         // Actions column
         actionsCol.setCellFactory(col -> new TableCell<ApplicationRow, Void>() {
             private final TLButton moreBtn = new TLButton("â‹®");
-            
+
             {
                 moreBtn.setVariant(TLButton.ButtonVariant.GHOST);
             }
-            
+
             @Override
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
@@ -131,7 +170,7 @@ public class ApplicationInboxController implements Initializable {
                     setGraphic(null);
                 } else {
                     ApplicationRow app = getTableView().getItems().get(getIndex());
-                    
+
                     moreBtn.setOnAction(e -> {
                         TLDropdownMenu menu = new TLDropdownMenu();
                         menu.addItem("ðŸ‘ï¸ " + I18n.get("inbox.view_profile"), ev -> handleViewProfile(app));
@@ -140,14 +179,14 @@ public class ApplicationInboxController implements Initializable {
                         menu.addItem("ðŸ“§ " + I18n.get("inbox.contact"), ev -> handleContact(app));
                         menu.show(moreBtn, javafx.geometry.Side.BOTTOM, 0, 4);
                     });
-                    
+
                     setGraphic(moreBtn);
                     setAlignment(Pos.CENTER);
                 }
             }
         });
     }
-    
+
     private void loadApplications() {
         statsLabel.setText(I18n.get("common.loading"));
 
@@ -166,14 +205,16 @@ public class ApplicationInboxController implements Initializable {
                 String displayStatus = mapStatusToI18nKey(app.getStatus());
                 applications.add(new ApplicationRow(
                         app.getId(),
-                        app.getCandidateName() != null ? app.getCandidateName() : I18n.get("inbox.candidate_num", app.getCandidateProfileId()),
-                        app.getJobTitle() != null ? app.getJobTitle() : I18n.get("inbox.offer_num", app.getJobOfferId()),
+                        app.getCandidateName() != null ? app.getCandidateName()
+                                : I18n.get("inbox.candidate_num", app.getCandidateProfileId()),
+                        app.getJobTitle() != null ? app.getJobTitle()
+                                : I18n.get("inbox.offer_num", app.getJobOfferId()),
                         app.getAppliedDate() != null ? app.getAppliedDate().format(DATE_FMT) : "",
-                        displayStatus
-                ));
+                        displayStatus));
             }
 
-            applicationsTable.setItems(applications);
+            filteredApplications = new FilteredList<>(applications, p -> true);
+            applicationsTable.setItems(filteredApplications);
             updateStats();
             updatePagination();
         });
@@ -183,7 +224,11 @@ public class ApplicationInboxController implements Initializable {
             logger.error("Failed to load applications", task.getException());
         });
 
-        new Thread(task, "AppLoadThread") {{ setDaemon(true); }}.start();
+        new Thread(task, "AppLoadThread") {
+            {
+                setDaemon(true);
+            }
+        }.start();
     }
 
     private String mapStatusToI18nKey(Status status) {
@@ -196,15 +241,17 @@ public class ApplicationInboxController implements Initializable {
             case REJECTED -> "REJECTED";
         };
     }
-    
+
     private void updateStats() {
-        long pending = applications.stream().filter(a ->
-                a.getStatus().equals("PENDING") || a.getStatus().equals("REVIEW")).count();
+        long pending = applications.stream()
+                .filter(a -> a.getStatus().equals("PENDING") || a.getStatus().equals("REVIEW")).count();
         statsLabel.setText(I18n.get("inbox.pending", pending));
     }
-    
+
     private void updatePagination() {
-        int total = applications.size();
+        if (filteredApplications == null)
+            return;
+        int total = filteredApplications.size();
         if (total == 0) {
             paginationLabel.setText("0 sur 0");
             pageLabel.setText("Page 1");
@@ -214,18 +261,18 @@ public class ApplicationInboxController implements Initializable {
         }
         int start = currentPage * itemsPerPage + 1;
         int end = Math.min((currentPage + 1) * itemsPerPage, total);
-        
+
         paginationLabel.setText(start + "-" + end + " " + I18n.get("inbox.of") + " " + total);
         pageLabel.setText("Page " + (currentPage + 1));
-        
+
         prevBtn.setDisable(currentPage == 0);
         nextBtn.setDisable(end >= total);
     }
-    
+
     private void handleViewProfile(ApplicationRow app) {
         logger.debug("Viewing profile: {}", app.getCandidateName());
     }
-    
+
     private void handleAccept(ApplicationRow app) {
         Thread t = new Thread(() -> {
             try {
@@ -242,7 +289,7 @@ public class ApplicationInboxController implements Initializable {
         t.setDaemon(true);
         t.start();
     }
-    
+
     private void handleReject(ApplicationRow app) {
         Thread t = new Thread(() -> {
             try {
@@ -259,29 +306,31 @@ public class ApplicationInboxController implements Initializable {
         t.setDaemon(true);
         t.start();
     }
-    
+
     private void handleContact(ApplicationRow app) {
         logger.debug("Contacting: {}", app.getCandidateName());
     }
-    
+
     @FXML
     private void handleFilter() {
         filterBar.setManaged(!filterBar.isManaged());
         filterBar.setVisible(!filterBar.isVisible());
     }
-    
+
     @FXML
     private void handleResetFilters() {
         jobSelect.setValue(null);
         statusSelect.setValue(null);
-        if (currentUser != null) loadApplications();
+        if (currentUser != null)
+            loadApplications();
     }
-    
+
     @FXML
     private void handleRefresh() {
-        if (currentUser != null) loadApplications();
+        if (currentUser != null)
+            loadApplications();
     }
-    
+
     @FXML
     private void handlePrevPage() {
         if (currentPage > 0) {
@@ -289,16 +338,18 @@ public class ApplicationInboxController implements Initializable {
             updatePagination();
         }
     }
-    
+
     @FXML
     private void handleNextPage() {
-        int maxPage = (applications.size() - 1) / itemsPerPage;
+        if (filteredApplications == null)
+            return;
+        int maxPage = (filteredApplications.size() - 1) / itemsPerPage;
         if (currentPage < maxPage) {
             currentPage++;
             updatePagination();
         }
     }
-    
+
     // Inner class for table data
     public static class ApplicationRow {
         private int applicationId;
@@ -306,8 +357,9 @@ public class ApplicationInboxController implements Initializable {
         private String jobTitle;
         private String applicationDate;
         private String status;
-        
-        public ApplicationRow(int applicationId, String candidateName, String jobTitle, String applicationDate, String status) {
+
+        public ApplicationRow(int applicationId, String candidateName, String jobTitle, String applicationDate,
+                String status) {
             this.applicationId = applicationId;
             this.candidateName = candidateName;
             this.jobTitle = jobTitle;
@@ -315,19 +367,40 @@ public class ApplicationInboxController implements Initializable {
             this.status = status;
         }
 
-        public int getApplicationId() { return applicationId; }
-        
-        public String getCandidateName() { return candidateName; }
-        public void setCandidateName(String candidateName) { this.candidateName = candidateName; }
-        
-        public String getJobTitle() { return jobTitle; }
-        public void setJobTitle(String jobTitle) { this.jobTitle = jobTitle; }
-        
-        public String getApplicationDate() { return applicationDate; }
-        public void setApplicationDate(String applicationDate) { this.applicationDate = applicationDate; }
-        
-        public String getStatus() { return status; }
-        public void setStatus(String status) { this.status = status; }
+        public int getApplicationId() {
+            return applicationId;
+        }
+
+        public String getCandidateName() {
+            return candidateName;
+        }
+
+        public void setCandidateName(String candidateName) {
+            this.candidateName = candidateName;
+        }
+
+        public String getJobTitle() {
+            return jobTitle;
+        }
+
+        public void setJobTitle(String jobTitle) {
+            this.jobTitle = jobTitle;
+        }
+
+        public String getApplicationDate() {
+            return applicationDate;
+        }
+
+        public void setApplicationDate(String applicationDate) {
+            this.applicationDate = applicationDate;
+        }
+
+        public String getStatus() {
+            return status;
+        }
+
+        public void setStatus(String status) {
+            this.status = status;
+        }
     }
 }
-

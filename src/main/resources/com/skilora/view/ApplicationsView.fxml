@@ -20,7 +20,9 @@
         
         <Region HBox.hgrow="ALWAYS"/>
         
-        <TLButton fx:id="refreshBtn" text="ðŸ”„ Actualiser" variant="GHOST" onAction="#handleRefresh"/>
+        <TLTextField fx:id="searchField" promptText="Rechercher une offre..." prefWidth="250"/>
+        
+        <TLButton fx:id="refreshBtn" text="🔄 Actualiser" variant="GHOST" onAction="#handleRefresh"/>
     </HBox>
     
     <!-- Kanban Board -->

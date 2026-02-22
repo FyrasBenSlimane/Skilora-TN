@@ -15,6 +15,7 @@
     <HBox styleClass="app-topbar" spacing="16" alignment="CENTER_LEFT">
         <Label text="💰 Finance Management" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
         <Region HBox.hgrow="ALWAYS"/>
+        <TLTextField fx:id="mainSearchField" promptText="🔍 Rechercher un employé par nom..." prefWidth="350"/>
         <TLButton fx:id="themeToggleBtn" text="🌙 Dark" variant="GHOST" onAction="#toggleTheme"/>
     </HBox>
 
@@ -40,7 +41,7 @@
                             
                             <TLComboBox fx:id="contract_userIdCombo" label="Employee" promptText="Select or type employee"
                                       GridPane.columnIndex="0" GridPane.rowIndex="0"/>
-                            <TLTextField fx:id="contract_companyIdField" label="Company ID" promptText="Company ID"
+                            <TLTextField fx:id="contract_companyIdField" label="Company Name" promptText="Enter company name"
                                        GridPane.columnIndex="1" GridPane.rowIndex="0"/>
                             <TLComboBox fx:id="contract_typeCombo" label="Contract Type"
                                       GridPane.columnIndex="2" GridPane.rowIndex="0"/>
@@ -81,7 +82,7 @@
                             <columns>
                                 <TableColumn fx:id="contract_idCol" text="ID" prefWidth="50" visible="false"/>
                                 <TableColumn fx:id="contract_userCol" text="Employee" prefWidth="150"/>
-                                <TableColumn fx:id="contract_companyCol" text="Company ID" prefWidth="100"/>
+                                <TableColumn fx:id="contract_companyCol" text="Company" prefWidth="100"/>
                                 <TableColumn fx:id="contract_typeCol" text="Type" prefWidth="120"/>
                                 <TableColumn fx:id="contract_positionCol" text="Position" prefWidth="150"/>
                                 <TableColumn fx:id="contract_salaryCol" text="Salary (TND)" prefWidth="120"/>
@@ -321,53 +322,274 @@
         </Tab>
 
         <!-- TAB 5: REPORTS & TOOLS -->
-        <Tab text="📊 Reports" closable="false">
-            <VBox spacing="16" style="-fx-padding: 16; -fx-background-color: -fx-background;">
-                
-                <!-- Employee Finance Report -->
-                <TitledPane text="📑 Employee Finance Report" animated="false" collapsible="true" expanded="true"
-                           style="-fx-text-fill: -fx-foreground;">
-                    <VBox spacing="12" style="-fx-padding: 12;">
-                        <HBox spacing="12" alignment="CENTER_LEFT">
-                            <VBox spacing="4" HBox.hgrow="ALWAYS">
-                                <Label text="Select Employee:" style="-fx-text-fill: -fx-foreground; -fx-font-size: 13px; -fx-font-weight: bold;"/>
-                                <TLComboBox fx:id="report_employeeCombo" promptText="Choose employee for report"/>
-                            </VBox>
-                            <VBox spacing="4">
-                                <Label text=" " style="-fx-font-size: 13px;"/>
-                                <TLButton fx:id="report_generateBtn" text="📄 Generate Complete PDF Report" variant="PRIMARY" onAction="#handleGenerateEmployeeReport"/>
+        <Tab text="📊 Reports &amp; Outils" closable="false">
+            <ScrollPane fitToWidth="true" style="-fx-background-color: -fx-background; -fx-background: -fx-background;">
+                <VBox spacing="20" style="-fx-padding: 24; -fx-background-color: -fx-background;">
+
+                    <!-- ═══ SECTION HEADER ═══ -->
+                    <VBox spacing="4">
+                        <Label text="📊 Rapports &amp; Outils Financiers"
+                               style="-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                        <Label text="Générez des rapports détaillés et calculez les taxes en temps réel."
+                               style="-fx-font-size: 13px; -fx-text-fill: -fx-muted-foreground;"/>
+                    </VBox>
+
+                    <!-- ═══ SECTION 1: RAPPORT EMPLOYÉ ═══ -->
+                    <VBox spacing="0" style="-fx-background-color: -fx-card; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 10; -fx-background-radius: 10;">
+
+                        <!-- Card Header -->
+                        <HBox spacing="12" alignment="CENTER_LEFT"
+                              style="-fx-padding: 16 20 14 20; -fx-border-color: transparent transparent -fx-border transparent; -fx-border-width: 1;">
+                            <Label text="📑" style="-fx-font-size: 20px;"/>
+                            <VBox spacing="2">
+                                <Label text="Rapport Employé Complet"
+                                       style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                                <Label text="PDF incluant contrats, comptes bancaires, primes et bulletins de paie."
+                                       style="-fx-font-size: 11px; -fx-text-fill: -fx-muted-foreground;"/>
                             </VBox>
                         </HBox>
-                        <Label text="This will generate a comprehensive PDF report including contracts, bank accounts, bonuses, and payslips for the selected employee." 
-                               style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 12px;" wrapText="true"/>
+
+                        <!-- Card Body -->
+                        <VBox spacing="16" style="-fx-padding: 20;">
+                            <HBox spacing="16" alignment="BOTTOM_LEFT">
+                                <VBox spacing="6" HBox.hgrow="ALWAYS">
+                                    <Label text="Sélectionner l'employé"
+                                           style="-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                                    <TLComboBox fx:id="report_employeeCombo" promptText="🔍  Choisir un employé..."/>
+                                </VBox>
+                                <TLButton fx:id="report_generateBtn"
+                                          text="📄  Générer le rapport PDF"
+                                          variant="PRIMARY"
+                                          onAction="#handleGenerateEmployeeReport"
+                                          style="-fx-font-size: 13px; -fx-font-weight: bold;"/>
+                            </HBox>
+
+                            <!-- Info box -->
+                            <HBox spacing="10" alignment="CENTER_LEFT"
+                                  style="-fx-background-color: rgba(59,130,246,0.1); -fx-padding: 10 14 10 14; -fx-border-radius: 6; -fx-background-radius: 6; -fx-border-color: rgba(59,130,246,0.3); -fx-border-width: 1;">
+                                <Label text="ℹ️" style="-fx-font-size: 15px;"/>
+                                <Label text="Le rapport PDF contiendra tous les détails financiers de l'employé sélectionné (contrats actifs, comptes bancaires, primes et historique des bulletins de paie)."
+                                       wrapText="true" HBox.hgrow="ALWAYS"
+                                       style="-fx-font-size: 11px; -fx-text-fill: -fx-muted-foreground;"/>
+                            </HBox>
+                        </VBox>
                     </VBox>
-                </TitledPane>
-                
-                <!-- Tax Calculator -->
-                 <TitledPane text="🧮 Tax Calculator" animated="false" collapsible="true" expanded="true"
-                            VBox.vgrow="ALWAYS" maxHeight="Infinity"
-                            style="-fx-text-fill: -fx-foreground;">
-                     <VBox spacing="12" style="-fx-padding: 12;" VBox.vgrow="ALWAYS">
-                        <GridPane hgap="12" vgap="12">
-                            <columnConstraints>
-                                <ColumnConstraints percentWidth="33"/>
-                                <ColumnConstraints percentWidth="33"/>
-                                <ColumnConstraints percentWidth="34"/>
-                            </columnConstraints>
-                            
-                            <TLTextField fx:id="tax_grossField" label="Gross Salary" promptText="Enter amount"
-                                       GridPane.columnIndex="0" GridPane.rowIndex="0"/>
-                            <TLComboBox fx:id="tax_currencyCombo" label="Currency"
-                                      GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-                            <TLButton fx:id="tax_calculateBtn" text="💰 Calculate" variant="PRIMARY" onAction="#handleCalculateTax"
-                                    GridPane.columnIndex="2" GridPane.rowIndex="0"/>
-                        </GridPane>
-                        
-                        <TextArea fx:id="tax_resultArea" promptText="Tax breakdown will appear here..." wrapText="true" prefRowCount="20" VBox.vgrow="ALWAYS" editable="false" 
-                                 style="-fx-control-inner-background: -fx-muted; -fx-text-fill: -fx-foreground; -fx-font-size: 14px; -fx-font-family: 'Consolas', 'Monospaced'; -fx-padding: 12px; -fx-border-color: -fx-border; -fx-border-radius: 4; -fx-background-radius: 4;"/>
+
+                    <!-- ═══ SECTION 2: CALCULATEUR DE TAXES TUNISIENNES ═══ -->
+                    <VBox spacing="0" style="-fx-background-color: -fx-card; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 10; -fx-background-radius: 10;">
+
+                        <!-- Card Header -->
+                        <HBox spacing="12" alignment="CENTER_LEFT"
+                              style="-fx-padding: 16 20 14 20; -fx-border-color: transparent transparent -fx-border transparent; -fx-border-width: 1;">
+                            <Label text="🧮" style="-fx-font-size: 20px;"/>
+                            <VBox spacing="2" HBox.hgrow="ALWAYS">
+                                <Label text="Calculateur de Taxes Tunisiennes (CNSS + IRPP)"
+                                       style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                                <Label text="Calcul automatique CNSS (9.18%) + IRPP (26%) selon la loi tunisienne."
+                                       style="-fx-font-size: 11px; -fx-text-fill: -fx-muted-foreground;"/>
+                            </VBox>
+                            <!-- Badge info taux -->
+                            <HBox spacing="6">
+                                <Label text="CNSS 9.18%"
+                                       style="-fx-background-color: rgba(234,179,8,0.15); -fx-text-fill: #ca8a04; -fx-padding: 4 8 4 8; -fx-background-radius: 20; -fx-font-size: 11px; -fx-font-weight: bold;"/>
+                                <Label text="IRPP 26%"
+                                       style="-fx-background-color: rgba(239,68,68,0.15); -fx-text-fill: #dc2626; -fx-padding: 4 8 4 8; -fx-background-radius: 20; -fx-font-size: 11px; -fx-font-weight: bold;"/>
+                            </HBox>
+                        </HBox>
+
+                        <!-- Card Body -->
+                        <VBox spacing="20" style="-fx-padding: 20;">
+
+                            <!-- Inputs row -->
+                            <HBox spacing="16" alignment="BOTTOM_LEFT">
+                                <VBox spacing="6" HBox.hgrow="ALWAYS">
+                                    <Label text="Salaire Brut"
+                                           style="-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                                    <TLTextField fx:id="tax_grossField" promptText="Ex: 2500.00"/>
+                                </VBox>
+                                <VBox spacing="6">
+                                    <Label text="Devise"
+                                           style="-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                                    <TLComboBox fx:id="tax_currencyCombo" promptText="TND"/>
+                                </VBox>
+                                <TLButton fx:id="tax_calculateBtn"
+                                          text="⚡  Calculer maintenant"
+                                          variant="PRIMARY"
+                                          onAction="#handleCalculateTax"
+                                          style="-fx-font-size: 13px; -fx-font-weight: bold;"/>
+                            </HBox>
+
+                            <!-- ═══ Résultats du calcul (cartes KPI) ═══ -->
+                            <VBox fx:id="tax_resultsBox" spacing="12" visible="false" managed="false">
+
+                                <!-- Séparateur titre résultats -->
+                                <HBox spacing="10" alignment="CENTER_LEFT">
+                                    <Label text="Résultat du calcul"
+                                           style="-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                                    <Region HBox.hgrow="ALWAYS"/>
+                                    <Label fx:id="tax_employeeLabelResult" text=""
+                                           style="-fx-font-size: 11px; -fx-text-fill: -fx-muted-foreground;"/>
+                                </HBox>
+
+                                <!-- Cartes résultats: ligne 1 -->
+                                <HBox spacing="12">
+
+                                    <!-- Salaire Brut -->
+                                    <VBox spacing="6" HBox.hgrow="ALWAYS"
+                                          style="-fx-background-color: rgba(59,130,246,0.1); -fx-border-color: rgba(59,130,246,0.4); -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 14 16 14 16;">
+                                        <HBox spacing="8" alignment="CENTER_LEFT">
+                                            <Label text="💰" style="-fx-font-size: 16px;"/>
+                                            <Label text="Salaire Brut"
+                                                   style="-fx-font-size: 11px; -fx-text-fill: #3b82f6; -fx-font-weight: bold;"/>
+                                        </HBox>
+                                        <Label fx:id="tax_grossResult" text="---"
+                                               style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #3b82f6;"/>
+                                    </VBox>
+
+                                    <!-- CNSS -->
+                                    <VBox spacing="6" HBox.hgrow="ALWAYS"
+                                          style="-fx-background-color: rgba(234,179,8,0.1); -fx-border-color: rgba(234,179,8,0.4); -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 14 16 14 16;">
+                                        <HBox spacing="8" alignment="CENTER_LEFT">
+                                            <Label text="🏥" style="-fx-font-size: 16px;"/>
+                                            <Label text="CNSS (9.18%)"
+                                                   style="-fx-font-size: 11px; -fx-text-fill: #ca8a04; -fx-font-weight: bold;"/>
+                                        </HBox>
+                                        <Label fx:id="tax_cnssResult" text="---"
+                                               style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #ca8a04;"/>
+                                    </VBox>
+
+                                    <!-- IRPP -->
+                                    <VBox spacing="6" HBox.hgrow="ALWAYS"
+                                          style="-fx-background-color: rgba(239,68,68,0.1); -fx-border-color: rgba(239,68,68,0.4); -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 14 16 14 16;">
+                                        <HBox spacing="8" alignment="CENTER_LEFT">
+                                            <Label text="🏛️" style="-fx-font-size: 16px;"/>
+                                            <Label text="IRPP (26%)"
+                                                   style="-fx-font-size: 11px; -fx-text-fill: #dc2626; -fx-font-weight: bold;"/>
+                                        </HBox>
+                                        <Label fx:id="tax_irppResult" text="---"
+                                               style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #dc2626;"/>
+                                    </VBox>
+                                </HBox>
+
+                                <!-- Cartes résultats: ligne 2 -->
+                                <HBox spacing="12">
+
+                                    <!-- Total déductions -->
+                                    <VBox spacing="6" HBox.hgrow="ALWAYS"
+                                          style="-fx-background-color: rgba(168,85,247,0.1); -fx-border-color: rgba(168,85,247,0.4); -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 14 16 14 16;">
+                                        <HBox spacing="8" alignment="CENTER_LEFT">
+                                            <Label text="➖" style="-fx-font-size: 16px;"/>
+                                            <Label text="Total Déductions"
+                                                   style="-fx-font-size: 11px; -fx-text-fill: #a855f7; -fx-font-weight: bold;"/>
+                                        </HBox>
+                                        <Label fx:id="tax_totalDeductResult" text="---"
+                                               style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #a855f7;"/>
+                                    </VBox>
+
+                                    <!-- Salaire Net (carte mise en avant) -->
+                                    <VBox spacing="6" HBox.hgrow="ALWAYS"
+                                          style="-fx-background-color: rgba(34,197,94,0.15); -fx-border-color: rgba(34,197,94,0.5); -fx-border-width: 2; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 14 16 14 16;">
+                                        <HBox spacing="8" alignment="CENTER_LEFT">
+                                            <Label text="✅" style="-fx-font-size: 16px;"/>
+                                            <Label text="SALAIRE NET"
+                                                   style="-fx-font-size: 12px; -fx-text-fill: #16a34a; -fx-font-weight: bold;"/>
+                                            <Label text="⭐ À PERCEVOIR"
+                                                   style="-fx-font-size: 10px; -fx-text-fill: #16a34a; -fx-background-color: rgba(34,197,94,0.2); -fx-padding: 2 6 2 6; -fx-background-radius: 10;"/>
+                                        </HBox>
+                                        <Label fx:id="tax_netResult" text="---"
+                                               style="-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: #16a34a;"/>
+                                    </VBox>
+
+                                    <!-- Taux effectif -->
+                                    <VBox spacing="6" HBox.hgrow="ALWAYS"
+                                          style="-fx-background-color: rgba(100,116,139,0.1); -fx-border-color: rgba(100,116,139,0.3); -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 14 16 14 16;">
+                                        <HBox spacing="8" alignment="CENTER_LEFT">
+                                            <Label text="📈" style="-fx-font-size: 16px;"/>
+                                            <Label text="Taux d'imposition effectif"
+                                                   style="-fx-font-size: 11px; -fx-text-fill: -fx-muted-foreground; -fx-font-weight: bold;"/>
+                                        </HBox>
+                                        <Label fx:id="tax_rateResult" text="---"
+                                               style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                                    </VBox>
+                                </HBox>
+
+                                <!-- Barre de progression déductions vs net -->
+                                <VBox spacing="6"
+                                      style="-fx-background-color: -fx-muted; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 14 16 14 16;">
+                                    <HBox spacing="8" alignment="CENTER_LEFT">
+                                        <Label text="📋" style="-fx-font-size: 14px;"/>
+                                        <Label text="Récapitulatif détaillé"
+                                               style="-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                                    </HBox>
+                                    <Label fx:id="tax_summaryLabel" text=""
+                                           wrapText="true"
+                                           style="-fx-font-size: 12px; -fx-text-fill: -fx-muted-foreground; -fx-font-family: 'Consolas', 'Monospaced';"/>
+                                </VBox>
+                            </VBox>
+
+                            <!-- Hint quand pas encore calculé -->
+                            <VBox fx:id="tax_hintBox" spacing="8" alignment="CENTER"
+                                  style="-fx-background-color: rgba(100,116,139,0.05); -fx-border-color: rgba(100,116,139,0.2); -fx-border-width: 1; -fx-border-style: dashed; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 32;">
+                                <Label text="🧮"
+                                       style="-fx-font-size: 36px; -fx-text-fill: -fx-muted-foreground;"/>
+                                <Label text="Entrez un salaire brut et cliquez sur Calculer"
+                                       style="-fx-font-size: 14px; -fx-text-fill: -fx-muted-foreground;"/>
+                                <Label text="Le détail complet CNSS + IRPP + Salaire Net s'affichera ici."
+                                       style="-fx-font-size: 12px; -fx-text-fill: -fx-muted-foreground;"/>
+                            </VBox>
+
+                            <!-- Champ caché pour compatibilité avec le controller existant -->
+                            <TextArea fx:id="tax_resultArea" visible="false" managed="false" editable="false"/>
+                        </VBox>
                     </VBox>
-                </TitledPane>
-            </VBox>
+
+                    <!-- ═══ SECTION 3: INFO TAUX LÉGAUX TUNISIENS ═══ -->
+                    <VBox spacing="0" style="-fx-background-color: -fx-card; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 10; -fx-background-radius: 10;">
+                        <HBox spacing="12" alignment="CENTER_LEFT"
+                              style="-fx-padding: 14 20 12 20; -fx-border-color: transparent transparent -fx-border transparent; -fx-border-width: 1;">
+                            <Label text="⚖️" style="-fx-font-size: 18px;"/>
+                            <Label text="Barème Légal Tunisien en Vigueur"
+                                   style="-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                        </HBox>
+                        <HBox spacing="12" style="-fx-padding: 16;">
+
+                            <!-- CNSS -->
+                            <VBox spacing="8" HBox.hgrow="ALWAYS"
+                                  style="-fx-background-color: rgba(234,179,8,0.08); -fx-border-color: rgba(234,179,8,0.3); -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 14;">
+                                <Label text="🏥  CNSS — Caisse Nationale de Sécurité Sociale"
+                                       style="-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #ca8a04;"/>
+                                <Label text="9.18% du salaire brut"
+                                       style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                                <Label text="Couverture: retraite, maladie, accidents de travail"
+                                       style="-fx-font-size: 11px; -fx-text-fill: -fx-muted-foreground;" wrapText="true"/>
+                            </VBox>
+
+                            <!-- IRPP -->
+                            <VBox spacing="8" HBox.hgrow="ALWAYS"
+                                  style="-fx-background-color: rgba(239,68,68,0.08); -fx-border-color: rgba(239,68,68,0.3); -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 14;">
+                                <Label text="🏛️  IRPP — Impôt sur le Revenu des Personnes Physiques"
+                                       style="-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #dc2626;"/>
+                                <Label text="26% sur (Brut − CNSS)"
+                                       style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                                <Label text="Taux simplifié. Le taux réel dépend du barème progressif."
+                                       style="-fx-font-size: 11px; -fx-text-fill: -fx-muted-foreground;" wrapText="true"/>
+                            </VBox>
+
+                            <!-- Total -->
+                            <VBox spacing="8" HBox.hgrow="ALWAYS"
+                                  style="-fx-background-color: rgba(168,85,247,0.08); -fx-border-color: rgba(168,85,247,0.3); -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 14;">
+                                <Label text="📊  Charge totale indicative"
+                                       style="-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #a855f7;"/>
+                                <Label text="≈ 33% du salaire brut"
+                                       style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                                <Label text="CNSS + IRPP combinés (estimation moyen)"
+                                       style="-fx-font-size: 11px; -fx-text-fill: -fx-muted-foreground;" wrapText="true"/>
+                            </VBox>
+                        </HBox>
+                    </VBox>
+
+                </VBox>
+            </ScrollPane>
         </Tab>
         
     </TabPane>
