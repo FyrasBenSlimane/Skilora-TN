@@ -309,65 +309,86 @@ public class FinanceController implements Initializable {
     private void handleAddContract() {
         clearFieldError(contract_errorLabel);
         if (contract_userIdCombo.getValue() == null) {
-            showFieldError(contract_errorLabel, "Please select an employee!");
-            return;
-        }
-        if (contract_companyIdField.getText().isEmpty()) {
-            showFieldError(contract_errorLabel, "Company Name is required!");
+            showFieldError(contract_errorLabel, "Sélectionnez un employé!");
             return;
         }
         if (contract_salaryField.getText().isEmpty() || !isValidDouble(contract_salaryField.getText())) {
-            showFieldError(contract_errorLabel, "Invalid salary!");
+            showFieldError(contract_errorLabel, "Salaire invalide!");
             return;
         }
         if (contract_startDatePicker.getValue() == null) {
-            showFieldError(contract_errorLabel, "Start date required!");
+            showFieldError(contract_errorLabel, "Date de début requise!");
+            return;
+        }
+        if (contract_typeCombo.getValue() == null || contract_typeCombo.getValue().isBlank()) {
+            showFieldError(contract_errorLabel, "Type de contrat requis!");
             return;
         }
 
         String emp = contract_userIdCombo.getValue();
-        ContractRow contract = new ContractRow(contractData.size() + 1, extractUserId(emp), extractUserName(emp),
-                contract_companyIdField.getText(), contract_typeCombo.getValue(),
-                contract_positionField.getText(), Double.parseDouble(contract_salaryField.getText()),
+        String companyName = contract_companyIdField.getText().isBlank() ? "" : contract_companyIdField.getText();
+        String statusVal = (contract_statusCombo.getValue() == null || contract_statusCombo.getValue().isBlank())
+                ? "ACTIVE"
+                : contract_statusCombo.getValue();
+
+        ContractRow contract = new ContractRow(
+                0,
+                extractUserId(emp),
+                extractUserName(emp),
+                companyName,
+                contract_typeCombo.getValue(),
+                contract_positionField.getText(),
+                Double.parseDouble(contract_salaryField.getText()),
                 contract_startDatePicker.getValue().toString(),
                 contract_endDatePicker.getValue() != null ? contract_endDatePicker.getValue().toString() : "",
-                contract_statusCombo.getValue());
+                statusVal);
         try {
             FinanceService.getInstance().addContract(contract);
             loadSampleData();
+            handleClearContractForm();
+            updateContractCount();
+            showSuccess("Contrat ajouté!");
         } catch (Exception e) {
-            showFieldError(contract_errorLabel, e.getMessage());
+            showFieldError(contract_errorLabel, "Erreur: " + e.getMessage());
+            e.printStackTrace();
         }
-        updateContractCount();
-        handleClearContractForm();
-        showSuccess("Contract added!");
     }
 
     @FXML
     private void handleUpdateContract() {
-        if (selectedContract != null) {
-            try {
-                String emp = contract_userIdCombo.getValue();
-                if (emp == null)
-                    throw new Exception("Please select an employee!");
+        if (selectedContract == null) {
+            showFieldError(contract_errorLabel, "Sélectionnez un contrat dans la liste d'abord!");
+            return;
+        }
+        try {
+            String emp = contract_userIdCombo.getValue();
+            if (emp == null)
+                throw new Exception("Sélectionnez un employé!");
+            if (contract_startDatePicker.getValue() == null)
+                throw new Exception("Date de début requise!");
+            if (contract_salaryField.getText().isEmpty() || !isValidDouble(contract_salaryField.getText()))
+                throw new Exception("Salaire invalide!");
 
-                selectedContract.setUserId(extractUserId(emp));
-                selectedContract.setEmployeeName(extractUserName(emp));
-                selectedContract.setCompanyName(contract_companyIdField.getText());
-                selectedContract.setType(contract_typeCombo.getValue());
-                selectedContract.setPosition(contract_positionField.getText());
-                selectedContract.setSalary(Double.parseDouble(contract_salaryField.getText()));
-                selectedContract.setStartDate(contract_startDatePicker.getValue().toString());
-                selectedContract.setEndDate(
-                        contract_endDatePicker.getValue() != null ? contract_endDatePicker.getValue().toString() : "");
-                selectedContract.setStatus(contract_statusCombo.getValue());
+            selectedContract.setUserId(extractUserId(emp));
+            selectedContract.setEmployeeName(extractUserName(emp));
+            selectedContract.setCompanyName(contract_companyIdField.getText());
+            selectedContract.setType(
+                    contract_typeCombo.getValue() != null ? contract_typeCombo.getValue() : selectedContract.getType());
+            selectedContract.setPosition(contract_positionField.getText());
+            selectedContract.setSalary(Double.parseDouble(contract_salaryField.getText()));
+            selectedContract.setStartDate(contract_startDatePicker.getValue().toString());
+            selectedContract.setEndDate(
+                    contract_endDatePicker.getValue() != null ? contract_endDatePicker.getValue().toString() : "");
+            selectedContract.setStatus(contract_statusCombo.getValue() != null ? contract_statusCombo.getValue()
+                    : selectedContract.getStatus());
 
-                FinanceService.getInstance().updateContract(selectedContract);
-                loadSampleData();
-                showSuccess("Contract updated!");
-            } catch (Exception e) {
-                showFieldError(contract_errorLabel, e.getMessage());
-            }
+            FinanceService.getInstance().updateContract(selectedContract);
+            loadSampleData();
+            handleClearContractForm();
+            showSuccess("Contrat mis à jour!");
+        } catch (Exception e) {
+            showFieldError(contract_errorLabel, "Erreur: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -403,7 +424,15 @@ public class FinanceController implements Initializable {
 
     @FXML
     private void handleRefreshContracts() {
-        contractTable.refresh();
+        // Rechargement réel depuis la base de données
+        try {
+            contractData.setAll(FinanceService.getInstance().getAllContracts());
+            updateContractCount();
+        } catch (Exception e) {
+            System.err.println("[Finance] Refresh contrats: " + e.getMessage());
+            e.printStackTrace();
+            showFieldError(contract_errorLabel, "Erreur refresh: " + e.getMessage());
+        }
     }
 
     private void onContractSelected() {
@@ -411,14 +440,32 @@ public class FinanceController implements Initializable {
         if (selectedContract != null) {
             String emp = getEmployeeStringById(selectedContract.getUserId());
             contract_userIdCombo.setValue(emp);
-            contract_companyIdField.setText(selectedContract.getCompanyName());
-            contract_positionField.setText(selectedContract.getPosition());
+            contract_companyIdField
+                    .setText(selectedContract.getCompanyName() != null ? selectedContract.getCompanyName() : "");
+            contract_positionField
+                    .setText(selectedContract.getPosition() != null ? selectedContract.getPosition() : "");
             contract_salaryField.setText(String.valueOf(selectedContract.getSalary()));
-            if (!selectedContract.getStartDate().isEmpty()) {
-                contract_startDatePicker.setValue(LocalDate.parse(selectedContract.getStartDate()));
+            // Remplir Type et Status (corrige bug Update)
+            if (selectedContract.getType() != null)
+                contract_typeCombo.setValue(selectedContract.getType());
+            if (selectedContract.getStatus() != null)
+                contract_statusCombo.setValue(selectedContract.getStatus());
+            // Dates
+            if (selectedContract.getStartDate() != null && !selectedContract.getStartDate().isEmpty()) {
+                try {
+                    contract_startDatePicker.setValue(LocalDate.parse(selectedContract.getStartDate()));
+                } catch (Exception ignored) {
+                }
+            } else {
+                contract_startDatePicker.setValue(null);
             }
-            if (!selectedContract.getEndDate().isEmpty()) {
-                contract_endDatePicker.setValue(LocalDate.parse(selectedContract.getEndDate()));
+            if (selectedContract.getEndDate() != null && !selectedContract.getEndDate().isEmpty()) {
+                try {
+                    contract_endDatePicker.setValue(LocalDate.parse(selectedContract.getEndDate()));
+                } catch (Exception ignored) {
+                }
+            } else {
+                contract_endDatePicker.setValue(null);
             }
         }
     }
@@ -1099,8 +1146,10 @@ public class FinanceController implements Initializable {
 
     // UTILITY METHODS
     private void loadSampleData() {
+        FinanceService service = FinanceService.getInstance();
+
+        // === USERS (pour les combos) ===
         try {
-            // USERS
             UserService userService = UserService.getInstance();
             List<User> users = userService.getAllUsers();
             ObservableList<String> userList = FXCollections.observableArrayList();
@@ -1117,22 +1166,49 @@ public class FinanceController implements Initializable {
                 payslip_userIdCombo.setItems(userList);
             if (report_employeeCombo != null)
                 report_employeeCombo.setItems(userList);
-
-            // FINANCE DATA FROM DB
-            FinanceService service = FinanceService.getInstance();
-            contractData.setAll(service.getAllContracts());
-            bankData.setAll(service.getAllBankAccounts());
-            bonusData.setAll(service.getAllBonuses());
-            payslipData.setAll(service.getAllPayslips());
-
-            updateContractCount();
-            updateBankCount();
-            updateBonusCount();
-            updatePayslipCount();
-
         } catch (Exception e) {
-            System.err.println("Error loading finance data: " + e.getMessage());
+            System.err.println("[Finance] Erreur chargement utilisateurs: " + e.getMessage());
             e.printStackTrace();
+        }
+
+        // === CONTRATS ===
+        try {
+            contractData.setAll(service.getAllContracts());
+            updateContractCount();
+        } catch (Exception e) {
+            System.err.println("[Finance] Erreur chargement contrats: " + e.getMessage());
+            e.printStackTrace();
+            showFieldError(contract_errorLabel, "Erreur chargement: " + e.getMessage());
+        }
+
+        // === COMPTES BANCAIRES ===
+        try {
+            bankData.setAll(service.getAllBankAccounts());
+            updateBankCount();
+        } catch (Exception e) {
+            System.err.println("[Finance] Erreur chargement comptes bancaires: " + e.getMessage());
+            e.printStackTrace();
+            showFieldError(bank_errorLabel, "Erreur chargement: " + e.getMessage());
+        }
+
+        // === PRIMES / BONUS ===
+        try {
+            bonusData.setAll(service.getAllBonuses());
+            updateBonusCount();
+        } catch (Exception e) {
+            System.err.println("[Finance] Erreur chargement primes: " + e.getMessage());
+            e.printStackTrace();
+            showFieldError(bonus_errorLabel, "Erreur chargement: " + e.getMessage());
+        }
+
+        // === BULLETINS DE PAIE ===
+        try {
+            payslipData.setAll(service.getAllPayslips());
+            updatePayslipCount();
+        } catch (Exception e) {
+            System.err.println("[Finance] Erreur chargement bulletins: " + e.getMessage());
+            e.printStackTrace();
+            showFieldError(payslip_errorLabel, "Erreur chargement: " + e.getMessage());
         }
     }
 

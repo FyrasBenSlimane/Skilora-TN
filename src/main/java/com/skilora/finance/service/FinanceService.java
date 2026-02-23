@@ -47,108 +47,88 @@ public class FinanceService {
     }
 
     // --- CONTRACTS ---
+    // NOTE: La table contracts réelle a une colonne 'company_Name' (texte),
+    // pas un FK company_id. On lit/écrit directement cette colonne.
     public List<ContractRow> getAllContracts() throws SQLException {
         List<ContractRow> list = new ArrayList<>();
-        String sql = "SELECT c.*, u.full_name, co.name as company_name FROM contracts c JOIN users u ON c.user_id = u.id LEFT JOIN companies co ON c.company_id = co.id";
+        String sql = "SELECT c.id, c.user_id, c.type, c.position, c.salary, c.start_date, c.end_date, c.status, "
+                + "COALESCE(u.full_name, 'Inconnu') AS full_name, "
+                + "COALESCE(c.company_Name, '') AS company_name "
+                + "FROM contracts c "
+                + "LEFT JOIN users u ON c.user_id = u.id "
+                + "ORDER BY c.id DESC";
         try (Connection conn = getConnection();
                 PreparedStatement stmt = conn.prepareStatement(sql)) {
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                list.add(new ContractRow(
-                        rs.getInt("id"),
-                        rs.getInt("user_id"),
-                        rs.getString("full_name"),
-                        rs.getString("company_name") != null ? rs.getString("company_name") : "N/A",
-                        rs.getString("type"),
-                        rs.getString("position"),
-                        rs.getDouble("salary"),
-                        rs.getDate("start_date").toString(),
-                        rs.getDate("end_date") != null ? rs.getDate("end_date").toString() : "",
-                        rs.getString("status")));
+                list.add(buildContractRow(rs));
             }
         }
         return list;
     }
 
+    /** Construit un ContractRow depuis un ResultSet. */
+    private ContractRow buildContractRow(ResultSet rs) throws SQLException {
+        String startDateStr = "";
+        java.sql.Date sd = rs.getDate("start_date");
+        if (sd != null)
+            startDateStr = sd.toString();
+
+        String endDateStr = "";
+        java.sql.Date ed = rs.getDate("end_date");
+        if (ed != null)
+            endDateStr = ed.toString();
+
+        String companyName = rs.getString("company_name");
+        if (companyName == null)
+            companyName = "";
+
+        return new ContractRow(
+                rs.getInt("id"),
+                rs.getInt("user_id"),
+                rs.getString("full_name"),
+                companyName,
+                rs.getString("type"),
+                rs.getString("position"),
+                rs.getDouble("salary"),
+                startDateStr,
+                endDateStr,
+                rs.getString("status"));
+    }
+
     public void addContract(ContractRow c) throws SQLException {
-        // First, we need to find the company ID based on the name, because contracts
-        // table likely stores company_id
-        // But wait, the user said "il faut faire une jointure".
-        // If the input is company name, we need to resolve it to an ID or maybe insert
-        // it?
-        // Let's assume for now we look up the ID from the name.
-
-        int companyId = getOrCreateCompanyIdByName(c.getCompanyName());
-        if (companyId == -1) {
-            throw new SQLException("Failed to resolve or create company: " + c.getCompanyName());
-        }
-
-        String sql = "INSERT INTO contracts (user_id, company_id, type, position, salary, start_date, end_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        // INSERT direct avec company_Name (colonne texte dans la table réelle)
+        String sql = "INSERT INTO contracts (user_id, company_Name, type, position, salary, start_date, end_date, status) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = getConnection();
                 PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, c.getUserId());
-            stmt.setInt(2, companyId);
+            stmt.setString(2, c.getCompanyName() != null ? c.getCompanyName() : "");
             stmt.setString(3, c.getType());
-            stmt.setString(4, c.getPosition());
+            stmt.setString(4, c.getPosition() != null ? c.getPosition() : "");
             stmt.setDouble(5, c.getSalary());
             stmt.setDate(6, java.sql.Date.valueOf(c.getStartDate()));
             stmt.setDate(7, (c.getEndDate() == null || c.getEndDate().isEmpty()) ? null
                     : java.sql.Date.valueOf(c.getEndDate()));
-            stmt.setString(8, c.getStatus());
+            stmt.setString(8, c.getStatus() != null ? c.getStatus() : "ACTIVE");
             stmt.executeUpdate();
         }
-    }
-
-    // Helper to resolve company name to ID, creating it if doesn't exist
-    private int getOrCreateCompanyIdByName(String name) throws SQLException {
-        if (name == null || name.isBlank())
-            return -1;
-
-        int existingId = getCompanyIdByName(name);
-        if (existingId != -1)
-            return existingId;
-
-        String sql = "INSERT INTO companies (name) VALUES (?)";
-        try (Connection conn = getConnection();
-                PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            stmt.setString(1, name);
-            stmt.executeUpdate();
-            ResultSet rs = stmt.getGeneratedKeys();
-            if (rs.next()) {
-                return rs.getInt(1);
-            }
-        }
-        return -1;
-    }
-
-    // Helper to resolve company name to ID
-    private int getCompanyIdByName(String name) throws SQLException {
-        String sql = "SELECT id FROM companies WHERE name = ?";
-        try (Connection conn = getConnection();
-                PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, name);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                return rs.getInt(1);
-            }
-        }
-        return -1;
     }
 
     public void updateContract(ContractRow c) throws SQLException {
-        int companyId = getOrCreateCompanyIdByName(c.getCompanyName());
-        String sql = "UPDATE contracts SET user_id = ?, company_id = ?, type = ?, position = ?, salary = ?, start_date = ?, end_date = ?, status = ? WHERE id = ?";
+        // UPDATE avec company_Name (colonne texte dans la table réelle)
+        String sql = "UPDATE contracts SET user_id = ?, company_Name = ?, type = ?, position = ?, salary = ?, start_date = ?, end_date = ?, status = ? WHERE id = ?";
         try (Connection conn = getConnection();
                 PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, c.getUserId());
-            stmt.setInt(2, companyId);
+            stmt.setString(2, c.getCompanyName() != null ? c.getCompanyName() : "");
             stmt.setString(3, c.getType());
-            stmt.setString(4, c.getPosition());
+            stmt.setString(4, c.getPosition() != null ? c.getPosition() : "");
             stmt.setDouble(5, c.getSalary());
             stmt.setDate(6, java.sql.Date.valueOf(c.getStartDate()));
             stmt.setDate(7, (c.getEndDate() == null || c.getEndDate().isEmpty()) ? null
                     : java.sql.Date.valueOf(c.getEndDate()));
-            stmt.setString(8, c.getStatus());
+            stmt.setString(8, c.getStatus() != null ? c.getStatus() : "ACTIVE");
             stmt.setInt(9, c.getId());
             stmt.executeUpdate();
         }
@@ -166,7 +146,12 @@ public class FinanceService {
     // --- BANK ACCOUNTS ---
     public List<BankAccountRow> getAllBankAccounts() throws SQLException {
         List<BankAccountRow> list = new ArrayList<>();
-        String sql = "SELECT b.*, u.full_name FROM bank_accounts b JOIN users u ON b.user_id = u.id";
+        // LEFT JOIN pour éviter un crash silencieux si user_id est orphelin
+        String sql = "SELECT b.id, b.user_id, b.bank_name, b.iban, b.swift, b.currency, b.is_primary, b.is_verified, "
+                + "COALESCE(u.full_name, 'Inconnu') AS full_name "
+                + "FROM bank_accounts b "
+                + "LEFT JOIN users u ON b.user_id = u.id "
+                + "ORDER BY b.id ASC";
         try (Connection conn = getConnection();
                 PreparedStatement stmt = conn.prepareStatement(sql)) {
             ResultSet rs = stmt.executeQuery();
@@ -229,18 +214,25 @@ public class FinanceService {
     // --- BONUSES ---
     public List<BonusRow> getAllBonuses() throws SQLException {
         List<BonusRow> list = new ArrayList<>();
-        String sql = "SELECT b.*, u.full_name FROM bonuses b JOIN users u ON b.user_id = u.id";
+        // LEFT JOIN pour tolérer les user orphelins + COALESCE pour date NULL
+        String sql = "SELECT b.id, b.user_id, b.amount, b.reason, b.date_awarded, "
+                + "COALESCE(u.full_name, 'Inconnu') AS full_name "
+                + "FROM bonuses b "
+                + "LEFT JOIN users u ON b.user_id = u.id "
+                + "ORDER BY b.date_awarded DESC";
         try (Connection conn = getConnection();
                 PreparedStatement stmt = conn.prepareStatement(sql)) {
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
+                java.sql.Date awarded = rs.getDate("date_awarded");
+                String dateStr = (awarded != null) ? awarded.toString() : "";
                 list.add(new BonusRow(
                         rs.getInt("id"),
                         rs.getInt("user_id"),
                         rs.getString("full_name"),
                         rs.getDouble("amount"),
                         rs.getString("reason"),
-                        rs.getDate("date_awarded").toString()));
+                        dateStr));
             }
         }
         return list;
@@ -283,7 +275,13 @@ public class FinanceService {
     // --- PAYSLIPS ---
     public List<PayslipRow> getAllPayslips() throws SQLException {
         List<PayslipRow> list = new ArrayList<>();
-        String sql = "SELECT p.*, u.full_name FROM payslips p JOIN users u ON p.user_id = u.id";
+        // LEFT JOIN pour tolérer les user orphelins
+        String sql = "SELECT p.id, p.user_id, p.month, p.year, p.base_salary, p.overtime_hours, "
+                + "p.overtime_total, p.bonuses, p.other_deductions, p.currency, p.status, "
+                + "COALESCE(u.full_name, 'Inconnu') AS full_name "
+                + "FROM payslips p "
+                + "LEFT JOIN users u ON p.user_id = u.id "
+                + "ORDER BY p.year DESC, p.month DESC";
         try (Connection conn = getConnection();
                 PreparedStatement stmt = conn.prepareStatement(sql)) {
             ResultSet rs = stmt.executeQuery();
@@ -382,39 +380,20 @@ public class FinanceService {
      */
     public List<ContractRow> getContractsByUserId(int userId) throws SQLException {
         List<ContractRow> list = new ArrayList<>();
+        // Utilise company_Name (colonne texte) directement — pas de JOIN companies
         String sql = "SELECT c.id, c.user_id, c.type, c.position, c.salary, c.start_date, c.end_date, c.status, "
-                + "u.full_name, COALESCE(co.name, 'N/A') AS resolved_company "
+                + "COALESCE(u.full_name, 'Inconnu') AS full_name, "
+                + "COALESCE(c.company_Name, '') AS company_name "
                 + "FROM contracts c "
-                + "JOIN users u ON c.user_id = u.id "
-                + "LEFT JOIN companies co ON c.company_id = co.id "
+                + "LEFT JOIN users u ON c.user_id = u.id "
                 + "WHERE c.user_id = ? "
-                + "ORDER BY c.start_date DESC";
+                + "ORDER BY c.id DESC";
         try (Connection conn = getConnection();
                 PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, userId);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                String startDateStr = "";
-                java.sql.Date startDate = rs.getDate("start_date");
-                if (startDate != null)
-                    startDateStr = startDate.toString();
-
-                String endDateStr = "";
-                java.sql.Date endDate = rs.getDate("end_date");
-                if (endDate != null)
-                    endDateStr = endDate.toString();
-
-                list.add(new ContractRow(
-                        rs.getInt("id"),
-                        rs.getInt("user_id"),
-                        rs.getString("full_name"),
-                        rs.getString("resolved_company"),
-                        rs.getString("type"),
-                        rs.getString("position"),
-                        rs.getDouble("salary"),
-                        startDateStr,
-                        endDateStr,
-                        rs.getString("status")));
+                list.add(buildContractRow(rs));
             }
         }
         return list;
