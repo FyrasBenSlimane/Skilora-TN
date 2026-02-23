@@ -19,6 +19,9 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.ResourceBundle;
 import java.util.stream.Collectors;
+import javafx.animation.FadeTransition;
+import javafx.animation.ScaleTransition;
+import javafx.util.Duration;
 
 public class UserDashboardController implements Initializable {
 
@@ -60,12 +63,32 @@ public class UserDashboardController implements Initializable {
         ticketContainer.getChildren().clear();
         if (tickets == null)
             return;
+        double delay = 0;
         for (Ticket ticket : tickets) {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/tn/esprit/skylora/gui/TicketCard.fxml"));
                 Parent card = loader.load();
                 TicketCardController cardController = loader.getController();
                 cardController.setData(ticket, this);
+
+                // --- Animation ---
+                card.setOpacity(0);
+                card.setScaleX(0.9);
+                card.setScaleY(0.9);
+
+                FadeTransition ft = new FadeTransition(Duration.millis(500), card);
+                ft.setToValue(1.0);
+                ft.setDelay(Duration.millis(delay));
+
+                ScaleTransition st = new ScaleTransition(Duration.millis(500), card);
+                st.setToX(1.0);
+                st.setToY(1.0);
+                st.setDelay(Duration.millis(delay));
+
+                ft.play();
+                st.play();
+                delay += 50; // Staggered animation
+
                 ticketContainer.getChildren().add(card);
             } catch (IOException e) {
                 e.printStackTrace();
@@ -105,4 +128,5 @@ public class UserDashboardController implements Initializable {
             e.printStackTrace();
         }
     }
+
 }

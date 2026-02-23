@@ -1,83 +1,374 @@
-/* Fichier: style.css */
+/* Fichier: style.css - Premium Dark Theme for Skylora */
 
-/* Style général de la VBox */
-.vbox {
-    -fx-padding: 20;
-    -fx-background-color: #f5f5f5;
-    -fx-alignment: center;
+.root {
+    /* Safe Token Names to avoid conflicts with JavaFX internal lookups */
+    -fx-base-primary: #3B82F6;
+    -fx-base-secondary: #1F2937;
+    -fx-base-bg: #09090B;
+    -fx-base-surface: #18181B;
+    -fx-base-border: #27272A;
+    -fx-base-text: #FAFAFA;
+    -fx-base-text-muted: #A1A1AA;
+
+    -fx-background-color: -fx-base-bg;
+    -fx-font-family: "Inter", "Segoe UI", sans-serif;
+    -fx-font-size: 14px;
 }
 
-/* Style des HBox pour espacer les éléments */
+/* Style général de la VBox/HBox */
+.vbox,
 .hbox {
-    -fx-spacing: 10;
+    -fx-padding: 20;
+    -fx-spacing: 15;
 }
 
-/* Style des TextField */
-.text-field {
-    -fx-background-radius: 5;
-    -fx-border-radius: 5;
-    -fx-border-color: #cccccc;
-    -fx-border-width: 1px;
-    -fx-padding: 5 10 5 10;
-    -fx-font-size: 14px;
+.dashboard-container {
+    -fx-padding: 30;
+    -fx-spacing: 25;
+    -fx-background-color: transparent;
 }
 
-/* Style du TextArea */
+/* Style des TextField & TextArea */
+.text-field,
 .text-area {
-    -fx-background-radius: 5;
-    -fx-border-radius: 5;
-    -fx-border-color: #cccccc;
+    -fx-background-color: -fx-base-surface;
+    -fx-text-fill: -fx-base-text;
+    -fx-prompt-text-fill: -fx-base-text-muted;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-border-color: -fx-base-border;
     -fx-border-width: 1px;
-    -fx-padding: 5 10 5 10;
-    -fx-font-size: 14px;
+    -fx-padding: 8 12;
+}
+
+/* CRITICAL: Target the inner text area region so typed text is visible */
+.text-area .content {
+    -fx-background-color: -fx-base-surface;
+    -fx-text-fill: -fx-base-text;
+}
+
+.text-area .scroll-pane {
+    -fx-background-color: -fx-base-surface;
+}
+
+.text-area .scroll-pane .viewport {
+    -fx-background-color: -fx-base-surface;
+}
+
+.text-field:focused,
+.text-area:focused {
+    -fx-border-color: -fx-base-primary;
+    -fx-effect: dropshadow(gaussian, rgba(59, 130, 246, 0.2), 5, 0, 0, 0);
 }
 
 /* Style des ComboBox */
 .combo-box {
-    -fx-background-radius: 5;
-    -fx-border-radius: 5;
-    -fx-border-color: #cccccc;
+    -fx-background-color: -fx-base-surface;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-border-color: -fx-base-border;
     -fx-border-width: 1px;
-    -fx-padding: 5 10 5 10;
-    -fx-font-size: 14px;
+    -fx-padding: 2 5;
+}
+
+.combo-box .cell {
+    -fx-text-fill: -fx-base-text;
+    -fx-background-color: transparent;
+}
+
+.combo-box .list-view {
+    -fx-background-color: -fx-base-surface;
+    -fx-border-color: -fx-base-border;
+    -fx-background-radius: 8;
 }
 
 /* Style des Buttons */
 .button {
-    -fx-background-color: #4CAF50;
+    -fx-background-color: -fx-base-primary;
     -fx-text-fill: white;
-    -fx-background-radius: 5;
-    -fx-font-size: 14px;
-    -fx-padding: 8 15 8 15;
+    -fx-background-radius: 8;
+    -fx-font-weight: bold;
+    -fx-padding: 8 20;
     -fx-cursor: hand;
     -fx-border-color: transparent;
 }
 
 .button:hover {
-    -fx-background-color: #45a049;
+    -fx-background-color: derive(#3B82F6, 20%);
+    -fx-translate-y: -1;
 }
 
-/* Style du TableView */
-.table-view {
-    -fx-border-color: #cccccc;
-    -fx-border-width: 1px;
-    -fx-background-color: white;
-    -fx-font-size: 13px;
-    -fx-table-cell-border-color: #e0e0e0;
+.btn-secondary {
+    -fx-background-color: -fx-base-secondary;
+    -fx-text-fill: -fx-base-text;
 }
 
-.table-column-header {
-    -fx-background-color: #4CAF50;
-    -fx-text-fill: white;
+.btn-primary {
+    -fx-background-color: -fx-base-primary;
+}
+
+/* Labels */
+.section-title {
+    -fx-font-size: 24px;
     -fx-font-weight: bold;
-    -fx-alignment: center;
+    -fx-text-fill: -fx-base-text;
+}
+
+.label {
+    -fx-text-fill: -fx-base-text;
+}
+
+/* Navbar */
+.navbar {
+    -fx-background-color: -fx-base-surface;
+    -fx-padding: 15 30;
+    -fx-spacing: 25;
+    -fx-border-color: transparent transparent -fx-base-border transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-alignment: center-left;
+}
+
+.nav-link {
+    -fx-text-fill: -fx-base-text-muted;
+    -fx-font-weight: bold;
+    -fx-underline: false;
+}
+
+.nav-link:hover {
+    -fx-text-fill: -fx-base-text;
+}
+
+/* Ticket Cards */
+.ticket-card {
+    -fx-background-color: -fx-base-surface;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-border-color: -fx-base-border;
+    -fx-border-width: 1;
+    -fx-padding: 20;
+    -fx-spacing: 12;
+}
+
+.ticket-subject {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -fx-base-text;
+}
+
+.ticket-meta {
+    -fx-font-size: 13px;
+    -fx-text-fill: -fx-base-text-muted;
+}
+
+/* Badges */
+.badge {
+    -fx-padding: 4 12;
+    -fx-background-radius: 20;
+    -fx-text-fill: white;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+/* Status Colors */
+.status-ouvert {
+    -fx-background-color: #3B82F6;
+}
+
+.status-en-cours {
+    -fx-background-color: #F59E0B;
+}
+
+.status-resolu {
+    -fx-background-color: #10B981;
+}
+
+.status-cloture {
+    -fx-background-color: #6B7280;
+}
+
+/* TableView */
+.table-view {
+    -fx-background-color: -fx-base-surface;
+    -fx-border-color: -fx-base-border;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: -fx-base-secondary;
+}
+
+.table-view .column-header {
+    -fx-background-color: transparent;
+    -fx-text-fill: -fx-base-text;
 }
 
 .table-row-cell {
-    -fx-border-color: #e0e0e0;
+    -fx-background-color: transparent;
+    -fx-text-fill: -fx-base-text;
+    -fx-border-color: -fx-base-border transparent transparent transparent;
 }
 
-/* Sélection dans le TableView */
 .table-row-cell:selected {
-    -fx-background-color: #c8e6c9;
+    -fx-background-color: -fx-base-primary;
+    -fx-opacity: 0.3;
+}
+
+/* ScrollPane */
+.scroll-pane {
+    -fx-background-color: transparent;
+}
+
+
+.scroll-pane>.viewport {
+    -fx-background-color: transparent;
+}
+
+/* Enlarged Star Rating - Fixed: Using specific shape and clearing default graphics to prevent doubling */
+.rating-large {
+    -fx-min-height: 60;
+    -fx-pref-height: 60;
+}
+
+.rating-large .container {
+    -fx-spacing: 10;
+    -fx-alignment: CENTER;
+}
+
+.rating-large .button {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-cursor: hand;
+    -fx-pref-width: 40px;
+    -fx-pref-height: 40px;
+}
+
+.rating-large .button .star {
+    -fx-background-color: #3F3F46;
+    -fx-shape: "M 0.000 15.890 L 11.635 15.890 L 15.235 4.810 L 18.835 15.890 L 30.470 15.890 L 21.058 22.730 L 24.658 33.810 L 15.235 26.971 L 5.812 33.810 L 9.412 22.730 Z";
+    -fx-scale-x: 1.5;
+    -fx-scale-y: 1.5;
+}
+
+.rating-large .button:strong .star {
+    -fx-background-color: #FACC15;
+}
+
+.rating-large .button:hover .star {
+    -fx-background-color: derive(#FACC15, 20%);
+}
+
+/* Fix for ticket card buttons truncation */
+.btn-ticket-action {
+    -fx-font-size: 12px;
+    -fx-padding: 4 8;
+    -fx-min-width: 80px;
+}
+
+.btn-view-details {
+    -fx-background-color: -fx-base-primary;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-min-width: 100px;
+}
+
+/* Stat Cards Administration */
+.stat-card {
+    -fx-background-color: -fx-base-surface;
+    -fx-padding: 20;
+    -fx-spacing: 5;
+    -fx-background-radius: 12;
+    -fx-border-color: -fx-base-border;
+    -fx-border-width: 1;
+    -fx-alignment: center;
+}
+
+.stat-card:hover {
+    -fx-border-color: -fx-base-primary;
+    -fx-translate-y: -2;
+}
+
+.stat-value {
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -fx-base-primary;
+}
+
+.stat-label {
+    -fx-font-size: 13px;
+    -fx-text-fill: -fx-base-text-muted;
+    -fx-text-transform: uppercase;
+}
+
+/* Charts Styling */
+.chart {
+    -fx-padding: 10;
+    -fx-background-color: transparent;
+}
+
+.chart-content {
+    -fx-padding: 10;
+}
+
+.chart-title {
+    -fx-text-fill: -fx-base-text;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+}
+
+.chart-legend {
+    -fx-background-color: transparent;
+    -fx-padding: 10;
+}
+
+.chart-legend-item {
+    -fx-text-fill: -fx-base-text-muted;
+}
+
+.axis {
+    -fx-tick-label-fill: -fx-base-text-muted;
+    -fx-tick-length: 5;
+    -fx-minor-tick-visible: false;
+}
+
+.axis-label {
+    -fx-text-fill: -fx-base-text;
+    -fx-font-weight: bold;
+}
+
+/* Pie Chart Slices Colors */
+.default-color0.chart-pie {
+    -fx-pie-color: #6D28D9;
+}
+
+/* Violet Primary */
+.default-color1.chart-pie {
+    -fx-pie-color: #10B981;
+}
+
+/* Green */
+.default-color2.chart-pie {
+    -fx-pie-color: #FACC15;
+}
+
+/* Yellow */
+.default-color3.chart-pie {
+    -fx-pie-color: #F43F5E;
+}
+
+/* Red */
+.default-color4.chart-pie {
+    -fx-pie-color: #3B82F6;
+}
+
+/* Blue */
+
+/* Bar Chart Colors */
+.bar-chart .chart-bar {
+    -fx-bar-fill: #6D28D9;
+    -fx-background-radius: 4 4 0 0;
+}
+
+.bar-chart .chart-bar:hover {
+    -fx-bar-fill: derive(#6D28D9, 20%);
 }

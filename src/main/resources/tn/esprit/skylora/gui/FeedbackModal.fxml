@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import org.controlsfx.control.*?>
+
+<VBox spacing="20" alignment="CENTER" prefWidth="450" prefHeight="550" minHeight="500"
+      styleClass="vbox" stylesheets="@/tn/esprit/skylora/style/style.css" 
+      xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" 
+      fx:controller="tn.esprit.skylora.controllers.FeedbackModalController">
+    
+    <Label text="Comment s'est passée votre expérience ?" styleClass="section-title" wrapText="true" alignment="CENTER"/>
+    
+    <VBox spacing="15" alignment="CENTER" style="-fx-padding: 10 0 10 0;">
+        <Label text="Votre note :" style="-fx-font-weight: bold; -fx-font-size: 14px;"/>
+        <Rating fx:id="ratingField" max="5" partialRating="false" styleClass="rating-large" 
+                minHeight="60" prefHeight="60" prefWidth="330"/>
+
+    </VBox>
+    
+    <VBox spacing="10">
+        <Label text="Commentaire (optionnel) :" style="-fx-font-weight: bold;"/>
+        <TextArea fx:id="commentArea" prefHeight="150" promptText="Dites-nous ce qu'on peut améliorer..." styleClass="text-area"/>
+    </VBox>
+    
+    <HBox spacing="15" alignment="CENTER">
+        <Button text="Annuler" onAction="#handleCancel" styleClass="btn-secondary"/>
+        <Button text="Envoyer le feedback" onAction="#handleSubmit" styleClass="button"/>
+    </HBox>
+    
+</VBox>

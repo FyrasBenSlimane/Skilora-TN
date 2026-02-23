@@ -121,15 +121,44 @@ public class ServiceTicket {
         t.setPriorite(rs.getString("priorite"));
         t.setStatut(rs.getString("statut"));
         t.setDescription(rs.getString("description"));
+
         Timestamp creation = rs.getTimestamp("date_creation");
-        if (creation != null)
+        if (creation != null) {
             t.setDateCreation(creation.toLocalDateTime());
+        }
+
         Timestamp resolution = rs.getTimestamp("date_resolution");
-        if (resolution != null)
+        if (resolution != null) {
             t.setDateResolution(resolution.toLocalDateTime());
+        }
+
         int agentId = rs.getInt("agent_id");
         if (!rs.wasNull())
             t.setAgentId(agentId);
         return t;
+    }
+
+    // --- Statistiques avec Java Streams ---
+
+    public long getTotalTickets() throws SQLException {
+        return afficher().stream().count();
+    }
+
+    public long getCountByStatus(String status) throws SQLException {
+        return afficher().stream()
+                .filter(t -> t.getStatut().equalsIgnoreCase(status))
+                .count();
+    }
+
+    public long getCountByPriority(String priority) throws SQLException {
+        return afficher().stream()
+                .filter(t -> t.getPriorite().equalsIgnoreCase(priority))
+                .count();
+    }
+
+    public java.util.Map<String, Long> getCountByCategory() throws SQLException {
+        return afficher().stream()
+                .collect(java.util.stream.Collectors.groupingBy(Ticket::getCategorie,
+                        java.util.stream.Collectors.counting()));
     }
 }

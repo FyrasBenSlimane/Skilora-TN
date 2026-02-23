@@ -4,7 +4,7 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.*?>
 
-<HBox fx:id="navbar" styleClass="navbar" stylesheets="@/tn/esprit/skylora/style/modern_style.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="tn.esprit.skylora.controllers.NavbarController">
+<HBox fx:id="navbar" styleClass="navbar" stylesheets="@/tn/esprit/skylora/style/style.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="tn.esprit.skylora.controllers.NavbarController">
     <children>
         <Label text="SKILORA" textFill="WHITE">
             <font>

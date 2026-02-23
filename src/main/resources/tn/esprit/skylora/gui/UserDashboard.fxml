@@ -5,7 +5,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.text.Font?>
 
-<VBox prefHeight="700.0" prefWidth="1000.0" stylesheets="@/tn/esprit/skylora/style/modern_style.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="tn.esprit.skylora.controllers.UserDashboardController">
+<VBox prefHeight="700.0" prefWidth="1000.0" stylesheets="@/tn/esprit/skylora/style/style.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="tn.esprit.skylora.controllers.UserDashboardController">
     <children>
         <fx:include source="Navbar.fxml" />
         

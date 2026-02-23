@@ -4,7 +4,7 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.Font?>
 
-<VBox fx:id="cardRoot" styleClass="ticket-card" prefWidth="280.0" stylesheets="@/tn/esprit/skylora/style/modern_style.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="tn.esprit.skylora.controllers.TicketCardController">
+<VBox fx:id="cardRoot" styleClass="ticket-card" prefWidth="320.0" stylesheets="@/tn/esprit/skylora/style/style.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="tn.esprit.skylora.controllers.TicketCardController">
     <children>
         <HBox spacing="10" alignment="CENTER_LEFT">
             <Label fx:id="priorityBadge" styleClass="badge" text="HIGH" />
@@ -15,10 +15,11 @@
         <Label fx:id="categoryLabel" styleClass="ticket-meta" text="Catégorie: TECHNIQUE" />
         <Label fx:id="dateLabel" styleClass="ticket-meta" text="Créé le: 12/02/2026" />
         <Region VBox.vgrow="ALWAYS" />
-        <HBox spacing="10" alignment="CENTER_RIGHT">
-            <Button onAction="#handleEdit" text="Editer" style="-fx-background-color: transparent; -fx-text-fill: #1E40AF; -fx-padding: 5 0 5 0;" />
-            <Button onAction="#handleDelete" text="Supprimer" style="-fx-background-color: transparent; -fx-text-fill: #EF4444; -fx-padding: 5 0 5 0;" />
-            <Button onAction="#handleView" styleClass="btn-success" text="Voir Détails" />
+        <HBox spacing="8" alignment="CENTER_RIGHT" style="-fx-padding: 5 0 0 0;">
+            <Button fx:id="rateButton" onAction="#handleRate" styleClass="button" text="Noter" visible="false" managed="false" style="-fx-background-color: #F59E0B; -fx-font-size: 12px; -fx-padding: 4 8;" />
+            <Button onAction="#handleEdit" text="Editer" style="-fx-background-color: transparent; -fx-text-fill: #3B82F6; -fx-padding: 4 2; -fx-font-size: 12px; -fx-font-weight: bold;" />
+            <Button onAction="#handleDelete" text="Supprimer" style="-fx-background-color: transparent; -fx-text-fill: #EF4444; -fx-padding: 4 2; -fx-font-size: 12px; -fx-font-weight: bold;" />
+            <Button onAction="#handleView" styleClass="btn-view-details" text="Voir Détails" />
         </HBox>
     </children>
 </VBox>

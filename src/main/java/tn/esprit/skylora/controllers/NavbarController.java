@@ -6,6 +6,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.stage.Stage;
 
 import java.io.IOException;
@@ -32,7 +33,14 @@ public class NavbarController {
             stage.setScene(new Scene(root));
             stage.show();
         } catch (IOException e) {
+            System.err.println("Erreur de chargement FXML: " + fxmlPath);
             e.printStackTrace();
+            // Optionnel: Afficher une alerte à l'utilisateur
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Erreur de Navigation");
+            alert.setHeaderText("Impossible de charger la page");
+            alert.setContentText("Détails: " + e.getMessage());
+            alert.showAndWait();
         }
     }
 }

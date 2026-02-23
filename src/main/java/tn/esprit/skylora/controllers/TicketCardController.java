@@ -22,11 +22,13 @@ public class TicketCardController {
     @FXML
     private Label statusBadge;
     @FXML
-    private Label   subjectLabel;
+    private Label subjectLabel;
     @FXML
     private Label categoryLabel;
     @FXML
     private Label dateLabel;
+    @FXML
+    private javafx.scene.control.Button rateButton;
 
     private Ticket ticket;
     private UserDashboardController parentController;
@@ -47,6 +49,44 @@ public class TicketCardController {
 
         statusBadge.setText(ticket.getStatut());
         statusBadge.getStyleClass().add("status-" + ticket.getStatut().toLowerCase().replace("_", "-"));
+
+        // Show "Noter" button only for RESOLVED tickets
+        if ("RESOLU".equalsIgnoreCase(ticket.getStatut())) {
+            checkIfAlreadyRated();
+        }
+    }
+
+    private void checkIfAlreadyRated() {
+        // Always show the "Noter" button for RESOLU tickets.
+        // The modal will inform the user if they have already rated or if the DB table
+        // is missing.
+        rateButton.setVisible(true);
+        rateButton.setManaged(true);
+    }
+
+    @FXML
+    private void handleRate() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/tn/esprit/skylora/gui/FeedbackModal.fxml"));
+            Parent root = loader.load();
+            FeedbackModalController controller = loader.getController();
+            controller.setTicketId(ticket.getId());
+
+            Stage stage = new Stage();
+            stage.initModality(Modality.APPLICATION_MODAL);
+            stage.setTitle("Noter le service");
+            stage.setScene(new Scene(root));
+
+            // Refresh dashboard after closing modal
+            stage.setOnHidden(event -> {
+                if (parentController != null)
+                    parentController.loadTickets();
+            });
+
+            stage.show();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML

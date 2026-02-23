@@ -45,3 +45,12 @@ INSERT INTO ticket_messages (ticket_id, utilisateur_id, contenu, date_envoi, is_
 INSERT INTO ticket_messages (ticket_id, utilisateur_id, contenu, date_envoi, is_internal) VALUES 
 (2, 1, 'Voici la capture d''écran du double débit.', NOW() - INTERVAL 1 DAY, FALSE),
 (2, 2, 'Nous avons bien reçu votre demande, nous contactons la banque.', NOW() - INTERVAL 20 HOUR, TRUE); -- Note Interne
+-- 6. Table for Feedback
+CREATE TABLE IF NOT EXISTS feedback (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT NOT NULL,
+    rating INT NOT NULL,
+    comment TEXT,
+    date_creation DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ticket_id) REFERENCES ticket(id) ON DELETE CASCADE
+);

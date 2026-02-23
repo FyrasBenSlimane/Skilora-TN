@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.chart.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox spacing="20" prefHeight="600.0" prefWidth="900.0" stylesheets="@/tn/esprit/skylora/style/style.css" styleClass="dashboard-container" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="tn.esprit.skylora.controllers.StatisticsController">
+    <children>
+        <HBox alignment="CENTER_LEFT" spacing="20">
+            <children>
+                <Label styleClass="section-title" text="Statistiques des Tickets" />
+                <Region HBox.hgrow="ALWAYS" />
+                <Button onAction="#handleClose" styleClass="btn-secondary" text="Fermer" />
+            </children>
+        </HBox>
+        
+        <HBox spacing="20" VBox.vgrow="ALWAYS">
+            <children>
+                <VBox styleClass="stat-card" HBox.hgrow="ALWAYS" spacing="10">
+                    <children>
+                        <Label styleClass="stat-label" text="Distribution par Statut" style="-fx-font-weight: bold;" />
+                        <PieChart fx:id="statusPieChart" VBox.vgrow="ALWAYS" />
+                    </children>
+                    <padding>
+                        <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                    </padding>
+                </VBox>
+                
+                <VBox styleClass="stat-card" HBox.hgrow="ALWAYS" spacing="10">
+                    <children>
+                        <Label styleClass="stat-label" text="Distribution par Priorité" style="-fx-font-weight: bold;" />
+                        <BarChart fx:id="priorityBarChart" VBox.vgrow="ALWAYS">
+                          <xAxis>
+                            <CategoryAxis label="Priorité" side="BOTTOM" />
+                          </xAxis>
+                          <yAxis>
+                            <NumberAxis label="Nombre de Tickets" side="LEFT" />
+                          </yAxis>
+                        </BarChart>
+                    </children>
+                    <padding>
+                        <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                    </padding>
+                </VBox>
+            </children>
+        </HBox>
+    </children>
+    <padding>
+        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+    </padding>
+</VBox>

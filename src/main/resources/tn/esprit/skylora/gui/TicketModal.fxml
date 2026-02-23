@@ -5,32 +5,26 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.text.Font?>
 
-<VBox spacing="20.0" prefWidth="450.0" style="-fx-background-color: white; -fx-padding: 30;" stylesheets="@/tn/esprit/skylora/style/modern_style.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="tn.esprit.skylora.controllers.TicketModalController">
+<VBox spacing="20.0" prefWidth="450.0" style="-fx-padding: 30;" stylesheets="@/tn/esprit/skylora/style/style.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="tn.esprit.skylora.controllers.TicketModalController">
     <children>
         <Label fx:id="modalTitle" styleClass="section-title" text="Nouveau Ticket" />
-
+        
         <VBox spacing="10">
             <children>
-                <HBox alignment="CENTER_LEFT" spacing="5">
-                    <children>
-                        <Label text="Sujet" styleClass="stat-label" />
-                        <Label text="*" style="-fx-text-fill: red;" />
-                        <Region HBox.hgrow="ALWAYS" />
-                        <Label text="(min 5, max 200 caractères)" style="-fx-font-size: 10px; -fx-text-fill: #6B7280;" />
-                    </children>
-                </HBox>
+                <Label text="Sujet" styleClass="stat-label" />
                 <TextField fx:id="subjectField" promptText="Entrez le sujet du ticket" />
             </children>
         </VBox>
-
+        
         <HBox spacing="20">
             <children>
                 <VBox spacing="10" HBox.hgrow="ALWAYS">
                     <children>
-                        <HBox alignment="CENTER_LEFT" spacing="5">
+                        <HBox alignment="CENTER_LEFT" spacing="10">
                             <children>
                                 <Label text="Catégorie" styleClass="stat-label" />
-                                <Label text="*" style="-fx-text-fill: red;" />
+                                <Region HBox.hgrow="ALWAYS" />
+                                <Button onAction="#handleAICategorize" style="-fx-background-color: #EDE9FE; -fx-text-fill: #6D28D9; -fx-font-size: 10px; -fx-padding: 2 8;" text="✨ Auto-catégoriser" />
                             </children>
                         </HBox>
                         <ComboBox fx:id="categoryBox" maxWidth="Infinity" />
@@ -38,43 +32,28 @@
                 </VBox>
                 <VBox spacing="10" HBox.hgrow="ALWAYS">
                     <children>
-                        <HBox alignment="CENTER_LEFT" spacing="5">
-                            <children>
-                                <Label text="Priorité" styleClass="stat-label" />
-                                <Label text="*" style="-fx-text-fill: red;" />
-                            </children>
-                        </HBox>
+                        <Label text="Priorité" styleClass="stat-label" />
                         <ComboBox fx:id="priorityBox" maxWidth="Infinity" />
                     </children>
                 </VBox>
             </children>
         </HBox>
-
+        
         <VBox spacing="10">
             <children>
-                <HBox alignment="CENTER_LEFT" spacing="5">
+                <HBox alignment="CENTER_LEFT" spacing="10">
                     <children>
                         <Label text="Description" styleClass="stat-label" />
-                        <Label text="*" style="-fx-text-fill: red;" />
                         <Region HBox.hgrow="ALWAYS" />
-                        <Label text="(min 10, max 2000 caractères)" style="-fx-font-size: 10px; -fx-text-fill: #6B7280;" />
+                        <Button onAction="#handleAICorrect" style="-fx-background-color: #EDE9FE; -fx-text-fill: #6D28D9; -fx-font-size: 10px; -fx-padding: 2 8;" text="✨ Auto-corriger" />
                     </children>
                 </HBox>
                 <TextArea fx:id="descriptionArea" prefHeight="150.0" promptText="Décrivez votre problème en détail..." wrapText="true" />
             </children>
         </VBox>
-
-        <VBox spacing="5">
-            <children>
-                <Label text="⚠ Règles de saisie :" style="-fx-font-weight: bold; -fx-font-size: 11px; -fx-text-fill: #6B7280;" />
-                <Label text="• Le langage vulgaire et les insultes sont interdits" style="-fx-font-size: 10px; -fx-text-fill: #6B7280;" />
-                <Label text="• Évitez les répétitions excessives" style="-fx-font-size: 10px; -fx-text-fill: #6B7280;" />
-                <Label text="• Soyez clair et professionnel dans vos descriptions" style="-fx-font-size: 10px; -fx-text-fill: #6B7280;" />
-            </children>
-        </VBox>
-
-        <Label fx:id="errorLabel" textFill="RED" visible="false" managed="false" wrapText="true" style="-fx-font-weight: bold;" />
-
+        
+        <Label fx:id="errorLabel" textFill="RED" visible="false" managed="false" />
+        
         <HBox spacing="15" alignment="CENTER_RIGHT">
             <children>
                 <Button onAction="#handleCancel" text="Annuler" style="-fx-background-color: transparent; -fx-text-fill: #6B7280;" />
