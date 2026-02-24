@@ -172,6 +172,14 @@ public class PostComment {
 **Chemin :** `com.skilora.community.service.PostService`
 **Design Pattern :** Singleton (voir section 4)
 
+<!-- ╔══════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║  BLOC C — CREATE POST                                                ║ -->
+<!-- ║  Méthode : create(Post post) → int                                   ║ -->
+<!-- ║  Rôle : Insérer un nouveau post dans la table 'posts'                ║ -->
+<!-- ║  SQL : INSERT INTO posts (...) VALUES (?, ?, ?, ?, ?, NOW())         ║ -->
+<!-- ║  Retour : ID du post créé, ou -1 si erreur                          ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════╝ -->
+
 ### C — CREATE : `create(Post post)` → int
 
 **But :** Insérer un nouveau post dans la base de données.
@@ -199,6 +207,16 @@ VALUES (?, ?, ?, ?, ?, NOW())
 **Gestion d'erreur :** Bloc try-with-resources + catch SQLException → log de l'erreur + retour -1
 
 ---
+
+<!-- ╔══════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║  BLOC R — READ POSTS                                                ║ -->
+<!-- ║  4 méthodes de lecture :                                            ║ -->
+<!-- ║    1. findById(id)           → Un seul post par ID                  ║ -->
+<!-- ║    2. getFeed(userId,p,size) → Fil d'actualité paginé (réseau)      ║ -->
+<!-- ║    3. findAll()              → Tous les posts (Admin uniquement)    ║ -->
+<!-- ║    4. getByAuthor(authorId)  → Posts d'un auteur spécifique         ║ -->
+<!-- ║  Toutes utilisent JOIN users pour récupérer nom + photo auteur      ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════╝ -->
 
 ### R — READ : 4 méthodes de lecture
 
@@ -286,6 +304,15 @@ ORDER BY p.created_date DESC
 
 ---
 
+<!-- ╔══════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║  BLOC U — UPDATE POST                                               ║ -->
+<!-- ║  Méthode : update(Post post) → boolean                              ║ -->
+<!-- ║  Rôle : Modifier contenu, image ou type d'un post existant          ║ -->
+<!-- ║  SQL : UPDATE posts SET content=?, image_url=?, post_type=? WHERE id=? ║ -->
+<!-- ║  Sécurité : Vérifié côté contrôleur via canEditOrDelete()            ║ -->
+<!-- ║  Retour : true si modifié, false sinon                              ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════╝ -->
+
 ### U — UPDATE : `update(Post post)` → boolean
 
 **But :** Modifier le contenu, l'image ou le type d'un post existant.
@@ -306,6 +333,16 @@ WHERE id = ?
 
 ---
 
+<!-- ╔══════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║  BLOC D — DELETE POST                                               ║ -->
+<!-- ║  Méthode : delete(int id) → boolean                                 ║ -->
+<!-- ║  Rôle : Supprimer un post et ses données associées                  ║ -->
+<!-- ║  SQL : DELETE FROM posts WHERE id = ?                               ║ -->
+<!-- ║  Cascade : Commentaires et likes supprimés automatiquement (FK)     ║ -->
+<!-- ║  Sécurité : Vérifié côté contrôleur via canEditOrDelete()            ║ -->
+<!-- ║  Retour : true si supprimé, false sinon                             ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════╝ -->
+
 ### D — DELETE : `delete(int id)` → boolean
 
 **But :** Supprimer un post de la base de données.
@@ -321,6 +358,17 @@ DELETE FROM posts WHERE id = ?
 3. **Retourne** `true` si supprimé, `false` sinon
 
 ---
+
+<!-- ╔══════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║  BLOC LIKES & COMMENTAIRES — Fonctionnalités supplémentaires         ║ -->
+<!-- ║  Likes : toggleLike() — Ajouter/Retirer un like (bascule)           ║ -->
+<!-- ║  Commentaires CRUD :                                                ║ -->
+<!-- ║    C → addComment()       — Ajouter un commentaire                  ║ -->
+<!-- ║    R → getComments()      — Lire les commentaires d'un post         ║ -->
+<!-- ║    U → updateComment()    — Modifier un commentaire                 ║ -->
+<!-- ║    D → deleteComment()    — Supprimer un commentaire                ║ -->
+<!-- ║  Compteurs dénormalisés : likes_count, comments_count               ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════╝ -->
 
 ### Fonctionnalités Supplémentaires des Posts
 
@@ -432,6 +480,13 @@ return post;
 
 ## 2.4 Contrôleur — Interface Utilisateur des Posts
 
+<!-- ╔══════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║  BLOC CONTRÔLEUR — CREATE POST (Interface UI)                       ║ -->
+<!-- ║  Flux : Clic "Nouveau Post" → Dialog → Validation → Thread →        ║ -->
+<!-- ║         PostService.create() → Toast + Rafraîchissement             ║ -->
+<!-- ║  Contrôle de saisie : Contenu non vide obligatoire                  ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════╝ -->
+
 ### Flux CREATE (Créer un Post)
 
 ```
@@ -469,6 +524,14 @@ loadFeedTab() → Rafraîchit la liste
 - `Platform.runLater()` : Retour sur le thread JavaFX pour mettre à jour l'interface
 
 ---
+
+<!-- ╔══════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║  BLOC CONTRÔLEUR — READ POSTS (Interface UI)                        ║ -->
+<!-- ║  Flux : Onglet "Fil" → Thread → PostService.getFeed/findAll →       ║ -->
+<!-- ║         createPostCard() pour chaque post → Affichage               ║ -->
+<!-- ║  Admin : voit TOUS les posts (findAll)                              ║ -->
+<!-- ║  Autres : voit son feed filtré par connexions (getFeed)             ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════╝ -->
 
 ### Flux READ (Afficher le Fil d'Actualité)
 
@@ -510,6 +573,13 @@ Pour chaque Post :
 
 ---
 
+<!-- ╔══════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║  BLOC CONTRÔLEUR — UPDATE POST (Interface UI)                       ║ -->
+<!-- ║  Flux : Clic "Éditer" → Dialog pré-rempli → Modification →          ║ -->
+<!-- ║         Thread → PostService.update() → Toast + Rafraîchissement    ║ -->
+<!-- ║  Condition : canEditOrDelete() = Auteur OU Admin                    ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════╝ -->
+
 ### Flux UPDATE (Modifier un Post)
 
 ```
@@ -541,6 +611,14 @@ loadFeedTab() → Rafraîchit
 
 ---
 
+<!-- ╔══════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║  BLOC CONTRÔLEUR — DELETE POST (Interface UI)                       ║ -->
+<!-- ║  Flux : Clic "Supprimer" → Confirmation → Thread →                  ║ -->
+<!-- ║         PostService.delete() → Rafraîchissement                     ║ -->
+<!-- ║  Condition : canEditOrDelete() = Auteur OU Admin                    ║ -->
+<!-- ║  Dialogue de confirmation obligatoire avant suppression             ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════╝ -->
+
 ### Flux DELETE (Supprimer un Post)
 
 ```
@@ -564,6 +642,15 @@ loadFeedTab() → Rafraîchit
 ```
 
 ---
+
+<!-- ╔══════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║  BLOC CONTRÔLEUR — CRUD COMMENTAIRES INLINE (Style Instagram)       ║ -->
+<!-- ║  C → Ajout : champ texte + bouton Envoyer → addComment()            ║ -->
+<!-- ║  R → Lecture : loadInlineComments() affiche tous les commentaires    ║ -->
+<!-- ║  U → Modification : showEditCommentInline() → updateComment()       ║ -->
+<!-- ║  D → Suppression : deleteComment() directe sans confirmation        ║ -->
+<!-- ║  Sécurité : Boutons ✏🗑 visibles uniquement pour auteur/admin       ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════╝ -->
 
 ### Commentaires — CRUD Inline (Style Instagram)
 
@@ -786,6 +873,14 @@ ORDER BY
 
 ---
 
+<!-- ╔══════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║  BLOC C — CREATE MESSAGE                                            ║ -->
+<!-- ║  Méthode : sendMessage(conversationId, senderId, content) → int      ║ -->
+<!-- ║  Rôle : Insérer un message + mettre à jour last_message_date        ║ -->
+<!-- ║  SQL : INSERT INTO messages (...) + UPDATE conversations            ║ -->
+<!-- ║  Retour : ID du message créé, ou -1 si erreur                       ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════╝ -->
+
 ### C — CREATE : `sendMessage(int conversationId, int senderId, String content)` → int
 
 **But :** Envoyer un nouveau message dans une conversation.
@@ -807,6 +902,14 @@ UPDATE conversations SET last_message_date = NOW() WHERE id = ?
 4. **Retourne** l'ID du message créé, ou -1 en cas d'erreur
 
 ---
+
+<!-- ╔══════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║  BLOC R — READ MESSAGES                                             ║ -->
+<!-- ║  Méthode : getMessages(conversationId, page, pageSize) → List       ║ -->
+<!-- ║  Rôle : Charger les messages avec pagination + nom expéditeur       ║ -->
+<!-- ║  SQL : SELECT m.*, u.full_name FROM messages m JOIN users u ...      ║ -->
+<!-- ║  Tri : Chronologique ASC (ancien → récent)                          ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════╝ -->
 
 ### R — READ : `getMessages(int conversationId, int page, int pageSize)` → List<Message>
 
@@ -830,6 +933,15 @@ LIMIT ? OFFSET ?
 
 ---
 
+<!-- ╔══════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║  BLOC U — UPDATE MESSAGE                                            ║ -->
+<!-- ║  Méthode : updateMessage(messageId, senderId, newContent) → boolean  ║ -->
+<!-- ║  Rôle : Modifier le contenu d'un message existant                   ║ -->
+<!-- ║  SQL : UPDATE messages SET content=? WHERE id=? AND sender_id=?     ║ -->
+<!-- ║  SÉCURITÉ : WHERE sender_id=? empêche la modification par autrui    ║ -->
+<!-- ║  Retour : true si modifié, false si non autorisé                    ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════╝ -->
+
 ### U — UPDATE : `updateMessage(int messageId, int senderId, String newContent)` → boolean
 
 **But :** Modifier le contenu d'un message existant.
@@ -846,6 +958,15 @@ WHERE id = ? AND sender_id = ?
 
 ---
 
+<!-- ╔══════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║  BLOC D — DELETE MESSAGE                                            ║ -->
+<!-- ║  Méthode : deleteMessage(messageId, senderId) → boolean             ║ -->
+<!-- ║  Rôle : Supprimer un message de la conversation                     ║ -->
+<!-- ║  SQL : DELETE FROM messages WHERE id=? AND sender_id=?              ║ -->
+<!-- ║  SÉCURITÉ : WHERE sender_id=? empêche la suppression par autrui     ║ -->
+<!-- ║  Retour : true si supprimé, false sinon                             ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════╝ -->
+
 ### D — DELETE : `deleteMessage(int messageId, int senderId)` → boolean
 
 **But :** Supprimer un message.
@@ -860,6 +981,12 @@ DELETE FROM messages WHERE id = ? AND sender_id = ?
 **Retourne :** `true` si supprimé, `false` sinon.
 
 ---
+
+<!-- ╔══════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║  BLOC AUTRES — Méthodes utilitaires des Messages                    ║ -->
+<!-- ║  markAsRead()    → Marquer messages reçus comme lus                 ║ -->
+<!-- ║  getUnreadCount() → Compter les messages non lus (badges)           ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════╝ -->
 
 ### Autres Méthodes
 
@@ -892,6 +1019,13 @@ AND m.is_read = FALSE
 
 ## 3.4 Contrôleur — Interface Utilisateur des Messages
 
+<!-- ╔══════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║  BLOC CONTRÔLEUR — READ CONVERSATIONS (Interface UI)                ║ -->
+<!-- ║  Flux : Onglet "Messages" → Thread → getConversations() →           ║ -->
+<!-- ║         createConversationCard() → Affichage des conversations      ║ -->
+<!-- ║  Affiche : Avatar, nom, aperçu dernier msg, badge non lus           ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════╝ -->
+
 ### Flux : Liste des Conversations
 
 ```
@@ -915,6 +1049,13 @@ Pour chaque Conversation :
 └─────────────────────────────────────┘
   clic → openConversationView(conv)
 ```
+
+<!-- ╔══════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║  BLOC CONTRÔLEUR — VUE CHAT (Interface UI)                          ║ -->
+<!-- ║  Flux : openConversationView() → markAsRead() → getMessages() →    ║ -->
+<!-- ║         Bulles droite (moi) / gauche (autre) + boutons ✏🗑 au survol ║ -->
+<!-- ║  Input bar en bas : champ texte + bouton envoi                       ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════╝ -->
 
 ### Flux : Vue de Conversation (Chat)
 
@@ -949,6 +1090,13 @@ Efface le contenu, crée le layout :
    - **Si c'est le mien** : Bulle à droite (style `.msg-bubble-mine`, fond bleu)
    - **Si c'est l'autre** : Bulle à gauche avec avatar (style `.msg-bubble-theirs`, fond gris)
 
+<!-- ╔══════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║  BLOC CONTRÔLEUR — CREATE MESSAGE (Interface UI)                    ║ -->
+<!-- ║  Flux : Texte + Clic ➤ → Validation non vide → Thread →             ║ -->
+<!-- ║         sendMessage() → Rafraîchit le chat + notifications          ║ -->
+<!-- ║  Contrôle de saisie : Message non vide obligatoire                  ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════╝ -->
+
 ### Flux CREATE (Envoyer un Message)
 
 ```
@@ -970,6 +1118,13 @@ Platform.runLater :
   └── notificationService.pollNow() → Met à jour les badges
 ```
 
+<!-- ╔══════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║  BLOC CONTRÔLEUR — UPDATE MESSAGE (Interface UI)                    ║ -->
+<!-- ║  Flux : Survol → ✏ → Dialog pré-rempli → Thread →                   ║ -->
+<!-- ║         updateMessage() → Rafraîchit le chat                        ║ -->
+<!-- ║  Double sécurité : UI (if isMine) + SQL (WHERE sender_id=?)        ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════╝ -->
+
 ### Flux UPDATE (Modifier un Message)
 
 ```
@@ -990,6 +1145,14 @@ openConversationView(conv) → Rafraîchit le chat
 
 **Sécurité UI :** Les boutons ✏ 🗑 n'apparaissent que sur les messages de l'utilisateur (`if (isMine)`).  
 **Sécurité SQL :** Même si quelqu'un modifie le code client, la requête SQL vérifie `WHERE sender_id = ?`.
+
+<!-- ╔══════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║  BLOC CONTRÔLEUR — DELETE MESSAGE (Interface UI)                    ║ -->
+<!-- ║  Flux : Survol → 🗑 → Confirmation → Thread →                      ║ -->
+<!-- ║         deleteMessage() → Rafraîchit le chat                        ║ -->
+<!-- ║  Double sécurité : UI (if isMine) + SQL (WHERE sender_id=?)        ║ -->
+<!-- ║  Bouton DANGER rouge pour confirmer la suppression                  ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════╝ -->
 
 ### Flux DELETE (Supprimer un Message)
 

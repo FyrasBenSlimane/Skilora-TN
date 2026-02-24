@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skilora — Documentation API et Métiers Avancés</title>
+    <style>
+        @page { size: A4; margin: 1.5cm; }
+        @media print {
+            body { font-size: 11pt; }
+            .page-break { page-break-before: always; }
+            h1, h2 { page-break-after: avoid; }
+            pre { page-break-inside: avoid; }
+            .no-print { display: none; }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.7;
+            color: #1a1a2e;
+            background: #f8f9fa;
+            padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; background: #fff; padding: 50px; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+        
+        /* Cover */
+        .cover { text-align: center; padding: 80px 20px; border-bottom: 3px solid #2563eb; margin-bottom: 40px; }
+        .cover h1 { font-size: 36pt; color: #2563eb; margin-bottom: 8px; letter-spacing: -1px; }
+        .cover .subtitle { font-size: 18pt; color: #64748b; margin-bottom: 30px; }
+        .cover .meta { font-size: 12pt; color: #94a3b8; }
+        .cover .meta span { display: block; margin: 4px 0; }
+        
+        /* TOC */
+        .toc { margin: 30px 0 40px; padding: 25px 30px; background: #f1f5f9; border-radius: 8px; border-left: 4px solid #2563eb; }
+        .toc h2 { font-size: 16pt; color: #2563eb; margin-bottom: 15px; }
+        .toc ol { padding-left: 20px; }
+        .toc li { margin: 6px 0; color: #334155; }
+        .toc li a { color: #2563eb; text-decoration: none; }
+        .toc li a:hover { text-decoration: underline; }
+        
+        /* Headings */
+        h1 { font-size: 24pt; color: #2563eb; margin: 40px 0 15px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+        h2 { font-size: 18pt; color: #1e40af; margin: 30px 0 12px; }
+        h3 { font-size: 14pt; color: #334155; margin: 20px 0 10px; }
+        h4 { font-size: 12pt; color: #475569; margin: 15px 0 8px; }
+        
+        /* Content */
+        p { margin: 8px 0; color: #334155; }
+        ul, ol { margin: 8px 0 8px 25px; }
+        li { margin: 4px 0; }
+        
+        /* Code */
+        pre { background: #0f172a; color: #e2e8f0; padding: 16px 20px; border-radius: 8px; overflow-x: auto; font-size: 10pt; line-height: 1.5; margin: 12px 0; font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace; }
+        code { background: #e2e8f0; color: #1e40af; padding: 2px 6px; border-radius: 4px; font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace; font-size: 0.92em; }
+        pre code { background: transparent; color: inherit; padding: 0; }
+        
+        /* Special blocks */
+        .info-box { background: #eff6ff; border: 1px solid #bfdbfe; border-left: 4px solid #2563eb; padding: 16px 20px; border-radius: 6px; margin: 15px 0; }
+        .info-box .title { font-weight: 700; color: #1e40af; margin-bottom: 6px; }
+        .warn-box { background: #fefce8; border: 1px solid #fde68a; border-left: 4px solid #f59e0b; padding: 16px 20px; border-radius: 6px; margin: 15px 0; }
+        .warn-box .title { font-weight: 700; color: #92400e; margin-bottom: 6px; }
+        .success-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #22c55e; padding: 16px 20px; border-radius: 6px; margin: 15px 0; }
+        .success-box .title { font-weight: 700; color: #166534; margin-bottom: 6px; }
+        
+        /* Table */
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 10.5pt; }
+        th { background: #1e40af; color: #fff; padding: 10px 14px; text-align: left; font-weight: 600; }
+        td { padding: 9px 14px; border-bottom: 1px solid #e2e8f0; }
+        tr:nth-child(even) { background: #f8fafc; }
+        
+        /* Diagram boxes */
+        .arch-box { display: inline-block; background: #2563eb; color: #fff; padding: 8px 16px; border-radius: 6px; margin: 4px; font-weight: 600; font-size: 10pt; }
+        .arch-box.green { background: #16a34a; }
+        .arch-box.orange { background: #ea580c; }
+        .arch-box.purple { background: #7c3aed; }
+        .arch-box.gray { background: #64748b; }
+        .arch-arrow { display: inline-block; font-size: 20pt; vertical-align: middle; margin: 0 8px; color: #94a3b8; }
+        .arch-flow { text-align: center; margin: 20px 0; padding: 15px; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1; }
+        
+        /* File path */
+        .filepath { background: #1e293b; color: #38bdf8; padding: 6px 14px; border-radius: 6px; font-family: monospace; font-size: 10pt; display: inline-block; margin: 6px 0; }
+        
+        /* Button to print */
+        .print-btn { position: fixed; top: 20px; right: 20px; background: #2563eb; color: #fff; border: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; cursor: pointer; box-shadow: 0 2px 8px rgba(37,99,235,0.3); z-index: 999; }
+        .print-btn:hover { background: #1d4ed8; }
+        
+        .separator { border: none; border-top: 2px solid #e2e8f0; margin: 30px 0; }
+        .step-num { display: inline-block; background: #2563eb; color: #fff; width: 28px; height: 28px; border-radius: 50%; text-align: center; line-height: 28px; font-weight: 700; font-size: 13px; margin-right: 8px; }
+        .keyword { color: #c084fc; }
+        .string { color: #a5f3fc; }
+        .comment { color: #64748b; font-style: italic; }
+    </style>
+</head>
+<body>
+
+<button class="print-btn no-print" onclick="window.print()">Imprimer / Sauvegarder en PDF</button>
+
+<div class="container">
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--                     PAGE DE COUVERTURE                  -->
+<!-- ════════════════════════════════════════════════════════ -->
+
+<div class="cover">
+    <h1>SKILORA</h1>
+    <div class="subtitle">Documentation Technique — API et Métiers Avancés</div>
+    <div class="subtitle" style="font-size:14pt; color:#94a3b8;">Module Communauté (Module 6)</div>
+    <br>
+    <div class="meta">
+        <span>Projet : Skilora — Plateforme de Formation et Recrutement (Tunisie)</span>
+        <span>Technologie : JavaFX 21 + MySQL + APIs REST externes</span>
+        <span>Date : Février 2026</span>
+        <span>Architecture : MVC + Singleton + DAO Pattern</span>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--                    TABLE DES MATIÈRES                   -->
+<!-- ════════════════════════════════════════════════════════ -->
+
+<div class="toc">
+    <h2>Table des matières</h2>
+    <ol>
+        <li><a href="#s1">Vue d'ensemble du projet</a></li>
+        <li><a href="#s2">Architecture et structure des fichiers</a></li>
+        <li><a href="#s3">API 1 — Traduction multilingue (MyMemory)</a></li>
+        <li><a href="#s4">API 2 — Upload d'images dans le cloud (Cloudinary)</a></li>
+        <li><a href="#s5">API 3 — Envoi d'emails (Gmail SMTP)</a></li>
+        <li><a href="#s6">Métier avancé 1 — Système de mentions @utilisateur</a></li>
+        <li><a href="#s7">Métier avancé 2 — Notifications en temps réel (Polling)</a></li>
+        <li><a href="#s8">Métier avancé 3 — Détection automatique de langue</a></li>
+        <li><a href="#s9">Métier avancé 4 — Recherche globale multi-entité</a></li>
+        <li><a href="#s10">Métier avancé 5 — Dashboard statistiques (rôle-based)</a></li>
+        <li><a href="#s11">Récapitulatif : où trouver chaque bloc de code</a></li>
+    </ol>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--              SECTION 1 — VUE D'ENSEMBLE                -->
+<!-- ════════════════════════════════════════════════════════ -->
+
+<h1 id="s1">1. Vue d'ensemble du projet</h1>
+
+<p>Skilora est une plateforme JavaFX de <strong>formation et recrutement</strong> destinée au marché tunisien. Le <strong>Module 6 — Communauté</strong> intègre 3 <strong>APIs REST externes</strong> et plusieurs <strong>métiers avancés</strong> pour offrir une expérience riche aux utilisateurs.</p>
+
+<h3>Les 3 APIs externes intégrées</h3>
+<table>
+    <tr><th>API</th><th>Service</th><th>Rôle</th><th>Clé API ?</th></tr>
+    <tr><td>MyMemory</td><td>TranslationService</td><td>Traduction dynamique des posts (fr/en/ar)</td><td>Non (gratuite)</td></tr>
+    <tr><td>Cloudinary</td><td>CloudinaryUploadService</td><td>Upload d'images vers le cloud</td><td>Upload preset (unsigned)</td></tr>
+    <tr><td>Gmail SMTP</td><td>EmailService</td><td>Envoi d'emails OTP pour récupération de mot de passe</td><td>Mot de passe d'application</td></tr>
+</table>
+
+<h3>Les métiers avancés</h3>
+<table>
+    <tr><th>Métier</th><th>Service</th><th>Description</th></tr>
+    <tr><td>Mentions @user</td><td>MentionService</td><td>Autocomplétion et notifications de mentions</td></tr>
+    <tr><td>Notifications temps réel</td><td>CommunityNotificationService</td><td>Polling DB + badges live + toasts</td></tr>
+    <tr><td>Détection de langue</td><td>TranslationService</td><td>Heuristiques multi-critères (accents, mots-outils, regex)</td></tr>
+    <tr><td>Recherche globale</td><td>SearchService</td><td>Recherche multi-entité (posts, messages, events, groupes, blog)</td></tr>
+    <tr><td>Dashboard stats</td><td>DashboardStatsService</td><td>Statistiques par rôle (admin/employer/user)</td></tr>
+</table>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--              SECTION 2 — ARCHITECTURE                   -->
+<!-- ════════════════════════════════════════════════════════ -->
+
+<div class="page-break"></div>
+<h1 id="s2">2. Architecture et structure des fichiers</h1>
+
+<h3>Pattern MVC + Singleton + DAO</h3>
+<p>Chaque module suit l'architecture suivante :</p>
+
+<div class="arch-flow">
+    <span class="arch-box">CommunityController</span>
+    <span class="arch-arrow">→</span>
+    <span class="arch-box green">Services (Singleton)</span>
+    <span class="arch-arrow">→</span>
+    <span class="arch-box orange">APIs externes / MySQL</span>
+    <br><br>
+    <span class="arch-box purple">Entity (POJO)</span>
+    <span style="margin: 0 20px; color: #94a3b8;">+</span>
+    <span class="arch-box gray">Enums</span>
+</div>
+
+<h3>Arborescence des fichiers (Module Communauté)</h3>
+<pre><code>src/main/java/com/skilora/community/
+├── controller/
+│   └── CommunityController.java        ← Contrôleur principal (3 372 lignes)
+├── service/
+│   ├── TranslationService.java          ← API MyMemory (604 lignes)
+│   ├── CloudinaryUploadService.java     ← API Cloudinary (318 lignes)
+│   ├── EmailService.java                ← API Gmail SMTP (174 lignes)
+│   ├── MentionService.java              ← Mentions @user (250 lignes)
+│   ├── CommunityNotificationService.java← Notifications temps réel (194 lignes)
+│   ├── SearchService.java               ← Recherche globale (299 lignes)
+│   ├── DashboardStatsService.java       ← Dashboard statistiques (246 lignes)
+│   ├── PostService.java                 ← CRUD Posts + Likes + Commentaires (531 lignes)
+│   ├── BlogService.java                 ← CRUD Blog (208 lignes)
+│   ├── EventService.java                ← CRUD Événements + RSVP (275 lignes)
+│   ├── GroupService.java                ← CRUD Groupes + Membres (278 lignes)
+│   ├── ConnectionService.java           ← Connexions / Invitations (260 lignes)
+│   ├── MessagingService.java            ← Messagerie privée (309 lignes)
+│   ├── NotificationService.java         ← Notifications DB (154 lignes)
+│   └── ReportService.java               ← Signalements (132 lignes)
+├── entity/
+│   ├── Post.java, PostComment.java, BlogArticle.java
+│   ├── Event.java, EventRsvp.java
+│   ├── CommunityGroup.java, GroupMember.java
+│   ├── Connection.java, Conversation.java, Message.java
+│   ├── Notification.java, Report.java, Company.java
+└── enums/
+    ├── PostType.java       (STATUS, ARTICLE_SHARE, JOB_SHARE, ACHIEVEMENT, SUCCESS_STORY)
+    ├── ConnectionStatus.java (PENDING, ACCEPTED, REJECTED, BLOCKED)
+    ├── EventStatus.java    (UPCOMING, ONGOING, COMPLETED, CANCELLED)
+    └── EventType.java      (MEETUP, WEBINAR, WORKSHOP, CONFERENCE, NETWORKING)</code></pre>
+
+<h3>Pattern Singleton — Utilisé par tous les services</h3>
+<p>Chaque service utilise le pattern <strong>Singleton (Double-Checked Locking)</strong> pour garantir une seule instance thread-safe :</p>
+<pre><code><span class="comment">// Pattern identique dans TOUS les services</span>
+<span class="keyword">private static volatile</span> TranslationService instance;
+
+<span class="keyword">public static</span> TranslationService getInstance() {
+    <span class="keyword">if</span> (instance == <span class="keyword">null</span>) {
+        <span class="keyword">synchronized</span> (TranslationService.<span class="keyword">class</span>) {
+            <span class="keyword">if</span> (instance == <span class="keyword">null</span>) {
+                instance = <span class="keyword">new</span> TranslationService();
+            }
+        }
+    }
+    <span class="keyword">return</span> instance;
+}</code></pre>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--         SECTION 3 — API TRADUCTION (MyMemory)          -->
+<!-- ════════════════════════════════════════════════════════ -->
+
+<div class="page-break"></div>
+<h1 id="s3">3. API 1 — Traduction multilingue (MyMemory)</h1>
+
+<div class="info-box">
+    <div class="title">Informations API</div>
+    <strong>API :</strong> MyMemory Translated — <code>https://api.mymemory.translated.net/get</code><br>
+    <strong>Type :</strong> API REST gratuite (pas de clé API requise)<br>
+    <strong>Format :</strong> JSON<br>
+    <strong>Limites :</strong> 5 000 caractères/requête, 10 000 requêtes/jour<br>
+    <strong>Langues :</strong> Français (fr), Anglais (en), Arabe (ar)
+</div>
+
+<div class="filepath">src/main/java/com/skilora/community/service/TranslationService.java — 604 lignes</div>
+
+<h2>3.1 Rôle</h2>
+<p>Le <code>TranslationService</code> permet de <strong>traduire dynamiquement</strong> le contenu des posts entre le français, l'anglais et l'arabe. L'utilisateur clique sur un bouton "Traduire" sous chaque post et choisit la langue cible. La traduction est effectuée via l'API MyMemory avec plusieurs couches de fallback.</p>
+
+<h2>3.2 Stratégie multi-couche (5 niveaux)</h2>
+
+<div class="arch-flow">
+    <span class="step-num">1</span><span class="arch-box gray">Cache LRU</span>
+    <span class="arch-arrow">→</span>
+    <span class="step-num">2</span><span class="arch-box gray">Dictionnaire local</span>
+    <span class="arch-arrow">→</span>
+    <span class="step-num">3</span><span class="arch-box">API MyMemory</span>
+    <span class="arch-arrow">→</span>
+    <span class="step-num">4</span><span class="arch-box orange">2-étapes (via EN)</span>
+    <span class="arch-arrow">→</span>
+    <span class="step-num">5</span><span class="arch-box gray">Texte original</span>
+</div>
+
+<table>
+    <tr><th>Couche</th><th>Description</th><th>Avantage</th></tr>
+    <tr><td><strong>1. Cache LRU</strong></td><td>LinkedHashMap de 100 entrées max. Clé : <code>"texte|source|cible"</code></td><td>Instantané, 0 requête réseau</td></tr>
+    <tr><td><strong>2. Dictionnaire local</strong></td><td>HashMap statique avec mots courants (fr/en/ar)</td><td>Fiable à 100%, pas d'API</td></tr>
+    <tr><td><strong>3. API MyMemory</strong></td><td>Appel REST GET avec <code>&mt=1</code> pour machine translation</td><td>Traduction dynamique de tout texte</td></tr>
+    <tr><td><strong>4. 2-étapes via anglais</strong></td><td>fr→en puis en→ar (contourne les paires faibles)</td><td>Améliore la qualité fr↔ar</td></tr>
+    <tr><td><strong>5. Fallback</strong></td><td>Retourne le texte original si tout échoue</td><td>L'app ne plante jamais</td></tr>
+</table>
+
+<h2>3.3 Code — Méthode principale <code>translate()</code></h2>
+<pre><code><span class="comment">// Fichier : TranslationService.java, ligne 213</span>
+<span class="keyword">public</span> String translate(String text, String sourceLang, String targetLang) {
+    <span class="keyword">if</span> (text == <span class="keyword">null</span> || text.isBlank()) <span class="keyword">return</span> text;
+
+    <span class="comment">// Si la langue source == cible, re-détecter intelligemment</span>
+    <span class="keyword">if</span> (sourceLang.equals(targetLang)) {
+        <span class="comment">// Essayer de trouver une meilleure langue source</span>
+        String cleaned = stripEmojisAndSpecialChars(text).toLowerCase().trim();
+        <span class="keyword">for</span> (String lang : SUPPORTED_LANGUAGES.keySet()) {
+            <span class="keyword">if</span> (!lang.equals(targetLang)) {
+                String tryKey = cleaned + <span class="string">"|"</span> + lang + <span class="string">"|"</span> + targetLang;
+                <span class="keyword">if</span> (LOCAL_DICT.containsKey(tryKey)) {
+                    sourceLang = lang; <span class="comment">// Auto-correction de la langue source</span>
+                    <span class="keyword">break</span>;
+                }
+            }
+        }
+        <span class="comment">// Si toujours pareil → tenter l'API avec langues alternatives</span>
+        <span class="keyword">if</span> (sourceLang.equals(targetLang)) {
+            <span class="keyword">for</span> (String altSource : <span class="keyword">new</span> String[]{<span class="string">"fr"</span>, <span class="string">"en"</span>, <span class="string">"ar"</span>}) {
+                <span class="keyword">if</span> (!altSource.equals(targetLang)) {
+                    String apiResult = callMyMemoryAPI(text, altSource, targetLang);
+                    <span class="keyword">if</span> (apiResult != <span class="keyword">null</span> && isValidTranslation(apiResult, text, targetLang)) {
+                        <span class="keyword">return</span> apiResult;
+                    }
+                }
+            }
+            <span class="keyword">return</span> text; <span class="comment">// Vraiment la même langue</span>
+        }
+    }
+
+    <span class="comment">// COUCHE 1 : Vérifier le cache LRU</span>
+    String cacheKey = text + <span class="string">"|"</span> + sourceLang + <span class="string">"|"</span> + targetLang;
+    <span class="keyword">if</span> (cache.containsKey(cacheKey)) { <span class="keyword">return</span> cache.get(cacheKey); }
+
+    <span class="comment">// COUCHE 2 : Dictionnaire local (aussi avec texte nettoyé sans emojis)</span>
+    String dictKey = text.toLowerCase().trim() + <span class="string">"|"</span> + sourceLang + <span class="string">"|"</span> + targetLang;
+    <span class="keyword">if</span> (LOCAL_DICT.containsKey(dictKey)) { <span class="keyword">return</span> LOCAL_DICT.get(dictKey); }
+
+    <span class="comment">// COUCHE 3 : API MyMemory (traduction machine dynamique)</span>
+    String apiResult = callMyMemoryAPI(text, sourceLang, targetLang);
+    <span class="keyword">if</span> (apiResult != <span class="keyword">null</span> && isValidTranslation(apiResult, text, targetLang)) {
+        cache.put(cacheKey, apiResult);
+        <span class="keyword">return</span> apiResult;
+    }
+
+    <span class="comment">// COUCHE 4 : Traduction 2-étapes via anglais (fr→en→ar)</span>
+    <span class="keyword">if</span> (!<span class="string">"en"</span>.equals(sourceLang) && !<span class="string">"en"</span>.equals(targetLang)) {
+        String english = callMyMemoryAPI(text, sourceLang, <span class="string">"en"</span>);
+        <span class="keyword">if</span> (english != <span class="keyword">null</span>) {
+            String finalResult = callMyMemoryAPI(english, <span class="string">"en"</span>, targetLang);
+            <span class="keyword">if</span> (finalResult != <span class="keyword">null</span>) { <span class="keyword">return</span> finalResult; }
+        }
+    }
+
+    <span class="comment">// COUCHE 5 : Retourner le texte original</span>
+    <span class="keyword">return</span> text;
+}</code></pre>
+
+<h2>3.4 Code — Appel API MyMemory <code>callMyMemoryAPI()</code></h2>
+<pre><code><span class="comment">// Fichier : TranslationService.java, ligne 335</span>
+<span class="keyword">private</span> String callMyMemoryAPI(String text, String sourceLang, String targetLang) {
+    <span class="comment">// Étape 1 : Nettoyer le texte (supprimer emojis)</span>
+    String cleanText = stripEmojisAndSpecialChars(text);
+
+    <span class="comment">// Étape 2 : Construire l'URL</span>
+    String encodedText = URLEncoder.encode(cleanText, StandardCharsets.UTF_8);
+    String langPair = sourceLang + <span class="string">"|"</span> + targetLang;
+    String url = <span class="string">"https://api.mymemory.translated.net/get?q="</span>
+                 + encodedText + <span class="string">"&langpair="</span> + langPair + <span class="string">"&mt=1"</span>;
+
+    <span class="comment">// Étape 3 : Requête HTTP GET</span>
+    HttpURLConnection connection = (HttpURLConnection) <span class="keyword">new</span> URL(url).openConnection();
+    connection.setRequestMethod(<span class="string">"GET"</span>);
+    connection.setConnectTimeout(8000);  <span class="comment">// 8 secondes timeout</span>
+    connection.setReadTimeout(8000);
+
+    <span class="comment">// Étape 4 : Parser la réponse JSON</span>
+    JSONObject response = <span class="keyword">new</span> JSONObject(responseBody);
+    String translation = response.getJSONObject(<span class="string">"responseData"</span>)
+                                 .getString(<span class="string">"translatedText"</span>);
+
+    <span class="comment">// Étape 5 : Parcourir "matches" pour le meilleur résultat</span>
+    <span class="comment">//   → Priorité : MT (machine) > TM (mémoire collaborative) > primary</span>
+    <span class="keyword">return</span> bestTranslation;
+}</code></pre>
+
+<div class="info-box">
+    <div class="title">Exemple de requête/réponse API</div>
+    <strong>Requête :</strong> <code>GET https://api.mymemory.translated.net/get?q=bonjour&langpair=fr|en&mt=1</code><br><br>
+    <strong>Réponse JSON :</strong>
+<pre><code>{
+  "responseData": {
+    "translatedText": "Hello",
+    "match": 1.0
+  },
+  "matches": [
+    { "translation": "Hello", "match": 1.0, "created-by": "MT!" },
+    { "translation": "Good morning", "match": 0.85, "created-by": "" }
+  ]
+}</code></pre>
+</div>
+
+<h2>3.5 Intégration dans le contrôleur</h2>
+<div class="filepath">CommunityController.java — lignes 721-725 (bouton) + lignes 2988-3117 (menu)</div>
+<pre><code><span class="comment">// Ligne 94 : Instanciation du service dans le contrôleur</span>
+<span class="keyword">private final</span> TranslationService translationService = TranslationService.getInstance();
+
+<span class="comment">// Ligne 721-725 : Bouton "Traduire" sur chaque carte de post</span>
+TLButton translateBtn = <span class="keyword">new</span> TLButton(<span class="string">"🌐  Traduire"</span>, TLButton.ButtonVariant.GHOST);
+translateBtn.setOnAction(e -> showTranslationMenu(translateBtn, contentLabel, originalPostText));
+
+<span class="comment">// Ligne 2988 : showTranslationMenu() — Menu popup de choix de langue</span>
+<span class="keyword">private void</span> showTranslationMenu(TLButton translateBtn, Label contentLabel, String originalText) {
+    String detectedLang = translationService.detectLanguage(originalText); <span class="comment">// Auto-détection</span>
+    <span class="comment">// Popup avec : Français, English, العربية</span>
+    <span class="comment">// Au clic → Thread séparé → translationService.translate() → mise à jour Label</span>
+    <span class="keyword">new</span> Thread(() -> {
+        String translated = translationService.translate(originalText, sourceLang, langCode);
+        Platform.runLater(() -> {
+            contentLabel.setText(<span class="string">"🌐 ["</span> + langCode.toUpperCase() + <span class="string">"] "</span> + translated);
+        });
+    }).start();
+}</code></pre>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--          SECTION 4 — API CLOUDINARY                    -->
+<!-- ════════════════════════════════════════════════════════ -->
+
+<div class="page-break"></div>
+<h1 id="s4">4. API 2 — Upload d'images dans le cloud (Cloudinary)</h1>
+
+<div class="info-box">
+    <div class="title">Informations API</div>
+    <strong>API :</strong> Cloudinary — <code>https://api.cloudinary.com/v1_1/skilora/image/upload</code><br>
+    <strong>Type :</strong> Upload non signé (unsigned) via multipart/form-data<br>
+    <strong>Configuration :</strong> CLOUD_NAME = <code>skilora</code>, UPLOAD_PRESET = <code>skilora_unsigned</code><br>
+    <strong>Limites :</strong> 10 MB par image, formats : jpg/jpeg/png/gif/webp/bmp<br>
+    <strong>Retour :</strong> URL HTTPS publique de l'image hébergée
+</div>
+
+<div class="filepath">src/main/java/com/skilora/community/service/CloudinaryUploadService.java — 318 lignes</div>
+
+<h2>4.1 Rôle</h2>
+<p>Quand un utilisateur crée un post avec une image, le fichier est uploadé vers <strong>Cloudinary</strong> (CDN cloud). L'API retourne une URL HTTPS publique qui est stockée en base de données. Si l'upload échoue (pas d'internet), le fichier est sauvegardé <strong>localement</strong> en fallback.</p>
+
+<h2>4.2 Étapes de l'upload</h2>
+
+<div class="arch-flow">
+    <span class="arch-box gray">FileChooser (UI)</span>
+    <span class="arch-arrow">→</span>
+    <span class="arch-box orange">Validation (taille, extension)</span>
+    <span class="arch-arrow">→</span>
+    <span class="arch-box">POST multipart/form-data</span>
+    <span class="arch-arrow">→</span>
+    <span class="arch-box green">URL HTTPS Cloudinary</span>
+</div>
+
+<table>
+    <tr><th>Étape</th><th>Description</th><th>Code</th></tr>
+    <tr><td><strong>1. Validation</strong></td><td>Fichier existe, &lt; 10 MB, extension autorisée</td><td>Lignes 122-133</td></tr>
+    <tr><td><strong>2. Multipart</strong></td><td>Construire le body avec boundary unique</td><td>Lignes 135-145</td></tr>
+    <tr><td><strong>3. POST HTTP</strong></td><td>Envoyer le fichier binaire à l'API Cloudinary</td><td>Lignes 147-185</td></tr>
+    <tr><td><strong>4. Réponse JSON</strong></td><td>Extraire <code>secure_url</code> de la réponse</td><td>Lignes 187-200</td></tr>
+    <tr><td><strong>5. Fallback local</strong></td><td>Si erreur, copier dans <code>data/uploads/</code></td><td>Lignes 244-267</td></tr>
+</table>
+
+<h2>4.3 Code — Méthode <code>uploadImage()</code></h2>
+<pre><code><span class="comment">// Fichier : CloudinaryUploadService.java, ligne 120</span>
+<span class="keyword">public</span> String uploadImage(File file) {
+    <span class="comment">// VALIDATION 1 : Fichier existe</span>
+    <span class="keyword">if</span> (file == <span class="keyword">null</span> || !file.exists()) <span class="keyword">throw new</span> RuntimeException(<span class="string">"Fichier introuvable"</span>);
+    <span class="comment">// VALIDATION 2 : Taille max 10 MB</span>
+    <span class="keyword">if</span> (file.length() > 10 * 1024 * 1024) <span class="keyword">throw new</span> RuntimeException(<span class="string">"Fichier trop gros"</span>);
+    <span class="comment">// VALIDATION 3 : Extension autorisée (jpg, png, gif, webp, bmp)</span>
+    <span class="keyword">if</span> (!isAllowedExtension(file.getName())) <span class="keyword">throw new</span> RuntimeException(<span class="string">"Extension non autorisée"</span>);
+
+    <span class="comment">// Construction de la requête multipart/form-data</span>
+    String boundary = <span class="string">"----CloudinaryBoundary"</span> + UUID.randomUUID();
+    HttpURLConnection connection = (HttpURLConnection) URI.create(UPLOAD_URL).toURL().openConnection();
+    connection.setDoOutput(<span class="keyword">true</span>);
+    connection.setRequestMethod(<span class="string">"POST"</span>);
+    connection.setRequestProperty(<span class="string">"Content-Type"</span>, <span class="string">"multipart/form-data; boundary="</span> + boundary);
+
+    <span class="comment">// Corps de la requête (3 parties) :</span>
+    <span class="comment">//   Partie 1 : le fichier binaire (Content-Disposition: form-data; name="file")</span>
+    <span class="comment">//   Partie 2 : upload_preset = "skilora_unsigned"</span>
+    <span class="comment">//   Partie 3 : folder = "skilora/community"</span>
+
+    <span class="comment">// Lire la réponse JSON</span>
+    JSONObject jsonResponse = <span class="keyword">new</span> JSONObject(responseBody);
+    String secureUrl = jsonResponse.getString(<span class="string">"secure_url"</span>);
+    <span class="comment">// → Retourne : "https://res.cloudinary.com/skilora/image/upload/v.../image.jpg"</span>
+    <span class="keyword">return</span> secureUrl;
+}</code></pre>
+
+<h2>4.4 Code — Fallback local <code>saveLocally()</code></h2>
+<pre><code><span class="comment">// Fichier : CloudinaryUploadService.java, ligne 244</span>
+<span class="keyword">private</span> String saveLocally(File originalFile) {
+    Path uploadsDir = Paths.get(<span class="string">"data"</span>, <span class="string">"uploads"</span>);
+    Files.createDirectories(uploadsDir);                            <span class="comment">// Créer le dossier</span>
+    String uniqueName = UUID.randomUUID().substring(0, 8) + ext;    <span class="comment">// Nom unique</span>
+    Files.copy(originalFile.toPath(), uploadsDir.resolve(uniqueName)); <span class="comment">// Copier</span>
+    <span class="keyword">return</span> destination.toAbsolutePath().toUri().toString();          <span class="comment">// file:///C:/...</span>
+}</code></pre>
+
+<h2>4.5 Intégration dans le contrôleur</h2>
+<div class="filepath">CommunityController.java — lignes 316-350</div>
+<pre><code><span class="comment">// Ligne 95 : Instanciation</span>
+<span class="keyword">private final</span> CloudinaryUploadService cloudinaryService = CloudinaryUploadService.getInstance();
+
+<span class="comment">// Ligne 316 : Bouton Upload dans le dialogue de création de post</span>
+TLButton uploadBtn = <span class="keyword">new</span> TLButton(<span class="string">"📷  Upload Image"</span>, TLButton.ButtonVariant.OUTLINE);
+uploadBtn.setOnAction(ev -> {
+    FileChooser fileChooser = <span class="keyword">new</span> FileChooser();
+    fileChooser.getExtensionFilters().add(
+        <span class="keyword">new</span> FileChooser.ExtensionFilter(<span class="string">"Images"</span>, <span class="string">"*.jpg"</span>, <span class="string">"*.png"</span>, <span class="string">"*.gif"</span>));
+    File file = fileChooser.showOpenDialog(window);
+    <span class="keyword">if</span> (file != <span class="keyword">null</span>) {
+        <span class="keyword">new</span> Thread(() -> {
+            String url = cloudinaryService.uploadImage(file); <span class="comment">// Appel API Cloudinary</span>
+            Platform.runLater(() -> imageUrlField.setText(url));
+        }).start();
+    }
+});</code></pre>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--            SECTION 5 — API EMAIL (SMTP)                -->
+<!-- ════════════════════════════════════════════════════════ -->
+
+<div class="page-break"></div>
+<h1 id="s5">5. API 3 — Envoi d'emails (Gmail SMTP)</h1>
+
+<div class="info-box">
+    <div class="title">Informations API</div>
+    <strong>Protocole :</strong> SMTP avec TLS 1.2<br>
+    <strong>Serveur :</strong> <code>smtp.gmail.com:587</code><br>
+    <strong>Authentification :</strong> Variables d'environnement <code>SKILORA_MAIL_EMAIL</code> + <code>SKILORA_MAIL_PASSWORD</code><br>
+    <strong>Utilisation :</strong> Envoi de codes OTP pour la récupération de mot de passe<br>
+    <strong>Format :</strong> Email HTML professionnel avec template Skilora
+</div>
+
+<div class="filepath">src/main/java/com/skilora/community/service/EmailService.java — 174 lignes</div>
+
+<h2>5.1 Rôle</h2>
+<p>Quand un utilisateur demande la récupération de son mot de passe, un <strong>code OTP à 6 chiffres</strong> est envoyé par email via le serveur SMTP de Gmail. L'email est au format HTML avec un template professionnel brandé Skilora.</p>
+
+<h2>5.2 Étapes de l'envoi</h2>
+
+<div class="arch-flow">
+    <span class="arch-box gray">Utilisateur oublie mdp</span>
+    <span class="arch-arrow">→</span>
+    <span class="arch-box purple">Générer OTP</span>
+    <span class="arch-arrow">→</span>
+    <span class="arch-box">SMTP Gmail TLS</span>
+    <span class="arch-arrow">→</span>
+    <span class="arch-box green">Email HTML reçu</span>
+</div>
+
+<h2>5.3 Code — Méthode <code>sendOtpEmail()</code> (asynchrone)</h2>
+<pre><code><span class="comment">// Fichier : EmailService.java, ligne 60</span>
+<span class="keyword">public</span> CompletableFuture&lt;Boolean&gt; sendOtpEmail(String toEmail, String otpCode) {
+    <span class="keyword">return</span> CompletableFuture.supplyAsync(() -> {
+        String subject = <span class="string">"Votre code de vérification Skilora"</span>;
+        String body = buildOtpEmailBody(otpCode);  <span class="comment">// Template HTML</span>
+        sendEmail(toEmail, subject, body);          <span class="comment">// Envoi SMTP</span>
+        <span class="keyword">return true</span>;
+    });
+}
+
+<span class="keyword">private void</span> sendEmail(String toEmail, String subject, String body) {
+    Properties props = <span class="keyword">new</span> Properties();
+    props.put(<span class="string">"mail.smtp.auth"</span>, <span class="string">"true"</span>);
+    props.put(<span class="string">"mail.smtp.starttls.enable"</span>, <span class="string">"true"</span>);
+    props.put(<span class="string">"mail.smtp.host"</span>, <span class="string">"smtp.gmail.com"</span>);
+    props.put(<span class="string">"mail.smtp.port"</span>, <span class="string">"587"</span>);
+    props.put(<span class="string">"mail.smtp.ssl.protocols"</span>, <span class="string">"TLSv1.2"</span>);
+
+    Session session = Session.getInstance(props, <span class="keyword">new</span> Authenticator() {
+        <span class="keyword">protected</span> PasswordAuthentication getPasswordAuthentication() {
+            <span class="keyword">return new</span> PasswordAuthentication(fromEmail, fromPassword);
+        }
+    });
+
+    Message message = <span class="keyword">new</span> MimeMessage(session);
+    message.setFrom(<span class="keyword">new</span> InternetAddress(fromEmail, <span class="string">"Skilora Support"</span>));
+    message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(toEmail));
+    message.setSubject(subject);
+    message.setContent(multipart); <span class="comment">// HTML body</span>
+    Transport.send(message);
+}</code></pre>
+
+<div class="warn-box">
+    <div class="title">Configuration requise</div>
+    <p>Il faut définir 2 variables d'environnement avant de lancer l'application :</p>
+    <ul>
+        <li><code>SKILORA_MAIL_EMAIL</code> = adresse Gmail du compte expéditeur</li>
+        <li><code>SKILORA_MAIL_PASSWORD</code> = mot de passe d'application Gmail (pas le mot de passe normal)</li>
+    </ul>
+    <p>Pour générer un mot de passe d'application : Google Account → Sécurité → Mots de passe des applications</p>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--       SECTION 6 — MÉTIER : MENTIONS @USER             -->
+<!-- ════════════════════════════════════════════════════════ -->
+
+<div class="page-break"></div>
+<h1 id="s6">6. Métier avancé 1 — Système de mentions @utilisateur</h1>
+
+<div class="filepath">src/main/java/com/skilora/community/service/MentionService.java — 250 lignes</div>
+
+<h2>6.1 Rôle</h2>
+<p>Similaire à Twitter/LinkedIn : quand un utilisateur tape <code>@</code> dans le champ de texte d'un post, un popup d'autocomplétion apparaît avec les noms d'utilisateurs correspondants. Après publication, les utilisateurs mentionnés reçoivent une notification.</p>
+
+<h2>6.2 Flux complet</h2>
+
+<div class="arch-flow">
+    <span class="step-num">1</span><span class="arch-box gray">Tape @J</span>
+    <span class="arch-arrow">→</span>
+    <span class="step-num">2</span><span class="arch-box">SQL LIKE '%J%'</span>
+    <span class="arch-arrow">→</span>
+    <span class="step-num">3</span><span class="arch-box green">Popup autocomplétion</span>
+    <span class="arch-arrow">→</span>
+    <span class="step-num">4</span><span class="arch-box purple">Sélection → @Jean_Dupont</span>
+    <span class="arch-arrow">→</span>
+    <span class="step-num">5</span><span class="arch-box orange">Notification envoyée</span>
+</div>
+
+<h2>6.3 Regex de détection des mentions</h2>
+<pre><code><span class="comment">// Fichier : MentionService.java, ligne 51</span>
+<span class="keyword">private static final</span> Pattern MENTION_PATTERN = Pattern.compile(<span class="string">"@(\\w+(?:_\\w+)*)"</span>);
+
+<span class="comment">//  @        → le caractère arobase (déclencheur)
+//  \w+      → un ou plusieurs caractères de mot (lettres, chiffres, _)
+//  (?:_\w+)*→ suivi optionnellement de _mot (noms composés)
+//
+//  Exemples valides : @Jean, @Jean_Dupont, @admin_2024
+//  Exemples invalides : @ (seul), @Jean Dupont (espace)</span></code></pre>
+
+<h2>6.4 Code — Classe interne <code>UserMention</code></h2>
+<pre><code><span class="comment">// Fichier : MentionService.java, ligne 73</span>
+<span class="keyword">public static class</span> UserMention {
+    <span class="keyword">private final int</span> userId;       <span class="comment">// ID en base de données</span>
+    <span class="keyword">private final</span> String fullName;  <span class="comment">// "Jean Dupont"</span>
+    <span class="keyword">private final</span> String handle;    <span class="comment">// "Jean_Dupont" (espaces → underscores)</span>
+
+    <span class="keyword">public</span> UserMention(<span class="keyword">int</span> userId, String fullName) {
+        <span class="keyword">this</span>.userId = userId;
+        <span class="keyword">this</span>.fullName = fullName;
+        <span class="keyword">this</span>.handle = fullName.trim().replaceAll(<span class="string">"\\s+"</span>, <span class="string">"_"</span>);
+    }
+}</code></pre>
+
+<h2>6.5 Code — Recherche SQL pour autocomplétion</h2>
+<pre><code><span class="comment">// Fichier : MentionService.java, ligne 104</span>
+<span class="keyword">public</span> List&lt;UserMention&gt; searchUsers(String query, <span class="keyword">int</span> limit) {
+    String sql = <span class="string">"SELECT id, full_name FROM users "</span> +
+                 <span class="string">"WHERE full_name LIKE ? OR REPLACE(full_name, ' ', '_') LIKE ? "</span> +
+                 <span class="string">"ORDER BY full_name ASC LIMIT ?"</span>;
+    <span class="comment">// Le REPLACE permet de chercher "Jean_D" ET "Jean D"</span>
+    stmt.setString(1, <span class="string">"%"</span> + query + <span class="string">"%"</span>);  <span class="comment">// Recherche partielle</span>
+    stmt.setString(2, <span class="string">"%"</span> + query + <span class="string">"%"</span>);
+    stmt.setInt(3, limit);                   <span class="comment">// Max 5-8 résultats</span>
+}</code></pre>
+
+<h2>6.6 Code — Traitement des mentions après publication</h2>
+<pre><code><span class="comment">// Fichier : MentionService.java, ligne 205</span>
+<span class="keyword">public void</span> processMentions(String text, <span class="keyword">int</span> authorId, <span class="keyword">int</span> postId) {
+    List&lt;String&gt; mentions = extractMentions(text); <span class="comment">// Regex → ["Jean_Dupont", "Marie"]</span>
+    <span class="keyword">for</span> (String handle : mentions) {
+        <span class="keyword">int</span> userId = findUserIdByHandle(handle);     <span class="comment">// SQL lookup par handle</span>
+        <span class="keyword">if</span> (userId > 0 && userId != authorId) {       <span class="comment">// Ne pas se notifier soi-même</span>
+            createMentionNotification(userId, authorId, postId); <span class="comment">// INSERT notification</span>
+        }
+    }
+}
+
+<span class="comment">// Insertion de la notification en base</span>
+<span class="keyword">private void</span> createMentionNotification(<span class="keyword">int</span> mentionedUserId, <span class="keyword">int</span> authorId, <span class="keyword">int</span> postId) {
+    String sql = <span class="string">"INSERT INTO notifications (user_id, type, message, reference_id, is_read, created_date) "</span>
+               + <span class="string">"VALUES (?, 'MENTION', 'Vous avez été mentionné dans un post', ?, FALSE, NOW())"</span>;
+}</code></pre>
+
+<h2>6.7 Intégration dans le contrôleur</h2>
+<div class="filepath">CommunityController.java — lignes 3127-3232 (autocomplétion) + lignes 413-431 (traitement)</div>
+<pre><code><span class="comment">// Ligne 365 : Activer l'autocomplétion @mention dans le textarea</span>
+setupMentionDetection(textArea, dialog);
+
+<span class="comment">// Ligne 3128 : Écouter chaque modification du texte</span>
+innerControl.textProperty().addListener((obs, oldText, newText) -> {
+    <span class="comment">// 1. Trouver le dernier @ avant le curseur</span>
+    <span class="keyword">int</span> atIndex = textBeforeCaret.lastIndexOf(<span class="string">'@'</span>);
+    <span class="comment">// 2. Extraire la requête après @</span>
+    String query = textBeforeCaret.substring(atIndex + 1);
+    <span class="comment">// 3. Chercher les utilisateurs (thread séparé)</span>
+    List&lt;UserMention&gt; users = mentionService.searchUsers(query, 5);
+    <span class="comment">// 4. Afficher le popup d'autocomplétion</span>
+    <span class="comment">// 5. Au clic → remplacer @query par @Handle dans le texte</span>
+});
+
+<span class="comment">// Ligne 413 : Après création du post, traiter les mentions</span>
+mentionService.processMentions(text, currentUser.getId(), postId);</code></pre>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--     SECTION 7 — MÉTIER : NOTIFICATIONS TEMPS RÉEL      -->
+<!-- ════════════════════════════════════════════════════════ -->
+
+<div class="page-break"></div>
+<h1 id="s7">7. Métier avancé 2 — Notifications en temps réel (Polling)</h1>
+
+<div class="filepath">src/main/java/com/skilora/community/service/CommunityNotificationService.java — 194 lignes</div>
+
+<h2>7.1 Rôle</h2>
+<p>Ce service interroge la base de données <strong>toutes les 6 secondes</strong> pour détecter de nouveaux messages non lus et de nouvelles demandes de connexion. Il met à jour en temps réel les <strong>badges</strong> sur les onglets et affiche des <strong>toasts</strong> (notifications visuelles).</p>
+
+<h2>7.2 Architecture du polling</h2>
+
+<div class="arch-flow">
+    <span class="arch-box purple">JavaFX Timeline</span>
+    <span class="arch-arrow">→</span>
+    <span class="arch-box gray">Thread arrière-plan</span>
+    <span class="arch-arrow">→</span>
+    <span class="arch-box">SQL (COUNT unread)</span>
+    <span class="arch-arrow">→</span>
+    <span class="arch-box green">Platform.runLater</span>
+    <span class="arch-arrow">→</span>
+    <span class="arch-box orange">Badge + Toast</span>
+    <br><br>
+    <em style="color:#64748b;">↺ Répété toutes les 6 secondes via Timeline.INDEFINITE</em>
+</div>
+
+<h2>7.3 Code — Création du poller</h2>
+<pre><code><span class="comment">// Fichier : CommunityNotificationService.java, ligne 62</span>
+<span class="keyword">public</span> CommunityNotificationService(<span class="keyword">int</span> userId, <span class="keyword">int</span> intervalSeconds) {
+    <span class="keyword">this</span>.userId = userId;
+    <span class="keyword">int</span> interval = Math.max(3, intervalSeconds); <span class="comment">// Minimum 3 secondes</span>
+
+    <span class="comment">// Timeline JavaFX : exécute pollNotifications() à intervalle régulier</span>
+    <span class="keyword">this</span>.timeline = <span class="keyword">new</span> Timeline(<span class="keyword">new</span> KeyFrame(
+        Duration.seconds(interval),
+        e -> pollNotifications()
+    ));
+    <span class="keyword">this</span>.timeline.setCycleCount(Animation.INDEFINITE); <span class="comment">// Boucle infinie</span>
+}</code></pre>
+
+<h2>7.4 Code — Logique de polling <code>pollNotifications()</code></h2>
+<pre><code><span class="comment">// Fichier : CommunityNotificationService.java, ligne 155</span>
+<span class="keyword">private void</span> pollNotifications() {
+    <span class="comment">// Requêtes SQL dans un thread daemon (ne bloque pas l'UI)</span>
+    Thread pollThread = <span class="keyword">new</span> Thread(() -> {
+        <span class="keyword">int</span> unread = MessagingService.getInstance().getUnreadCount(userId);
+        <span class="keyword">int</span> pending = ConnectionService.getInstance().getPendingCount(userId);
+
+        Platform.runLater(() -> {
+            <span class="comment">// Déclencher les callbacks seulement si le count a changé</span>
+            <span class="keyword">if</span> (lastUnreadMessages != unread) {
+                <span class="keyword">int</span> old = lastUnreadMessages;
+                lastUnreadMessages = unread;
+                onUnreadMessagesChanged.accept(old, unread); <span class="comment">// Callback → badge + toast</span>
+            }
+            <span class="keyword">if</span> (lastPendingConnections != pending) {
+                <span class="keyword">int</span> old = lastPendingConnections;
+                lastPendingConnections = pending;
+                onPendingConnectionsChanged.accept(old, pending); <span class="comment">// Callback → badge + toast</span>
+            }
+        });
+    });
+    pollThread.setDaemon(<span class="keyword">true</span>); <span class="comment">// Thread daemon : meurt avec l'application</span>
+    pollThread.start();
+}</code></pre>
+
+<h2>7.5 Intégration dans le contrôleur</h2>
+<div class="filepath">CommunityController.java — lignes 129-175</div>
+<pre><code><span class="comment">// Ligne 131 : Créer un poller avec intervalle de 6 secondes</span>
+notificationService = <span class="keyword">new</span> CommunityNotificationService(currentUser.getId(), 6);
+
+<span class="comment">// Callback : mise à jour du badge de l'onglet Messages</span>
+notificationService.setOnUnreadMessagesChanged((oldCount, newCount) -> {
+    communityTabs.setTabBadge(<span class="string">"messages"</span>, newCount);  <span class="comment">// Badge visuel</span>
+    <span class="keyword">if</span> (oldCount >= 0 && newCount > oldCount) {
+        showToast(<span class="string">"📩  "</span> + (newCount - oldCount) + <span class="string">" nouveau(x) message(s)"</span>);
+    }
+});
+
+<span class="comment">// Callback : badge de l'onglet Connexions</span>
+notificationService.setOnPendingConnectionsChanged((oldCount, newCount) -> {
+    communityTabs.setTabBadge(<span class="string">"connections"</span>, newCount);
+    <span class="keyword">if</span> (oldCount >= 0 && newCount > oldCount) {
+        showToast(<span class="string">"🔔  "</span> + (newCount - oldCount) + <span class="string">" nouvelle(s) invitation(s)"</span>);
+    }
+});
+
+notificationService.start(); <span class="comment">// Démarrer le polling (poll immédiat + timeline)</span></code></pre>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--      SECTION 8 — MÉTIER : DÉTECTION DE LANGUE          -->
+<!-- ════════════════════════════════════════════════════════ -->
+
+<div class="page-break"></div>
+<h1 id="s8">8. Métier avancé 3 — Détection automatique de langue</h1>
+
+<div class="filepath">src/main/java/com/skilora/community/service/TranslationService.java — méthode detectLanguage(), lignes 454-541</div>
+
+<h2>8.1 Rôle</h2>
+<p>Quand l'utilisateur clique "Traduire", le système doit deviner la langue du post <strong>avant</strong> d'appeler l'API de traduction. La méthode <code>detectLanguage()</code> utilise un algorithme heuristique en 6 étapes.</p>
+
+<h2>8.2 Les 6 étapes de détection</h2>
+
+<table>
+    <tr><th>Étape</th><th>Critère</th><th>Résultat</th></tr>
+    <tr><td><strong>0. Nettoyage</strong></td><td>Supprimer emojis, caractères spéciaux</td><td>Texte propre</td></tr>
+    <tr><td><strong>1. Caractères arabes</strong></td><td>&gt; 30% de caractères Unicode \u0600-\u06FF</td><td>→ "ar"</td></tr>
+    <tr><td><strong>2. Accents français</strong></td><td>Présence de é, è, ê, ç, à, ù, etc.</td><td>→ "fr"</td></tr>
+    <tr><td><strong>3. Contractions</strong></td><td>Regex <code>\b[jldcnqs]'\w+</code> (j'ai, l'homme, c'est)</td><td>→ "fr"</td></tr>
+    <tr><td><strong>4. Mot isolé français</strong></td><td>Dictionnaire de 60+ mots (bonjour, merci, etc.)</td><td>→ "fr"</td></tr>
+    <tr><td><strong>5. Mots-outils français</strong></td><td>le, la, de, un, est, je, etc. (split + comptage)</td><td>→ "fr" si ≥ 1</td></tr>
+    <tr><td><strong>6. Mots-outils anglais</strong></td><td>the, is, are, have, with, etc.</td><td>→ "en" si ≥ 1</td></tr>
+    <tr><td><strong>Défaut</strong></td><td>Si rien détecté</td><td>→ "fr" (contexte Tunisie)</td></tr>
+</table>
+
+<h2>8.3 Code — <code>detectLanguage()</code></h2>
+<pre><code><span class="comment">// Fichier : TranslationService.java, ligne 454</span>
+<span class="keyword">public</span> String detectLanguage(String text) {
+    <span class="keyword">if</span> (text == <span class="keyword">null</span> || text.isBlank()) <span class="keyword">return</span> <span class="string">"fr"</span>;
+
+    <span class="comment">// Étape 0 : Nettoyer (supprimer emojis)</span>
+    String cleaned = stripEmojisAndSpecialChars(text);
+
+    <span class="comment">// Étape 1 : Arabe (> 30% de caractères arabes)</span>
+    <span class="keyword">long</span> arabicChars = cleaned.chars().filter(c -> c >= 0x0600 && c <= 0x06FF).count();
+    <span class="keyword">if</span> (arabicChars > totalLetters * 0.3) <span class="keyword">return</span> <span class="string">"ar"</span>;
+
+    <span class="comment">// Étape 2 : Accents français (é, è, ê, ç, à, ù, ô, î)</span>
+    <span class="keyword">long</span> frenchAccents = lower.chars().filter(c ->
+        c == <span class="string">'é'</span> || c == <span class="string">'è'</span> || c == <span class="string">'ê'</span> || c == <span class="string">'ç'</span> ||
+        c == <span class="string">'à'</span> || c == <span class="string">'ù'</span> || c == <span class="string">'ô'</span> || c == <span class="string">'î'</span>
+    ).count();
+    <span class="keyword">if</span> (frenchAccents > 0) <span class="keyword">return</span> <span class="string">"fr"</span>;
+
+    <span class="comment">// Étape 3 : Contractions françaises (j', l', d', c'est, qu', n', s')</span>
+    <span class="keyword">if</span> (lower.matches(<span class="string">".*\\b[jldcnqs]'\\w+.*"</span>)) <span class="keyword">return</span> <span class="string">"fr"</span>;
+
+    <span class="comment">// Étape 4 : Mot isolé dans dictionnaire français (60+ mots)</span>
+    Set&lt;String&gt; frenchSingleWords = Set.of(<span class="string">"bonjour"</span>, <span class="string">"salut"</span>, <span class="string">"merci"</span>, ...);
+    <span class="keyword">if</span> (frenchSingleWords.contains(singleWord)) <span class="keyword">return</span> <span class="string">"fr"</span>;
+
+    <span class="comment">// Étape 5 : Compter les mots-outils français (le, la, de, un, est...)</span>
+    String[] words = lower.split(<span class="string">"[\\s']+"</span>);
+    <span class="keyword">for</span> (String w : words) { <span class="keyword">if</span> (frenchWordSet.contains(w)) frenchCount++; }
+    <span class="keyword">if</span> (frenchCount >= 1 && words.length <= 5) <span class="keyword">return</span> <span class="string">"fr"</span>;
+
+    <span class="comment">// Étape 6 : Compter les mots-outils anglais (the, is, are, have...)</span>
+    <span class="keyword">if</span> (englishCount >= 1 && frenchCount == 0) <span class="keyword">return</span> <span class="string">"en"</span>;
+
+    <span class="keyword">return</span> <span class="string">"fr"</span>; <span class="comment">// Défaut : français (contexte Skilora Tunisie)</span>
+}</code></pre>
+
+<h2>8.4 Code — Nettoyage <code>stripEmojisAndSpecialChars()</code></h2>
+<pre><code><span class="comment">// Fichier : TranslationService.java, ligne 436</span>
+<span class="keyword">private</span> String stripEmojisAndSpecialChars(String text) {
+    <span class="comment">// Garde uniquement : lettres (toutes langues), chiffres, espaces, apostrophes, tirets</span>
+    <span class="keyword">return</span> text.replaceAll(<span class="string">"[^\\p{L}\\p{N}\\s'-]"</span>, <span class="string">""</span>).trim();
+    <span class="comment">//  \p{L} = toute lettre Unicode (accentuée, arabe, etc.)
+    //  \p{N} = tout chiffre Unicode
+    //  \s    = espace, tab, newline
+    //  '-    = apostrophe et tiret (pour "c'est", "peut-être")</span>
+}</code></pre>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--       SECTION 9 — MÉTIER : RECHERCHE GLOBALE           -->
+<!-- ════════════════════════════════════════════════════════ -->
+
+<div class="page-break"></div>
+<h1 id="s9">9. Métier avancé 4 — Recherche globale multi-entité</h1>
+
+<div class="filepath">src/main/java/com/skilora/community/service/SearchService.java — 299 lignes</div>
+
+<h2>9.1 Rôle</h2>
+<p>Le <code>SearchService</code> permet de chercher un mot-clé dans <strong>5 types d'entités</strong> simultanément : Posts, Messages, Événements, Groupes et Blog. Les résultats sont fusionnés et triés par date.</p>
+
+<h2>9.2 Architecture</h2>
+
+<div class="arch-flow">
+    <span class="arch-box gray">Mot-clé</span>
+    <span class="arch-arrow">→</span>
+    <span class="arch-box">SQL LIKE x5</span>
+    <span class="arch-arrow">→</span>
+    <span class="arch-box green">Fusion + Tri</span>
+    <span class="arch-arrow">→</span>
+    <span class="arch-box purple">List&lt;SearchResult&gt;</span>
+</div>
+
+<h2>9.3 Entités recherchées</h2>
+<table>
+    <tr><th>Entité</th><th>Champs cherchés</th><th>Sécurité</th></tr>
+    <tr><td>Posts</td><td>content</td><td>Posts publiés uniquement</td></tr>
+    <tr><td>Messages</td><td>content</td><td>Conversations de l'utilisateur uniquement</td></tr>
+    <tr><td>Événements</td><td>title, description</td><td>Tous</td></tr>
+    <tr><td>Groupes</td><td>name, description</td><td>Tous</td></tr>
+    <tr><td>Blog</td><td>title, content, tags</td><td>Articles publiés uniquement</td></tr>
+</table>
+
+<h2>9.4 Filtres disponibles</h2>
+<pre><code><span class="comment">// SearchFilter — filtre par type d'entité</span>
+<span class="keyword">enum</span> SearchFilter { ALL, POSTS, MESSAGES, EVENTS, GROUPS, BLOG }
+
+<span class="comment">// DateFilter — filtre par période</span>
+<span class="keyword">enum</span> DateFilter { ALL, TODAY, THIS_WEEK, THIS_MONTH, THIS_YEAR }</code></pre>
+
+<h2>9.5 Code — Méthode <code>search()</code></h2>
+<pre><code><span class="comment">// Fichier : SearchService.java</span>
+<span class="keyword">public</span> List&lt;SearchResult&gt; search(String keyword, SearchFilter filter, <span class="keyword">int</span> userId) {
+    List&lt;SearchResult&gt; results = <span class="keyword">new</span> ArrayList&lt;&gt;();
+    String pattern = <span class="string">"%"</span> + keyword + <span class="string">"%"</span>;
+
+    <span class="comment">// Chercher dans les posts</span>
+    <span class="keyword">if</span> (filter == ALL || filter == POSTS) {
+        String sql = <span class="string">"SELECT p.id, p.content, u.full_name, p.created_date "</span>
+                   + <span class="string">"FROM posts p JOIN users u ON p.author_id = u.id "</span>
+                   + <span class="string">"WHERE p.content LIKE ? ORDER BY p.created_date DESC"</span>;
+        <span class="comment">// ... ajout des résultats</span>
+    }
+
+    <span class="comment">// Chercher dans les messages (seulement les conversations de l'utilisateur)</span>
+    <span class="keyword">if</span> (filter == ALL || filter == MESSAGES) {
+        String sql = <span class="string">"SELECT m.id, m.content, u.full_name, m.created_date "</span>
+                   + <span class="string">"FROM messages m JOIN conversations c ON m.conversation_id = c.id "</span>
+                   + <span class="string">"WHERE m.content LIKE ? AND (c.participant_1 = ? OR c.participant_2 = ?)"</span>;
+    }
+
+    <span class="comment">// ... idem pour Events, Groups, Blog</span>
+
+    <span class="comment">// Trier tous les résultats par date décroissante</span>
+    results.sort(Comparator.comparing(SearchResult::getDate).reversed());
+    <span class="keyword">return</span> results;
+}
+
+<span class="comment">// Classe interne : résultat unifié</span>
+<span class="keyword">public static class</span> SearchResult {
+    String type;     <span class="comment">// "POST", "MESSAGE", "EVENT", "GROUP", "BLOG"</span>
+    <span class="keyword">int</span> id;          <span class="comment">// ID de l'entité</span>
+    String title;    <span class="comment">// Titre ou extrait</span>
+    String excerpt;  <span class="comment">// 100 premiers caractères</span>
+    String author;   <span class="comment">// Nom de l'auteur</span>
+    LocalDateTime date;
+}</code></pre>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--       SECTION 10 — MÉTIER : DASHBOARD STATS            -->
+<!-- ════════════════════════════════════════════════════════ -->
+
+<div class="page-break"></div>
+<h1 id="s10">10. Métier avancé 5 — Dashboard statistiques (rôle-based)</h1>
+
+<div class="filepath">src/main/java/com/skilora/community/service/DashboardStatsService.java — 246 lignes</div>
+
+<h2>10.1 Rôle</h2>
+<p>Le <code>DashboardStatsService</code> fournit des statistiques personnalisées selon le <strong>rôle</strong> de l'utilisateur (Admin, Employeur, Utilisateur). Chaque rôle voit des données différentes sur son tableau de bord.</p>
+
+<h2>10.2 Statistiques par rôle</h2>
+
+<table>
+    <tr><th>Rôle</th><th>Statistiques affichées</th><th>Méthodes</th></tr>
+    <tr><td><strong>ADMIN</strong></td><td>Total utilisateurs, nouveaux ce mois, offres actives, tickets ouverts, masse salariale</td><td><code>getTotalUsers()</code>, <code>getNewUsersThisMonth()</code>, <code>getTotalActiveOffers()</code>, <code>getOpenTickets()</code>, <code>getTotalPayrollThisMonth()</code></td></tr>
+    <tr><td><strong>EMPLOYER</strong></td><td>Vues des offres, candidatures reçues, entretiens cette semaine</td><td><code>getOfferViewsForEmployer()</code>, <code>getApplicationsForEmployer()</code>, <code>getInterviewsThisWeek()</code></td></tr>
+    <tr><td><strong>USER</strong></td><td>Mes candidatures, candidatures actives, formations inscrites, connexions</td><td><code>getUserApplicationCount()</code>, <code>getUserActiveApplications()</code>, <code>getUserEnrollmentCount()</code>, <code>getUserConnectionCount()</code></td></tr>
+</table>
+
+<h2>10.3 Fil d'activité récente (rôle-based)</h2>
+<pre><code><span class="comment">// Fichier : DashboardStatsService.java</span>
+<span class="keyword">public</span> List&lt;ActivityItem&gt; getRecentActivity(User user, <span class="keyword">int</span> limit) {
+    <span class="keyword">switch</span> (user.getRole()) {
+        <span class="keyword">case</span> ADMIN:
+            <span class="comment">// Dernières connexions + tickets ouverts</span>
+            sql = <span class="string">"SELECT 'LOGIN' as type, full_name, last_login FROM users ORDER BY last_login DESC"</span>;
+            <span class="keyword">break</span>;
+        <span class="keyword">case</span> EMPLOYER:
+            <span class="comment">// Dernières candidatures reçues</span>
+            sql = <span class="string">"SELECT 'APPLICATION', u.full_name, a.applied_date FROM applications a ..."</span>;
+            <span class="keyword">break</span>;
+        <span class="keyword">case</span> USER:
+            <span class="comment">// Mes candidatures + formations</span>
+            sql = <span class="string">"SELECT 'APPLICATION', o.title, a.applied_date FROM applications a ..."</span>;
+            <span class="keyword">break</span>;
+    }
+}
+
+<span class="comment">// Classe interne</span>
+<span class="keyword">public static class</span> ActivityItem {
+    String type;         <span class="comment">// "LOGIN", "APPLICATION", "ENROLLMENT", "TICKET"</span>
+    String description;  <span class="comment">// "Jean Dupont a postulé à l'offre..."</span>
+    LocalDateTime time;
+}</code></pre>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!--          SECTION 11 — RÉCAPITULATIF                    -->
+<!-- ════════════════════════════════════════════════════════ -->
+
+<div class="page-break"></div>
+<h1 id="s11">11. Récapitulatif — Où trouver chaque bloc de code</h1>
+
+<h2>11.1 APIs externes</h2>
+<table>
+    <tr><th>API</th><th>Fichier du service</th><th>Lignes clés</th><th>Appel dans le contrôleur</th></tr>
+    <tr>
+        <td><strong>MyMemory (Traduction)</strong></td>
+        <td><code>service/TranslationService.java</code></td>
+        <td>
+            <code>translate()</code> ligne 213<br>
+            <code>callMyMemoryAPI()</code> ligne 335<br>
+            <code>detectLanguage()</code> ligne 454<br>
+            <code>isValidTranslation()</code> ligne 558<br>
+            <code>stripEmojisAndSpecialChars()</code> ligne 436
+        </td>
+        <td>
+            <code>CommunityController.java</code><br>
+            Bouton : ligne 721<br>
+            Menu : ligne 2988<br>
+            Appel : ligne 3048
+        </td>
+    </tr>
+    <tr>
+        <td><strong>Cloudinary (Upload)</strong></td>
+        <td><code>service/CloudinaryUploadService.java</code></td>
+        <td>
+            <code>uploadImage()</code> ligne 120<br>
+            <code>saveLocally()</code> ligne 244<br>
+            <code>isAllowedExtension()</code> ligne 280<br>
+            <code>getContentType()</code> ligne 296
+        </td>
+        <td>
+            <code>CommunityController.java</code><br>
+            Bouton : ligne 316<br>
+            Upload : ligne 331
+        </td>
+    </tr>
+    <tr>
+        <td><strong>Gmail SMTP (Email)</strong></td>
+        <td><code>service/EmailService.java</code></td>
+        <td>
+            <code>sendOtpEmail()</code> ligne 60<br>
+            <code>sendEmail()</code> ligne 77<br>
+            <code>buildOtpEmailBody()</code> ligne 118
+        </td>
+        <td>Appelé depuis le module User (récupération mot de passe)</td>
+    </tr>
+</table>
+
+<h2>11.2 Métiers avancés</h2>
+<table>
+    <tr><th>Métier</th><th>Fichier du service</th><th>Lignes clés</th><th>Appel dans le contrôleur</th></tr>
+    <tr>
+        <td><strong>Mentions @user</strong></td>
+        <td><code>service/MentionService.java</code></td>
+        <td>
+            Regex : ligne 51<br>
+            <code>searchUsers()</code> ligne 104<br>
+            <code>extractMentions()</code> ligne 148<br>
+            <code>processMentions()</code> ligne 205<br>
+            <code>findUserIdByHandle()</code> ligne 177<br>
+            <code>createMentionNotification()</code> ligne 234
+        </td>
+        <td>
+            <code>CommunityController.java</code><br>
+            Autocomplétion : ligne 3127<br>
+            Traitement : ligne 413
+        </td>
+    </tr>
+    <tr>
+        <td><strong>Notifications temps réel</strong></td>
+        <td><code>service/CommunityNotificationService.java</code></td>
+        <td>
+            Constructeur (Timeline) : ligne 62<br>
+            <code>start()</code> / <code>stop()</code> : lignes 102/112<br>
+            <code>pollNotifications()</code> : ligne 155<br>
+            Callbacks : lignes 82/89
+        </td>
+        <td>
+            <code>CommunityController.java</code><br>
+            Initialisation : ligne 129<br>
+            Callbacks badges : lignes 141-175
+        </td>
+    </tr>
+    <tr>
+        <td><strong>Détection de langue</strong></td>
+        <td><code>service/TranslationService.java</code></td>
+        <td>
+            <code>detectLanguage()</code> ligne 454<br>
+            <code>stripEmojisAndSpecialChars()</code> ligne 436<br>
+            6 étapes heuristiques : lignes 460-541
+        </td>
+        <td>
+            <code>CommunityController.java</code><br>
+            Appel : ligne 3004
+        </td>
+    </tr>
+    <tr>
+        <td><strong>Recherche globale</strong></td>
+        <td><code>service/SearchService.java</code></td>
+        <td>
+            <code>search()</code> : méthode principale<br>
+            <code>SearchResult</code> : classe interne<br>
+            <code>SearchFilter</code> / <code>DateFilter</code> : enums
+        </td>
+        <td>
+            <code>CommunityController.java</code><br>
+            Barre de recherche dans l'onglet Feed
+        </td>
+    </tr>
+    <tr>
+        <td><strong>Dashboard stats</strong></td>
+        <td><code>service/DashboardStatsService.java</code></td>
+        <td>
+            Admin : <code>getTotalUsers()</code>, etc.<br>
+            Employer : <code>getApplicationsForEmployer()</code><br>
+            User : <code>getUserApplicationCount()</code><br>
+            <code>getRecentActivity()</code> : fil d'activité
+        </td>
+        <td>Appelé depuis le Dashboard principal</td>
+    </tr>
+</table>
+
+<h2>11.3 Patterns techniques utilisés</h2>
+<table>
+    <tr><th>Pattern</th><th>Où</th><th>Pourquoi</th></tr>
+    <tr><td><strong>Singleton (Double-Checked Locking)</strong></td><td>Tous les 15 services</td><td>Une seule instance, thread-safe</td></tr>
+    <tr><td><strong>Cache LRU (LinkedHashMap)</strong></td><td>TranslationService</td><td>Éviter les appels API redondants</td></tr>
+    <tr><td><strong>CompletableFuture (async)</strong></td><td>EmailService</td><td>Envoi email non-bloquant</td></tr>
+    <tr><td><strong>Timeline + Platform.runLater</strong></td><td>CommunityNotificationService</td><td>Polling DB sans bloquer l'UI JavaFX</td></tr>
+    <tr><td><strong>Thread + Platform.runLater</strong></td><td>Traduction, Upload, Mentions</td><td>Appels réseau sans bloquer l'UI</td></tr>
+    <tr><td><strong>Regex (Pattern/Matcher)</strong></td><td>MentionService</td><td>Extraction des @mentions</td></tr>
+    <tr><td><strong>Multipart/form-data</strong></td><td>CloudinaryUploadService</td><td>Upload HTTP de fichier binaire</td></tr>
+    <tr><td><strong>Fallback pattern</strong></td><td>Cloudinary (local), Translation (5 couches)</td><td>Résilience en cas d'erreur réseau</td></tr>
+</table>
+
+<hr class="separator">
+<p style="text-align: center; color: #94a3b8; font-size: 11pt; margin-top: 30px;">
+    <strong>Skilora</strong> — Documentation technique API et Métiers Avancés<br>
+    Module Communauté (Module 6) — Février 2026<br>
+    JavaFX 21 + MySQL + MyMemory + Cloudinary + Gmail SMTP
+</p>
+
+</div><!-- /container -->
+</body>
+</html>

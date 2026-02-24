@@ -1,0 +1,983 @@
+
+================================================================================
+                              S K I L O R A
+          Documentation Technique — API et Métiers Avancés
+                     Module Communauté (Module 6)
+================================================================================
+
+Projet      : Skilora — Plateforme de Formation et Recrutement (Tunisie)
+Technologie : JavaFX 21 + MySQL + APIs REST externes
+Architecture: MVC + Singleton + DAO Pattern
+Date        : Février 2026
+
+================================================================================
+                         TABLE DES MATIÈRES
+================================================================================
+
+  1.  Vue d'ensemble du projet
+  2.  Architecture et structure des fichiers
+  3.  API 1 — Traduction multilingue (MyMemory)
+  4.  API 2 — Upload d'images dans le cloud (Cloudinary)
+  5.  API 3 — Envoi d'emails (Gmail SMTP)
+  6.  Métier avancé 1 — Système de mentions @utilisateur
+  7.  Métier avancé 2 — Notifications en temps réel (Polling)
+  8.  Métier avancé 3 — Détection automatique de langue
+  9.  Métier avancé 4 — Recherche globale multi-entité
+  10. Métier avancé 5 — Dashboard statistiques (rôle-based)
+  11. Récapitulatif — Où trouver chaque bloc de code
+
+
+================================================================================
+  1. VUE D'ENSEMBLE DU PROJET
+================================================================================
+
+Skilora est une plateforme JavaFX de formation et recrutement destinée au
+marché tunisien. Le Module 6 — Communauté intègre 3 APIs REST externes et
+plusieurs métiers avancés pour offrir une expérience riche aux utilisateurs.
+
+
+--- Les 3 APIs externes intégrées ---
+
+  ┌─────────────┬──────────────────────────┬────────────────────────────────────────┬──────────────┐
+  │ API         │ Service                  │ Rôle                                   │ Clé API ?    │
+  ├─────────────┼──────────────────────────┼────────────────────────────────────────┼──────────────┤
+  │ MyMemory    │ TranslationService       │ Traduction dynamique (fr/en/ar)        │ Non (gratuit)│
+  │ Cloudinary  │ CloudinaryUploadService  │ Upload d'images vers le cloud          │ Upload preset│
+  │ Gmail SMTP  │ EmailService             │ Envoi d'emails OTP (mot de passe)      │ Mdp d'appli  │
+  └─────────────┴──────────────────────────┴────────────────────────────────────────┴──────────────┘
+
+
+--- Les métiers avancés ---
+
+  ┌──────────────────────────┬──────────────────────────────┬──────────────────────────────────────┐
+  │ Métier                   │ Service                      │ Description                          │
+  ├──────────────────────────┼──────────────────────────────┼──────────────────────────────────────┤
+  │ Mentions @user           │ MentionService               │ Autocomplétion + notifications       │
+  │ Notifications temps réel │ CommunityNotificationService │ Polling DB + badges live + toasts    │
+  │ Détection de langue      │ TranslationService           │ Heuristiques (accents, mots, regex)  │
+  │ Recherche globale        │ SearchService                │ Multi-entité (posts, msg, events...) │
+  │ Dashboard stats          │ DashboardStatsService        │ Statistiques par rôle (admin/user)   │
+  └──────────────────────────┴──────────────────────────────┴──────────────────────────────────────┘
+
+
+================================================================================
+  2. ARCHITECTURE ET STRUCTURE DES FICHIERS
+================================================================================
+
+--- Pattern MVC + Singleton + DAO ---
+
+  CommunityController  →  Services (Singleton)  →  APIs externes / MySQL
+                           Entity (POJO)  +  Enums
+
+Chaque service utilise le pattern Singleton (Double-Checked Locking) pour
+garantir une seule instance thread-safe dans toute l'application.
+
+
+--- Arborescence des fichiers (Module Communauté) ---
+
+  src/main/java/com/skilora/community/
+  ├── controller/
+  │   └── CommunityController.java         ← Contrôleur principal (3 372 lignes)
+  │
+  ├── service/
+  │   ├── TranslationService.java           ← API MyMemory (604 lignes)
+  │   ├── CloudinaryUploadService.java      ← API Cloudinary (318 lignes)
+  │   ├── EmailService.java                 ← API Gmail SMTP (174 lignes)
+  │   ├── MentionService.java               ← Mentions @user (250 lignes)
+  │   ├── CommunityNotificationService.java ← Notifications temps réel (194 lignes)
+  │   ├── SearchService.java                ← Recherche globale (299 lignes)
+  │   ├── DashboardStatsService.java        ← Dashboard stats (246 lignes)
+  │   ├── PostService.java                  ← CRUD Posts + Likes + Commentaires (531 lignes)
+  │   ├── BlogService.java                  ← CRUD Blog (208 lignes)
+  │   ├── EventService.java                 ← CRUD Événements + RSVP (275 lignes)
+  │   ├── GroupService.java                 ← CRUD Groupes + Membres (278 lignes)
+  │   ├── ConnectionService.java            ← Connexions / Invitations (260 lignes)
+  │   ├── MessagingService.java             ← Messagerie privée (309 lignes)
+  │   ├── NotificationService.java          ← Notifications DB (154 lignes)
+  │   └── ReportService.java                ← Signalements (132 lignes)
+  │
+  ├── entity/
+  │   ├── Post.java, PostComment.java, BlogArticle.java
+  │   ├── Event.java, EventRsvp.java
+  │   ├── CommunityGroup.java, GroupMember.java
+  │   ├── Connection.java, Conversation.java, Message.java
+  │   ├── Notification.java, Report.java, Company.java
+  │
+  └── enums/
+      ├── PostType.java         (STATUS, ARTICLE_SHARE, JOB_SHARE, ACHIEVEMENT, SUCCESS_STORY)
+      ├── ConnectionStatus.java (PENDING, ACCEPTED, REJECTED, BLOCKED)
+      ├── EventStatus.java      (UPCOMING, ONGOING, COMPLETED, CANCELLED)
+      └── EventType.java        (MEETUP, WEBINAR, WORKSHOP, CONFERENCE, NETWORKING)
+
+
+--- Pattern Singleton (Double-Checked Locking) ---
+
+  Utilisé dans TOUS les 15 services. Voici le pattern :
+
+  Le constructeur est privé. Une variable statique volatile "instance" contient
+  la seule instance. La méthode getInstance() vérifie d'abord si instance est
+  null (sans synchronisation), puis si oui, entre dans un bloc synchronized et
+  re-vérifie (double check) avant de créer l'instance. Cela garantit :
+    - Une seule instance dans toute l'application
+    - Thread-safe (pas de création en double)
+    - Performance (pas de synchronized à chaque appel)
+
+
+================================================================================
+  3. API 1 — TRADUCTION MULTILINGUE (MyMemory)
+================================================================================
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  API       : MyMemory Translated                                           ║
+║  URL       : https://api.mymemory.translated.net/get                       ║
+║  Type      : API REST gratuite (pas de clé API requise)                    ║
+║  Format    : JSON                                                          ║
+║  Limites   : 5 000 caractères/requête, 10 000 requêtes/jour               ║
+║  Langues   : Français (fr), Anglais (en), Arabe (ar)                       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  Fichier : src/main/java/com/skilora/community/service/TranslationService.java
+  Taille  : 604 lignes
+
+
+--- 3.1 Rôle ---
+
+  Le TranslationService permet de traduire dynamiquement le contenu des posts
+  entre français, anglais et arabe. L'utilisateur clique sur un bouton
+  "Traduire" sous chaque post et choisit la langue cible. La traduction est
+  effectuée via l'API MyMemory avec plusieurs couches de fallback.
+
+
+--- 3.2 Stratégie multi-couche (5 niveaux) ---
+
+  Le service essaie 5 stratégies dans l'ordre. Si une échoue, il passe à la
+  suivante. L'application ne plante jamais grâce à ce système de fallback.
+
+  [1] Cache LRU  →  [2] Dictionnaire local  →  [3] API MyMemory
+                         →  [4] 2-étapes via anglais  →  [5] Texte original
+
+  Couche 1 — Cache LRU (LinkedHashMap, max 100 entrées)
+    Clé du cache : "texte|langueSource|langueCible"
+    Si déjà traduit avant → retour instantané, 0 requête réseau.
+
+  Couche 2 — Dictionnaire local (HashMap statique)
+    Contient des mots courants en fr/en/ar.
+    Fiable à 100%, ne dépend pas d'Internet.
+
+  Couche 3 — API MyMemory (traduction machine dynamique)
+    Appel REST GET avec paramètre &mt=1 pour forcer la traduction machine.
+    Timeout de 8 secondes. Score TM minimum : 0.3.
+
+  Couche 4 — Traduction 2-étapes via anglais
+    Pour les paires faibles (ex: fr↔ar), on fait : fr → en → ar.
+    L'anglais sert de langue pivot pour améliorer la qualité.
+
+  Couche 5 — Fallback : texte original
+    Si tout échoue, le texte original est retourné tel quel.
+
+
+--- 3.3 Méthode principale : translate() ---
+
+  Fichier : TranslationService.java, ligne 213
+
+  Paramètres :
+    - text       : le texte à traduire
+    - sourceLang : langue détectée du texte ("fr", "en", ou "ar")
+    - targetLang : langue cible choisie par l'utilisateur
+
+  Comportement :
+    1. Si text est null ou vide → retourne text
+    2. Si sourceLang == targetLang :
+       a. Essaie de trouver le mot dans le dictionnaire avec une autre source
+       b. Si pas trouvé, essaie l'API avec fr, en, ar comme source alternative
+       c. Si rien ne marche → retourne text (c'est vraiment la même langue)
+    3. Vérifie le cache LRU (clé = "text|source|cible")
+    4. Vérifie le dictionnaire local
+    5. Appelle l'API MyMemory → si résultat valide, le met en cache
+    6. Si la paire n'est pas via anglais, tente la traduction 2-étapes
+    7. En dernier recours, retourne le texte original
+
+
+--- 3.4 Appel API : callMyMemoryAPI() ---
+
+  Fichier : TranslationService.java, ligne 335
+
+  Étapes :
+    1. Nettoyer le texte (supprimer emojis via stripEmojisAndSpecialChars)
+    2. Encoder le texte pour URL (URLEncoder.encode)
+    3. Construire l'URL :
+         https://api.mymemory.translated.net/get?q=TEXTE&langpair=fr|en&mt=1
+    4. Ouvrir une connexion HTTP GET avec timeout 8 secondes
+    5. Lire la réponse JSON
+    6. Extraire responseData.translatedText
+    7. Parcourir le tableau "matches" pour trouver le meilleur résultat :
+       - Priorité aux traductions MT (machine translation, created-by = "MT!")
+       - Puis les TM (mémoire traducteur) avec score >= 0.3
+       - Sinon accepter la traduction primaire
+
+  Exemple de requête :
+    GET https://api.mymemory.translated.net/get?q=bonjour&langpair=fr|en&mt=1
+
+  Exemple de réponse JSON :
+    {
+      "responseData": {
+        "translatedText": "Hello",
+        "match": 1.0
+      },
+      "matches": [
+        { "translation": "Hello", "match": 1.0, "created-by": "MT!" },
+        { "translation": "Good morning", "match": 0.85, "created-by": "" }
+      ]
+    }
+
+
+--- 3.5 Validation : isValidTranslation() ---
+
+  Fichier : TranslationService.java, ligne 558
+
+  Cette méthode vérifie que la traduction retournée par l'API est valide :
+    - N'est pas null ou vide
+    - N'est pas identique au texte original (nettoyé)
+    - N'est pas trop longue (max 5x la longueur originale) sauf si < 200 chars
+    - Ne contient pas de messages d'erreur MyMemory
+
+  Le texte est nettoyé (emojis supprimés, minuscules) avant comparaison
+  pour éviter les faux positifs dus aux caractères spéciaux.
+
+
+--- 3.6 Intégration dans le contrôleur ---
+
+  Fichier : CommunityController.java
+
+  Instanciation (ligne 94) :
+    Le TranslationService est instancié via getInstance() dans les attributs
+    du contrôleur.
+
+  Bouton "Traduire" (ligne 721-725) :
+    Chaque carte de post contient un bouton "🌐 Traduire" de type GHOST.
+    Au clic, il appelle showTranslationMenu().
+
+  Menu de traduction (ligne 2988) :
+    showTranslationMenu() crée un popup avec 3 options :
+      - 🇫🇷 Français
+      - 🇬🇧 English
+      - 🇸🇦 العربية
+
+    Au clic sur une langue :
+      1. Détecte la langue du texte via translationService.detectLanguage()
+      2. Lance un Thread séparé (pour ne pas bloquer l'UI)
+      3. Appelle translationService.translate(text, sourceLang, targetLang)
+      4. Met à jour le Label du post via Platform.runLater()
+      5. Préfixe le texte traduit avec "🌐 [FR/EN/AR]"
+
+
+================================================================================
+  4. API 2 — UPLOAD D'IMAGES DANS LE CLOUD (Cloudinary)
+================================================================================
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  API           : Cloudinary                                                ║
+║  URL           : https://api.cloudinary.com/v1_1/skilora/image/upload      ║
+║  Type          : Upload non signé (unsigned) via multipart/form-data       ║
+║  CLOUD_NAME    : skilora                                                   ║
+║  UPLOAD_PRESET : skilora_unsigned                                          ║
+║  Limites       : 10 MB par image                                           ║
+║  Formats       : jpg, jpeg, png, gif, webp, bmp                            ║
+║  Retour        : URL HTTPS publique de l'image hébergée                    ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  Fichier : src/main/java/com/skilora/community/service/CloudinaryUploadService.java
+  Taille  : 318 lignes
+
+
+--- 4.1 Rôle ---
+
+  Quand un utilisateur crée un post avec une image, le fichier est uploadé
+  vers Cloudinary (CDN cloud). L'API retourne une URL HTTPS publique qui est
+  stockée en base de données. Si l'upload échoue (pas d'internet), le fichier
+  est sauvegardé localement en fallback dans le dossier data/uploads/.
+
+
+--- 4.2 Étapes de l'upload ---
+
+  [FileChooser UI] → [Validation] → [POST multipart/form-data] → [URL HTTPS]
+                                         ↓ (si erreur)
+                                    [Sauvegarde locale]
+
+  Étape 1 — Validation (lignes 122-133)
+    - Le fichier existe-t-il ? (file != null && file.exists())
+    - Taille <= 10 MB ? (file.length() > 10 * 1024 * 1024 → erreur)
+    - Extension autorisée ? (jpg, jpeg, png, gif, webp, bmp)
+    - Si une validation échoue → RuntimeException avec message descriptif
+
+  Étape 2 — Construction du body multipart (lignes 135-145)
+    - Générer un boundary unique : "----CloudinaryBoundary" + UUID.randomUUID()
+    - Le body multipart contient 3 parties :
+      Partie 1 : Content-Disposition: form-data; name="file"; filename="photo.jpg"
+                 → Contenu binaire du fichier image
+      Partie 2 : Content-Disposition: form-data; name="upload_preset"
+                 → Valeur : "skilora_unsigned"
+      Partie 3 : Content-Disposition: form-data; name="folder"
+                 → Valeur : "skilora/community"
+
+  Étape 3 — Requête POST HTTP (lignes 147-185)
+    - URL : https://api.cloudinary.com/v1_1/skilora/image/upload
+    - Méthode : POST
+    - Header : Content-Type: multipart/form-data; boundary=BOUNDARY
+    - Écriture du body dans le OutputStream de la connexion
+    - Lecture de la réponse
+
+  Étape 4 — Parsing de la réponse JSON (lignes 187-200)
+    - Extraire le champ "secure_url" de la réponse JSON
+    - Résultat : "https://res.cloudinary.com/skilora/image/upload/v.../image.jpg"
+    - Cette URL est retournée et stockée dans le champ image_url du post
+
+  Étape 5 — Fallback local si erreur (lignes 244-267)
+    - Si l'API Cloudinary échoue (pas d'internet, timeout, etc.)
+    - Le fichier est copié dans data/uploads/ avec un nom unique (UUID)
+    - L'URL locale (file:///C:/...) est retournée à la place
+
+
+--- 4.3 Méthode saveLocally() ---
+
+  Fichier : CloudinaryUploadService.java, ligne 244
+
+  1. Création du dossier data/uploads/ (s'il n'existe pas)
+  2. Génération d'un nom unique : UUID.randomUUID().substring(0, 8) + extension
+  3. Copie du fichier original vers le dossier uploads
+  4. Retour du chemin absolu sous forme d'URI file:///
+
+
+--- 4.4 Intégration dans le contrôleur ---
+
+  Fichier : CommunityController.java
+
+  Instanciation (ligne 95) :
+    CloudinaryUploadService instancié via getInstance()
+
+  Bouton Upload (lignes 316-350) :
+    1. Un bouton "📷 Upload Image" est ajouté au dialogue de création de post
+    2. Au clic → FileChooser s'ouvre (filtre : *.jpg, *.png, *.gif, *.webp)
+    3. Quand l'utilisateur sélectionne un fichier :
+       a. Un Thread séparé est lancé
+       b. cloudinaryService.uploadImage(file) est appelé
+       c. L'URL retournée est mise dans le champ imageUrlField
+       d. L'aperçu de l'image est affiché dans le dialogue
+
+  Création du post (lignes 380-431) :
+    L'URL de l'image (Cloudinary ou locale) est incluse dans l'INSERT SQL
+    du post avec le contenu texte.
+
+
+================================================================================
+  5. API 3 — ENVOI D'EMAILS (Gmail SMTP)
+================================================================================
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  Protocole       : SMTP avec TLS 1.2                                       ║
+║  Serveur         : smtp.gmail.com:587                                      ║
+║  Authentification: Variables d'environnement                               ║
+║                    SKILORA_MAIL_EMAIL = adresse Gmail                       ║
+║                    SKILORA_MAIL_PASSWORD = mot de passe d'application       ║
+║  Utilisation     : Envoi de codes OTP (récupération mot de passe)          ║
+║  Format email    : HTML professionnel avec template Skilora                 ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  Fichier : src/main/java/com/skilora/community/service/EmailService.java
+  Taille  : 174 lignes
+
+
+--- 5.1 Rôle ---
+
+  Quand un utilisateur demande la récupération de son mot de passe, un code
+  OTP à 6 chiffres est envoyé par email via le serveur SMTP de Gmail. L'email
+  est au format HTML avec un template professionnel brandé Skilora.
+
+
+--- 5.2 Étapes de l'envoi ---
+
+  [Utilisateur oublie mdp] → [Générer OTP 6 chiffres] → [SMTP Gmail TLS]
+                                                          → [Email HTML reçu]
+
+  L'envoi est ASYNCHRONE grâce à CompletableFuture : l'interface ne se bloque
+  pas pendant l'envoi de l'email.
+
+
+--- 5.3 Méthode sendOtpEmail() ---
+
+  Fichier : EmailService.java, ligne 60
+
+  Signature : CompletableFuture<Boolean> sendOtpEmail(String toEmail, String otpCode)
+
+  1. CompletableFuture.supplyAsync() lance l'envoi dans un thread du pool
+  2. Construit le sujet : "Votre code de vérification Skilora"
+  3. Construit le body HTML via buildOtpEmailBody(otpCode)
+  4. Appelle sendEmail() pour l'envoi SMTP
+  5. Retourne true si succès, false si erreur
+
+
+--- 5.4 Méthode sendEmail() ---
+
+  Fichier : EmailService.java, ligne 77
+
+  Configuration SMTP (Properties) :
+    mail.smtp.auth           = true
+    mail.smtp.starttls.enable = true
+    mail.smtp.host           = smtp.gmail.com
+    mail.smtp.port           = 587
+    mail.smtp.ssl.protocols  = TLSv1.2
+
+  Authentification :
+    Utilise javax.mail.Authenticator avec les variables d'environnement :
+    - fromEmail    = System.getenv("SKILORA_MAIL_EMAIL")
+    - fromPassword = System.getenv("SKILORA_MAIL_PASSWORD")
+
+  Création du message :
+    - From    : fromEmail, nom affiché "Skilora Support"
+    - To      : adresse de l'utilisateur
+    - Subject : "Votre code de vérification Skilora"
+    - Body    : HTML (multipart/alternative)
+    - Envoi   : Transport.send(message)
+
+
+--- 5.5 Template HTML de l'email (buildOtpEmailBody) ---
+
+  Fichier : EmailService.java, ligne 118
+
+  L'email OTP contient :
+    - Bannière avec logo Skilora
+    - Message d'accueil
+    - Le code OTP en gros caractères (style monospace, couleur bleue)
+    - Instruction "Ce code expire dans 10 minutes"
+    - Footer avec mention "Ne partagez jamais ce code"
+    - Design responsive (mobile-friendly)
+
+
+--- 5.6 Configuration requise ---
+
+  ⚠ IMPORTANT : Il faut définir 2 variables d'environnement :
+
+  1. SKILORA_MAIL_EMAIL = adresse Gmail du compte expéditeur
+  2. SKILORA_MAIL_PASSWORD = mot de passe d'APPLICATION Gmail
+     (PAS le mot de passe normal du compte Gmail !)
+
+  Pour générer un mot de passe d'application :
+    → Google Account → Sécurité → Connexion à Google
+    → Mots de passe des applications → Générer
+
+  Sans ces variables, l'envoi d'email ne fonctionnera pas et une erreur
+  sera loguée dans la console.
+
+
+================================================================================
+  6. MÉTIER AVANCÉ 1 — SYSTÈME DE MENTIONS @UTILISATEUR
+================================================================================
+
+  Fichier : src/main/java/com/skilora/community/service/MentionService.java
+  Taille  : 250 lignes
+
+
+--- 6.1 Rôle ---
+
+  Similaire à Twitter/LinkedIn : quand un utilisateur tape @ dans le champ
+  de texte d'un post, un popup d'autocomplétion apparaît avec les noms
+  d'utilisateurs correspondants. Après publication, les utilisateurs
+  mentionnés reçoivent une notification.
+
+
+--- 6.2 Flux complet ---
+
+  [1. Tape @J] → [2. SQL LIKE '%J%'] → [3. Popup autocomplétion]
+       → [4. Sélection → @Jean_Dupont] → [5. Notification envoyée]
+
+
+--- 6.3 Regex de détection des mentions ---
+
+  Fichier : MentionService.java, ligne 51
+
+  Pattern : @(\w+(?:_\w+)*)
+
+  Explication :
+    @        → le caractère arobase (déclencheur)
+    \w+      → un ou plusieurs caractères de mot (lettres, chiffres, _)
+    (?:_\w+)*→ suivi optionnellement de _mot (pour les noms composés)
+
+  Exemples valides   : @Jean, @Jean_Dupont, @admin_2024
+  Exemples invalides : @ (seul), @Jean Dupont (espace coupe la mention)
+
+
+--- 6.4 Classe interne UserMention ---
+
+  Fichier : MentionService.java, ligne 73
+
+  Chaque utilisateur trouvé est représenté par un UserMention :
+    - userId   : ID en base de données (int)
+    - fullName : nom complet "Jean Dupont" (String)
+    - handle   : nom sans espaces "Jean_Dupont" (espaces → underscores)
+
+  Le handle est généré automatiquement :
+    fullName.trim().replaceAll("\\s+", "_")
+
+
+--- 6.5 Recherche SQL pour autocomplétion ---
+
+  Fichier : MentionService.java, ligne 104
+
+  Méthode : searchUsers(String query, int limit)
+
+  Requête SQL :
+    SELECT id, full_name FROM users
+    WHERE full_name LIKE '%query%'
+       OR REPLACE(full_name, ' ', '_') LIKE '%query%'
+    ORDER BY full_name ASC
+    LIMIT limit
+
+  Le REPLACE dans le WHERE permet de chercher à la fois "Jean_D" et "Jean D".
+  Le LIMIT est généralement 5 à 8 résultats max.
+
+
+--- 6.6 Extraction des mentions d'un texte ---
+
+  Fichier : MentionService.java, ligne 148
+
+  Méthode : extractMentions(String text)
+
+  Utilise le MENTION_PATTERN (regex ci-dessus) avec un Matcher pour
+  trouver toutes les occurrences de @handle dans le texte.
+  Retourne une List<String> des handles trouvés (sans le @).
+
+
+--- 6.7 Traitement après publication ---
+
+  Fichier : MentionService.java, ligne 205
+
+  Méthode : processMentions(String text, int authorId, int postId)
+
+  Étapes :
+    1. extractMentions(text) → ["Jean_Dupont", "Marie"]
+    2. Pour chaque handle :
+       a. findUserIdByHandle(handle) → requête SQL pour trouver l'ID
+       b. Si userId > 0 ET userId != authorId (ne pas se notifier soi-même)
+       c. createMentionNotification(userId, authorId, postId)
+
+  La notification est insérée en base :
+    INSERT INTO notifications (user_id, type, message, reference_id, is_read, created_date)
+    VALUES (?, 'MENTION', 'Vous avez été mentionné dans un post', ?, FALSE, NOW())
+
+
+--- 6.8 Intégration dans le contrôleur ---
+
+  Fichier : CommunityController.java
+
+  Autocomplétion (lignes 3127-3232) :
+    La méthode setupMentionDetection(textArea, dialog) est appelée lors de
+    la création du dialogue de post. Elle ajoute un listener sur le texte
+    qui détecte chaque frappe :
+
+    1. À chaque modification du texte :
+       a. Trouver le dernier @ avant la position du curseur
+       b. Extraire la requête après @ (ce que l'utilisateur a tapé)
+       c. Si la requête fait >= 1 caractère :
+          - Appeler mentionService.searchUsers(query, 5) dans un thread
+          - Afficher un popup Popup avec la liste des utilisateurs
+          - Chaque entrée montre le nom complet
+       d. Au clic sur un utilisateur :
+          - Remplacer @query par @Handle dans le texte
+          - Fermer le popup
+
+  Traitement des mentions (ligne 413) :
+    Après création du post dans la base de données :
+    mentionService.processMentions(text, currentUser.getId(), postId)
+
+
+================================================================================
+  7. MÉTIER AVANCÉ 2 — NOTIFICATIONS EN TEMPS RÉEL (POLLING)
+================================================================================
+
+  Fichier : src/main/java/com/skilora/community/service/CommunityNotificationService.java
+  Taille  : 194 lignes
+
+
+--- 7.1 Rôle ---
+
+  Ce service interroge la base de données toutes les 6 secondes pour détecter :
+    - Nouveaux messages non lus
+    - Nouvelles demandes de connexion (invitations)
+
+  Il met à jour en temps réel les badges sur les onglets et affiche des toasts
+  (notifications visuelles temporaires).
+
+
+--- 7.2 Architecture du polling ---
+
+  [JavaFX Timeline] → [Thread arrière-plan] → [SQL COUNT unread]
+       → [Platform.runLater] → [Badge + Toast]
+
+  Le cycle se répète toutes les 6 secondes indéfiniment (Timeline.INDEFINITE).
+
+
+--- 7.3 Création du poller ---
+
+  Fichier : CommunityNotificationService.java, ligne 62
+
+  Constructeur : CommunityNotificationService(int userId, int intervalSeconds)
+    - userId : l'ID de l'utilisateur connecté
+    - intervalSeconds : intervalle de polling (minimum 3 secondes)
+
+  Crée une Timeline JavaFX :
+    - KeyFrame avec Duration.seconds(interval)
+    - Action : appeler pollNotifications()
+    - CycleCount : Animation.INDEFINITE (boucle infinie)
+
+  Méthodes start() et stop() :
+    - start() : lance un premier poll immédiat + démarre la Timeline
+    - stop()  : arrête la Timeline et met isRunning = false
+
+
+--- 7.4 Logique de polling : pollNotifications() ---
+
+  Fichier : CommunityNotificationService.java, ligne 155
+
+  1. Crée un Thread daemon (meurt avec l'application)
+  2. Dans ce thread :
+     a. Appelle MessagingService.getInstance().getUnreadCount(userId)
+     b. Appelle ConnectionService.getInstance().getPendingCount(userId)
+  3. Puis dans Platform.runLater (thread JavaFX) :
+     a. Compare les nouveaux counts avec les anciens
+     b. Si le count a changé → déclenche le callback correspondant
+     c. Met à jour lastUnreadMessages / lastPendingConnections
+
+  L'utilisation de Thread daemon + Platform.runLater garantit que :
+    - Les requêtes SQL ne bloquent pas l'interface
+    - Les modifications de l'UI sont faites sur le thread JavaFX (obligatoire)
+
+
+--- 7.5 Callbacks ---
+
+  Le service expose 2 callbacks BiConsumer<Integer, Integer> :
+
+  1. onUnreadMessagesChanged(oldCount, newCount)
+     → Déclenché quand le nombre de messages non lus change
+
+  2. onPendingConnectionsChanged(oldCount, newCount)
+     → Déclenché quand le nombre d'invitations en attente change
+
+
+--- 7.6 Intégration dans le contrôleur ---
+
+  Fichier : CommunityController.java, lignes 129-175
+
+  Initialisation (ligne 131) :
+    notificationService = new CommunityNotificationService(currentUser.getId(), 6)
+
+  Callback messages (lignes 141-150) :
+    notificationService.setOnUnreadMessagesChanged((old, new) -> {
+        communityTabs.setTabBadge("messages", newCount);    ← Badge visuel
+        if (old >= 0 && new > old) {
+            showToast("📩 " + (new - old) + " nouveau(x) message(s)");
+        }
+    });
+
+  Callback connexions (lignes 155-165) :
+    notificationService.setOnPendingConnectionsChanged((old, new) -> {
+        communityTabs.setTabBadge("connections", newCount);  ← Badge visuel
+        if (old >= 0 && new > old) {
+            showToast("🔔 " + (new - old) + " nouvelle(s) invitation(s)");
+        }
+    });
+
+  Démarrage (ligne 175) :
+    notificationService.start();
+
+
+================================================================================
+  8. MÉTIER AVANCÉ 3 — DÉTECTION AUTOMATIQUE DE LANGUE
+================================================================================
+
+  Fichier : src/main/java/com/skilora/community/service/TranslationService.java
+  Méthode : detectLanguage(), lignes 454-541
+
+
+--- 8.1 Rôle ---
+
+  Quand l'utilisateur clique "Traduire", le système doit deviner la langue du
+  post AVANT d'appeler l'API de traduction. La méthode detectLanguage() utilise
+  un algorithme heuristique en 6 étapes.
+
+
+--- 8.2 Les 6 étapes de détection ---
+
+  ┌────────┬──────────────────────────────────────────┬──────────────┐
+  │ Étape  │ Critère                                  │ Résultat     │
+  ├────────┼──────────────────────────────────────────┼──────────────┤
+  │ 0      │ Nettoyage : supprimer emojis, spéciaux   │ Texte propre │
+  │ 1      │ > 30% de caractères arabes (U+0600-06FF) │ → "ar"       │
+  │ 2      │ Présence d'accents : é, è, ê, ç, à, ù... │ → "fr"       │
+  │ 3      │ Contractions : j'ai, l'homme, c'est, qu' │ → "fr"       │
+  │ 4      │ Mot isolé dans dictionnaire français (60+)│ → "fr"       │
+  │ 5      │ Mots-outils fr : le, la, de, un, est, je │ → "fr" si ≥1 │
+  │ 6      │ Mots-outils en : the, is, are, have, with│ → "en" si ≥1 │
+  │ Défaut │ Si rien n'est détecté                     │ → "fr"       │
+  └────────┴──────────────────────────────────────────┴──────────────┘
+
+
+--- 8.3 Détails de chaque étape ---
+
+  Étape 0 — Nettoyage (stripEmojisAndSpecialChars, ligne 436)
+    Regex : [^\p{L}\p{N}\s'-]
+    Garde uniquement : lettres (toutes langues), chiffres, espaces,
+    apostrophes et tirets. Supprime les emojis, symboles, ponctuation.
+
+  Étape 1 — Détection arabe
+    Compte les caractères Unicode dans la plage U+0600-U+06FF (arabe).
+    Si > 30% du total des lettres → c'est de l'arabe.
+
+  Étape 2 — Accents français
+    Cherche la présence de : é, è, ê, ë, ç, à, â, ù, û, ô, î, ï
+    Un seul accent suffit → c'est du français (ces accents n'existent
+    pas en anglais).
+
+  Étape 3 — Contractions françaises
+    Regex : \b[jldcnqs]'\w+
+    Détecte : j'ai, j'aime, l'homme, l'air, d'accord, c'est, n'est,
+    qu'est, s'il. Ces contractions sont uniques au français.
+
+  Étape 4 — Dictionnaire de mots isolés
+    Si le texte est un seul mot, il est cherché dans un Set de 60+ mots
+    français courants : bonjour, salut, merci, bonsoir, oui, non, peut-être,
+    aujourd'hui, demain, hier, travail, formation, etc.
+
+  Étape 5 — Comptage de mots-outils français
+    Le texte est découpé en mots. Chaque mot est comparé à un Set de
+    mots-outils français : le, la, les, de, du, des, un, une, est, sont,
+    je, tu, il, nous, vous, ils, et, ou, mais, dans, pour, avec, sur, etc.
+    Si au moins 1 mot français trouvé → "fr".
+
+  Étape 6 — Comptage de mots-outils anglais
+    Même principe avec les mots anglais : the, is, are, was, were, have,
+    has, had, will, would, can, could, this, that, with, from, etc.
+    Si au moins 1 mot anglais trouvé ET 0 mot français → "en".
+
+  Défaut — Si aucun critère n'est satisfait → "fr"
+    Le contexte du projet est tunisien, donc le français est plus probable.
+
+
+================================================================================
+  9. MÉTIER AVANCÉ 4 — RECHERCHE GLOBALE MULTI-ENTITÉ
+================================================================================
+
+  Fichier : src/main/java/com/skilora/community/service/SearchService.java
+  Taille  : 299 lignes
+
+
+--- 9.1 Rôle ---
+
+  Le SearchService permet de chercher un mot-clé dans 5 types d'entités
+  simultanément : Posts, Messages, Événements, Groupes et Blog.
+  Les résultats sont fusionnés et triés par date décroissante.
+
+
+--- 9.2 Architecture ---
+
+  [Mot-clé] → [SQL LIKE x5 tables] → [Fusion + Tri] → [List<SearchResult>]
+
+
+--- 9.3 Entités recherchées ---
+
+  ┌──────────────┬─────────────────────────┬──────────────────────────────────┐
+  │ Entité       │ Champs cherchés         │ Sécurité                         │
+  ├──────────────┼─────────────────────────┼──────────────────────────────────┤
+  │ Posts        │ content                 │ Posts publiés uniquement         │
+  │ Messages     │ content                 │ Conversations de l'user seul.   │
+  │ Événements   │ title, description      │ Tous                            │
+  │ Groupes      │ name, description       │ Tous                            │
+  │ Blog         │ title, content, tags    │ Articles publiés uniquement     │
+  └──────────────┴─────────────────────────┴──────────────────────────────────┘
+
+
+--- 9.4 Filtres disponibles ---
+
+  SearchFilter (filtre par type d'entité) :
+    ALL, POSTS, MESSAGES, EVENTS, GROUPS, BLOG
+
+  DateFilter (filtre par période) :
+    ALL, TODAY, THIS_WEEK, THIS_MONTH, THIS_YEAR
+
+
+--- 9.5 Méthode search() ---
+
+  Signature : List<SearchResult> search(String keyword, SearchFilter filter, int userId)
+
+  Comportement :
+    1. Crée une liste vide de SearchResult
+    2. Prépare le pattern SQL : "%" + keyword + "%"
+    3. Pour chaque type d'entité autorisé par le filtre :
+       a. Exécute une requête SELECT ... WHERE ... LIKE ?
+       b. Crée un SearchResult pour chaque ligne retournée
+       c. L'ajoute à la liste
+    4. Trie la liste complète par date décroissante
+    5. Retourne la liste
+
+  Sécurité des messages :
+    Les messages sont cherchés UNIQUEMENT dans les conversations auxquelles
+    l'utilisateur participe (WHERE c.participant_1 = ? OR c.participant_2 = ?).
+
+
+--- 9.6 Classe SearchResult ---
+
+  Chaque résultat est représenté de manière uniforme :
+    - type     : "POST", "MESSAGE", "EVENT", "GROUP", "BLOG"
+    - id       : ID de l'entité en base
+    - title    : titre ou extrait du contenu
+    - excerpt  : 100 premiers caractères (pour l'aperçu)
+    - author   : nom de l'auteur
+    - date     : date de création (LocalDateTime)
+
+
+================================================================================
+  10. MÉTIER AVANCÉ 5 — DASHBOARD STATISTIQUES (RÔLE-BASED)
+================================================================================
+
+  Fichier : src/main/java/com/skilora/community/service/DashboardStatsService.java
+  Taille  : 246 lignes
+
+
+--- 10.1 Rôle ---
+
+  Le DashboardStatsService fournit des statistiques personnalisées selon le
+  rôle de l'utilisateur connecté. Chaque rôle (Admin, Employeur, Utilisateur)
+  voit des données différentes sur son tableau de bord.
+
+
+--- 10.2 Statistiques par rôle ---
+
+  ADMIN :
+    - getTotalUsers()            : nombre total d'utilisateurs inscrits
+    - getNewUsersThisMonth()     : nouveaux inscrits ce mois-ci
+    - getTotalActiveOffers()     : offres d'emploi actives
+    - getOpenTickets()           : tickets support ouverts
+    - getTotalPayrollThisMonth() : masse salariale du mois (module finance)
+
+  EMPLOYER :
+    - getOfferViewsForEmployer(id)    : nombre de vues sur ses offres
+    - getApplicationsForEmployer(id)  : candidatures reçues
+    - getInterviewsThisWeek(id)       : entretiens planifiés cette semaine
+
+  USER :
+    - getUserApplicationCount(id)      : total de mes candidatures
+    - getUserActiveApplications(id)    : candidatures en cours (non rejetées)
+    - getUserEnrollmentCount(id)       : formations auxquelles je suis inscrit
+    - getUserConnectionCount(id)       : nombre de connexions acceptées
+
+
+--- 10.3 Fil d'activité récente ---
+
+  Méthode : getRecentActivity(User user, int limit)
+
+  Retourne un fil d'activité personnalisé selon le rôle :
+
+  ADMIN → Dernières connexions d'utilisateurs + tickets ouverts
+    SQL : SELECT 'LOGIN', full_name, last_login FROM users ORDER BY last_login DESC
+
+  EMPLOYER → Dernières candidatures reçues sur ses offres
+    SQL : SELECT 'APPLICATION', u.full_name, a.applied_date FROM applications a ...
+
+  USER → Mes candidatures + mes inscriptions formations
+    SQL : SELECT 'APPLICATION', o.title, a.applied_date FROM applications a ...
+
+
+--- 10.4 Classe ActivityItem ---
+
+  Chaque activité récente est représentée par :
+    - type        : "LOGIN", "APPLICATION", "ENROLLMENT", "TICKET"
+    - description : texte descriptif ("Jean Dupont a postulé à...")
+    - time        : date/heure de l'activité (LocalDateTime)
+
+
+================================================================================
+  11. RÉCAPITULATIF — OÙ TROUVER CHAQUE BLOC DE CODE
+================================================================================
+
+
+--- 11.1 APIs externes ---
+
+  ╔═══════════════════════╦══════════════════════════════════════╦═══════════════════════════════════╗
+  ║ API                   ║ Fichier                              ║ Méthodes clés (lignes)            ║
+  ╠═══════════════════════╬══════════════════════════════════════╬═══════════════════════════════════╣
+  ║                       ║                                      ║ translate() → ligne 213           ║
+  ║ MyMemory              ║ service/TranslationService.java      ║ callMyMemoryAPI() → ligne 335     ║
+  ║ (Traduction)          ║ (604 lignes)                         ║ detectLanguage() → ligne 454      ║
+  ║                       ║                                      ║ isValidTranslation() → ligne 558  ║
+  ║                       ║                                      ║ stripEmojis() → ligne 436         ║
+  ╠═══════════════════════╬══════════════════════════════════════╬═══════════════════════════════════╣
+  ║                       ║                                      ║ uploadImage() → ligne 120         ║
+  ║ Cloudinary            ║ service/CloudinaryUploadService.java ║ saveLocally() → ligne 244         ║
+  ║ (Upload images)       ║ (318 lignes)                         ║ isAllowedExtension() → ligne 280  ║
+  ║                       ║                                      ║ getContentType() → ligne 296      ║
+  ╠═══════════════════════╬══════════════════════════════════════╬═══════════════════════════════════╣
+  ║                       ║                                      ║ sendOtpEmail() → ligne 60         ║
+  ║ Gmail SMTP            ║ service/EmailService.java            ║ sendEmail() → ligne 77            ║
+  ║ (Email OTP)           ║ (174 lignes)                         ║ buildOtpEmailBody() → ligne 118   ║
+  ╚═══════════════════════╩══════════════════════════════════════╩═══════════════════════════════════╝
+
+  Contrôleur (CommunityController.java, 3 372 lignes) :
+    - Traduction : bouton ligne 721, menu ligne 2988, appel ligne 3048
+    - Cloudinary : bouton ligne 316, upload ligne 331
+    - Email      : appelé depuis le module User (récupération mot de passe)
+
+
+--- 11.2 Métiers avancés ---
+
+  ╔═══════════════════════╦══════════════════════════════════════════╦═══════════════════════════════════╗
+  ║ Métier                ║ Fichier                                  ║ Méthodes clés                     ║
+  ╠═══════════════════════╬══════════════════════════════════════════╬═══════════════════════════════════╣
+  ║                       ║                                          ║ Regex → ligne 51                  ║
+  ║ Mentions @user        ║ service/MentionService.java              ║ searchUsers() → ligne 104         ║
+  ║                       ║ (250 lignes)                             ║ extractMentions() → ligne 148     ║
+  ║                       ║                                          ║ processMentions() → ligne 205     ║
+  ╠═══════════════════════╬══════════════════════════════════════════╬═══════════════════════════════════╣
+  ║                       ║                                          ║ Constructeur → ligne 62           ║
+  ║ Notifications         ║ service/CommunityNotificationService.java║ start()/stop() → lignes 102/112   ║
+  ║ temps réel            ║ (194 lignes)                             ║ pollNotifications() → ligne 155   ║
+  ╠═══════════════════════╬══════════════════════════════════════════╬═══════════════════════════════════╣
+  ║ Détection             ║ service/TranslationService.java          ║ detectLanguage() → ligne 454      ║
+  ║ de langue             ║ (même fichier que traduction)            ║ 6 étapes → lignes 460-541         ║
+  ╠═══════════════════════╬══════════════════════════════════════════╬═══════════════════════════════════╣
+  ║ Recherche             ║ service/SearchService.java               ║ search() → méthode principale     ║
+  ║ globale               ║ (299 lignes)                             ║ SearchResult, SearchFilter, etc.  ║
+  ╠═══════════════════════╬══════════════════════════════════════════╬═══════════════════════════════════╣
+  ║ Dashboard             ║ service/DashboardStatsService.java       ║ getTotalUsers(), etc. (Admin)     ║
+  ║ statistiques          ║ (246 lignes)                             ║ getRecentActivity() (tous rôles)  ║
+  ╚═══════════════════════╩══════════════════════════════════════════╩═══════════════════════════════════╝
+
+  Contrôleur (CommunityController.java) :
+    - Mentions     : autocomplétion ligne 3127, traitement ligne 413
+    - Notifications: initialisation ligne 129, callbacks lignes 141-175
+    - Détection    : appel ligne 3004
+    - Recherche    : barre de recherche dans l'onglet Feed
+    - Dashboard    : appelé depuis le Dashboard principal
+
+
+--- 11.3 Patterns techniques utilisés ---
+
+  ┌──────────────────────────────────────┬─────────────────────────────────┬──────────────────────────┐
+  │ Pattern                              │ Où                              │ Pourquoi                 │
+  ├──────────────────────────────────────┼─────────────────────────────────┼──────────────────────────┤
+  │ Singleton (Double-Checked Locking)   │ Tous les 15 services            │ 1 instance, thread-safe  │
+  │ Cache LRU (LinkedHashMap)            │ TranslationService              │ Éviter appels redondants │
+  │ CompletableFuture (async)            │ EmailService                    │ Envoi email non-bloquant │
+  │ Timeline + Platform.runLater         │ CommunityNotificationService    │ Polling sans bloquer UI  │
+  │ Thread + Platform.runLater           │ Traduction, Upload, Mentions    │ Réseau sans bloquer UI   │
+  │ Regex (Pattern/Matcher)              │ MentionService                  │ Extraction des @mentions │
+  │ Multipart/form-data                  │ CloudinaryUploadService         │ Upload fichier binaire   │
+  │ Fallback pattern                     │ Cloudinary (local), Translation │ Résilience réseau        │
+  └──────────────────────────────────────┴─────────────────────────────────┴──────────────────────────┘
+
+
+================================================================================
+
+  Skilora — Documentation technique API et Métiers Avancés
+  Module Communauté (Module 6) — Février 2026
+  JavaFX 21 + MySQL + MyMemory + Cloudinary + Gmail SMTP
+
+================================================================================

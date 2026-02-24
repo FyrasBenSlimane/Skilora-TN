@@ -25,9 +25,19 @@ import javafx.scene.text.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.animation.FadeTransition;
+import javafx.animation.TranslateTransition;
+import javafx.stage.FileChooser;
+import javafx.stage.Popup;
+import javafx.util.Duration;
+
+import java.io.File;
 import java.net.URL;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.ResourceBundle;
 
@@ -79,6 +89,12 @@ public class CommunityController implements Initializable {
     private String activeTab = "feed";   // Onglet actuellement actif
     private TLTabs communityTabs;        // Composant des onglets avec badges
     private CommunityNotificationService notificationService; // Service de notifications temps réel
+
+    // ── Services des nouvelles fonctionnalités (Sprint 2) ──
+    private final TranslationService translationService = TranslationService.getInstance();
+    private final CloudinaryUploadService cloudinaryService = CloudinaryUploadService.getInstance();
+    private final MentionService mentionService = MentionService.getInstance();
+    private final SearchService searchService = SearchService.getInstance();
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -295,6 +311,58 @@ public class CommunityController implements Initializable {
             imageUrlField.setText(existingPost.getImageUrl());
         }
 
+        // ── UPLOAD CLOUDINARY — Bouton pour téléverser une image via l'API Cloudinary ──
+        TLButton uploadBtn = new TLButton("📷  Upload Image", TLButton.ButtonVariant.OUTLINE);
+        uploadBtn.setSize(TLButton.ButtonSize.SM);
+        uploadBtn.setOnAction(ev -> {
+            // Ouvrir un sélecteur de fichiers (FileChooser) filtré par images
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Choisir une image");
+            fileChooser.getExtensionFilters().add(
+                    new FileChooser.ExtensionFilter("Images", "*.jpg", "*.jpeg", "*.png", "*.gif", "*.webp"));
+            File file = fileChooser.showOpenDialog(dialog.getDialogPane().getScene().getWindow());
+            if (file != null) {
+                uploadBtn.setText("⏳  Upload en cours...");
+                uploadBtn.setDisable(true);
+                // Uploader dans un thread séparé (appel réseau vers Cloudinary)
+                new Thread(() -> {
+                    try {
+                        String url = cloudinaryService.uploadImage(file); // Appel API Cloudinary
+                        Platform.runLater(() -> {
+                            imageUrlField.setText(url); // Remplir le champ URL
+                            // Vérifier si c'est un upload cloud ou un fallback local
+                            if (url != null && url.startsWith("file:")) {
+                                uploadBtn.setText("💾  Image sauvegardée");
+                                showToast("Image sauvegardée localement (mode hors-ligne)");
+                            } else {
+                                uploadBtn.setText("✅  Image uploadée");
+                                showToast("Image uploadée sur le cloud !");
+                            }
+                            uploadBtn.setDisable(false);
+                        });
+                    } catch (Exception ex) {
+                        Platform.runLater(() -> {
+                            uploadBtn.setText("📷  Upload Image");
+                            uploadBtn.setDisable(false);
+                            DialogUtils.showError("Erreur Upload", ex.getMessage());
+                        });
+                    }
+                }, "CloudinaryUploadThread").start();
+            }
+        });
+
+        // ── EMOJI PICKER — Grille d'emojis pour enrichir le contenu ──
+        TLButton emojiBtn = new TLButton("😀  Emoji", TLButton.ButtonVariant.GHOST);
+        emojiBtn.setSize(TLButton.ButtonSize.SM);
+        emojiBtn.setOnAction(ev -> showEmojiPicker(emojiBtn, textArea));
+
+        // ── MENTIONS @USER — Détection de @ et autocomplétion ──
+        // Ajouter un écouteur sur le texte pour détecter les saisies @
+        setupMentionDetection(textArea, dialog);
+
+        HBox toolBar = new HBox(8, uploadBtn, emojiBtn);
+        toolBar.setAlignment(Pos.CENTER_LEFT);
+
         HBox buttons = new HBox(8);
         buttons.setAlignment(Pos.CENTER_RIGHT);
 
@@ -305,28 +373,32 @@ public class CommunityController implements Initializable {
                 TLButton.ButtonVariant.PRIMARY);
         saveBtn.setOnAction(e -> {
             String text = textArea.getText();
-            // ═══ CONTRÔLE DE SAISIE : vérifier que le contenu n'est pas vide ═══
-            if (text == null || text.trim().isEmpty()) {
-                // Afficher un message d'erreur à l'utilisateur
+            String imageUrl = imageUrlField.getText();
+            boolean hasText = text != null && !text.trim().isEmpty();
+            boolean hasImage = imageUrl != null && !imageUrl.trim().isEmpty();
+
+            // ═══ CONTRÔLE DE SAISIE : texte OU image requis (pas les deux obligatoires) ═══
+            if (!hasText && !hasImage) {
                 DialogUtils.showError(I18n.get("message.error"),
-                        I18n.get("error.validation.required", I18n.get("post.content")));
+                        "Veuillez saisir un texte ou uploader une image.");
                 return; // Bloquer la soumission
             }
 
+            String finalText = hasText ? text.trim() : "";
             if (isEdit) {
                 // Mode MODIFICATION : mettre à jour le post existant
-                existingPost.setContent(text.trim());
-                existingPost.setImageUrl(imageUrlField.getText());
+                existingPost.setContent(finalText);
+                existingPost.setImageUrl(imageUrl);
                 updatePost(existingPost);
             } else {
-                // Mode CRÉATION : créer un nouveau post
-                createPost(text.trim(), imageUrlField.getText());
+                // Mode CRÉATION : créer un nouveau post (texte optionnel si image présente)
+                createPost(finalText, imageUrl);
             }
             dialog.close();
         });
 
         buttons.getChildren().addAll(cancelBtn, saveBtn);
-        content.getChildren().addAll(textArea, imageUrlField, buttons);
+        content.getChildren().addAll(textArea, toolBar, imageUrlField, buttons);
         dialog.setContent(content);
         dialog.show();
     }
@@ -356,6 +428,15 @@ public class CommunityController implements Initializable {
         task.setOnSucceeded(e -> {
             if (task.getValue() > 0) { // ID > 0 = succès
                 logger.info("Post created successfully");
+                // MENTIONS : traiter les @mentions et créer des notifications
+                int postId = task.getValue();
+                new Thread(() -> {
+                    try {
+                        mentionService.processMentions(text, currentUser.getId(), postId);
+                    } catch (Exception ex) {
+                        logger.warn("Mention processing failed: {}", ex.getMessage());
+                    }
+                }, "MentionProcessThread").start();
                 showToast(I18n.get("post.success.created"));
                 loadFeedTab(); // Recharger le feed pour afficher le nouveau post
             }
@@ -424,6 +505,25 @@ public class CommunityController implements Initializable {
         contentPane.getChildren().clear();
         if (currentUser == null) return;
 
+        // ── RECHERCHE AVANCÉE — Barre de recherche globale en haut du feed ──
+        contentPane.getChildren().add(buildSearchBar());
+
+        // ── TRI DES POSTS — Plus récent / Plus ancien ──
+        HBox sortBar = new HBox(10);
+        sortBar.setAlignment(Pos.CENTER_LEFT);
+        sortBar.setPadding(new Insets(0, 0, 8, 0));
+        Label sortLabel = new Label("Trier par :");
+        sortLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: -fx-muted-foreground;");
+        TLSelect<String> feedSortSelect = new TLSelect<>("",
+                "Plus récent", "Plus ancien");
+        feedSortSelect.setValue("Plus récent");
+        sortBar.getChildren().addAll(sortLabel, feedSortSelect);
+        contentPane.getChildren().add(sortBar);
+
+        // Conteneur dédié pour les posts (rechargeable par le tri)
+        VBox postsContainer = new VBox();
+        contentPane.getChildren().add(postsContainer);
+
         // Chargement asynchrone pour ne pas bloquer l'interface
         Task<List<Post>> task = new Task<>() {
             @Override
@@ -438,28 +538,66 @@ public class CommunityController implements Initializable {
         task.setOnSucceeded(e -> {
             List<Post> posts = task.getValue();
 
-            // Role info header
-            TLBadge roleBadge = new TLBadge(currentUser.getRole().getDisplayName(), TLBadge.Variant.DEFAULT);
-            HBox roleHeader = new HBox(8, roleBadge);
-            if (isAdmin()) {
-                Label adminLabel = new Label("Viewing all posts (Admin)");
-                adminLabel.getStyleClass().add("text-muted");
-                roleHeader.getChildren().add(adminLabel);
-            }
-            roleHeader.setAlignment(Pos.CENTER_LEFT);
-            contentPane.getChildren().add(roleHeader);
+            // Afficher les posts avec le tri par défaut
+            displaySortedPosts(postsContainer, posts, feedSortSelect.getValue());
 
-            if (posts.isEmpty()) {
-                Label empty = new Label(I18n.get("post.empty"));
-                empty.getStyleClass().add("text-muted");
-                contentPane.getChildren().add(empty);
-            } else {
-                for (Post post : posts) {
-                    contentPane.getChildren().add(createPostCard(post));
-                }
-            }
+            // Re-trier automatiquement quand l'utilisateur change le tri
+            feedSortSelect.valueProperty().addListener((obs, oldVal, newVal) -> {
+                displaySortedPosts(postsContainer, posts, newVal);
+            });
         });
         new Thread(task, "LoadFeedThread").start();
+    }
+
+    /**
+     * Affiche les posts triés dans le conteneur.
+     * Trie par date de création : "Plus récent" (DESC) ou "Plus ancien" (ASC).
+     *
+     * @param container  le VBox conteneur des posts
+     * @param posts      la liste de posts à afficher
+     * @param sortVal    "Plus récent" ou "Plus ancien"
+     */
+    private void displaySortedPosts(VBox container, List<Post> posts, String sortVal) {
+        container.getChildren().clear();
+
+        // Role info header
+        TLBadge roleBadge = new TLBadge(currentUser.getRole().getDisplayName(), TLBadge.Variant.DEFAULT);
+        HBox roleHeader = new HBox(8, roleBadge);
+        if (isAdmin()) {
+            Label adminLabel = new Label("Viewing all posts (Admin)");
+            adminLabel.getStyleClass().add("text-muted");
+            roleHeader.getChildren().add(adminLabel);
+        }
+        roleHeader.setAlignment(Pos.CENTER_LEFT);
+        container.getChildren().add(roleHeader);
+
+        if (posts.isEmpty()) {
+            Label empty = new Label(I18n.get("post.empty"));
+            empty.getStyleClass().add("text-muted");
+            container.getChildren().add(empty);
+            return;
+        }
+
+        // Copier la liste pour la trier sans modifier l'originale
+        List<Post> sorted = new java.util.ArrayList<>(posts);
+        boolean ascending = "Plus ancien".equals(sortVal);
+        sorted.sort((a, b) -> {
+            LocalDateTime da = a.getCreatedDate();
+            LocalDateTime db = b.getCreatedDate();
+            if (da == null && db == null) return 0;
+            if (da == null) return 1;
+            if (db == null) return -1;
+            return ascending ? da.compareTo(db) : db.compareTo(da);
+        });
+
+        int delay = 0;
+        for (Post post : sorted) {
+            TLCard card = createPostCard(post);
+            container.getChildren().add(card);
+            // ANIMATION : Entrée en fondu + glissement de chaque carte
+            animateCardEntry(card, delay);
+            delay += 80; // Décalage de 80ms entre chaque carte (effet cascade)
+        }
     }
 
     /**
@@ -503,12 +641,37 @@ public class CommunityController implements Initializable {
 
         body.getChildren().addAll(header, contentLabel);
 
-        // Indicateur d'image si présente
+        // Affichage de l'image du post si présente (Cloudinary ou fichier local)
         if (post.getImageUrl() != null && !post.getImageUrl().isBlank()) {
-            Label imgLabel = new Label("📷  " + post.getImageUrl());
-            imgLabel.getStyleClass().add("text-muted");
-            imgLabel.setStyle("-fx-font-size: 12px; -fx-font-style: italic;");
-            body.getChildren().add(imgLabel);
+            try {
+                String imgUrl = post.getImageUrl();
+                Image image = new Image(imgUrl, 500, 0, true, true, true);
+                ImageView imageView = new ImageView(image);
+                imageView.setPreserveRatio(true);
+                imageView.setFitWidth(500);
+                imageView.setSmooth(true);
+                // Coins arrondis sur l'image
+                javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle(500, 350);
+                clip.setArcWidth(16);
+                clip.setArcHeight(16);
+                imageView.setClip(clip);
+                // Adapter le clip à la taille réelle de l'image une fois chargée
+                image.progressProperty().addListener((obs, oldVal, newVal) -> {
+                    if (newVal.doubleValue() >= 1.0 && image.getHeight() > 0) {
+                        double ratio = 500.0 / image.getWidth();
+                        double displayHeight = Math.min(image.getHeight() * ratio, 350);
+                        clip.setHeight(displayHeight);
+                    }
+                });
+                imageView.setStyle("-fx-cursor: hand;");
+                body.getChildren().add(imageView);
+            } catch (Exception imgEx) {
+                // Fallback : afficher le lien si l'image ne charge pas
+                Label imgLabel = new Label("📷  Image non disponible");
+                imgLabel.getStyleClass().add("text-muted");
+                imgLabel.setStyle("-fx-font-size: 12px; -fx-font-style: italic;");
+                body.getChildren().add(imgLabel);
+            }
         }
 
         // ── Barre d'actions (Like, Commenter, Modifier, Supprimer) ──
@@ -553,10 +716,20 @@ public class CommunityController implements Initializable {
 
         actions.getChildren().addAll(likeBtn, commentBtn);
 
-        // Boutons Modifier/Supprimer — visibles seulement si propriétaire ou admin
+        // ── BOUTON TRADUCTION — API MyMemory avec choix de la langue ──
+        // Affiche un menu popup pour choisir la langue cible avant de traduire
+        TLButton translateBtn = new TLButton("🌐  Traduire", TLButton.ButtonVariant.GHOST);
+        translateBtn.setSize(TLButton.ButtonSize.SM);
+        final String originalPostText = post.getContent(); // Sauvegarder le texte original
+        translateBtn.setOnAction(e -> showTranslationMenu(translateBtn, contentLabel, originalPostText));
+        actions.getChildren().add(translateBtn);
+
+        // Boutons Modifier/Supprimer — sur une ligne séparée, alignés à droite
+        // Visibles seulement si l'utilisateur est propriétaire du post ou admin
         if (canEditOrDelete(post.getAuthorId())) {
-            Region spacer = new Region();
-            HBox.setHgrow(spacer, Priority.ALWAYS); // Pousser les boutons à droite
+            HBox editDeleteRow = new HBox(8);
+            editDeleteRow.setAlignment(Pos.CENTER_RIGHT);
+            editDeleteRow.setPadding(new Insets(4, 0, 0, 0));
 
             TLButton editBtn = new TLButton(I18n.get("post.edit"), TLButton.ButtonVariant.OUTLINE);
             editBtn.setSize(TLButton.ButtonSize.SM);
@@ -566,7 +739,12 @@ public class CommunityController implements Initializable {
             deleteBtn.setSize(TLButton.ButtonSize.SM);
             deleteBtn.setOnAction(e -> deletePost(post)); // Supprimer avec confirmation
 
-            actions.getChildren().addAll(spacer, editBtn, deleteBtn);
+            editDeleteRow.getChildren().addAll(editBtn, deleteBtn);
+            body.getChildren().add(actions);
+            body.getChildren().add(editDeleteRow);
+            body.getChildren().add(commentsSection);
+            card.setContent(body);
+            return card;
         }
 
         body.getChildren().addAll(actions, commentsSection);
@@ -591,6 +769,10 @@ public class CommunityController implements Initializable {
         inputBox.setAlignment(Pos.CENTER_LEFT);
         TLTextField commentInput = new TLTextField("", I18n.get("post.comment") + "...");
         HBox.setHgrow(commentInput, Priority.ALWAYS);
+
+        // ── MENTIONS @USER dans les commentaires — autocomplétion ──
+        setupMentionDetectionForTextField(commentInput);
+
         TLButton sendBtn = new TLButton(I18n.get("message.send"), TLButton.ButtonVariant.PRIMARY);
         sendBtn.setSize(TLButton.ButtonSize.SM);
         sendBtn.setOnAction(e -> {
@@ -1066,6 +1248,8 @@ public class CommunityController implements Initializable {
 
         unreadTask.setOnSucceeded(e1 -> {
             int unread = unreadTask.getValue();
+
+            // ── En-tête avec titre + badge non lus ──
             HBox headerRow = new HBox(12);
             headerRow.setAlignment(Pos.CENTER_LEFT);
             Label title = new Label(I18n.get("message.title"));
@@ -1078,23 +1262,139 @@ public class CommunityController implements Initializable {
             }
             messagesPane.getChildren().add(headerRow);
 
+            // ── Barre de filtres conversations (style Facebook) ──
+            HBox filterBar = new HBox(8);
+            filterBar.setAlignment(Pos.CENTER_LEFT);
+            filterBar.setPadding(new Insets(4, 0, 8, 0));
+
+            // Filtre Non lus (style Facebook)
+            TLButton filterAllBtn = new TLButton("Toutes", TLButton.ButtonVariant.PRIMARY);
+            filterAllBtn.setSize(TLButton.ButtonSize.SM);
+            TLButton filterUnreadBtn = new TLButton("Non lues", TLButton.ButtonVariant.OUTLINE);
+            filterUnreadBtn.setSize(TLButton.ButtonSize.SM);
+
+            // Filtre par date
+            TLSelect<String> dateFilter = new TLSelect<>("",
+                    "Toutes les dates", "Aujourd'hui", "Cette semaine", "Ce mois");
+            dateFilter.setValue("Toutes les dates");
+
+            // Tri par date (Plus récent / Plus ancien)
+            TLSelect<String> sortFilter = new TLSelect<>("",
+                    "Plus récent", "Plus ancien");
+            sortFilter.setValue("Plus récent");
+
+            filterBar.getChildren().addAll(filterAllBtn, filterUnreadBtn, dateFilter, sortFilter);
+            messagesPane.getChildren().add(filterBar);
+
+            // Conteneur pour la liste de conversations (rechargeable par les filtres)
+            VBox convListContainer = new VBox(8);
+            messagesPane.getChildren().add(convListContainer);
+
             convTask.setOnSucceeded(e2 -> {
-                List<Conversation> conversations = convTask.getValue();
-                if (conversations.isEmpty()) {
-                    Label empty = new Label(I18n.get("message.empty"));
-                    empty.getStyleClass().add("text-muted");
-                    messagesPane.getChildren().add(empty);
-                } else {
-                    for (Conversation conv : conversations) {
-                        messagesPane.getChildren().add(createConversationCard(conv));
-                    }
-                }
+                List<Conversation> allConversations = convTask.getValue();
+                // Afficher toutes les conversations par défaut
+                displayFilteredConversations(convListContainer, allConversations, false, "Toutes les dates", sortFilter.getValue());
+
+                // ── Filtre "Toutes" : afficher toutes les conversations ──
+                filterAllBtn.setOnAction(ev -> {
+                    filterAllBtn.setVariant(TLButton.ButtonVariant.PRIMARY);
+                    filterUnreadBtn.setVariant(TLButton.ButtonVariant.OUTLINE);
+                    displayFilteredConversations(convListContainer, allConversations, false, dateFilter.getValue(), sortFilter.getValue());
+                });
+
+                // ── Filtre "Non lues" : seulement celles avec unreadCount > 0 ──
+                filterUnreadBtn.setOnAction(ev -> {
+                    filterUnreadBtn.setVariant(TLButton.ButtonVariant.PRIMARY);
+                    filterAllBtn.setVariant(TLButton.ButtonVariant.OUTLINE);
+                    displayFilteredConversations(convListContainer, allConversations, true, dateFilter.getValue(), sortFilter.getValue());
+                });
+
+                // ── Filtre par date : re-filtrer quand la date change ──
+                dateFilter.valueProperty().addListener((obs, oldVal, newVal) -> {
+                    boolean unreadOnly = filterUnreadBtn.getVariant() == TLButton.ButtonVariant.PRIMARY;
+                    displayFilteredConversations(convListContainer, allConversations, unreadOnly, newVal, sortFilter.getValue());
+                });
+
+                // ── Tri par date : re-trier quand le tri change ──
+                sortFilter.valueProperty().addListener((obs, oldVal, newVal) -> {
+                    boolean unreadOnly = filterUnreadBtn.getVariant() == TLButton.ButtonVariant.PRIMARY;
+                    displayFilteredConversations(convListContainer, allConversations, unreadOnly, dateFilter.getValue(), newVal);
+                });
             });
             new Thread(convTask, "ConversationsThread").start();
         });
         new Thread(unreadTask, "UnreadCountThread").start();
 
         contentPane.getChildren().add(messagesPane);
+    }
+
+    /**
+     * Affiche les conversations filtrées dans le conteneur.
+     * Filtre par : non lues uniquement + période de date.
+     * Style Facebook : les conversations non lues ont un fond accentué.
+     *
+     * @param container      le VBox conteneur des conversations
+     * @param conversations  toutes les conversations
+     * @param unreadOnly     true = afficher seulement les non lues
+     * @param dateFilterVal  valeur du filtre date ("Toutes les dates", "Aujourd'hui", etc.)
+     * @param sortVal        valeur du tri ("Plus récent" ou "Plus ancien")
+     */
+    private void displayFilteredConversations(VBox container, List<Conversation> conversations,
+                                               boolean unreadOnly, String dateFilterVal, String sortVal) {
+        container.getChildren().clear();
+
+        // Déterminer la date limite selon le filtre
+        LocalDateTime dateCutoff = null;
+        if (dateFilterVal != null) {
+            dateCutoff = switch (dateFilterVal) {
+                case "Aujourd'hui"   -> LocalDateTime.now().minusDays(1);
+                case "Cette semaine" -> LocalDateTime.now().minusDays(7);
+                case "Ce mois"       -> LocalDateTime.now().minusDays(30);
+                default              -> null; // Toutes les dates
+            };
+        }
+
+        // Construire la liste filtrée
+        List<Conversation> filtered = new java.util.ArrayList<>();
+        for (Conversation conv : conversations) {
+            // Filtre non lus
+            if (unreadOnly && conv.getUnreadCount() <= 0) continue;
+            // Filtre par date
+            if (dateCutoff != null && conv.getLastMessageDate() != null
+                    && conv.getLastMessageDate().isBefore(dateCutoff)) continue;
+            filtered.add(conv);
+        }
+
+        // Trier par date : Plus récent (DESC) ou Plus ancien (ASC)
+        boolean ascending = "Plus ancien".equals(sortVal);
+        filtered.sort((a, b) -> {
+            LocalDateTime da = a.getLastMessageDate();
+            LocalDateTime db = b.getLastMessageDate();
+            if (da == null && db == null) return 0;
+            if (da == null) return 1;
+            if (db == null) return -1;
+            return ascending ? da.compareTo(db) : db.compareTo(da);
+        });
+
+        int count = 0;
+        for (Conversation conv : filtered) {
+            TLCard card = createConversationCard(conv);
+            // Style Facebook : fond légèrement accentué pour les conversations non lues
+            if (conv.getUnreadCount() > 0) {
+                card.setStyle("-fx-border-color: -fx-primary; -fx-border-width: 0 0 0 3;");
+            }
+            container.getChildren().add(card);
+            count++;
+        }
+
+        if (count == 0) {
+            Label empty = new Label(unreadOnly
+                    ? "Aucune conversation non lue"
+                    : I18n.get("message.empty"));
+            empty.getStyleClass().add("text-muted");
+            empty.setStyle("-fx-font-size: 13px; -fx-padding: 12 0;");
+            container.getChildren().add(empty);
+        }
     }
 
     /**
@@ -1358,6 +1658,11 @@ public class CommunityController implements Initializable {
         TLTextField msgInput = new TLTextField("", I18n.get("message.placeholder"));
         HBox.setHgrow(msgInput, Priority.ALWAYS);
 
+        // ── EMOJI PICKER — Bouton emoji dans le chat ──
+        TLButton chatEmojiBtn = new TLButton("😀", TLButton.ButtonVariant.GHOST);
+        chatEmojiBtn.setSize(TLButton.ButtonSize.SM);
+        chatEmojiBtn.setOnAction(ev -> showEmojiPickerForTextField(chatEmojiBtn, msgInput));
+
         TLButton sendBtn = new TLButton("➤  " + I18n.get("message.send"), TLButton.ButtonVariant.PRIMARY);
         sendBtn.setOnAction(e -> {
             String text = msgInput.getText();
@@ -1374,7 +1679,7 @@ public class CommunityController implements Initializable {
                 }, "SendMsgThread").start();
             }
         });
-        inputBar.getChildren().addAll(msgInput, sendBtn);
+        inputBar.getChildren().addAll(msgInput, chatEmojiBtn, sendBtn);
 
         chatPane.getChildren().addAll(chatHeader, scroll, inputBar);
         contentPane.getChildren().add(chatPane);
@@ -2370,5 +2675,697 @@ public class CommunityController implements Initializable {
         } catch (Exception e) {
             logger.debug("Toast not shown: {}", e.getMessage());
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  RECHERCHE AVANCÉE — Barre de recherche globale multi-entités
+    //  (Feature F1 — Sprint 2)
+    // ═══════════════════════════════════════════════════════════
+
+    /**
+     * Construit la barre de recherche avancée pour le fil d'actualité.
+     *
+     * Composants :
+     *   - TLTextField : champ de saisie du mot-clé
+     *   - TLSelect    : filtre par type de contenu (Tous, Posts, Messages, etc.)
+     *   - TLButton    : bouton de recherche
+     *
+     * Fonctionnement :
+     *   1. L'utilisateur saisit un mot-clé et choisit un filtre
+     *   2. La recherche est effectuée dans un thread séparé via SearchService
+     *   3. Les résultats sont affichés sous forme de cartes dans le contentPane
+     *   4. Chaque résultat a un badge de type (POST, MESSAGE, EVENT, GROUP, BLOG)
+     *
+     * @return HBox contenant la barre de recherche complète
+     */
+    private HBox buildSearchBar() {
+        HBox searchBar = new HBox(10);
+        searchBar.setAlignment(Pos.CENTER_LEFT);
+        searchBar.setPadding(new Insets(8, 0, 12, 0));
+
+        // Champ de recherche
+        TLTextField searchField = new TLTextField("", "🔍  Rechercher dans la communauté...");
+        HBox.setHgrow(searchField, Priority.ALWAYS);
+
+        // Sélecteur de filtre par DATE (Tout, Aujourd'hui, Cette semaine, Ce mois, Cette année)
+        TLSelect<String> dateFilterSelect = new TLSelect<>("Période",
+                "Tout", "Aujourd'hui", "Cette semaine", "Ce mois", "Cette année");
+        dateFilterSelect.setValue("Tout");
+
+        // Sélecteur de tri (Plus récent / Plus ancien)
+        TLSelect<String> sortSelect = new TLSelect<>("Tri",
+                "Plus récent", "Plus ancien");
+        sortSelect.setValue("Plus récent");
+
+        // ── Action de recherche extraite en Runnable pour pouvoir la déclencher
+        //    depuis le bouton ET depuis les changements de filtres ──
+        Runnable executeSearch = () -> {
+            String keyword = searchField.getText();
+            if (keyword == null || keyword.isBlank()) return;
+
+            // Convertir le filtre de date sélectionné en enum DateFilter
+            String dateVal = dateFilterSelect.getValue();
+            SearchService.DateFilter dateFilter = switch (dateVal != null ? dateVal : "Tout") {
+                case "Aujourd'hui"   -> SearchService.DateFilter.TODAY;
+                case "Cette semaine" -> SearchService.DateFilter.THIS_WEEK;
+                case "Ce mois"       -> SearchService.DateFilter.THIS_MONTH;
+                case "Cette année"   -> SearchService.DateFilter.THIS_YEAR;
+                default              -> SearchService.DateFilter.ALL;
+            };
+
+            // Récupérer le tri sélectionné
+            boolean sortAscending = "Plus ancien".equals(sortSelect.getValue());
+
+            // Exécuter la recherche dans un thread séparé (requête SQL)
+            Task<List<SearchService.SearchResult>> searchTask = new Task<>() {
+                @Override
+                protected List<SearchService.SearchResult> call() {
+                    List<SearchService.SearchResult> all = searchService.search(
+                            keyword, SearchService.SearchFilter.ALL, currentUser.getId());
+                    List<SearchService.SearchResult> filtered = searchService.filterByDate(all, dateFilter);
+                    // Trier par date : plus récent ou plus ancien
+                    filtered.sort((a, b) -> {
+                        if (a.getDate() == null && b.getDate() == null) return 0;
+                        if (a.getDate() == null) return 1;
+                        if (b.getDate() == null) return -1;
+                        return sortAscending ? a.getDate().compareTo(b.getDate())
+                                             : b.getDate().compareTo(a.getDate());
+                    });
+                    return filtered;
+                }
+            };
+
+            searchTask.setOnSucceeded(ev -> {
+                List<SearchService.SearchResult> results = searchTask.getValue();
+                contentPane.getChildren().clear();
+                contentPane.getChildren().add(searchBar);
+
+                if (results.isEmpty()) {
+                    Label noResults = new Label("Aucun résultat pour \"" + keyword + "\"");
+                    noResults.getStyleClass().add("text-muted");
+                    noResults.setStyle("-fx-font-size: 14px; -fx-padding: 20 0;");
+                    contentPane.getChildren().add(noResults);
+                } else {
+                    Label countLabel = new Label("🔍  " + results.size() + " résultat(s) pour \"" + keyword + "\"");
+                    countLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: -fx-foreground;");
+                    contentPane.getChildren().add(countLabel);
+
+                    int delay = 0;
+                    for (SearchService.SearchResult r : results) {
+                        TLCard card = createSearchResultCard(r);
+                        contentPane.getChildren().add(card);
+                        animateCardEntry(card, delay);
+                        delay += 60;
+                    }
+                }
+
+                TLButton backBtn = new TLButton("←  Retour au feed", TLButton.ButtonVariant.GHOST);
+                backBtn.setOnAction(ev2 -> loadFeedTab());
+                contentPane.getChildren().add(backBtn);
+            });
+
+            new Thread(searchTask, "SearchThread").start();
+        };
+
+        // Bouton de recherche
+        TLButton searchBtn = new TLButton("🔍  Chercher", TLButton.ButtonVariant.PRIMARY);
+        searchBtn.setSize(TLButton.ButtonSize.SM);
+        searchBtn.setOnAction(e -> executeSearch.run());
+
+        // Re-exécuter la recherche automatiquement quand le filtre date ou le tri change
+        dateFilterSelect.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (searchField.getText() != null && !searchField.getText().isBlank()) {
+                executeSearch.run();
+            }
+        });
+        sortSelect.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (searchField.getText() != null && !searchField.getText().isBlank()) {
+                executeSearch.run();
+            }
+        });
+
+        searchBar.getChildren().addAll(searchField, dateFilterSelect, sortSelect, searchBtn);
+        return searchBar;
+    }
+
+    /**
+     * Crée une carte visuelle pour un résultat de recherche.
+     * Affiche le type sous forme de badge coloré, le titre, l'extrait et la date.
+     *
+     * @param result le résultat de recherche à afficher
+     * @return TLCard contenant les détails du résultat
+     */
+    private TLCard createSearchResultCard(SearchService.SearchResult result) {
+        TLCard card = new TLCard();
+        card.getStyleClass().add("post-card");
+        VBox body = new VBox(6);
+        body.setPadding(new Insets(14));
+
+        HBox header = new HBox(10);
+        header.setAlignment(Pos.CENTER_LEFT);
+
+        // Badge de type coloré selon le type de résultat
+        TLBadge.Variant badgeVariant = switch (result.getType()) {
+            case "POST"    -> TLBadge.Variant.DEFAULT;
+            case "MESSAGE" -> TLBadge.Variant.SECONDARY;
+            case "EVENT"   -> TLBadge.Variant.SUCCESS;
+            case "GROUP"   -> TLBadge.Variant.OUTLINE;
+            case "BLOG"    -> TLBadge.Variant.DESTRUCTIVE;
+            default        -> TLBadge.Variant.DEFAULT;
+        };
+        TLBadge typeBadge = new TLBadge(result.getType(), badgeVariant);
+
+        Label titleLabel = new Label(result.getTitle());
+        titleLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: 700; -fx-text-fill: -fx-foreground;");
+        HBox.setHgrow(titleLabel, Priority.ALWAYS);
+
+        Label dateLabel = new Label(formatDate(result.getDate()));
+        dateLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-muted-foreground;");
+
+        header.getChildren().addAll(typeBadge, titleLabel, dateLabel);
+
+        Label excerpt = new Label(result.getExcerpt());
+        excerpt.setWrapText(true);
+        excerpt.setStyle("-fx-font-size: 13px; -fx-text-fill: -fx-muted-foreground;");
+
+        Label authorLabel = new Label("Par " + (result.getAuthor() != null ? result.getAuthor() : "Unknown"));
+        authorLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-muted-foreground;");
+
+        body.getChildren().addAll(header, excerpt, authorLabel);
+        card.setContent(body);
+        return card;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  EMOJI PICKER — Grille d'emojis avec catégories
+    //  (Feature U4 — Sprint 2)
+    // ═══════════════════════════════════════════════════════════
+
+    /** Tableau des emojis fréquemment utilisés, organisés en grille */
+    private static final String[] EMOJI_LIST = {
+        "😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂",
+        "🙂", "😊", "😇", "🥰", "😍", "🤩", "😘", "😗",
+        "😜", "🤪", "😝", "🤑", "🤗", "🤔", "🤐", "😐",
+        "😏", "😒", "😔", "😢", "😭", "😤", "🤬", "😈",
+        "👍", "👎", "👏", "🙌", "🤝", "💪", "✌️", "🤞",
+        "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "💔",
+        "🔥", "⭐", "🌟", "💯", "✅", "❌", "⚡", "🎯",
+        "📌", "💡", "📢", "🎉", "🎊", "🏆", "🥇", "🚀"
+    };
+
+    /**
+     * Affiche un petit panneau popup d'emojis sous le bouton cliqué.
+     * L'emoji sélectionné est inséré à la fin du texte dans le TLTextarea.
+     *
+     * ARCHITECTURE :
+     *   - Popup JavaFX positionné sous le bouton déclencheur
+     *   - GridPane 8×8 pour afficher 64 emojis
+     *   - Chaque emoji est un Label cliquable
+     *   - Au clic : insérer l'emoji dans le textarea et fermer le popup
+     *
+     * @param anchor   le bouton qui a déclenché l'ouverture (pour positionnement)
+     * @param textArea le champ de texte dans lequel insérer l'emoji
+     */
+    private void showEmojiPicker(Node anchor, TLTextarea textArea) {
+        Popup popup = new Popup();
+        popup.setAutoHide(true); // Se ferme automatiquement quand on clique ailleurs
+
+        // Grille d'emojis 8 colonnes
+        GridPane grid = new GridPane();
+        grid.setHgap(4);
+        grid.setVgap(4);
+        grid.setPadding(new Insets(10));
+        grid.setStyle("-fx-background-color: -fx-card; -fx-border-color: -fx-border; "
+                + "-fx-border-radius: 8; -fx-background-radius: 8; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 10, 0, 0, 4);");
+
+        // Remplir la grille avec les emojis
+        for (int i = 0; i < EMOJI_LIST.length; i++) {
+            String emoji = EMOJI_LIST[i];
+            Label emojiLabel = new Label(emoji);
+            emojiLabel.setStyle("-fx-font-size: 20px; -fx-cursor: hand; -fx-padding: 4;");
+            // Effet de survol : agrandir l'emoji
+            emojiLabel.setOnMouseEntered(e -> emojiLabel.setStyle(
+                    "-fx-font-size: 24px; -fx-cursor: hand; -fx-padding: 2; -fx-background-color: -fx-accent; -fx-background-radius: 6;"));
+            emojiLabel.setOnMouseExited(e -> emojiLabel.setStyle(
+                    "-fx-font-size: 20px; -fx-cursor: hand; -fx-padding: 4;"));
+            // Au clic : insérer l'emoji dans le textarea
+            emojiLabel.setOnMouseClicked(e -> {
+                String current = textArea.getText() != null ? textArea.getText() : "";
+                textArea.setText(current + emoji); // Ajouter l'emoji à la fin
+                popup.hide();
+            });
+            grid.add(emojiLabel, i % 8, i / 8); // Positionnement grille (col, row)
+        }
+
+        popup.getContent().add(grid);
+        // Positionner le popup sous le bouton déclencheur
+        var bounds = anchor.localToScreen(anchor.getBoundsInLocal());
+        if (bounds != null) {
+            popup.show(anchor, bounds.getMinX(), bounds.getMaxY() + 4);
+        }
+    }
+
+    /**
+     * Variante du emoji picker pour les TLTextField (messages).
+     * Même logique mais insère dans un TLTextField au lieu d'un TLTextarea.
+     *
+     * @param anchor    le bouton emoji dans la barre de chat
+     * @param textField le champ de texte du message
+     */
+    private void showEmojiPickerForTextField(Node anchor, TLTextField textField) {
+        Popup popup = new Popup();
+        popup.setAutoHide(true);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(4);
+        grid.setVgap(4);
+        grid.setPadding(new Insets(10));
+        grid.setStyle("-fx-background-color: -fx-card; -fx-border-color: -fx-border; "
+                + "-fx-border-radius: 8; -fx-background-radius: 8; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 10, 0, 0, 4);");
+
+        for (int i = 0; i < EMOJI_LIST.length; i++) {
+            String emoji = EMOJI_LIST[i];
+            Label emojiLabel = new Label(emoji);
+            emojiLabel.setStyle("-fx-font-size: 20px; -fx-cursor: hand; -fx-padding: 4;");
+            emojiLabel.setOnMouseEntered(e -> emojiLabel.setStyle(
+                    "-fx-font-size: 24px; -fx-cursor: hand; -fx-padding: 2; -fx-background-color: -fx-accent; -fx-background-radius: 6;"));
+            emojiLabel.setOnMouseExited(e -> emojiLabel.setStyle(
+                    "-fx-font-size: 20px; -fx-cursor: hand; -fx-padding: 4;"));
+            emojiLabel.setOnMouseClicked(e -> {
+                String current = textField.getText() != null ? textField.getText() : "";
+                textField.setText(current + emoji);
+                popup.hide();
+            });
+            grid.add(emojiLabel, i % 8, i / 8);
+        }
+
+        popup.getContent().add(grid);
+        var bounds = anchor.localToScreen(anchor.getBoundsInLocal());
+        if (bounds != null) {
+            popup.show(anchor, bounds.getMinX(), bounds.getMaxY() + 4);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  TRADUCTION AVEC CHOIX DE LANGUE — API MyMemory
+    //  (API A1 — Sprint 2)
+    // ═══════════════════════════════════════════════════════════
+
+    /**
+     * Affiche un menu popup permettant de choisir la langue cible
+     * avant de lancer la traduction via l'API MyMemory.
+     *
+     * Options :
+     *   🇫🇷 Français   (fr)
+     *   🇬🇧 English    (en)
+     *   🇸🇦 العربية    (ar)
+     *   ↩  Original  — restaure le texte d'origine
+     *
+     * @param translateBtn  le bouton "Traduire" (pour positionner le popup)
+     * @param contentLabel  le Label contenant le texte du post
+     * @param originalText  le texte original du post (pour restauration)
+     */
+    private void showTranslationMenu(TLButton translateBtn, Label contentLabel, String originalText) {
+        Popup popup = new Popup();
+        popup.setAutoHide(true); // Se ferme quand on clique ailleurs
+
+        VBox menu = new VBox(2);
+        menu.setStyle("-fx-background-color: -fx-card; -fx-border-color: -fx-border; "
+                + "-fx-border-radius: 10; -fx-background-radius: 10; -fx-padding: 8; "
+                + "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.18), 12, 0, 0, 4);");
+        menu.setMinWidth(180);
+
+        // Titre du menu
+        Label title = new Label("🌐  Traduire en :");
+        title.setStyle("-fx-font-size: 12px; -fx-font-weight: 700; -fx-text-fill: -fx-muted-foreground; -fx-padding: 4 8;");
+        menu.getChildren().add(title);
+
+        // Détecter la langue source actuelle du texte
+        String detectedLang = translationService.detectLanguage(originalText);
+
+        // ── Options de langue (sans emojis drapeaux — incompatibles Windows) ──
+        String[][] languages = {
+            {"Français", "fr"},
+            {"English", "en"},
+            {"العربية", "ar"}
+        };
+
+        for (String[] lang : languages) {
+            String label = lang[0];
+            String langCode = lang[1];
+
+            HBox item = new HBox(8);
+            item.setAlignment(Pos.CENTER_LEFT);
+            item.setPadding(new Insets(8, 12, 8, 12));
+            item.setStyle("-fx-cursor: hand; -fx-background-radius: 6;");
+
+            Label itemLabel = new Label(label);
+            itemLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: -fx-foreground;");
+
+            // Indiquer la langue détectée avec un badge
+            if (langCode.equals(detectedLang)) {
+                TLBadge currentBadge = new TLBadge("détectée", TLBadge.Variant.OUTLINE);
+                item.getChildren().addAll(itemLabel, currentBadge);
+            } else {
+                item.getChildren().add(itemLabel);
+            }
+
+            // Effets de survol
+            item.setOnMouseEntered(ev -> item.setStyle(
+                    "-fx-cursor: hand; -fx-background-color: -fx-accent; -fx-background-radius: 6;"));
+            item.setOnMouseExited(ev -> item.setStyle(
+                    "-fx-cursor: hand; -fx-background-radius: 6;"));
+
+            // Au clic : lancer la traduction vers la langue choisie
+            item.setOnMouseClicked(ev -> {
+                popup.hide();
+                translateBtn.setText("⏳  Traduction...");
+                translateBtn.setDisable(true);
+
+                new Thread(() -> {
+                    try {
+                        String sourceLang = detectedLang;
+                        String translated = translationService.translate(originalText, sourceLang, langCode);
+                        Platform.runLater(() -> {
+                            contentLabel.setText("🌐 [" + langCode.toUpperCase() + "] " + translated);
+                            translateBtn.setText("↩  Original");
+                            translateBtn.setDisable(false);
+                            // Rebrancher : clic suivant = restaurer l'original
+                            translateBtn.setOnAction(ev2 -> {
+                                contentLabel.setText(originalText);
+                                translateBtn.setText("🌐  Traduire");
+                                // Rebrancher le menu de choix pour les futures traductions
+                                translateBtn.setOnAction(ev3 ->
+                                        showTranslationMenu(translateBtn, contentLabel, originalText));
+                            });
+                            showToast("Traduit : " + sourceLang.toUpperCase() + " → " + langCode.toUpperCase());
+                        });
+                    } catch (Exception ex) {
+                        Platform.runLater(() -> {
+                            translateBtn.setText("🌐  Traduire");
+                            translateBtn.setDisable(false);
+                            showToast("Erreur de traduction : " + ex.getMessage());
+                        });
+                    }
+                }, "TranslateThread").start();
+            });
+
+            menu.getChildren().add(item);
+        }
+
+        // ── Séparateur + Bouton "Original" (si déjà traduit) ──
+        if (!contentLabel.getText().equals(originalText)) {
+            menu.getChildren().add(new TLSeparator());
+            HBox restoreItem = new HBox(8);
+            restoreItem.setAlignment(Pos.CENTER_LEFT);
+            restoreItem.setPadding(new Insets(8, 12, 8, 12));
+            restoreItem.setStyle("-fx-cursor: hand; -fx-background-radius: 6;");
+            Label restoreLabel = new Label("↩  Texte original");
+            restoreLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: -fx-muted-foreground;");
+            restoreItem.getChildren().add(restoreLabel);
+            restoreItem.setOnMouseEntered(ev -> restoreItem.setStyle(
+                    "-fx-cursor: hand; -fx-background-color: -fx-accent; -fx-background-radius: 6;"));
+            restoreItem.setOnMouseExited(ev -> restoreItem.setStyle(
+                    "-fx-cursor: hand; -fx-background-radius: 6;"));
+            restoreItem.setOnMouseClicked(ev -> {
+                popup.hide();
+                contentLabel.setText(originalText);
+                translateBtn.setText("🌐  Traduire");
+                translateBtn.setOnAction(ev2 ->
+                        showTranslationMenu(translateBtn, contentLabel, originalText));
+            });
+            menu.getChildren().add(restoreItem);
+        }
+
+        popup.getContent().add(menu);
+        var bounds = translateBtn.localToScreen(translateBtn.getBoundsInLocal());
+        if (bounds != null) {
+            popup.show(translateBtn, bounds.getMinX(), bounds.getMaxY() + 4);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  MENTIONS @USER — Autocomplétion et traitement des mentions
+    //  (Feature F7 — Sprint 2)
+    // ═══════════════════════════════════════════════════════════
+
+    /**
+     * Configure la détection des mentions @user dans un TLTextarea.
+     * Quand l'utilisateur tape '@' suivi de lettres, un popup d'autocomplétion
+     * apparaît avec les utilisateurs correspondants.
+     *
+     * FONCTIONNEMENT :
+     *   1. Écouter les changements de texte dans le textarea
+     *   2. Détecter le pattern @xxx (au moins 2 caractères après @)
+     *   3. Chercher les utilisateurs correspondants via MentionService.searchUsers()
+     *   4. Afficher un popup avec la liste des utilisateurs trouvés
+     *   5. Au clic sur un utilisateur, remplacer @xxx par @prenom_nom
+     *
+     * @param textArea le champ de texte à surveiller
+     * @param dialog   le dialogue parent (pour le positionnement du popup)
+     */
+    private void setupMentionDetection(TLTextarea textArea, TLDialog<?> dialog) {
+        // Accéder au contrôle interne du TLTextarea (TextArea JavaFX)
+        TextArea innerControl = textArea.getControl();
+        Popup mentionPopup = new Popup();
+        mentionPopup.setAutoHide(true);
+        VBox mentionList = new VBox(2);
+        mentionList.setStyle("-fx-background-color: -fx-card; -fx-border-color: -fx-border; "
+                + "-fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 6; "
+                + "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 10, 0, 0, 4);");
+        mentionList.setMinWidth(220);
+        mentionPopup.getContent().add(mentionList);
+
+        // Écouter chaque modification du texte
+        // On utilise Platform.runLater car getCaretPosition() n'est pas encore mis à jour
+        // dans le listener textProperty — le curseur est actualisé après le listener
+        innerControl.textProperty().addListener((obs, oldText, newText) -> {
+            Platform.runLater(() -> {
+                if (newText == null || newText.isEmpty()) {
+                    mentionPopup.hide();
+                    return;
+                }
+                // Trouver la position du curseur (fiable dans runLater)
+                int caretPos = innerControl.getCaretPosition();
+                if (caretPos <= 0 || caretPos > newText.length()) {
+                    mentionPopup.hide();
+                    return;
+                }
+
+                // Chercher le dernier @ avant le curseur
+                String textBeforeCaret = newText.substring(0, caretPos);
+                int atIndex = textBeforeCaret.lastIndexOf('@');
+                if (atIndex < 0) {
+                    mentionPopup.hide();
+                    return;
+                }
+
+                // Extraire le texte après @ (la requête de recherche)
+                String query = textBeforeCaret.substring(atIndex + 1);
+                // Vérifier que c'est un seul mot (pas d'espace entre @ et le curseur)
+                if (query.contains(" ") || query.contains("\n") || query.length() < 1) {
+                    mentionPopup.hide();
+                    return;
+                }
+
+                // Chercher les utilisateurs en arrière-plan
+                final String searchQuery = query;
+                final int mentionStart = atIndex;
+                final int currentCaretPos = caretPos;
+                new Thread(() -> {
+                    List<MentionService.UserMention> users = mentionService.searchUsers(searchQuery, 5);
+                    Platform.runLater(() -> {
+                        mentionList.getChildren().clear();
+                        if (users.isEmpty()) {
+                            mentionPopup.hide();
+                            return;
+                        }
+                        for (MentionService.UserMention user : users) {
+                            // Créer une entrée dans le popup pour chaque utilisateur trouvé
+                            HBox item = new HBox(8);
+                            item.setAlignment(Pos.CENTER_LEFT);
+                            item.setPadding(new Insets(6, 10, 6, 10));
+                            item.setStyle("-fx-cursor: hand; -fx-background-radius: 4;");
+                            item.setOnMouseEntered(ev -> item.setStyle("-fx-cursor: hand; -fx-background-color: -fx-accent; -fx-background-radius: 4;"));
+                            item.setOnMouseExited(ev -> item.setStyle("-fx-cursor: hand; -fx-background-radius: 4;"));
+
+                            StackPane userAvatar = createAvatar(user.getFullName(), 24);
+                            Label userName = new Label(user.getFullName() + " (@" + user.getHandle() + ")");
+                            userName.setStyle("-fx-font-size: 13px; -fx-text-fill: -fx-foreground;");
+                            item.getChildren().addAll(userAvatar, userName);
+
+                            // Au clic : remplacer @query par @handle dans le texte
+                            item.setOnMouseClicked(ev -> {
+                                String currentText = innerControl.getText();
+                                String before = currentText.substring(0, mentionStart);
+                                String after = currentCaretPos < currentText.length() ? currentText.substring(currentCaretPos) : "";
+                                String replacement = "@" + user.getHandle() + " ";
+                                innerControl.setText(before + replacement + after);
+                                innerControl.positionCaret(before.length() + replacement.length());
+                                mentionPopup.hide();
+                            });
+
+                            mentionList.getChildren().add(item);
+                        }
+                        // Positionner et afficher le popup au-dessus du dialogue
+                        if (!mentionPopup.isShowing()) {
+                            var bounds = innerControl.localToScreen(innerControl.getBoundsInLocal());
+                            if (bounds != null) {
+                                // Afficher le popup en passant la Window du dialogue comme owner
+                                // Cela garantit que le popup s'affiche AU-DESSUS du dialogue modal
+                                javafx.stage.Window owner = innerControl.getScene() != null
+                                        ? innerControl.getScene().getWindow() : null;
+                                if (owner != null) {
+                                    mentionPopup.show(owner, bounds.getMinX() + 20, bounds.getMinY() + 40);
+                                } else {
+                                    mentionPopup.show(innerControl, bounds.getMinX() + 20, bounds.getMinY() + 40);
+                                }
+                            }
+                        }
+                    });
+                }, "MentionSearchThread").start();
+            });
+        });
+    }
+
+    /**
+     * Configure la détection des mentions @user dans un TLTextField (commentaires, messages).
+     * Même logique que setupMentionDetection() mais adapté pour TextField (une seule ligne).
+     *
+     * @param textField le champ de texte à surveiller
+     */
+    private void setupMentionDetectionForTextField(TLTextField textField) {
+        TextField innerControl = textField.getControl();
+        Popup mentionPopup = new Popup();
+        mentionPopup.setAutoHide(true);
+        VBox mentionList = new VBox(2);
+        mentionList.setStyle("-fx-background-color: -fx-card; -fx-border-color: -fx-border; "
+                + "-fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 6; "
+                + "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 10, 0, 0, 4);");
+        mentionList.setMinWidth(220);
+        mentionPopup.getContent().add(mentionList);
+
+        innerControl.textProperty().addListener((obs, oldText, newText) -> {
+            Platform.runLater(() -> {
+                if (newText == null || newText.isEmpty()) {
+                    mentionPopup.hide();
+                    return;
+                }
+                int caretPos = innerControl.getCaretPosition();
+                if (caretPos <= 0 || caretPos > newText.length()) {
+                    mentionPopup.hide();
+                    return;
+                }
+
+                String textBeforeCaret = newText.substring(0, caretPos);
+                int atIndex = textBeforeCaret.lastIndexOf('@');
+                if (atIndex < 0) {
+                    mentionPopup.hide();
+                    return;
+                }
+
+                String query = textBeforeCaret.substring(atIndex + 1);
+                if (query.contains(" ") || query.length() < 1) {
+                    mentionPopup.hide();
+                    return;
+                }
+
+                final String searchQuery = query;
+                final int mentionStart = atIndex;
+                final int currentCaretPos = caretPos;
+                new Thread(() -> {
+                    List<MentionService.UserMention> users = mentionService.searchUsers(searchQuery, 5);
+                    Platform.runLater(() -> {
+                        mentionList.getChildren().clear();
+                        if (users.isEmpty()) {
+                            mentionPopup.hide();
+                            return;
+                        }
+                        for (MentionService.UserMention user : users) {
+                            HBox item = new HBox(8);
+                            item.setAlignment(Pos.CENTER_LEFT);
+                            item.setPadding(new Insets(6, 10, 6, 10));
+                            item.setStyle("-fx-cursor: hand; -fx-background-radius: 4;");
+                            item.setOnMouseEntered(ev -> item.setStyle("-fx-cursor: hand; -fx-background-color: -fx-accent; -fx-background-radius: 4;"));
+                            item.setOnMouseExited(ev -> item.setStyle("-fx-cursor: hand; -fx-background-radius: 4;"));
+
+                            StackPane userAvatar = createAvatar(user.getFullName(), 24);
+                            Label userName = new Label(user.getFullName() + " (@" + user.getHandle() + ")");
+                            userName.setStyle("-fx-font-size: 13px; -fx-text-fill: -fx-foreground;");
+                            item.getChildren().addAll(userAvatar, userName);
+
+                            item.setOnMouseClicked(ev -> {
+                                String currentText = innerControl.getText();
+                                String before = currentText.substring(0, mentionStart);
+                                String after = currentCaretPos < currentText.length() ? currentText.substring(currentCaretPos) : "";
+                                String replacement = "@" + user.getHandle() + " ";
+                                innerControl.setText(before + replacement + after);
+                                innerControl.positionCaret(before.length() + replacement.length());
+                                mentionPopup.hide();
+                            });
+
+                            mentionList.getChildren().add(item);
+                        }
+                        if (!mentionPopup.isShowing()) {
+                            var bounds = innerControl.localToScreen(innerControl.getBoundsInLocal());
+                            if (bounds != null) {
+                                javafx.stage.Window owner = innerControl.getScene() != null
+                                        ? innerControl.getScene().getWindow() : null;
+                                double popupX = bounds.getMinX();
+                                double popupY = bounds.getMinY() - (users.size() * 36 + 16); // Au-dessus du champ
+                                if (owner != null) {
+                                    mentionPopup.show(owner, popupX, popupY);
+                                } else {
+                                    mentionPopup.show(innerControl, popupX, popupY);
+                                }
+                            }
+                        }
+                    });
+                }, "MentionSearchThread").start();
+            });
+        });
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  ANIMATIONS — Transitions fluides pour l'UX
+    //  (Feature U1 — Sprint 2)
+    // ═══════════════════════════════════════════════════════════
+
+    /**
+     * Anime l'entrée d'une carte avec un effet combiné :
+     *   1. FadeTransition   : opacité de 0 → 1 (apparition progressive)
+     *   2. TranslateTransition : glissement de 30px vers le haut (montée douce)
+     *
+     * L'animation est décalée par un délai (delay) pour créer un effet cascade
+     * quand plusieurs cartes sont chargées ensemble (staggered reveal).
+     *
+     * POURQUOI CES ANIMATIONS ?
+     *   - Améliore la fluidité perçue de l'interface
+     *   - Donne un feedback visuel que le contenu est en train de charger
+     *   - Crée un effet professionnel similaire aux réseaux sociaux modernes
+     *
+     * @param node  le composant à animer (généralement un TLCard)
+     * @param delay délai avant le début de l'animation en millisecondes
+     */
+    private void animateCardEntry(Node node, int delay) {
+        // Étape 1 : rendre la carte invisible au départ
+        node.setOpacity(0);
+        node.setTranslateY(30); // Décalée de 30px vers le bas
+
+        // Étape 2 : animation de fondu (fade-in)
+        FadeTransition fade = new FadeTransition(Duration.millis(400), node);
+        fade.setFromValue(0.0);   // Départ : invisible
+        fade.setToValue(1.0);     // Arrivée : complètement visible
+        fade.setDelay(Duration.millis(delay)); // Décalage pour effet cascade
+
+        // Étape 3 : animation de glissement vers le haut (slide-up)
+        TranslateTransition slide = new TranslateTransition(Duration.millis(400), node);
+        slide.setFromY(30);       // Départ : 30px plus bas
+        slide.setToY(0);          // Arrivée : position normale
+        slide.setDelay(Duration.millis(delay));
+
+        // Lancer les deux animations en parallèle
+        fade.play();
+        slide.play();
     }
 }
