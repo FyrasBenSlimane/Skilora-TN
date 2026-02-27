@@ -1010,7 +1010,7 @@ public class FinanceController implements Initializable {
                 contractInfo, bankInfo, bonusInfo, payslipInfo, (Stage) report_employeeCombo.getScene().getWindow());
 
         if (pdf != null) {
-            showSuccess("PDF generated: " + pdf.getName());
+            showSuccess("Rapport enregistré : " + pdf.getAbsolutePath());
         }
     }
 
@@ -1243,46 +1243,66 @@ public class FinanceController implements Initializable {
         }
     }
 
+    private static final String[] MONTHS_FR = { "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+            "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre" };
+
     private String buildContractInfo(int empId) {
         StringBuilder sb = new StringBuilder();
-        contractData.stream().filter(c -> c.getUserId() == empId)
-                .forEach(c -> sb
-                        .append("<div class='info-row'><div class='info-label'>Position:</div><div class='info-value'>")
-                        .append(c.getPosition()).append("</div></div>")
-                        .append("<div class='info-row'><div class='info-label'>Salary:</div><div class='info-value'>")
-                        .append(c.getSalary()).append(" TND</div></div>"));
+        sb.append("<div class=\"salary-grid\">");
+        java.text.NumberFormat nf = java.text.NumberFormat.getIntegerInstance(Locale.FRANCE);
+        contractData.stream().filter(c -> c.getUserId() == empId).forEach(c -> {
+            String pos = escapeHtml(c.getPosition() != null ? c.getPosition() : "—");
+            double sal = c.getSalary();
+            sb.append("<div class=\"salary-card\"><div class=\"role\">").append(pos).append("</div>");
+            sb.append("<div class=\"amount\">").append(nf.format((long) sal)).append("<span class=\"currency\">TND</span></div></div>");
+        });
+        sb.append("</div>");
         return sb.toString();
     }
 
     private String buildBankInfo(int empId) {
         StringBuilder sb = new StringBuilder();
-        bankData.stream().filter(b -> b.getUserId() == empId)
-                .forEach(b -> sb
-                        .append("<div class='info-row'><div class='info-label'>Bank:</div><div class='info-value'>")
-                        .append(b.getBankName()).append("</div></div>")
-                        .append("<div class='info-row'><div class='info-label'>IBAN:</div><div class='info-value'>")
-                        .append(b.getIban()).append("</div></div>"));
+        sb.append("<div class=\"bank-grid\">");
+        bankData.stream().filter(b -> b.getUserId() == empId).forEach(b -> {
+            sb.append("<div class=\"bank-card\"><div class=\"bank-name\">").append(escapeHtml(b.getBankName() != null ? b.getBankName() : "—")).append("</div>");
+            sb.append("<div class=\"iban\">").append(escapeHtml(b.getIban() != null ? b.getIban() : "—")).append("</div></div>");
+        });
+        sb.append("</div>");
         return sb.toString();
     }
 
     private String buildBonusInfo(int empId) {
         StringBuilder sb = new StringBuilder();
-        bonusData.stream().filter(b -> b.getUserId() == empId)
-                .forEach(b -> sb
-                        .append("<div class='info-row'><div class='info-label'>Amount:</div><div class='info-value'>")
-                        .append(b.getAmount()).append(" TND</div></div>"));
+        List<BonusRow> list = bonusData.stream().filter(b -> b.getUserId() == empId).toList();
+        if (list.isEmpty()) return "";
+        double total = list.stream().mapToDouble(BonusRow::getAmount).sum();
+        String label = list.size() == 1 && list.get(0).getReason() != null && !list.get(0).getReason().isEmpty()
+                ? escapeHtml(list.get(0).getReason()) : "Prime mensuelle";
+        sb.append("<div class=\"bonus-wrapper\"><div class=\"bonus-badge\"><div class=\"b-amount\">")
+                .append(String.format(Locale.FRANCE, "%.0f", total))
+                .append("<span class=\"b-currency\">TND</span></div><div class=\"b-label\">").append(label).append("</div></div></div>");
         return sb.toString();
     }
 
     private String buildPayslipInfo(int empId) {
         StringBuilder sb = new StringBuilder();
-        payslipData.stream().filter(p -> p.getUserId() == empId)
-                .forEach(p -> sb
-                        .append("<div class='info-row'><div class='info-label'>Period:</div><div class='info-value'>")
-                        .append(p.getPeriod()).append("</div></div>")
-                        .append("<div class='info-row'><div class='info-label'>Net:</div><div class='info-value'>")
-                        .append(p.getNet()).append(" TND</div></div>"));
+        java.text.NumberFormat nfDecimal = java.text.NumberFormat.getNumberInstance(Locale.FRANCE);
+        nfDecimal.setMinimumFractionDigits(2);
+        nfDecimal.setMaximumFractionDigits(2);
+        payslipData.stream().filter(p -> p.getUserId() == empId).forEach(p -> {
+            int m = p.getMonth(), y = p.getYear();
+            String periodLabel = (m >= 1 && m <= 12) ? (MONTHS_FR[m - 1] + " " + y) : (p.getPeriod() != null ? p.getPeriod() : "—");
+            String tag = (p.getStatus() != null && (p.getStatus().equalsIgnoreCase("PAID") || p.getStatus().equalsIgnoreCase("PAYÉ"))) ? "Payé" : "En attente";
+            sb.append("<div class=\"payslip-row\"><div><div class=\"payslip-col-label\">Période</div><div class=\"payslip-col-value\">").append(escapeHtml(periodLabel)).append("</div></div>");
+            sb.append("<div><div class=\"payslip-col-label\">Net à payer</div><div class=\"payslip-net\">").append(nfDecimal.format(p.getNet()));
+            sb.append("<span class=\"payslip-net-currency\">TND</span></div></div><span class=\"tag\">").append(tag).append("</span></div>");
+        });
         return sb.toString();
+    }
+
+    private static String escapeHtml(String s) {
+        if (s == null) return "";
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
     }
 
     private void showFieldError(Label label, String message) {
