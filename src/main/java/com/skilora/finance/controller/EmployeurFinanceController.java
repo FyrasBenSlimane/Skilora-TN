@@ -12,6 +12,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
 import com.skilora.finance.model.*;
+import com.skilora.finance.service.FinanceChatbotService;
 import com.skilora.finance.service.FinanceService;
 import com.skilora.finance.service.TaxCalculationService;
 
@@ -107,6 +108,14 @@ public class EmployeurFinanceController implements Initializable {
     private javafx.scene.layout.HBox teamStatsContainer;
     @FXML
     private TextField txt_search_employee;
+
+    // ── Assistant Ma Paie (Chatbot) ─────────────────────────────────────
+    @FXML
+    private javafx.scene.control.ScrollPane chatScrollPane;
+    @FXML
+    private VBox chatMessageContainer;
+    @FXML
+    private TextField chatQuestionField;
 
     private List<EmployeeSummaryRow> allEmployees = new ArrayList<>();
 
@@ -208,6 +217,7 @@ public class EmployeurFinanceController implements Initializable {
     private int employeeId = -1;
     private String employeeName = "Employe"; // vrai nom depuis la DB
     private final FinanceService financeService = FinanceService.getInstance();
+    private final FinanceChatbotService chatbotService = FinanceChatbotService.getInstance();
 
     // ══════════════════════════════════════════════════════
     // INITIALISATION
@@ -220,6 +230,11 @@ public class EmployeurFinanceController implements Initializable {
         setCurrentDate();
         loadEmployeeCards();
         setupSearch();
+        try {
+            showChatWelcome();
+        } catch (Exception e) {
+            System.err.println("[EmployeurFinance] showChatWelcome: " + e.getMessage());
+        }
     }
 
     /**
@@ -1064,6 +1079,100 @@ public class EmployeurFinanceController implements Initializable {
         if (s.length() >= len)
             return s.substring(0, len);
         return s + " ".repeat(len - s.length());
+    }
+
+    // ── Assistant Ma Paie (Chatbot) ─────────────────────────────────────
+    private FinanceChatbotService.FinanceChatContext buildChatContext() {
+        String lastPeriod = null;
+        String lastNet = null;
+        try {
+            List<PayslipRow> payslips = financeService.getPayslipsByUserId(employeeId);
+            if (!payslips.isEmpty()) {
+                payslips.sort(Comparator.comparingInt(PayslipRow::getYear).reversed()
+                        .thenComparingInt(PayslipRow::getMonth).reversed());
+                PayslipRow last = payslips.get(0);
+                lastPeriod = monthFr(last.getMonth()) + " " + last.getYear();
+                lastNet = fmt(last.getNet());
+            }
+        } catch (Exception ignored) { }
+
+        Map<String, FinanceChatbotService.EmployeeSnapshot> byName = new HashMap<>();
+        for (EmployeeSummaryRow emp : allEmployees) {
+            String name = emp.getFullName();
+            if (name == null || name.isBlank()) continue;
+            String period = null;
+            String net = emp.getLastNetPay() > 0 ? fmt(emp.getLastNetPay()) : null;
+            try {
+                List<PayslipRow> ps = financeService.getPayslipsByUserId(emp.getUserId());
+                if (!ps.isEmpty()) {
+                    ps.sort(Comparator.comparingInt(PayslipRow::getYear).reversed()
+                            .thenComparingInt(PayslipRow::getMonth).reversed());
+                    period = monthFr(ps.get(0).getMonth()) + " " + ps.get(0).getYear();
+                    if (net == null) net = fmt(ps.get(0).getNet());
+                }
+            } catch (Exception ignored) { }
+            String salary = emp.getCurrentSalary() > 0 ? fmt(emp.getCurrentSalary()) : null;
+            String key = normalizeForChat(name);
+            if (!key.isEmpty())
+                byName.put(key, new FinanceChatbotService.EmployeeSnapshot(name, net, period, salary));
+        }
+        return new FinanceChatbotService.FinanceChatContext(employeeName, lastPeriod, lastNet, byName);
+    }
+
+    private static String normalizeForChat(String s) {
+        if (s == null) return "";
+        return s.toLowerCase(Locale.FRENCH)
+                .replaceAll("[àâä]", "a").replaceAll("[éèêë]", "e").replaceAll("[îï]", "i")
+                .replaceAll("[ôö]", "o").replaceAll("[ùûü]", "u")
+                .replaceAll("[^a-z0-9\\s]", " ").replaceAll("\\s+", " ").trim();
+    }
+
+    private void showChatWelcome() {
+        if (chatMessageContainer != null)
+            appendChatMessage("Assistant", "Bonjour ! Je réponds uniquement aux questions sur votre paie : bulletins, salaire net/brut, CNSS, IRPP, primes, contrats, comptes bancaires. Posez votre question ci-dessous.");
+    }
+
+    @FXML
+    private void handleChatSend() {
+        if (chatQuestionField == null || chatMessageContainer == null) return;
+        String question = chatQuestionField.getText();
+        if (question == null || question.isBlank()) return;
+        chatQuestionField.clear();
+
+        appendChatMessage("Vous", question);
+
+        FinanceChatbotService.FinanceChatContext context = buildChatContext();
+        String answer = chatbotService.answer(question, context);
+        appendChatMessage("Assistant", answer);
+
+        if (chatScrollPane != null) {
+            chatScrollPane.setVvalue(1.0);
+        }
+    }
+
+    private void appendChatMessage(String who, String text) {
+        if (chatMessageContainer == null || text == null) return;
+        try {
+            String displayText = text.replace("**", "");
+            String style = "Vous".equals(who)
+                    ? "-fx-background-color: rgba(59,130,246,0.2); -fx-padding: 10 14; -fx-background-radius: 12; -fx-border-color: rgba(59,130,246,0.4); -fx-border-radius: 12; -fx-border-width: 1; -fx-text-fill: -fx-foreground; -fx-font-size: 13px;"
+                    : "-fx-background-color: rgba(0,196,167,0.12); -fx-padding: 10 14; -fx-background-radius: 12; -fx-border-color: rgba(0,196,167,0.3); -fx-border-radius: 12; -fx-border-width: 1; -fx-text-fill: -fx-foreground; -fx-font-size: 13px;";
+            Label lbl = new Label(displayText);
+            lbl.setWrapText(true);
+            lbl.setMinWidth(200);
+            lbl.setPrefWidth(600);
+            lbl.setMaxWidth(Double.MAX_VALUE);
+            lbl.setStyle(style);
+            if (chatScrollPane != null && chatScrollPane.getWidth() > 0)
+                lbl.maxWidthProperty().bind(chatScrollPane.widthProperty().subtract(50));
+            Label header = new Label(who + " :");
+            header.setStyle("-fx-font-weight: bold; -fx-text-fill: -fx-muted-foreground; -fx-font-size: 11px;");
+            VBox box = new VBox(4, header, lbl);
+            box.setStyle("-fx-alignment: TOP_LEFT;");
+            chatMessageContainer.getChildren().add(box);
+        } catch (Exception e) {
+            System.err.println("[EmployeurFinance] appendChatMessage: " + e.getMessage());
+        }
     }
 
     // ── Actions de rafraichissement ───────────────────────

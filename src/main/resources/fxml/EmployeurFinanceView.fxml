@@ -42,6 +42,28 @@
         <VBox spacing="24" style="-fx-padding: 24 32;">
 
             <!-- ═══════════════════════════════════════════════════════ -->
+            <!--  ASSISTANT MA PAIE — Visible en premier, emplacement clair -->
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <VBox fx:id="chatbotCard" spacing="12" style="-fx-padding: 20; -fx-background-color: linear-gradient(to bottom right, #0f172a, #1e293b); -fx-background-radius: 16; -fx-border-color: #00c4a7; -fx-border-width: 2; -fx-border-radius: 16; -fx-effect: dropshadow(gaussian, rgba(0,196,167,0.15), 12, 0, 0, 4);">
+                <HBox alignment="CENTER_LEFT" spacing="12">
+                    <Label text="💬" style="-fx-font-size: 28px;"/>
+                    <VBox spacing="2">
+                        <Label text="Assistant Ma Paie" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #00c4a7;"/>
+                        <Label text="Posez vos questions sur la paie, bulletins, CNSS, IRPP, primes. Réponses personnalisées par employé." wrapText="true" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 12px;"/>
+                    </VBox>
+                </HBox>
+                <ScrollPane fx:id="chatScrollPane" fitToWidth="true" prefHeight="200" style="-fx-background-color: rgba(0,0,0,0.2); -fx-background: transparent; -fx-border-color: rgba(0,196,167,0.3); -fx-border-radius: 10; -fx-padding: 4;">
+                    <VBox fx:id="chatMessageContainer" spacing="10" style="-fx-padding: 12;"/>
+                </ScrollPane>
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <TextField fx:id="chatQuestionField" promptText="Ex: Quel est le salaire de John Doe ? ou C'est quoi le net ?"
+                               HBox.hgrow="ALWAYS" prefHeight="40" style="-fx-background-color: rgba(255,255,255,0.08); -fx-border-color: rgba(0,196,167,0.4); -fx-border-radius: 10; -fx-padding: 10 14; -fx-text-fill: -fx-foreground; -fx-font-size: 13px; -fx-prompt-text-fill: -fx-muted-foreground;"/>
+                    <Button text="Envoyer" onAction="#handleChatSend"
+                            style="-fx-background-color: #00c4a7; -fx-text-fill: #0f172a; -fx-font-weight: bold; -fx-padding: 10 24; -fx-background-radius: 10; -fx-cursor: hand; -fx-font-size: 13px;"/>
+                </HBox>
+            </VBox>
+
+            <!-- ═══════════════════════════════════════════════════════ -->
             <!--  SECTION : EQUIPE & FILTRES (CREATIVE)                 -->
             <!-- ═══════════════════════════════════════════════════════ -->
             <VBox spacing="16" style="-fx-background-color: -fx-card; -fx-padding: 24; -fx-background-radius: 20; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 20;">

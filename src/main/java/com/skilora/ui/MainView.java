@@ -889,10 +889,14 @@ public class MainView extends TLAppLayout {
             // Inject the current user ID — controller fetches real name from DB
             com.skilora.finance.controller.EmployeurFinanceController controller = loader.getController();
             if (controller != null) {
-                String nameHint = currentUser.getFullName() != null
-                        ? currentUser.getFullName()
-                        : currentUser.getUsername();
-                controller.setEmployeeId(currentUser.getId(), nameHint);
+                try {
+                    String nameHint = currentUser.getFullName() != null
+                            ? currentUser.getFullName()
+                            : currentUser.getUsername();
+                    controller.setEmployeeId(currentUser.getId(), nameHint);
+                } catch (Exception e) {
+                    logger.error("setEmployeeId failed", e);
+                }
             }
 
             TLScrollArea scrollArea = new TLScrollArea(root);
@@ -907,8 +911,10 @@ public class MainView extends TLAppLayout {
 
         } catch (Exception e) {
             logger.error("Failed to load EmployeurFinanceView", e);
-            centerStack.getChildren().add(new Label(
-                    "Erreur chargement Ma Paie: " + e.getMessage()));
+            Label errLabel = new Label("Erreur chargement Ma Paie: " + (e.getCause() != null ? e.getCause().getMessage() : e.getMessage()));
+            errLabel.setWrapText(true);
+            errLabel.setStyle("-fx-text-fill: #f87171; -fx-font-size: 14px; -fx-padding: 20;");
+            centerStack.getChildren().add(errLabel);
         }
     }
 

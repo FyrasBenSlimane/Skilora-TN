@@ -24,6 +24,7 @@ import javafx.collections.transformation.FilteredList;
 import java.io.File;
 import java.net.URL;
 import java.time.LocalDate;
+import java.time.Period;
 import java.util.*;
 import com.skilora.utils.DialogUtils;
 
@@ -55,6 +56,8 @@ public class FinanceController implements Initializable {
     private TLComboBox<String> contract_statusCombo;
     @FXML
     private Label contract_errorLabel;
+    @FXML
+    private Label contract_seniorityLabel;
     @FXML
     private TableView<ContractRow> contractTable;
     @FXML
@@ -303,6 +306,15 @@ public class FinanceController implements Initializable {
         filteredContracts = new FilteredList<>(contractData, p -> true);
         contractTable.setItems(filteredContracts);
         contractTable.setOnMouseClicked(e -> onContractSelected());
+
+        // ── Ancienneté automatique : mise à jour dès qu'une date change ──
+        if (contract_startDatePicker != null) {
+            contract_startDatePicker.valueProperty().addListener((obs, oldV, newV) -> updateContractSeniority());
+        }
+        if (contract_endDatePicker != null) {
+            contract_endDatePicker.valueProperty().addListener((obs, oldV, newV) -> updateContractSeniority());
+        }
+        updateContractSeniority();
     }
 
     @FXML
@@ -420,6 +432,7 @@ public class FinanceController implements Initializable {
         contract_startDatePicker.setValue(null);
         contract_endDatePicker.setValue(null);
         selectedContract = null;
+        updateContractSeniority();
     }
 
     @FXML
@@ -468,6 +481,60 @@ public class FinanceController implements Initializable {
                 contract_endDatePicker.setValue(null);
             }
         }
+        updateContractSeniority();
+    }
+
+    /**
+     * Met à jour le label d'ancienneté (format: "X ans Y mois") selon Date Début et
+     * Date Fin.
+     * Mise à jour automatique via listeners sur les DatePickers.
+     */
+    private void updateContractSeniority() {
+        if (contract_seniorityLabel == null)
+            return;
+        LocalDate start = contract_startDatePicker != null ? contract_startDatePicker.getValue() : null;
+        LocalDate end = contract_endDatePicker != null ? contract_endDatePicker.getValue() : null;
+
+        if (start == null || end == null) {
+            contract_seniorityLabel.setText("Ancienneté : —");
+            contract_seniorityLabel
+                    .setStyle("-fx-text-fill: -fx-muted-foreground; -fx-font-size: 12px; -fx-font-weight: 600;");
+            return;
+        }
+        if (end.isBefore(start)) {
+            contract_seniorityLabel.setText("Ancienneté : dates invalides (Fin < Début)");
+            contract_seniorityLabel
+                    .setStyle("-fx-text-fill: -fx-destructive; -fx-font-size: 12px; -fx-font-weight: 700;");
+            return;
+        }
+
+        String anciennete = formatAnciennete(start, end);
+        contract_seniorityLabel.setText("Ancienneté : " + anciennete);
+        contract_seniorityLabel.setStyle("-fx-text-fill: -fx-foreground; -fx-font-size: 12px; -fx-font-weight: 700;");
+    }
+
+    /**
+     * Calcule et formate l'ancienneté en années/mois (ex: "3 ans et 4 mois").
+     * Les jours sont ignorés (on garde années + mois).
+     */
+    private static String formatAnciennete(LocalDate start, LocalDate end) {
+        Period p = Period.between(start, end);
+        int years = Math.max(0, p.getYears());
+        int months = Math.max(0, p.getMonths());
+
+        if (years == 0 && months == 0)
+            return "0 mois";
+
+        StringBuilder sb = new StringBuilder();
+        if (years > 0) {
+            sb.append(years).append(years == 1 ? " an" : " ans");
+        }
+        if (months > 0) {
+            if (sb.length() > 0)
+                sb.append(" et ");
+            sb.append(months).append(" mois");
+        }
+        return sb.toString();
     }
 
     private void updateContractCount() {
@@ -962,11 +1029,6 @@ public class FinanceController implements Initializable {
         }
     }
 
-    @FXML
-    private void handleExportSelectedPayslip() {
-        handleExportPayslipPDF();
-    }
-
     private void onPayslipSelected() {
         selectedPayslip = payslipTable.getSelectionModel().getSelectedItem();
         if (selectedPayslip != null) {
@@ -1001,13 +1063,17 @@ public class FinanceController implements Initializable {
         }
 
         String emp = report_employeeCombo.getValue();
-        String contractInfo = buildContractInfo(extractUserId(emp));
-        String bankInfo = buildBankInfo(extractUserId(emp));
-        String bonusInfo = buildBonusInfo(extractUserId(emp));
-        String payslipInfo = buildPayslipInfo(extractUserId(emp));
+        int empId = extractUserId(emp);
+        String empName = extractUserName(emp);
+        String contractInfo = buildContractInfo(empId);
+        String bankInfo = buildBankInfo(empId);
+        String bonusInfo = buildBonusInfo(empId);
+        String payslipInfo = buildPayslipInfo(empId);
+        String professionalSummary = buildProfessionalSummary(empId, empName);
 
-        File pdf = PDFGenerator.generateEmployeeReport(extractUserId(emp), extractUserName(emp),
-                contractInfo, bankInfo, bonusInfo, payslipInfo, (Stage) report_employeeCombo.getScene().getWindow());
+        File pdf = PDFGenerator.generateEmployeeReport(empId, empName,
+                contractInfo, bankInfo, bonusInfo, payslipInfo, (Stage) report_employeeCombo.getScene().getWindow(),
+                professionalSummary);
 
         if (pdf != null) {
             showSuccess("Rapport enregistré : " + pdf.getAbsolutePath());
@@ -1248,60 +1314,168 @@ public class FinanceController implements Initializable {
 
     private String buildContractInfo(int empId) {
         StringBuilder sb = new StringBuilder();
-        sb.append("<div class=\"salary-grid\">");
         java.text.NumberFormat nf = java.text.NumberFormat.getIntegerInstance(Locale.FRANCE);
-        contractData.stream().filter(c -> c.getUserId() == empId).forEach(c -> {
-            String pos = escapeHtml(c.getPosition() != null ? c.getPosition() : "—");
+        List<ContractRow> userContracts = contractData.stream().filter(c -> c.getUserId() == empId).toList();
+        if (userContracts.isEmpty())
+            return "<p style=\"color:#6a7f96;font-size:14px;\">Aucun contrat trouv\u00e9.</p>";
+
+        for (ContractRow c : userContracts) {
+            String pos = escapeHtml(c.getPosition() != null ? c.getPosition() : "Role non d\u00e9fini");
             double sal = c.getSalary();
-            sb.append("<div class=\"salary-card\"><div class=\"role\">").append(pos).append("</div>");
-            sb.append("<div class=\"amount\">").append(nf.format((long) sal)).append("<span class=\"currency\">TND</span></div></div>");
-        });
-        sb.append("</div>");
+            String typeStr = escapeHtml(c.getType() != null ? c.getType().toUpperCase() : "\u2014");
+            String startStr = escapeHtml(c.getStartDate() != null ? c.getStartDate() : "\u2014");
+            String endStr = escapeHtml(
+                    (c.getEndDate() != null && !c.getEndDate().isBlank()) ? c.getEndDate() : "\u2014");
+            LocalDate start = null, end = null;
+            try {
+                if (c.getStartDate() != null && !c.getStartDate().isBlank())
+                    start = LocalDate.parse(c.getStartDate());
+            } catch (Exception ignored) {
+            }
+            try {
+                if (c.getEndDate() != null && !c.getEndDate().isBlank())
+                    end = LocalDate.parse(c.getEndDate());
+            } catch (Exception ignored) {
+            }
+            String anciennete = "\u2014";
+            if (start != null && end != null && !end.isBefore(start))
+                anciennete = formatAnciennete(start, end);
+            else if (start != null && end != null && end.isBefore(start))
+                anciennete = "Dates invalides";
+
+            sb.append("<div class=\"salary-card\">");
+            sb.append("<div class=\"role\">").append(pos).append(" \u2022 ").append(typeStr).append("</div>");
+            sb.append("<div class=\"amount\">").append(nf.format((long) sal))
+                    .append("<span class=\"currency\">TND</span></div>");
+            sb.append("<div style=\"margin-top:12px; font-size:12px; color:#6a7f96;\">Du ").append(startStr)
+                    .append(" au ").append(endStr).append(" \u2022 Anciennet\u00e9 : ").append(escapeHtml(anciennete))
+                    .append("</div>");
+            sb.append("</div>");
+        }
         return sb.toString();
     }
 
     private String buildBankInfo(int empId) {
         StringBuilder sb = new StringBuilder();
-        sb.append("<div class=\"bank-grid\">");
-        bankData.stream().filter(b -> b.getUserId() == empId).forEach(b -> {
-            sb.append("<div class=\"bank-card\"><div class=\"bank-name\">").append(escapeHtml(b.getBankName() != null ? b.getBankName() : "—")).append("</div>");
-            sb.append("<div class=\"iban\">").append(escapeHtml(b.getIban() != null ? b.getIban() : "—")).append("</div></div>");
-        });
-        sb.append("</div>");
+        List<BankAccountRow> userBanks = bankData.stream().filter(b -> b.getUserId() == empId).toList();
+        if (userBanks.isEmpty())
+            return "<p style=\"color:#6a7f96;font-size:14px;\">Aucun compte bancaire.</p>";
+        for (BankAccountRow b : userBanks) {
+            String bankName = escapeHtml(b.getBankName() != null ? b.getBankName() : "Banque inconnue");
+            String iban = escapeHtml(b.getIban() != null ? b.getIban() : "IBAN inconnu");
+            sb.append("<div class=\"bank-card\">");
+            sb.append("<div class=\"bank-name\">").append(bankName).append("</div>");
+            sb.append("<div class=\"iban\">").append(iban).append("</div>");
+            sb.append("</div>");
+        }
         return sb.toString();
     }
 
     private String buildBonusInfo(int empId) {
         StringBuilder sb = new StringBuilder();
         List<BonusRow> list = bonusData.stream().filter(b -> b.getUserId() == empId).toList();
-        if (list.isEmpty()) return "";
+        if (list.isEmpty())
+            return "<p style=\"color:#6a7f96;font-size:14px;\">Aucune prime.</p>";
         double total = list.stream().mapToDouble(BonusRow::getAmount).sum();
         String label = list.size() == 1 && list.get(0).getReason() != null && !list.get(0).getReason().isEmpty()
-                ? escapeHtml(list.get(0).getReason()) : "Prime mensuelle";
-        sb.append("<div class=\"bonus-wrapper\"><div class=\"bonus-badge\"><div class=\"b-amount\">")
-                .append(String.format(Locale.FRANCE, "%.0f", total))
-                .append("<span class=\"b-currency\">TND</span></div><div class=\"b-label\">").append(label).append("</div></div></div>");
+                ? escapeHtml(list.get(0).getReason())
+                : "Prime mensuelle" + (list.size() > 1 ? " (Total)" : "");
+        sb.append("<div class=\"bonus-badge\">");
+        sb.append("<div class=\"b-amount\">").append(String.format(Locale.FRANCE, "%.0f", total))
+                .append("<span class=\"b-currency\">TND</span></div>");
+        sb.append("<div class=\"b-label\">").append(label).append("</div>");
+        sb.append("</div>");
         return sb.toString();
+    }
+
+    /**
+     * Construit un résumé professionnel unique par employé pour le rapport PDF
+     * (poste, type de contrat, salaire, bulletins, primes, comptes bancaires).
+     */
+    private String buildProfessionalSummary(int empId, String employeeName) {
+        String name = (employeeName != null && !employeeName.isBlank()) ? employeeName : "L'employé";
+        java.text.NumberFormat nf = java.text.NumberFormat.getNumberInstance(Locale.FRANCE);
+        nf.setMinimumFractionDigits(2);
+        nf.setMaximumFractionDigits(2);
+
+        List<ContractRow> contracts = contractData.stream().filter(c -> c.getUserId() == empId).toList();
+        List<PayslipRow> payslips = new java.util.ArrayList<>(
+                payslipData.stream().filter(p -> p.getUserId() == empId).toList());
+        payslips.sort(Comparator.comparingInt(PayslipRow::getYear).reversed().thenComparingInt(PayslipRow::getMonth)
+                .reversed());
+        List<BonusRow> bonuses = bonusData.stream().filter(b -> b.getUserId() == empId).toList();
+        long bankCount = bankData.stream().filter(b -> b.getUserId() == empId).count();
+
+        StringBuilder sb = new StringBuilder();
+        ContractRow active = contracts.stream()
+                .filter(c -> "ACTIVE".equalsIgnoreCase(c.getStatus()) || "ACTIF".equalsIgnoreCase(c.getStatus()))
+                .findFirst().orElse(contracts.isEmpty() ? null : contracts.get(0));
+        if (active != null) {
+            String poste = active.getPosition() != null ? active.getPosition() : "—";
+            String type = active.getType() != null ? active.getType().toUpperCase() : "—";
+            double sal = active.getSalary();
+            sb.append(name).append(" occupe le poste de ").append(poste).append(" en ").append(type);
+            sb.append(" (salaire de base : ").append(nf.format(sal)).append(" TND). ");
+        } else {
+            sb.append(name).append(" n'a pas de contrat actif enregistré. ");
+        }
+        if (!payslips.isEmpty()) {
+            sb.append("Sur la période couverte, ").append(payslips.size()).append(" bulletin(s) de paie ont été émis");
+            PayslipRow last = payslips.get(0);
+            String period = (last.getMonth() >= 1 && last.getMonth() <= 12)
+                    ? (MONTHS_FR[last.getMonth() - 1] + " " + last.getYear())
+                    : "";
+            if (!period.isEmpty())
+                sb.append(" ; le dernier (").append(period).append(") s'élève à ").append(nf.format(last.getNet()))
+                        .append(" TND net");
+            sb.append(". ");
+        }
+        if (!bonuses.isEmpty()) {
+            double totalBonus = bonuses.stream().mapToDouble(BonusRow::getAmount).sum();
+            sb.append(bonuses.size()).append(" prime(s) versée(s) (total : ").append(nf.format(totalBonus))
+                    .append(" TND). ");
+        }
+        if (bankCount > 0)
+            sb.append(bankCount).append(" compte(s) bancaire(s) enregistré(s) pour le virement du salaire.");
+        return sb.toString().trim();
     }
 
     private String buildPayslipInfo(int empId) {
         StringBuilder sb = new StringBuilder();
+        List<PayslipRow> userPayslips = payslipData.stream().filter(p -> p.getUserId() == empId).toList();
+        if (userPayslips.isEmpty())
+            return "<p style=\"color:#6a7f96;font-size:14px;\">Aucun bulletin de paie r\u00e9cent.</p>";
+
         java.text.NumberFormat nfDecimal = java.text.NumberFormat.getNumberInstance(Locale.FRANCE);
         nfDecimal.setMinimumFractionDigits(2);
         nfDecimal.setMaximumFractionDigits(2);
-        payslipData.stream().filter(p -> p.getUserId() == empId).forEach(p -> {
+
+        for (PayslipRow p : userPayslips) {
             int m = p.getMonth(), y = p.getYear();
-            String periodLabel = (m >= 1 && m <= 12) ? (MONTHS_FR[m - 1] + " " + y) : (p.getPeriod() != null ? p.getPeriod() : "—");
-            String tag = (p.getStatus() != null && (p.getStatus().equalsIgnoreCase("PAID") || p.getStatus().equalsIgnoreCase("PAYÉ"))) ? "Payé" : "En attente";
-            sb.append("<div class=\"payslip-row\"><div><div class=\"payslip-col-label\">Période</div><div class=\"payslip-col-value\">").append(escapeHtml(periodLabel)).append("</div></div>");
-            sb.append("<div><div class=\"payslip-col-label\">Net à payer</div><div class=\"payslip-net\">").append(nfDecimal.format(p.getNet()));
-            sb.append("<span class=\"payslip-net-currency\">TND</span></div></div><span class=\"tag\">").append(tag).append("</span></div>");
-        });
+            String periodLabel = (m >= 1 && m <= 12) ? (MONTHS_FR[m - 1] + " " + y)
+                    : (p.getPeriod() != null ? p.getPeriod() : "\u2014");
+            boolean paid = p.getStatus() != null
+                    && (p.getStatus().equalsIgnoreCase("PAID") || p.getStatus().equalsIgnoreCase("PAY\u00c9"));
+            String tag = paid ? "Pay\u00e9" : "En attente";
+
+            sb.append("<div class=\"payslip-row\"><table><tr>");
+            sb.append(
+                    "<td style=\"width:38%;\"><div class=\"payslip-col-label\">P\u00e9riode</div><div class=\"payslip-col-value\">")
+                    .append(escapeHtml(periodLabel)).append("</div></td>");
+            sb.append(
+                    "<td style=\"width:42%;\"><div class=\"payslip-col-label\">Net \u00e0 payer</div><div class=\"payslip-net\">")
+                    .append(nfDecimal.format(p.getNet()))
+                    .append("<span class=\"payslip-net-currency\">TND</span></div></td>");
+            sb.append("<td style=\"text-align:right;\"><span class=\"tag\">").append(escapeHtml(tag))
+                    .append("</span></td>");
+            sb.append("</tr></table></div>");
+        }
         return sb.toString();
     }
 
     private static String escapeHtml(String s) {
-        if (s == null) return "";
+        if (s == null)
+            return "";
         return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
     }
 
