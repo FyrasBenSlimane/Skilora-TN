@@ -1,0 +1,288 @@
+/**
+ * shadcn/ui New York - JavaFX Design Tokens
+ *
+ * 100% visual fidelity to shadcn "New York" style.
+ * Color: Zinc/Stone | Typography: Inter, 16px headings / 13px body | Geometry: 6px radius, 1px border
+ */
+
+.root {
+    /* ========== COLOR PALETTE (Zinc/Stone - Dark) ========== */
+    -fx-background: #09090b;
+    -fx-foreground: #fafafa;
+    -fx-primary: #fafafa;
+    -fx-primary-foreground: #18181b;
+    -fx-primary-hover: #f4f4f5;
+    -fx-primary-active: #e4e4e7;
+
+    -fx-secondary: #27272a;
+    -fx-secondary-foreground: #fafafa;
+    -fx-secondary-hover: #3f3f46;
+    -fx-secondary-active: #52525b;
+
+    -fx-muted: #27272a;
+    -fx-muted-foreground: #a1a1aa;
+
+    -fx-accent: #27272a;
+    -fx-accent-foreground: #fafafa;
+    -fx-accent-hover: #3f3f46;
+
+    -fx-border: #27272a;
+    -fx-input: #27272a;
+    -fx-ring: #fafafa;
+
+    -fx-card: #09090b;
+    -fx-card-foreground: #fafafa;
+
+    -fx-popover: #09090b;
+    -fx-popover-foreground: #fafafa;
+
+    -fx-destructive: #ef4444;
+    -fx-destructive-foreground: #fafafa;
+    -fx-destructive-hover: #f87171;
+
+    -fx-success: #22c55e;
+    -fx-success-foreground: #fafafa;
+    -fx-warning: #a1a1aa;
+    -fx-warning-foreground: #09090b;
+    -fx-info: #3b82f6;
+    -fx-info-foreground: #fafafa;
+
+    -fx-selection-bg: #27272a;
+    -fx-selection-fg: #fafafa;
+    -fx-disabled-bg: #27272a;
+    -fx-disabled-fg: #52525b;
+
+    /* Semantic backgrounds (opacity) */
+    -fx-destructive-bg: rgba(239, 68, 68, 0.2);
+    -fx-success-bg: rgba(250, 250, 250, 0.1);
+    -fx-warning-bg: rgba(161, 161, 170, 0.1);
+    -fx-info-bg: rgba(161, 161, 170, 0.1);
+
+    /* ========== TYPOGRAPHY (Inter / System) ========== */
+    -fx-font-family: "Inter", "System", "Segoe UI", sans-serif;
+    /* Headings & Body Scale (Tailwind/Shadcn) */
+    -fx-font-size: 14px;
+    /* Base body size */
+
+    -fx-text-xs: 12px;
+    -fx-text-sm: 14px;
+    -fx-text-base: 16px;
+    -fx-text-lg: 18px;
+    -fx-text-xl: 20px;
+    -fx-text-2xl: 24px;
+    -fx-text-3xl: 30px;
+    -fx-text-4xl: 36px;
+
+    -fx-font-weight-normal: normal;
+    -fx-font-weight-medium: 500;
+    -fx-font-weight-semibold: 600;
+    -fx-font-weight-bold: bold;
+
+    /* ========== GEOMETRY ========== */
+    -fx-radius: 6px;
+    -fx-radius-sm: 4px;
+    -fx-radius-md: 6px;
+    -fx-radius-lg: 6px;
+    -fx-radius-xl: 8px;
+    -fx-radius-full: 9999px;
+
+    /* ========== SHADOW (New York) ========== */
+    -fx-effect-default: dropshadow(gaussian, rgba(0, 0, 0, 0.08), 4, 0, 0, 1);
+
+    /* ========== JAVA FX RESETS ========== */
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+    -fx-background-insets: 0;
+}
+
+/* ========== LIGHT MODE (.root.light) ========== */
+.root.light {
+    /* ========== COLOR PALETTE (Zinc/Stone - Light) ========== */
+    -fx-background: #ffffff;
+    -fx-foreground: #09090b;
+    -fx-primary: #18181b;
+    -fx-primary-foreground: #fafafa;
+    -fx-primary-hover: #27272a;
+    -fx-primary-active: #09090b;
+
+    -fx-secondary: #f4f4f5;
+    -fx-secondary-foreground: #18181b;
+    -fx-secondary-hover: #e4e4e7;
+    -fx-secondary-active: #d4d4d8;
+
+    -fx-muted: #f4f4f5;
+    -fx-muted-foreground: #71717a;
+
+    -fx-accent: #f4f4f5;
+    -fx-accent-foreground: #18181b;
+    -fx-accent-hover: #e4e4e7;
+
+    -fx-border: #e4e4e7;
+    -fx-input: #e4e4e7;
+    -fx-ring: #18181b;
+
+    -fx-card: #ffffff;
+    -fx-card-foreground: #09090b;
+
+    -fx-popover: #ffffff;
+    -fx-popover-foreground: #09090b;
+
+    -fx-destructive: #ef4444;
+    -fx-destructive-foreground: #fafafa;
+    -fx-destructive-hover: #dc2626;
+
+    -fx-success: #22c55e;
+    -fx-success-foreground: #fafafa;
+    -fx-warning: #52525b;
+    -fx-warning-foreground: #fafafa;
+    -fx-info: #3b82f6;
+    -fx-info-foreground: #fafafa;
+
+    -fx-selection-bg: #e4e4e7;
+    -fx-selection-fg: #09090b;
+    -fx-disabled-bg: #f4f4f5;
+    -fx-disabled-fg: #d4d4d8;
+
+    /* Semantic backgrounds (opacity) */
+    -fx-destructive-bg: rgba(239, 68, 68, 0.1);
+    -fx-success-bg: rgba(24, 24, 27, 0.1);
+    -fx-warning-bg: rgba(82, 82, 91, 0.1);
+    -fx-info-bg: rgba(113, 113, 122, 0.1);
+}
+
+/* Auth Hero Section */
+.auth-hero {
+    -fx-background-color: linear-gradient(to bottom right, #18181b, #09090b);
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.4), 10, 0, 0, 0);
+    -fx-padding: 48px;
+}
+
+.root.light .auth-hero {
+    -fx-background-color: linear-gradient(to bottom right, #f4f4f5, #e4e4e7);
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.08), 10, 0, 0, 0);
+}
+
+/* ========== COMPONENT STYLES ========== */
+
+/* Badges */
+.badge {
+    -fx-background-color: -fx-primary;
+    -fx-background-radius: 9999px;
+    -fx-padding: 2px 10px;
+}
+
+.badge .label {
+    -fx-text-fill: -fx-primary-foreground;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+.badge-secondary {
+    -fx-background-color: -fx-secondary;
+}
+
+.badge-secondary .label {
+    -fx-text-fill: -fx-secondary-foreground;
+}
+
+.badge-outline {
+    -fx-background-color: transparent;
+    -fx-border-color: -fx-border;
+    -fx-border-radius: 9999px;
+}
+
+.badge-outline .label {
+    -fx-text-fill: -fx-foreground;
+}
+
+.badge-destructive {
+    -fx-background-color: -fx-destructive;
+}
+
+.badge-destructive .label {
+    -fx-text-fill: -fx-destructive-foreground;
+}
+
+.badge-success {
+    -fx-background-color: -fx-success;
+}
+
+.badge-success .label {
+    -fx-text-fill: -fx-success-foreground;
+}
+
+.badge-info {
+    -fx-background-color: -fx-info;
+}
+
+.badge-info .label {
+    -fx-text-fill: -fx-info-foreground;
+}
+
+/* Typography */
+.h1 {
+    -fx-font-size: 32px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -fx-foreground;
+}
+
+.h2 {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -fx-foreground;
+}
+
+.h3 {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -fx-foreground;
+}
+
+.p {
+    -fx-font-size: 14px;
+    -fx-text-fill: -fx-foreground;
+}
+
+.text-sm {
+    -fx-font-size: 13px;
+}
+
+.text-xs {
+    -fx-font-size: 12px;
+}
+
+.text-muted {
+    -fx-text-fill: -fx-muted-foreground;
+}
+
+.font-bold {
+    -fx-font-weight: bold;
+}
+
+/* Progress Bar Premium */
+.premium-progress {
+    -fx-accent: -fx-primary;
+    -fx-control-inner-background: -fx-secondary;
+    -fx-background-color: -fx-secondary;
+    -fx-background-radius: 4px;
+}
+
+.premium-progress .bar {
+    -fx-background-radius: 4px;
+    -fx-background-insets: 0;
+}
+
+/* Icon Styling */
+.svg-path {
+    -fx-fill: -fx-foreground;
+}
+
+/* Cards & Layout */
+.job-card:hover {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 10, 0, 0, 4);
+    -fx-cursor: hand;
+}
+
+.transparent-bg {
+    -fx-background-color: transparent;
+}

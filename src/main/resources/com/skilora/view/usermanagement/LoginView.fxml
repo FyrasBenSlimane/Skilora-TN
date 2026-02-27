@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.SVGPath?>
+<?import com.skilora.framework.components.TLTextField?>
+<?import com.skilora.framework.components.TLPasswordField?>
+<?import com.skilora.framework.components.TLButton?>
+
+<HBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.skilora.controller.usermanagement.LoginController"
+      styleClass="login-root" spacing="0" fillHeight="true">
+    
+    <!-- Left: branding / hero -->
+    <StackPane fx:id="heroContainer" styleClass="login-hero" HBox.hgrow="ALWAYS" minWidth="600">
+        <!-- The background (image/video) will be injected here via Controller -->
+        
+        <!-- Branding Overlays -->
+        <AnchorPane mouseTransparent="true">
+            <!-- Top Left: Logo + Name -->
+            <VBox AnchorPane.topAnchor="40" AnchorPane.leftAnchor="40" spacing="12">
+                <HBox alignment="CENTER_LEFT" spacing="12">
+                    <StackPane styleClass="login-logo-container">
+                        <SVGPath content="M 12 2 L 22 7 L 22 17 L 12 22 L 2 17 L 2 7 Z" styleClass="login-logo-icon"/>
+                    </StackPane>
+                    <Label text="Skilora Tunisia" styleClass="login-logo-text"/>
+                </HBox>
+            </VBox>
+
+            <!-- Bottom Left: Tagline -->
+            <VBox AnchorPane.bottomAnchor="60" AnchorPane.leftAnchor="40" spacing="8" maxWidth="450">
+                <Label text="Connecting Tunisia's Youth to Global Opportunities." styleClass="login-hero-tagline" wrapText="true"/>
+                <Label text="Secure. Intelligent. Limitless." styleClass="login-hero-subtagline"/>
+            </VBox>
+        </AnchorPane>
+    </StackPane>
+
+    <!-- Right: form -->
+    <VBox styleClass="login-form-panel" alignment="CENTER" spacing="32" minWidth="500" prefWidth="600">
+        <padding><Insets top="60" right="80" bottom="60" left="80"/></padding>
+        
+        <VBox alignment="CENTER_LEFT" spacing="8">
+            <Label text="Welcome back" styleClass="login-welcome"/>
+            <Label text="Enter your credentials to access your account" styleClass="text-muted"/>
+        </VBox>
+
+        <Label fx:id="errorLabel" styleClass="error-label" visible="false" managed="false"/>
+        
+        <VBox spacing="20" styleClass="login-fields">
+            <VBox spacing="8">
+                <Label text="Username" styleClass="form-label"/>
+                <TLTextField fx:id="usernameField" promptText="Enter username"/>
+            </VBox>
+            <VBox spacing="8">
+                <Label text="Password" styleClass="form-label"/>
+                <TLPasswordField fx:id="passwordField" promptText="Enter password"/>
+            </VBox>
+        </VBox>
+
+        <VBox spacing="16" fillWidth="true">
+            <TLButton fx:id="loginBtn" text="Sign In" onAction="#handleLogin" maxWidth="Infinity" styleClass="btn-primary"/>
+            <TLButton fx:id="biometricBtn" text="Login with Face ID" onAction="#handleBiometricLogin" maxWidth="Infinity" styleClass="btn-outline"/>
+        </VBox>
+
+        <VBox alignment="CENTER" spacing="16">
+            <Label text="OR CONTINUE WITH" styleClass="text-muted, text-xs" />
+            
+            <HBox alignment="CENTER" spacing="8">
+                <Label text="Don't have an account?" styleClass="text-muted"/>
+                <TLButton text="Sign Up" onAction="#openRegister" styleClass="btn-link"/>
+            </HBox>
+        </VBox>
+    </VBox>
+</HBox>

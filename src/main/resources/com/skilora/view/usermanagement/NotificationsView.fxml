@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.skilora.controller.usermanagement.NotificationsController"
+      styleClass="page-container" spacing="20">
+    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+    <VBox styleClass="page-header" spacing="4">
+        <Label text="Notifications" styleClass="page-title"/>
+        <Label text="Vos alertes et messages." styleClass="page-subtitle"/>
+    </VBox>
+    <VBox styleClass="card-panel" spacing="12" VBox.vgrow="ALWAYS">
+        <ListView fx:id="list" VBox.vgrow="ALWAYS"/>
+        <Label fx:id="emptyLabel" text="Aucune notification." styleClass="text-muted"/>
+    </VBox>
+</VBox>

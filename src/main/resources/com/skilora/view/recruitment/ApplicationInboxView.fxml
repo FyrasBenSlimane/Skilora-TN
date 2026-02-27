@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import com.skilora.framework.components.TLButton?>
+<?import com.skilora.framework.components.TLTextField?>
+<?import com.skilora.framework.components.TLTable?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.skilora.controller.recruitment.ApplicationInboxController"
+      styleClass="page-container" spacing="16">
+    <fx:define>
+        <ToggleGroup fx:id="statusGroup"/>
+    </fx:define>
+    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+
+    <!-- Top bar: stats + search + actions -->
+    <HBox spacing="12" alignment="CENTER_LEFT">
+        <Label fx:id="statsLabel" styleClass="text-muted"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <TLTextField fx:id="searchField" promptText="Rechercher..." prefWidth="220"/>
+        <TLButton fx:id="resetBtn"   text="Réinitialiser" onAction="#handleResetFilters"/>
+        <TLButton fx:id="refreshBtn" text="Actualiser"    onAction="#handleRefresh"/>
+    </HBox>
+
+    <!-- Status filter toggles (populated programmatically in setupFilters()) -->
+    <HBox fx:id="statusFilterBox" spacing="6" alignment="CENTER_LEFT" style="-fx-padding: 0 0 4 0;"/>
+
+    <!-- Applications table -->
+    <TLTable fx:id="applicationsTable" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn fx:id="candidateCol" text="Candidat"  prefWidth="130"/>
+            <TableColumn fx:id="jobCol"        text="Offre"     prefWidth="160"/>
+            <TableColumn fx:id="dateCol"       text="Date"      prefWidth="90"/>
+            <TableColumn fx:id="matchCol"      text="Match"     prefWidth="65"/>
+            <TableColumn fx:id="scoreCol"      text="Score"     prefWidth="65"/>
+            <TableColumn fx:id="statusCol"     text="Statut"    prefWidth="100"/>
+            <TableColumn fx:id="actionsCol"    text="Actions"   prefWidth="190"/>
+        </columns>
+    </TLTable>
+
+    <!-- Pagination -->
+    <HBox spacing="12" alignment="CENTER_LEFT">
+        <Label fx:id="paginationLabel"/>
+        <Label fx:id="pageLabel"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <TLButton fx:id="prevBtn" text="← Préc." onAction="#handlePrevPage"/>
+        <TLButton fx:id="nextBtn" text="Suiv. →" onAction="#handleNextPage"/>
+    </HBox>
+</VBox>

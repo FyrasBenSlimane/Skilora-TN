@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.*?>
+<?import com.skilora.framework.components.TLButton?>
+
+<ScrollPane xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.skilora.controller.recruitment.EmployerDashboardController"
+            fitToWidth="true" fitToHeight="false"
+            styleClass="page-container" hbarPolicy="NEVER">
+<VBox spacing="28">
+    <padding><Insets top="28" right="28" bottom="36" left="28"/></padding>
+
+    <!-- Greeting -->
+    <VBox spacing="4">
+        <Label fx:id="greetingLabel" styleClass="page-title" text="Bonjour"/>
+        <Label fx:id="subGreetingLabel" styleClass="page-subtitle" text="Voici un aperçu de vos activités."/>
+    </VBox>
+
+    <!-- Quick actions -->
+    <FlowPane fx:id="quickActionsContainer" hgap="12" vgap="12"/>
+
+    <!-- Stats cards -->
+    <FlowPane fx:id="statsGrid" hgap="20" vgap="20"/>
+
+    <!-- Recent activity -->
+    <VBox spacing="10">
+        <Label text="Activité récente" styleClass="form-title"/>
+        <VBox fx:id="activityList" spacing="8"/>
+    </VBox>
+</VBox>
+</ScrollPane>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import com.skilora.framework.components.TLButton?>
+<?import com.skilora.framework.components.TLTextField?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.skilora.controller.recruitment.FeedController"
+      styleClass="page-container" spacing="16">
+    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+    <HBox spacing="12" alignment="CENTER_LEFT">
+        <TLTextField fx:id="searchField" promptText="Rechercher une offre..." prefWidth="300"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <TLButton fx:id="refreshBtn" text="Actualiser" onAction="#handleRefresh"/>
+    </HBox>
+    <HBox fx:id="tabsBox" spacing="8"/>
+    <!-- fitToHeight="false" so the FlowPane can grow taller and the ScrollPane actually scrolls -->
+    <ScrollPane fx:id="scrollPane" fitToWidth="true" fitToHeight="false"
+                VBox.vgrow="ALWAYS" pannable="false">
+        <FlowPane fx:id="grid" hgap="16" vgap="16" prefWrapLength="800"/>
+    </ScrollPane>
+</VBox>

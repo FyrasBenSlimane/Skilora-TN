@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.*?>
+<?import com.skilora.framework.components.TLButton?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.skilora.controller.recruitment.ApplicationsController"
+      styleClass="page-container" spacing="16">
+    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+    <HBox spacing="12" alignment="CENTER_LEFT">
+        <Label fx:id="statsLabel" styleClass="text-muted"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <TLButton fx:id="refreshBtn" text="Actualiser" onAction="#handleRefresh"/>
+    </HBox>
+    <VBox fx:id="applicationsList" spacing="12" VBox.vgrow="ALWAYS"/>
+</VBox>

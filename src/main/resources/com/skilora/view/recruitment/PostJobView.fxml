@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ProgressBar?>
+<?import javafx.scene.layout.*?>
+<?import com.skilora.framework.components.TLButton?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.skilora.controller.recruitment.PostJobController"
+      styleClass="page-container" spacing="20">
+    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+    <HBox spacing="16" alignment="CENTER_LEFT">
+        <VBox fx:id="step1Indicator" spacing="4" styleClass="step-indicator"/>
+        <ProgressBar fx:id="progress1" prefWidth="80" progress="0.33"/>
+        <VBox fx:id="step2Indicator" spacing="4" styleClass="step-indicator"/>
+        <ProgressBar fx:id="progress2" prefWidth="80" progress="0"/>
+        <VBox fx:id="step3Indicator" spacing="4" styleClass="step-indicator"/>
+        <ProgressBar fx:id="progress3" prefWidth="80" progress="0"/>
+        <Label fx:id="stepLabel" styleClass="form-title"/>
+    </HBox>
+    <StackPane fx:id="contentStack" VBox.vgrow="ALWAYS" minHeight="300"/>
+    <HBox spacing="12" alignment="CENTER_RIGHT">
+        <TLButton fx:id="cancelBtn"  text="Annuler"    onAction="#handleCancel"/>
+        <TLButton fx:id="prevBtn"    text="Précédent"  onAction="#handlePrevious"/>
+        <TLButton fx:id="nextBtn"    text="Suivant"    onAction="#handleNext"/>
+        <TLButton fx:id="publishBtn" text="Publier"    onAction="#handlePublish"/>
+        <TLButton fx:id="saveBtn"    text="Enregistrer" onAction="#handleSaveDraft" visible="false" managed="false"/>
+    </HBox>
+</VBox>

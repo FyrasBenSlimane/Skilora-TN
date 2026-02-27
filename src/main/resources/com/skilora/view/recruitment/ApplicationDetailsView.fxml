@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.*?>
+<?import com.skilora.framework.components.TLAvatar?>
+<?import com.skilora.framework.components.TLButton?>
+<?import com.skilora.framework.components.TLTextarea?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.skilora.controller.recruitment.ApplicationDetailsController"
+      spacing="16">
+    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+    <HBox spacing="16" alignment="CENTER_LEFT">
+        <TLAvatar fx:id="candidateAvatar"/>
+        <VBox spacing="2">
+            <Label fx:id="candidateNameLabel" styleClass="page-title"/>
+            <Label fx:id="aiScoresLabel" styleClass="text-muted"/>
+        </VBox>
+    </HBox>
+    <Label text="Lettre de motivation" styleClass="form-title"/>
+    <TLTextarea fx:id="coverLetterArea" prefRowCount="6" wrapText="true"/>
+    <HBox spacing="12" alignment="CENTER_LEFT">
+        <Label fx:id="cvFileNameLabel" styleClass="text-muted"/>
+        <TLButton fx:id="viewCvBtn" text="Voir le CV"/>
+    </HBox>
+    <TLButton fx:id="closeBtn" text="Fermer"/>
+</VBox>

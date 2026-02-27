@@ -1,0 +1,8 @@
+/**
+ * Utility classes for layout and spacing (Tailwind-style).
+ */
+.spacing-1 { -fx-spacing: 4px; }
+.spacing-2 { -fx-spacing: 8px; }
+.spacing-4 { -fx-spacing: 16px; }
+.p-4 { -fx-padding: 16px; }
+.text-muted { -fx-text-fill: -fx-muted-foreground; }

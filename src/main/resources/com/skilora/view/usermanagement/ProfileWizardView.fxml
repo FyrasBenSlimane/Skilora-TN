@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import com.skilora.framework.components.TLTextField?>
+<?import com.skilora.framework.components.TLButton?>
+<?import com.skilora.framework.components.TLAvatar?>
+
+<fx:root type="javafx.scene.layout.VBox"
+        xmlns:fx="http://javafx.com/fxml/1"
+        fx:controller="com.skilora.controller.usermanagement.ProfileWizardController"
+        spacing="0" style="-fx-background-color: transparent;">
+    <padding><Insets top="24" right="32" bottom="32" left="32"/></padding>
+
+    <!-- ── Page header ────────────────────────────────── -->
+    <VBox spacing="4" style="-fx-padding: 0 0 24 0;">
+        <Label text="Mon profil" style="-fx-font-size:22;-fx-font-weight:700;-fx-text-fill:#f4f4f5;"/>
+        <Label text="Complétez vos informations pour améliorer vos recommandations"
+               style="-fx-font-size:13;-fx-text-fill:#a1a1aa;"/>
+    </VBox>
+
+    <!-- ── Main content ────────────────────────────────── -->
+    <HBox spacing="32" alignment="TOP_LEFT">
+
+        <!-- ──── LEFT column: avatar + biometric ──────── -->
+        <VBox spacing="16" prefWidth="200" alignment="TOP_CENTER">
+            <TLAvatar fx:id="profileAvatar"/>
+            <TLButton fx:id="changePhotoBtn" text="Changer la photo"
+                      onAction="#handleChangePhoto"
+                      maxWidth="Infinity"/>
+
+        </VBox>
+
+        <!-- ──── RIGHT column: form fields ─────────────── -->
+        <VBox spacing="20" HBox.hgrow="ALWAYS">
+
+            <!-- Identity section -->
+            <VBox spacing="12"
+                  style="-fx-background-color:#18181b;-fx-background-radius:12;-fx-padding:20;-fx-border-color:#3f3f46;-fx-border-radius:12;-fx-border-width:1;">
+                <Label text="Identité" style="-fx-font-size:14;-fx-font-weight:700;-fx-text-fill:#e4e4e7;"/>
+                <HBox spacing="12">
+                    <VBox spacing="6" HBox.hgrow="ALWAYS">
+                        <Label text="Prénom" style="-fx-font-size:12;-fx-text-fill:#a1a1aa;"/>
+                        <TLTextField fx:id="firstNameField" promptText="Votre prénom"/>
+                    </VBox>
+                    <VBox spacing="6" HBox.hgrow="ALWAYS">
+                        <Label text="Nom" style="-fx-font-size:12;-fx-text-fill:#a1a1aa;"/>
+                        <TLTextField fx:id="lastNameField" promptText="Votre nom"/>
+                    </VBox>
+                </HBox>
+                <VBox spacing="6">
+                    <Label text="Titre professionnel" style="-fx-font-size:12;-fx-text-fill:#a1a1aa;"/>
+                    <TLTextField fx:id="headlineField" promptText="ex : Développeur Java Senior"/>
+                </VBox>
+                <VBox spacing="6">
+                    <Label text="Biographie" style="-fx-font-size:12;-fx-text-fill:#a1a1aa;"/>
+                    <TextArea fx:id="bioArea" prefRowCount="3" wrapText="true"
+                              promptText="Décrivez votre parcours et vos ambitions..."
+                              style="-fx-background-color:#27272a;-fx-border-color:#3f3f46;-fx-border-radius:8;-fx-background-radius:8;-fx-text-fill:#e4e4e7;-fx-prompt-text-fill:#71717a;"/>
+                </VBox>
+            </VBox>
+
+            <!-- Contact section -->
+            <VBox spacing="12"
+                  style="-fx-background-color:#18181b;-fx-background-radius:12;-fx-padding:20;-fx-border-color:#3f3f46;-fx-border-radius:12;-fx-border-width:1;">
+                <Label text="Contact" style="-fx-font-size:14;-fx-font-weight:700;-fx-text-fill:#e4e4e7;"/>
+                <HBox spacing="12">
+                    <VBox spacing="6" HBox.hgrow="ALWAYS">
+                        <Label text="Email" style="-fx-font-size:12;-fx-text-fill:#a1a1aa;"/>
+                        <TLTextField fx:id="emailField" promptText="votre@email.com"/>
+                    </VBox>
+                    <VBox spacing="6" HBox.hgrow="ALWAYS">
+                        <Label text="Téléphone" style="-fx-font-size:12;-fx-text-fill:#a1a1aa;"/>
+                        <TLTextField fx:id="phoneField" promptText="+216 XX XXX XXX"/>
+                    </VBox>
+                </HBox>
+                <HBox spacing="12">
+                    <VBox spacing="6" HBox.hgrow="ALWAYS">
+                        <Label text="Localisation" style="-fx-font-size:12;-fx-text-fill:#a1a1aa;"/>
+                        <TLTextField fx:id="locationField" promptText="ex : Tunis, Sfax…"/>
+                    </VBox>
+                    <VBox spacing="6" HBox.hgrow="ALWAYS">
+                        <Label text="Site web / Portfolio" style="-fx-font-size:12;-fx-text-fill:#a1a1aa;"/>
+                        <TLTextField fx:id="websiteField" promptText="https://…"/>
+                    </VBox>
+                </HBox>
+            </VBox>
+
+            <!-- Action row -->
+            <HBox spacing="12" alignment="CENTER_RIGHT">
+                <Label fx:id="statusLabel" wrapText="true" HBox.hgrow="ALWAYS"
+                       style="-fx-text-fill:#22c55e;-fx-font-size:13;"/>
+                <TLButton fx:id="saveBtn" text="Enregistrer les modifications"
+                          onAction="#handleSave"/>
+            </HBox>
+
+        </VBox>
+    </HBox>
+</fx:root>

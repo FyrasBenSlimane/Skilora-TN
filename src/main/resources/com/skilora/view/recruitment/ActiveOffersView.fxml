@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.*?>
+<?import com.skilora.framework.components.TLButton?>
+<?import com.skilora.framework.components.TLTextField?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.skilora.controller.recruitment.ActiveOffersController"
+      styleClass="page-container" spacing="16">
+    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+    <HBox spacing="12" alignment="CENTER_LEFT">
+        <Label fx:id="titleLabel" styleClass="page-title"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <TLButton fx:id="refreshBtn" text="Actualiser" onAction="#handleRefresh"/>
+    </HBox>
+    <HBox fx:id="filterBox" spacing="8"/>
+    <TLTextField fx:id="searchField" promptText="Rechercher..." prefWidth="240"/>
+    <Label fx:id="statsLabel" styleClass="text-muted"/>
+    <VBox fx:id="offersContainer" spacing="12" VBox.vgrow="ALWAYS"/>
+    <VBox fx:id="emptyState" visible="false" managed="false" spacing="8" alignment="CENTER">
+        <Label fx:id="emptyTitleLabel" styleClass="form-title"/>
+        <Label fx:id="emptySubtitleLabel" styleClass="text-muted"/>
+    </VBox>
+</VBox>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.skilora.controller.usermanagement.SettingsController"
+      styleClass="page-container" spacing="24">
+    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+    <VBox styleClass="page-header" spacing="4">
+        <Label fx:id="settingsTitleLabel" styleClass="page-title" text="Paramètres"/>
+        <Label fx:id="settingsSubtitleLabel" styleClass="page-subtitle" text="Personnalisez votre expérience"/>
+    </VBox>
+    <VBox styleClass="card-panel" spacing="16">
+        <Label fx:id="appearanceLabel" styleClass="form-title" text="Apparence"/>
+        <CheckBox fx:id="darkModeCheckbox" text="Mode sombre"/>
+        <CheckBox fx:id="animationsCheckbox" text="Animations"/>
+    </VBox>
+    <VBox styleClass="card-panel" spacing="16">
+        <Label fx:id="notificationsLabel" styleClass="form-title" text="Notifications"/>
+        <CheckBox fx:id="notificationsCheckbox" text="Activer les notifications"/>
+        <CheckBox fx:id="soundNotificationsCheckbox" text="Sons"/>
+    </VBox>
+    <VBox styleClass="card-panel" spacing="16">
+        <Label fx:id="languageSectionLabel" styleClass="form-title" text="Langue"/>
+        <Label fx:id="languageLabel" text="Langue de l'interface"/>
+        <ComboBox fx:id="languageComboBox" prefWidth="200"/>
+    </VBox>
+    <HBox spacing="12">
+        <Button fx:id="saveBtn" text="Enregistrer"/>
+        <Button fx:id="cancelBtn" text="Annuler"/>
+    </HBox>
+</VBox>

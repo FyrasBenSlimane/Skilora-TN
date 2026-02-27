@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.skilora.controller.usermanagement.DashboardController"
+      styleClass="page-container" spacing="20">
+    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+    <VBox styleClass="page-header" spacing="4">
+        <Label text="Tableau de bord" styleClass="page-title"/>
+        <Label text="Vue d'ensemble de votre activité." styleClass="page-subtitle"/>
+    </VBox>
+    <HBox spacing="20" alignment="TOP_LEFT">
+        <VBox styleClass="card-panel" spacing="12" HBox.hgrow="ALWAYS" maxWidth="Infinity">
+            <Label text="Offres récentes" styleClass="form-title"/>
+            <Label text="Aucune offre récente." styleClass="text-muted"/>
+        </VBox>
+        <VBox styleClass="card-panel" spacing="12" maxWidth="280">
+            <Label text="Raccourcis" styleClass="form-title"/>
+            <Button text="Fil d'actualité" maxWidth="Infinity"/>
+            <Button text="Publier une offre" maxWidth="Infinity"/>
+        </VBox>
+    </HBox>
+</VBox>

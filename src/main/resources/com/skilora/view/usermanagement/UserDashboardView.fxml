@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import com.skilora.framework.components.TLButton?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1" 
+      fx:controller="com.skilora.controller.usermanagement.UserDashboardController"
+      spacing="24" styleClass="page-container">
+    <padding><Insets top="24" right="24" bottom="32" left="24"/></padding>
+
+    <!-- Greeting -->
+    <VBox spacing="4">
+        <Label fx:id="greetingLabel" styleClass="page-title" text="Bonjour"/>
+        <Label fx:id="subGreetingLabel" styleClass="page-subtitle" text="Bienvenue sur votre espace."/>
+    </VBox>
+
+    <!-- Profile completion card -->
+    <VBox fx:id="profileCompletionCard" styleClass="card-panel" spacing="12">
+        <padding><Insets top="16" right="16" bottom="16" left="16"/></padding>
+        <Label fx:id="profileCompletionTitle" styleClass="form-title" text="Complétion du profil"/>
+        <HBox spacing="12" alignment="CENTER_LEFT">
+            <ProgressBar fx:id="profileProgressBar" prefWidth="220" progress="0"/>
+            <Label fx:id="completionPercentageLabel" text="0%"/>
+        </HBox>
+        <TLButton fx:id="completeProfileBtn" text="Compléter maintenant"/>
+    </VBox>
+
+    <!-- Quick actions -->
+    <VBox spacing="8">
+        <Label fx:id="quickActionsTitle" styleClass="form-title" text="Raccourcis"/>
+        <FlowPane fx:id="quickActionsContainer" hgap="12" vgap="12"/>
+    </VBox>
+
+    <!-- Stats -->
+    <FlowPane fx:id="statsGrid" hgap="16" vgap="16"/>
+
+    <!-- Recommended + Recent -->
+    <HBox spacing="24">
+        <VBox spacing="12" HBox.hgrow="ALWAYS">
+            <Label fx:id="recommendedJobsTitle" styleClass="form-title" text="Recommandé pour vous"/>
+            <VBox fx:id="recommendedJobsContainer" spacing="8"/>
+            <TLButton fx:id="viewAllJobsBtn" text="Voir tout"/>
+        </VBox>
+        <VBox spacing="12" prefWidth="340">
+            <Label fx:id="recentApplicationsTitle" styleClass="form-title" text="Vos candidatures récentes"/>
+            <VBox fx:id="recentApplicationsContainer" spacing="8"/>
+        </VBox>
+    </HBox>
+
+</VBox>

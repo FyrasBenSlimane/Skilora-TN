@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.*?>
+<?import com.skilora.framework.components.TLButton?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.skilora.controller.recruitment.JobDetailsController"
+      styleClass="page-container" spacing="16">
+    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+    <!-- Back button -->
+    <HBox spacing="12" alignment="CENTER_LEFT">
+        <TLButton fx:id="backBtn" text="← Retour" onAction="#handleBack"/>
+    </HBox>
+    <!-- Header -->
+    <HBox spacing="16" alignment="CENTER_LEFT">
+        <Label fx:id="companyInitials" styleClass="h2" minWidth="48" minHeight="48"
+               style="-fx-background-color:-fx-muted;-fx-background-radius:8;-fx-alignment:center;"/>
+        <VBox spacing="2">
+            <Label fx:id="jobTitle" styleClass="page-title" wrapText="true"/>
+            <Label fx:id="companyName" styleClass="text-muted"/>
+        </VBox>
+    </HBox>
+    <!-- Meta row -->
+    <FlowPane hgap="24" vgap="12">
+        <Label fx:id="jobLocation"/>
+        <Label fx:id="jobType"/>
+        <Label fx:id="postedDate"/>
+        <Label fx:id="salaryRange"/>
+    </FlowPane>
+    <!-- AI insights -->
+    <HBox spacing="16">
+        <Label fx:id="matchScoreLabel" styleClass="text-muted"/>
+        <Label fx:id="candidateScoreLabel" styleClass="text-muted"/>
+        <Label fx:id="applicantCount" styleClass="text-muted"/>
+        <Label fx:id="viewCount" styleClass="text-muted"/>
+    </HBox>
+    <Label fx:id="recommendationLabel" wrapText="true" visible="false" managed="false" styleClass="text-muted"/>
+    <!-- Description -->
+    <VBox spacing="8">
+        <Label text="Description" styleClass="form-title"/>
+        <Label fx:id="jobDescription" wrapText="true" maxWidth="Infinity"/>
+    </VBox>
+    <!-- Skills -->
+    <FlowPane fx:id="skillsContainer" hgap="8" vgap="8"/>
+    <!-- Benefits -->
+    <VBox fx:id="benefitsList" spacing="4"/>
+    <!-- Actions -->
+    <HBox spacing="12">
+        <TLButton fx:id="applyBtn" text="Postuler"       onAction="#handleApply"/>
+        <TLButton fx:id="saveBtn"  text="Sauvegarder"   onAction="#handleSave"/>
+    </HBox>
+</VBox>

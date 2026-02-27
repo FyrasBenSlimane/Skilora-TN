@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.SVGPath?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.skilora.controller.recruitment.ScheduleInterviewController"
+      fx:id="root"
+      spacing="0"
+      style="-fx-background-color: transparent;">
+
+    <!-- ── Header band ─────────────────────────────────────── -->
+    <VBox spacing="6"
+          style="-fx-background-color: #18181b; -fx-background-radius: 12 12 0 0; -fx-padding: 24 28 20 28;">
+        <HBox alignment="CENTER_LEFT" spacing="12">
+            <!-- Calendar icon -->
+            <StackPane minWidth="40" minHeight="40"
+                       style="-fx-background-color:#6366f1;-fx-background-radius:10;">
+                <SVGPath content="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"
+                          style="-fx-fill:white;-fx-scale-x:.75;-fx-scale-y:.75;"/>
+            </StackPane>
+            <VBox spacing="2">
+                <Label text="Planifier un entretien"
+                       style="-fx-font-size:18;-fx-font-weight:700;-fx-text-fill:white;"/>
+                <Label text="Définissez la date, l'heure et les modalités"
+                       style="-fx-font-size:12;-fx-text-fill:#a1a1aa;"/>
+            </VBox>
+        </HBox>
+    </VBox>
+
+    <!-- ── Divider line ──────────────────────────────────────── -->
+    <Region minHeight="1" style="-fx-background-color:#3f3f46;"/>
+
+    <!-- ── Form body ────────────────────────────────────────── -->
+    <VBox spacing="20"
+          style="-fx-background-color:#18181b;-fx-background-radius:0 0 12 12;-fx-padding:24 28 28 28;">
+
+        <!-- Row 1: Date + Time -->
+        <HBox spacing="16">
+            <!-- Date picker -->
+            <VBox spacing="6" HBox.hgrow="ALWAYS">
+                <HBox spacing="6" alignment="CENTER_LEFT">
+                    <Label text="📅" style="-fx-font-size:14;"/>
+                    <Label text="Date de l'entretien"
+                           style="-fx-font-size:13;-fx-font-weight:600;-fx-text-fill:#e4e4e7;"/>
+                </HBox>
+                <DatePicker fx:id="datePicker" maxWidth="Infinity"
+                            style="-fx-background-color:#27272a;-fx-border-color:#3f3f46;-fx-border-radius:8;-fx-background-radius:8;-fx-text-fill:#e4e4e7;"/>
+            </VBox>
+            <!-- Time field -->
+            <VBox spacing="6" prefWidth="130">
+                <HBox spacing="6" alignment="CENTER_LEFT">
+                    <Label text="🕐" style="-fx-font-size:14;"/>
+                    <Label text="Heure (HH:mm)"
+                           style="-fx-font-size:13;-fx-font-weight:600;-fx-text-fill:#e4e4e7;"/>
+                </HBox>
+                <TextField fx:id="timeField" promptText="ex : 10:30"
+                           style="-fx-background-color:#27272a;-fx-border-color:#3f3f46;-fx-border-radius:8;-fx-background-radius:8;-fx-text-fill:#e4e4e7;-fx-prompt-text-fill:#71717a;"/>
+            </VBox>
+        </HBox>
+
+        <!-- Row 2: Location -->
+        <VBox spacing="6">
+            <HBox spacing="6" alignment="CENTER_LEFT">
+                <Label text="📍" style="-fx-font-size:14;"/>
+                <Label text="Lieu / Lien de réunion"
+                       style="-fx-font-size:13;-fx-font-weight:600;-fx-text-fill:#e4e4e7;"/>
+            </HBox>
+            <TextField fx:id="locationField" promptText="ex : Siège social, Tunis — ou lien Teams / Zoom"
+                       style="-fx-background-color:#27272a;-fx-border-color:#3f3f46;-fx-border-radius:8;-fx-background-radius:8;-fx-text-fill:#e4e4e7;-fx-prompt-text-fill:#71717a;"/>
+        </VBox>
+
+        <!-- Row 3: Type -->
+        <VBox spacing="6">
+            <HBox spacing="6" alignment="CENTER_LEFT">
+                <Label text="💼" style="-fx-font-size:14;"/>
+                <Label text="Type d'entretien"
+                       style="-fx-font-size:13;-fx-font-weight:600;-fx-text-fill:#e4e4e7;"/>
+            </HBox>
+            <ComboBox fx:id="typeCombo" maxWidth="Infinity"
+                      style="-fx-background-color:#27272a;-fx-border-color:#3f3f46;-fx-border-radius:8;-fx-background-radius:8;"/>
+        </VBox>
+
+        <!-- Row 4: Notes -->
+        <VBox spacing="6">
+            <HBox spacing="6" alignment="CENTER_LEFT">
+                <Label text="📝" style="-fx-font-size:14;"/>
+                <Label text="Notes (optionnel)"
+                       style="-fx-font-size:13;-fx-font-weight:600;-fx-text-fill:#e4e4e7;"/>
+            </HBox>
+            <TextArea fx:id="notesArea" prefRowCount="3" promptText="Instructions de préparation, informations pratiques..."
+                      wrapText="true"
+                      style="-fx-background-color:#27272a;-fx-border-color:#3f3f46;-fx-border-radius:8;-fx-background-radius:8;-fx-text-fill:#e4e4e7;-fx-prompt-text-fill:#71717a;"/>
+        </VBox>
+
+        <!-- Tip banner -->
+        <HBox spacing="10" alignment="CENTER_LEFT"
+              style="-fx-background-color:#1e1b4b;-fx-background-radius:8;-fx-padding:10 14 10 14;-fx-border-color:#4338ca;-fx-border-radius:8;-fx-border-width:1;">
+            <Label text="💡" style="-fx-font-size:16;"/>
+            <Label text="Un rappel sera envoyé automatiquement au candidat 24 h avant l'entretien."
+                   wrapText="true" maxWidth="Infinity" HBox.hgrow="ALWAYS"
+                   style="-fx-text-fill:#a5b4fc;-fx-font-size:12;"/>
+        </HBox>
+
+    </VBox>
+</VBox>

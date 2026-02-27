@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import com.skilora.framework.components.TLTextField?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.skilora.controller.usermanagement.UsersController"
+      styleClass="page-container" spacing="16">
+    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+    <HBox spacing="12" alignment="CENTER_LEFT">
+        <Button fx:id="addUserBtn" text="Ajouter un utilisateur"/>
+        <TLTextField fx:id="searchField" promptText="Rechercher..." prefWidth="240"/>
+        <Button fx:id="filterBtn" text="Filtres"/>
+        <Button fx:id="columnsBtn" text="Colonnes"/>
+    </HBox>
+    <TableView fx:id="usersTable" VBox.vgrow="ALWAYS"/>
+    <HBox spacing="12" alignment="CENTER_LEFT">
+        <Label fx:id="rowsInfo"/>
+        <Pagination fx:id="pagination"/>
+    </HBox>
+</VBox>

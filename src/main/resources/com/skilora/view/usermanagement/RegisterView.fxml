@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<HBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.skilora.controller.usermanagement.RegisterController"
+      styleClass="login-root" spacing="0" fillHeight="true">
+    <VBox fx:id="root" alignment="CENTER" spacing="16" styleClass="login-form-panel" HBox.hgrow="ALWAYS">
+        <padding><Insets top="48" right="48" bottom="48" left="48"/></padding>
+        <Label text="Create Account" styleClass="login-welcome"/>
+        <Label text="Email" styleClass="label"/>
+        <TextField fx:id="emailField" promptText="Email"/>
+        <Label text="Password" styleClass="label"/>
+        <PasswordField fx:id="passwordField" promptText="Password"/>
+        <HBox spacing="12">
+            <Button text="Register" onAction="#handleRegister"/>
+            <Button text="Back" onAction="#handleBack"/>
+        </HBox>
+    </VBox>
+</HBox>

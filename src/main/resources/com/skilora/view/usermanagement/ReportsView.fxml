@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.*?>
+<?import com.skilora.framework.components.TLButton?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.skilora.controller.usermanagement.ReportsController"
+      styleClass="page-container" spacing="16">
+    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+    <VBox styleClass="page-header" spacing="4">
+        <Label text="Signalements" styleClass="page-title"/>
+        <Label text="Gérer les signalements" styleClass="page-subtitle"/>
+    </VBox>
+    <HBox spacing="12" alignment="CENTER_LEFT">
+        <Label fx:id="statsLabel" styleClass="text-muted"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <TLButton fx:id="refreshBtn" text="Actualiser" onAction="#handleRefresh"/>
+    </HBox>
+    <HBox fx:id="filterBox" spacing="8"/>
+    <VBox fx:id="reportsContainer" spacing="12" VBox.vgrow="ALWAYS"/>
+    <VBox fx:id="emptyState" visible="false" managed="false" spacing="8" alignment="CENTER">
+        <Label text="Aucun signalement" styleClass="text-muted"/>
+    </VBox>
+</VBox>

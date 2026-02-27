@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.skilora.controller.usermanagement.FormationsController" fx:id="root"
+      styleClass="page-container" spacing="20">
+    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+    <VBox styleClass="page-header" spacing="4">
+        <Label text="Formations" styleClass="page-title"/>
+        <Label text="Parcours et formations recommandées." styleClass="page-subtitle"/>
+    </VBox>
+    <VBox styleClass="card-panel" spacing="12">
+        <Label text="Aucune formation pour le moment." styleClass="text-muted"/>
+    </VBox>
+</VBox>

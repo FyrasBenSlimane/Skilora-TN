@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.*?>
+<?import com.skilora.framework.components.TLButton?>
+<?import com.skilora.framework.components.TLTextarea?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.skilora.controller.recruitment.ApplicationDialogController"
+      spacing="16">
+    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+    <Label fx:id="cvLabel" text="CV"/>
+    <TLButton fx:id="selectCvBtn" text="Sélectionner un fichier"/>
+    <Label fx:id="cvAnalysisLabel" styleClass="text-muted" visible="false" managed="false"/>
+    <Label text="Lettre de motivation (optionnel)" styleClass="label"/>
+    <TLTextarea fx:id="coverLetterField" prefRowCount="6" wrapText="true"/>
+    <HBox spacing="12">
+        <TLButton fx:id="cancelBtn" text="Annuler"/>
+        <TLButton fx:id="submitBtn" text="Envoyer ma candidature"/>
+    </HBox>
+</VBox>

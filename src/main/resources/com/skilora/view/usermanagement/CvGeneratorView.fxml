@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<!--
+  CvGeneratorView.fxml
+  Opens as a modal Stage.  The controller pre-populates tabs from the user's profile.
+-->
+<BorderPane xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.skilora.controller.usermanagement.CvGeneratorController"
+            styleClass="custom-window"
+            minWidth="750" minHeight="600"
+            prefWidth="820" prefHeight="680">
+
+    <!-- ── Top bar ─────────────────────────────── -->
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="12" styleClass="app-topbar">
+            <padding><Insets top="0" right="16" bottom="0" left="20"/></padding>
+            <Label text="Créer mon CV" styleClass="h4"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Label text="Renseignez vos informations puis cliquez sur Générer PDF"
+                   styleClass="text-muted"/>
+        </HBox>
+    </top>
+
+    <!-- ── Center: tabs ────────────────────────── -->
+    <center>
+        <TabPane fx:id="tabPane" tabClosingPolicy="UNAVAILABLE"
+                 styleClass="cv-tab-pane">
+
+            <!-- TAB 1 – Personal -->
+            <Tab text="Infos personnelles">
+                <ScrollPane fitToWidth="true" styleClass="transparent-bg">
+                    <VBox spacing="16">
+                        <padding><Insets top="20" right="24" bottom="20" left="24"/></padding>
+
+                        <Label text="Informations personnelles" styleClass="form-title"/>
+
+                        <HBox spacing="16">
+                            <VBox spacing="6" HBox.hgrow="ALWAYS">
+                                <Label text="Nom complet *" styleClass="form-label"/>
+                                <TextField fx:id="fullNameField" promptText="ex. Yasmine Ben Ali"/>
+                            </VBox>
+                            <VBox spacing="6" HBox.hgrow="ALWAYS">
+                                <Label text="Titre / Poste visé" styleClass="form-label"/>
+                                <TextField fx:id="jobTitleField" promptText="ex. Développeur Full-Stack"/>
+                            </VBox>
+                        </HBox>
+
+                        <HBox spacing="16">
+                            <VBox spacing="6" HBox.hgrow="ALWAYS">
+                                <Label text="Email" styleClass="form-label"/>
+                                <TextField fx:id="emailField" promptText="email@exemple.com"/>
+                            </VBox>
+                            <VBox spacing="6" HBox.hgrow="ALWAYS">
+                                <Label text="Téléphone" styleClass="form-label"/>
+                                <TextField fx:id="phoneField" promptText="+216 XX XXX XXX"/>
+                            </VBox>
+                        </HBox>
+
+                        <HBox spacing="16">
+                            <VBox spacing="6" HBox.hgrow="ALWAYS">
+                                <Label text="Ville / Pays" styleClass="form-label"/>
+                                <TextField fx:id="locationField" promptText="Tunis, Tunisie"/>
+                            </VBox>
+                            <VBox spacing="6" HBox.hgrow="ALWAYS">
+                                <Label text="LinkedIn" styleClass="form-label"/>
+                                <TextField fx:id="linkedInField" promptText="linkedin.com/in/votre-profil"/>
+                            </VBox>
+                        </HBox>
+
+                        <VBox spacing="6">
+                            <Label text="Site Web / Portfolio" styleClass="form-label"/>
+                            <TextField fx:id="websiteField" promptText="https://votre-site.com"/>
+                        </VBox>
+
+                        <VBox spacing="6">
+                            <Label text="Résumé professionnel" styleClass="form-label"/>
+                            <TextArea fx:id="summaryArea" promptText="Décrivez votre profil en 3-5 phrases..."
+                                      prefRowCount="4" wrapText="true"/>
+                        </VBox>
+                    </VBox>
+                </ScrollPane>
+            </Tab>
+
+            <!-- TAB 2 – Experience -->
+            <Tab text="Expérience">
+                <ScrollPane fitToWidth="true" styleClass="transparent-bg">
+                    <VBox spacing="16">
+                        <padding><Insets top="20" right="24" bottom="20" left="24"/></padding>
+
+                        <HBox alignment="CENTER_LEFT" spacing="12">
+                            <Label text="Expérience professionnelle" styleClass="form-title" HBox.hgrow="ALWAYS"/>
+                            <Button fx:id="addExpBtn" text="+ Ajouter" styleClass="btn-outline"
+                                    onAction="#handleAddExperience"/>
+                        </HBox>
+
+                        <VBox fx:id="experienceContainer" spacing="16"/>
+                    </VBox>
+                </ScrollPane>
+            </Tab>
+
+            <!-- TAB 3 – Education -->
+            <Tab text="Formation">
+                <ScrollPane fitToWidth="true" styleClass="transparent-bg">
+                    <VBox spacing="16">
+                        <padding><Insets top="20" right="24" bottom="20" left="24"/></padding>
+
+                        <HBox alignment="CENTER_LEFT" spacing="12">
+                            <Label text="Formation académique" styleClass="form-title" HBox.hgrow="ALWAYS"/>
+                            <Button fx:id="addEduBtn" text="+ Ajouter" styleClass="btn-outline"
+                                    onAction="#handleAddEducation"/>
+                        </HBox>
+
+                        <VBox fx:id="educationContainer" spacing="16"/>
+                    </VBox>
+                </ScrollPane>
+            </Tab>
+
+            <!-- TAB 4 – Skills -->
+            <Tab text="Compétences">
+                <ScrollPane fitToWidth="true" styleClass="transparent-bg">
+                    <VBox spacing="16">
+                        <padding><Insets top="20" right="24" bottom="20" left="24"/></padding>
+
+                        <Label text="Compétences techniques &amp; soft skills" styleClass="form-title"/>
+
+                        <VBox spacing="6">
+                            <Label text="Entrez vos compétences séparées par des virgules"
+                                   styleClass="form-label"/>
+                            <TextArea fx:id="skillsArea"
+                                      promptText="Java, Python, SQL, JavaFX, Git, Communication, Leadership..."
+                                      prefRowCount="4" wrapText="true"/>
+                        </VBox>
+
+                        <Label text="Chaque compétence séparée par une virgule sera un élément distinct dans le CV."
+                               styleClass="text-muted" wrapText="true"/>
+                    </VBox>
+                </ScrollPane>
+            </Tab>
+
+            <!-- TAB 5 – Certifications -->
+            <Tab text="Certifications">
+                <ScrollPane fitToWidth="true" styleClass="transparent-bg">
+                    <VBox spacing="16">
+                        <padding><Insets top="20" right="24" bottom="20" left="24"/></padding>
+
+                        <HBox alignment="CENTER_LEFT" spacing="12">
+                            <Label text="Certifications" styleClass="form-title" HBox.hgrow="ALWAYS"/>
+                            <Button fx:id="addCertBtn" text="+ Ajouter" styleClass="btn-outline"
+                                    onAction="#handleAddCertification"/>
+                        </HBox>
+
+                        <VBox fx:id="certificationContainer" spacing="16"/>
+                    </VBox>
+                </ScrollPane>
+            </Tab>
+
+            <!-- TAB 6 – Projects -->
+            <Tab text="Projets">
+                <ScrollPane fitToWidth="true" styleClass="transparent-bg">
+                    <VBox spacing="16">
+                        <padding><Insets top="20" right="24" bottom="20" left="24"/></padding>
+
+                        <HBox alignment="CENTER_LEFT" spacing="12">
+                            <Label text="Projets" styleClass="form-title" HBox.hgrow="ALWAYS"/>
+                            <Button fx:id="addProjBtn" text="+ Ajouter" styleClass="btn-outline"
+                                    onAction="#handleAddProject"/>
+                        </HBox>
+
+                        <VBox fx:id="projectContainer" spacing="16"/>
+                    </VBox>
+                </ScrollPane>
+            </Tab>
+
+        </TabPane>
+    </center>
+
+    <!-- ── Bottom bar ───────────────────────────── -->
+    <bottom>
+        <HBox alignment="CENTER_RIGHT" spacing="12" styleClass="dialog-footer">
+            <padding><Insets top="12" right="20" bottom="12" left="20"/></padding>
+            <Label fx:id="statusLabel" styleClass="text-muted" HBox.hgrow="ALWAYS"/>
+            <Button text="Fermer" onAction="#handleClose" styleClass="btn-outline"/>
+            <Button fx:id="generateBtn" text="Générer PDF" onAction="#handleGeneratePdf"
+                    styleClass="btn-primary"/>
+        </HBox>
+    </bottom>
+
+</BorderPane>
