@@ -1,6 +1,5 @@
 package com.skilora.controller.recruitment;
 
-import com.skilora.framework.components.TLBadge;
 import com.skilora.framework.components.TLButton;
 import com.skilora.framework.components.TLDropdownMenu;
 import com.skilora.framework.components.TLTable;
@@ -24,6 +23,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
@@ -93,7 +93,7 @@ public class ApplicationInboxController implements Initializable {
     private final ApplicationService applicationService = ApplicationService.getInstance();
     private int currentPage = 0;
     private final int itemsPerPage = 10;
-    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private boolean isLoading = false; // Prevent multiple simultaneous loads
     private final RecruitmentIntelligenceService intelligenceService = RecruitmentIntelligenceService.getInstance();
 
@@ -221,25 +221,75 @@ public class ApplicationInboxController implements Initializable {
     }
 
     private void setupTable() {
+        // ── Candidat column – wrap + tooltip ────────────────────────────────
         candidateCol.setCellValueFactory(new PropertyValueFactory<>("candidateName"));
-        jobCol.setCellValueFactory(new PropertyValueFactory<>("jobTitle"));
-        dateCol.setCellValueFactory(new PropertyValueFactory<>("applicationDate"));
-        scoreCol.setCellValueFactory(new PropertyValueFactory<>("candidateScore"));
+        candidateCol.setCellFactory(col -> new TableCell<ApplicationRow, String>() {
+            @Override
+            protected void updateItem(String value, boolean empty) {
+                super.updateItem(value, empty);
+                setGraphic(null);
+                if (empty || value == null) { setText(null); return; }
+                setText(value);
+                setTextOverrun(javafx.scene.control.OverrunStyle.CLIP);
+                if (value.length() > 18) {
+                    Tooltip.install(this, new Tooltip(value));
+                }
+            }
+        });
 
-        // Match-score column with colored badge
+        // ── Offre column – wrap text, full title visible via tooltip ─────────
+        jobCol.setCellValueFactory(new PropertyValueFactory<>("jobTitle"));
+        jobCol.setCellFactory(col -> new TableCell<ApplicationRow, String>() {
+            @Override
+            protected void updateItem(String value, boolean empty) {
+                super.updateItem(value, empty);
+                setGraphic(null);
+                if (empty || value == null) { setText(null); return; }
+                setText(value);
+                setWrapText(true);
+                setTextOverrun(javafx.scene.control.OverrunStyle.CLIP);
+                Tooltip tip = new Tooltip(value);
+                tip.setWrapText(true);
+                tip.setMaxWidth(340);
+                Tooltip.install(this, tip);
+            }
+        });
+
+        // ── Date column – show full date, no truncation ──────────────────────
+        dateCol.setCellValueFactory(new PropertyValueFactory<>("applicationDate"));
+        dateCol.setCellFactory(col -> new TableCell<ApplicationRow, String>() {
+            @Override
+            protected void updateItem(String value, boolean empty) {
+                super.updateItem(value, empty);
+                setGraphic(null);
+                if (empty || value == null) { setText(null); return; }
+                setText(value);
+                setTextOverrun(javafx.scene.control.OverrunStyle.CLIP);
+                setAlignment(Pos.CENTER);
+            }
+        });
+
+        scoreCol.setCellValueFactory(new PropertyValueFactory<>("candidateScore"));
+        // TableColumn is not a Node, so set tooltip on header via a Label
+        Label scoreHeader = new Label("Score profil");
+        scoreHeader.setTooltip(new Tooltip("Qualité globale du profil du candidat (completude, compétences, expérience). Identique pour toutes les offres du même candidat."));
+        scoreCol.setGraphic(scoreHeader);
+        scoreCol.setText(null);
+
+        // Match-score column with colored badge (no text truncation)
         matchCol.setCellValueFactory(new PropertyValueFactory<>("matchScore"));
         matchCol.setCellFactory(col -> new TableCell<ApplicationRow, String>() {
             @Override
             protected void updateItem(String value, boolean empty) {
                 super.updateItem(value, empty);
-                if (empty || value == null || "-".equals(value)) {
-                    setGraphic(null);
-                    setText(null);
-                    return;
-                }
-                // Parse numeric value to pick colour
+                setGraphic(null);
+                setText(null);
+                if (empty || value == null || "-".equals(value)) return;
+
                 int score = 0;
-                try { score = Integer.parseInt(value.replace("%", "").trim()); } catch (NumberFormatException ignored) {}
+                try { score = Integer.parseInt(value.replace("%", "").trim()); }
+                catch (NumberFormatException ignored) {}
+
                 String colour;
                 if      (score >= 85) colour = "#16a34a";
                 else if (score >= 70) colour = "#2563eb";
@@ -248,48 +298,58 @@ public class ApplicationInboxController implements Initializable {
                 else                  colour = "#dc2626";
 
                 Label badge = new Label(value);
-                badge.setStyle("-fx-background-color:" + colour + "; -fx-text-fill:white; "
-                        + "-fx-padding:3 8; -fx-background-radius:6; -fx-font-weight:bold; -fx-font-size:11;");
-                setGraphic(badge);
-                setText(null);
+                // Prevent any internal text truncation inside the badge
+                badge.setTextOverrun(javafx.scene.control.OverrunStyle.CLIP);
+                badge.setMaxWidth(Double.MAX_VALUE);
+                badge.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
+                badge.setStyle(
+                    "-fx-background-color:" + colour + "; -fx-text-fill:white; " +
+                    "-fx-padding:3 10; -fx-background-radius:6; " +
+                    "-fx-font-weight:bold; -fx-font-size:12;");
+
+                HBox wrapper = new HBox(badge);
+                wrapper.setAlignment(Pos.CENTER);
+                setGraphic(wrapper);
                 setAlignment(Pos.CENTER);
             }
         });
 
-        // Status column with badges
+        // Status column – colored label (no text truncation)
         statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
         statusCol.setCellFactory(col -> new TableCell<ApplicationRow, String>() {
             @Override
             protected void updateItem(String status, boolean empty) {
                 super.updateItem(status, empty);
-                if (empty || status == null) {
-                    setGraphic(null);
-                } else {
-                    TLBadge badge;
-                    switch (status) {
-                        case "REVIEW":
-                        case "INTERVIEW":
-                        case "OFFER":
-                            // En cours = Vert
-                            badge = new TLBadge("En cours", TLBadge.Variant.SUCCESS);
-                            break;
-                        case "ACCEPTED":
-                            // Accepté = Bleu/Info
-                            badge = new TLBadge("Accepté", TLBadge.Variant.INFO);
-                            break;
-                        case "REJECTED":
-                            // Refusé = Rouge
-                            badge = new TLBadge("Refusé", TLBadge.Variant.DESTRUCTIVE);
-                            break;
-                        case "PENDING":
-                        default:
-                            // En attente = Gris/Défaut
-                            badge = new TLBadge("En attente", TLBadge.Variant.DEFAULT);
-                            break;
-                    }
-                    setGraphic(badge);
-                    setAlignment(Pos.CENTER);
+                setGraphic(null);
+                setText(null);
+                if (empty || status == null) return;
+
+                String label; String bg; String fg;
+                switch (status) {
+                    case "INTERVIEW":
+                        label = "Entretien";  bg = "#1e3a5f"; fg = "#bae6fd"; break;
+                    case "REVIEW": case "REVIEWING":
+                        label = "En révision"; bg = "#312e81"; fg = "#c7d2fe"; break;
+                    case "OFFER":
+                        label = "Offre faite"; bg = "#064e3b"; fg = "#a7f3d0"; break;
+                    case "ACCEPTED":
+                        label = "Accepté";    bg = "#14532d"; fg = "#bbf7d0"; break;
+                    case "REJECTED":
+                        label = "Refusé";     bg = "#7f1d1d"; fg = "#fca5a5"; break;
+                    case "PENDING": default:
+                        label = "En attente"; bg = "#27272a"; fg = "#a1a1aa"; break;
                 }
+                Label badge = new Label(label);
+                badge.setTextOverrun(javafx.scene.control.OverrunStyle.CLIP);
+                badge.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
+                badge.setStyle(
+                    "-fx-background-color:" + bg + "; -fx-text-fill:" + fg + "; " +
+                    "-fx-padding:3 10; -fx-background-radius:6; " +
+                    "-fx-font-weight:bold; -fx-font-size:11;");
+                HBox wrapper = new HBox(badge);
+                wrapper.setAlignment(Pos.CENTER);
+                setGraphic(wrapper);
+                setAlignment(Pos.CENTER);
             }
         });
 
@@ -500,16 +560,27 @@ public class ApplicationInboxController implements Initializable {
 
             ApplicationDetailsController controller = loader.getController();
             if (controller != null) {
-                controller.setup(fullApp, dialogStage);
+                controller.setup(fullApp, dialogStage, newStatus -> {
+                    // Refresh the matching row in the table when status changes
+                    applications.stream()
+                            .filter(r -> r.getApplicationId() == app.getApplicationId())
+                            .findFirst()
+                            .ifPresent(r -> {
+                                r.setStatus(mapStatusToI18nKey(newStatus));
+                                javafx.application.Platform.runLater(() -> applicationsTable.refresh());
+                            });
+                });
             }
 
-            javafx.scene.Scene scene = new javafx.scene.Scene(root, 700, 600);
+            javafx.scene.Scene scene = new javafx.scene.Scene(root, 960, 720);
             // Apply application stylesheets
             scene.getStylesheets().addAll(applicationsTable.getScene().getStylesheets());
+            dialogStage.setMinWidth(860);
+            dialogStage.setMinHeight(600);
             dialogStage.setScene(scene);
             dialogStage.showAndWait();
 
-            // Refresh applications after dialog closes (in case status was changed)
+            // Full refresh after the dialog closes
             loadApplications();
         } catch (Exception e) {
             logger.error("Failed to show application details", e);
