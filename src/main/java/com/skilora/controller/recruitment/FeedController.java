@@ -17,7 +17,7 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.FlowPane;
-import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.geometry.Insets;
 import javafx.util.Duration;
@@ -42,7 +42,7 @@ public class FeedController implements Initializable {
     @FXML
     private FlowPane grid;
     @FXML
-    private HBox tabsBox;
+    private FlowPane tabsBox;
     @FXML
     private TLButton refreshBtn;
     @FXML
@@ -95,76 +95,29 @@ public class FeedController implements Initializable {
      * This ensures fresh data and proper UI state after navigating away.
      */
     public void reloadData() {
-        logger.info("FeedController - Reloading data...");
-        
-        // Cancel any ongoing load task
-        if (currentLoadTask != null && currentLoadTask.isRunning()) {
-            logger.info("FeedController - Cancelling previous load task");
-            currentLoadTask.cancel();
-        }
-        
-        // Reset state
+        if (currentLoadTask != null && currentLoadTask.isRunning()) currentLoadTask.cancel();
         allJobs = null;
         currentFilteredJobs = null;
         lowerCaseCache = null;
         currentPage = 0;
-        
-        // Clear grid immediately (synchronous)
-        if (grid != null) {
-            grid.getChildren().clear();
-            grid.setVisible(true);
-            grid.setOpacity(1.0);
-            grid.setDisable(false);
-            grid.setStyle("-fx-opacity: 1.0; -fx-visible: true;");
-        }
-        
-        // Also ensure scrollPane is visible
-        if (scrollPane != null) {
-            scrollPane.setVisible(true);
-            scrollPane.setOpacity(1.0);
-            scrollPane.setDisable(false);
-        }
-        
-        // Reload data asynchronously (don't wrap in Platform.runLater, loadDataAsync handles it)
+        if (grid != null) grid.getChildren().clear();
         loadDataAsync();
     }
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        logger.info("FeedController - initialize() called - creating fresh instance");
-        
-        // Reset all state to ensure clean initialization
         allJobs = null;
         currentFilteredJobs = null;
         lowerCaseCache = null;
         currentPage = 0;
         isLoadingMore = false;
-        
-        // Clear and reset grid to ensure it's empty before loading
-        if (grid != null) {
-            logger.info("FeedController - Clearing grid in initialize()");
-            grid.getChildren().clear();
-            grid.setVisible(true);
-            grid.setOpacity(1.0);
-            grid.setDisable(false);
-            grid.setStyle("-fx-opacity: 1.0; -fx-visible: true;");
-        }
-        
-        // Also ensure scrollPane is visible
-        if (scrollPane != null) {
-            scrollPane.setVisible(true);
-            scrollPane.setOpacity(1.0);
-            scrollPane.setDisable(false);
-        }
-        
-        // Bind grid width to scroll viewport so cards layout in rows (fixes truncated single-column display)
+        if (grid != null) grid.getChildren().clear();
+        // Bind grid width so cards fill available width properly
         if (scrollPane != null && grid != null) {
             grid.prefWidthProperty().bind(scrollPane.widthProperty());
             grid.minWidthProperty().bind(scrollPane.widthProperty());
         }
-        
         setupEventHandlers();
-        // Single load is triggered by MainView.reloadData() after user/callbacks are set (no load here to avoid double load and lag)
     }
 
     private void setupEventHandlers() {
@@ -306,32 +259,13 @@ public class FeedController implements Initializable {
 
         loadTask.setOnSucceeded(event -> {
             allJobs = loadTask.getValue();
-            logger.info("FeedController - Successfully loaded {} job opportunities", allJobs != null ? allJobs.size() : 0);
-            
             if (allJobs == null || allJobs.isEmpty()) {
-                logger.warn("FeedController - No job opportunities loaded. Checking database...");
-                // Ensure grid is cleared if no jobs
-                Platform.runLater(() -> {
-                    if (grid != null) {
-                        grid.getChildren().clear();
-                        grid.setVisible(true);
-                        grid.setOpacity(1.0);
-                    }
-                });
+                Platform.runLater(() -> { if (grid != null) grid.getChildren().clear(); });
                 return;
             }
-            
             buildLowerCaseCache();
             refreshTags();
-            
-            Platform.runLater(() -> {
-                if (grid != null) {
-                    grid.setVisible(true);
-                    grid.setOpacity(1.0);
-                    grid.setDisable(false);
-                }
-                filterJobsByTag("All", "");
-            });
+            Platform.runLater(() -> filterJobsByTag("All", ""));
         });
 
         loadTask.setOnFailed(event -> {
@@ -354,28 +288,45 @@ public class FeedController implements Initializable {
     }
 
     /**
-     * Computes and sets a match-percentage on each job opportunity using
-     * CvMatchingService.  Called from the background load task so the UI is
-     * never blocked.  Silently skips if the current user has no profile.
+     * Computes match-percentages for all jobs using pre-loaded candidate data.
+     * Runs on the background loader thread.
+     *
+     * PERFORMANCE: Only 3 DB queries total (profile + skills + experiences),
+     * regardless of how many jobs are in the list.  The old approach did
+     * N × 3 queries (one set per job), causing severe lag on large feeds.
      */
     private void enrichWithMatchScores(List<JobOpportunity> jobs) {
         if (currentUser == null || jobs == null || jobs.isEmpty()) return;
         try {
+            com.skilora.service.usermanagement.ProfileService ps =
+                    com.skilora.service.usermanagement.ProfileService.getInstance();
+
+            // ── 3 DB queries total ──────────────────────────────────────────
             com.skilora.model.entity.usermanagement.Profile profile =
-                    com.skilora.service.usermanagement.ProfileService.getInstance()
-                            .findProfileByUserId(currentUser.getId());
+                    ps.findProfileByUserId(currentUser.getId());
             if (profile == null || profile.getId() <= 0) return;
+
+            java.util.List<com.skilora.model.entity.usermanagement.Skill> skills =
+                    ps.findSkillsByProfileId(profile.getId());
+            java.util.List<com.skilora.model.entity.usermanagement.Experience> exps =
+                    ps.findExperiencesByProfileId(profile.getId());
 
             com.skilora.service.recruitment.CvMatchingService matcher =
                     com.skilora.service.recruitment.CvMatchingService.getInstance();
 
+            // Build corpus once, reuse for every job (zero DB queries inside loop)
+            java.util.Set<String> corpus = matcher.buildCorpus(skills, exps);
+            if (corpus.isEmpty()) return;
+
             for (JobOpportunity job : jobs) {
-                if (job.getId() > 0) {
-                    int score = matcher.calculateScore(profile.getId(), job.getId());
-                    job.setMatchPercentage(score);
-                }
+                int score = matcher.scoreFromCorpus(
+                        corpus,
+                        job.getSkills(),
+                        job.getDescription(),
+                        job.getTitle());
+                job.setMatchPercentage(score);
             }
-            logger.debug("FeedController - enriched {} jobs with match scores for profile {}",
+            logger.debug("FeedController - match scores computed for {} jobs (profile {})",
                     jobs.size(), profile.getId());
         } catch (Exception e) {
             logger.warn("FeedController - could not enrich with match scores: {}", e.getMessage());
@@ -457,6 +408,10 @@ public class FeedController implements Initializable {
         btn.getStyleClass().add("chip-filter");
         btn.setSelected(selected);
         btn.setToggleGroup(tagGroup);
+        // Never truncate the button text – let it use its natural width
+        btn.setMinWidth(Region.USE_PREF_SIZE);
+        btn.setMaxWidth(Region.USE_PREF_SIZE);
+        btn.setTextOverrun(javafx.scene.control.OverrunStyle.CLIP);
 
         btn.setOnAction(e -> {
             if (btn.isSelected()) {
@@ -556,33 +511,13 @@ public class FeedController implements Initializable {
             return;
         }
 
-        // We're on JavaFX thread - execute synchronously
-        logger.info("FeedController - Clearing grid before populating with {} jobs", jobs.size());
         grid.getChildren().clear();
-        grid.setVisible(true);
-        grid.setOpacity(1.0);
-        grid.setDisable(false);
-        grid.setStyle("-fx-opacity: 1.0; -fx-visible: true;");
         currentPage = 0;
 
         int endIdx = Math.min(CARDS_PER_PAGE, jobs.size());
-        logger.info("FeedController - Adding {} job cards to grid", endIdx);
-        
         for (int i = 0; i < endIdx; i++) {
-            JobCard card = new JobCard(jobs.get(i), onJobClick, onApplyClick);
-            // Ensure card is visible with explicit styles
-            card.setVisible(true);
-            card.setOpacity(1.0);
-            card.setDisable(false);
-            card.setStyle("-fx-opacity: 1.0; -fx-visible: true;");
-            grid.getChildren().add(card);
-            logger.debug("FeedController - Added job card {}: {}", i + 1, jobs.get(i).getTitle());
+            grid.getChildren().add(new JobCard(jobs.get(i), onJobClick, onApplyClick));
         }
-
-        // Force layout update
-        grid.requestLayout();
-        
-        logger.info("FeedController - Successfully added {} job cards to grid", grid.getChildren().size());
 
         // Add "Load More" button if there are more jobs
         if (jobs.size() > CARDS_PER_PAGE) {
