@@ -13,7 +13,7 @@
         <Region HBox.hgrow="ALWAYS"/>
         <TLButton fx:id="refreshBtn" text="Actualiser" onAction="#handleRefresh"/>
     </HBox>
-    <HBox fx:id="tabsBox" spacing="8"/>
+    <FlowPane fx:id="tabsBox" hgap="8" vgap="8"/>
     <!-- fitToHeight="false" so the FlowPane can grow taller and the ScrollPane actually scrolls -->
     <ScrollPane fx:id="scrollPane" fitToWidth="true" fitToHeight="false"
                 VBox.vgrow="ALWAYS" pannable="false">
