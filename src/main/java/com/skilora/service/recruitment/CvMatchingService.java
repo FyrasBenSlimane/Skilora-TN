@@ -222,6 +222,48 @@ public class CvMatchingService {
         return calculate(profileId, jobOfferId).score;
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Batch-friendly API (no DB queries – use pre-loaded data)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Builds a reusable candidate corpus from pre-loaded skills and
+     * experiences (zero DB queries).  Call once, then reuse across many jobs.
+     */
+    public Set<String> buildCorpus(List<Skill> skills, List<Experience> experiences) {
+        return buildCandidateCorpus(skills, experiences);
+    }
+
+    /**
+     * Scores a job using a pre-built corpus and the job's own fields
+     * (requiredSkills list + description text).  Zero DB queries.
+     * Use this in batch scenarios (feed page) to avoid N×3 DB round-trips.
+     */
+    public int scoreFromCorpus(Set<String> corpus,
+                               List<String> requiredSkills,
+                               String description,
+                               String title) {
+        if (corpus == null || corpus.isEmpty()) return 0;
+
+        List<String> required = normaliseList(requiredSkills);
+        int matchedCount = 0;
+        for (String req : required) {
+            if (skillPresent(req, corpus)) matchedCount++;
+        }
+        double skillPortion = required.isEmpty() ? 1.0
+                : (double) matchedCount / required.size();
+
+        List<String> descKw = extractTechKeywords(description, title);
+        int descMatched = 0;
+        for (String kw : descKw) {
+            if (skillPresent(kw, corpus)) descMatched++;
+        }
+        double descPortion = descKw.isEmpty() ? skillPortion
+                : (double) descMatched / descKw.size();
+
+        return (int) Math.min(100, Math.round(skillPortion * 70.0 + descPortion * 30.0));
+    }
+
     /**
      * Computes an overall "candidate quality" score (0–100) based on profile
      * completeness, skills count, and work experience.
