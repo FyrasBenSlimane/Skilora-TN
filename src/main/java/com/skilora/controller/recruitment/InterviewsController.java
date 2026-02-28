@@ -273,29 +273,37 @@ public class InterviewsController implements Initializable {
 
         topRow.getChildren().addAll(nameLabel, spacer, statusBadge);
 
-        // Job details
-        HBox detailsRow = new HBox(16);
-        detailsRow.setAlignment(Pos.CENTER_LEFT);
+        // ── Job info row (poste + lieu) ─────────────────────────
+        HBox jobRow = new HBox(16);
+        jobRow.setAlignment(Pos.CENTER_LEFT);
 
         if (app.getJobTitle() != null) {
             Label jobLabel = new Label("💼 " + app.getJobTitle());
             jobLabel.getStyleClass().add("text-muted");
-            detailsRow.getChildren().add(jobLabel);
+            jobLabel.setWrapText(true);
+            jobLabel.setMaxWidth(Double.MAX_VALUE);
+            HBox.setHgrow(jobLabel, Priority.ALWAYS);
+            jobRow.getChildren().add(jobLabel);
         }
 
         if (app.getJobLocation() != null) {
             Label locLabel = new Label("📍 " + app.getJobLocation());
             locLabel.getStyleClass().add("text-muted");
-            detailsRow.getChildren().add(locLabel);
+            locLabel.setWrapText(true);
+            jobRow.getChildren().add(locLabel);
         }
 
+        // ── Application date row ─────────────────────────────────
+        Label dateLabel = null;
         if (app.getAppliedDate() != null) {
-            Label dateLabel = new Label("📅 " + I18n.get("interviews.application_date") + ": " + app.getAppliedDate().format(DATE_FMT));
+            dateLabel = new Label("📋 " + I18n.get("interviews.application_date") + " : "
+                    + app.getAppliedDate().format(DATE_FMT));
             dateLabel.getStyleClass().add("text-muted");
-            detailsRow.getChildren().add(dateLabel);
+            dateLabel.setWrapText(true);
+            dateLabel.setMaxWidth(Double.MAX_VALUE);
         }
 
-        // Check if interview is already scheduled
+        // ── Check if interview is already scheduled ───────────────
         final Interview[] existingInterviewRef = new Interview[1];
         boolean hasInterview = false;
         try {
@@ -307,52 +315,70 @@ public class InterviewsController implements Initializable {
         } catch (Exception e) {
             logger.error("Error checking interview for application {}", app.getId(), e);
         }
-        
-        final boolean hasInterviewFinal = hasInterview;
+
+        final boolean hasInterviewFinal    = hasInterview;
         final Interview existingInterviewFinal = existingInterviewRef[0];
-        
-        // Show interview details + countdown if scheduled
+
+        // ── Interview details row (each piece on its own label) ───
+        VBox interviewDetailsBox = null;
         InterviewCountdownWidget countdown = null;
+
         if (hasInterviewFinal && existingInterviewFinal != null) {
-            Label interviewInfo = new Label();
-            interviewInfo.getStyleClass().add("text-muted");
-            String interviewText = "📅 " + I18n.get("interviews.scheduled") + ": " +
-                existingInterviewFinal.getInterviewDate().format(DATE_FMT);
-            if (existingInterviewFinal.getLocation() != null && !existingInterviewFinal.getLocation().isEmpty()) {
-                interviewText += " | 📍 " + existingInterviewFinal.getLocation();
+            interviewDetailsBox = new VBox(4);
+
+            // Scheduled date/time
+            if (existingInterviewFinal.getInterviewDate() != null) {
+                Label planLabel = new Label("📅 Planifié : "
+                        + existingInterviewFinal.getInterviewDate().format(DATE_FMT));
+                planLabel.getStyleClass().add("text-muted");
+                planLabel.setWrapText(true);
+                planLabel.setMaxWidth(Double.MAX_VALUE);
+                interviewDetailsBox.getChildren().add(planLabel);
             }
+
+            // Location
+            if (existingInterviewFinal.getLocation() != null
+                    && !existingInterviewFinal.getLocation().isEmpty()) {
+                Label ivLocLabel = new Label("📍 " + existingInterviewFinal.getLocation());
+                ivLocLabel.getStyleClass().add("text-muted");
+                ivLocLabel.setWrapText(true);
+                ivLocLabel.setMaxWidth(Double.MAX_VALUE);
+                interviewDetailsBox.getChildren().add(ivLocLabel);
+            }
+
+            // Type
             if (existingInterviewFinal.getInterviewType() != null) {
-                interviewText += " | " + existingInterviewFinal.getInterviewType().getDisplayName();
+                Label typeLabel = new Label("🎯 " + existingInterviewFinal.getInterviewType().getDisplayName());
+                typeLabel.getStyleClass().add("text-muted");
+                interviewDetailsBox.getChildren().add(typeLabel);
             }
-            interviewInfo.setText(interviewText);
-            detailsRow.getChildren().add(interviewInfo);
 
             // Live countdown badge
             countdown = InterviewCountdownWidget.of(existingInterviewFinal.getInterviewDate());
         }
 
-        // Actions
+        // ── Actions ──────────────────────────────────────────────
         Separator sep = new Separator();
         HBox actionsRow = new HBox(8);
         actionsRow.setAlignment(Pos.CENTER_RIGHT);
 
         if (hasInterviewFinal) {
-            // Show edit/reschedule button
             TLButton editBtn = new TLButton(I18n.get("interviews.edit"), TLButton.ButtonVariant.OUTLINE);
             editBtn.setOnAction(e -> openScheduleDialog(app, existingInterviewFinal));
             actionsRow.getChildren().add(editBtn);
         } else {
-            // Show schedule interview button
             TLButton scheduleBtn = new TLButton(I18n.get("interviews.schedule"), TLButton.ButtonVariant.PRIMARY);
             scheduleBtn.setOnAction(e -> openScheduleDialog(app, null));
             actionsRow.getChildren().add(scheduleBtn);
         }
 
-        if (countdown != null) {
-            content.getChildren().addAll(topRow, detailsRow, countdown, sep, actionsRow);
-        } else {
-            content.getChildren().addAll(topRow, detailsRow, sep, actionsRow);
-        }
+        // ── Assemble card ────────────────────────────────────────
+        content.getChildren().add(topRow);
+        if (!jobRow.getChildren().isEmpty())   content.getChildren().add(jobRow);
+        if (dateLabel != null)                 content.getChildren().add(dateLabel);
+        if (interviewDetailsBox != null)       content.getChildren().add(interviewDetailsBox);
+        if (countdown != null)                 content.getChildren().add(countdown);
+        content.getChildren().addAll(sep, actionsRow);
         card.getChildren().add(content);
         return card;
     }
