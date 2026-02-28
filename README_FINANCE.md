@@ -1,5 +1,7 @@
 # 🎉 MODULE FINANCE - VERSION 2.0 
 
+**Organisation des dossiers et métiers avancés** : voir `docs/FINANCE_ORGANISATION_ET_METIERS_AVANCES.md` (emplacements des API, chatbot, résumé PDF, Stripe, etc.).
+
 ## ✅ TOUTES VOS DEMANDES SONT COMPLÉTÉES !
 
 ### Ce qui a été fait :

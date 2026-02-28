@@ -829,7 +829,7 @@ public class MainView extends TLAppLayout {
 
         if (cachedFinanceView == null) {
             try {
-                FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/FinanceView.fxml"));
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("/finance/views/FinanceView.fxml"));
                 VBox financeContent = loader.load();
 
                 TLScrollArea scrollArea = new TLScrollArea(financeContent);
@@ -856,7 +856,7 @@ public class MainView extends TLAppLayout {
 
         if (cachedUserFinanceView == null) {
             try {
-                FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/UserFinanceView.fxml"));
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("/finance/views/UserFinanceView.fxml"));
                 VBox financeContent = loader.load();
 
                 TLScrollArea scrollArea = new TLScrollArea(financeContent);
@@ -883,7 +883,7 @@ public class MainView extends TLAppLayout {
         centerStack.getChildren().clear();
 
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/EmployeurFinanceView.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/finance/views/EmployeurFinanceView.fxml"));
             javafx.scene.Node root = loader.load();
 
             // Inject the current user ID — controller fetches real name from DB

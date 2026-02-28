@@ -27,10 +27,10 @@ public class FinanceApp extends Application {
             }
 
             // Load FXML
-            System.out.println("DEBUG: Loading FXML from /fxml/FinanceView.fxml");
-            java.net.URL fxmlUrl = getClass().getResource("/fxml/FinanceView.fxml");
+            System.out.println("DEBUG: Loading FXML from /finance/views/FinanceView.fxml");
+            java.net.URL fxmlUrl = getClass().getResource("/finance/views/FinanceView.fxml");
             if (fxmlUrl == null) {
-                System.err.println("CRITICAL ERROR: FXML file not found at /fxml/FinanceView.fxml");
+                System.err.println("CRITICAL ERROR: FXML file not found at /finance/views/FinanceView.fxml");
                 throw new java.io.FileNotFoundException("FXML file not found");
             }
 

@@ -374,7 +374,7 @@ Status: READY FOR PRODUCTION 🚀
 ### Issue: "FinanceView.fxml not found"
 **Solution:**
 ```
-1. Verify file exists: src/main/resources/fxml/FinanceView.fxml
+1. Verify file exists: src/main/resources/finance/views/FinanceView.fxml (ou fxml/FinanceView.fxml)
 2. Check Maven build includes resources
 3. Run: mvn clean package
 4. Check target/ folder for built resource files

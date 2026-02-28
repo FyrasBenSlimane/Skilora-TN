@@ -16,6 +16,7 @@ import com.skilora.finance.model.BankAccountRow;
 import com.skilora.finance.model.BonusRow;
 import com.skilora.finance.model.PayslipRow;
 import com.skilora.finance.service.FinanceService;
+import com.skilora.finance.service.FinanceChatbotAIService;
 // Using specific Finance model
 import com.skilora.model.service.UserService;
 import com.skilora.model.entity.User;
@@ -1069,7 +1070,7 @@ public class FinanceController implements Initializable {
         String bankInfo = buildBankInfo(empId);
         String bonusInfo = buildBonusInfo(empId);
         String payslipInfo = buildPayslipInfo(empId);
-        String professionalSummary = buildProfessionalSummary(empId, empName);
+        String professionalSummary = buildProfessionalSummaryWithAI(empId, empName);
 
         File pdf = PDFGenerator.generateEmployeeReport(empId, empName,
                 contractInfo, bankInfo, bonusInfo, payslipInfo, (Stage) report_employeeCombo.getScene().getWindow(),
@@ -1397,8 +1398,71 @@ public class FinanceController implements Initializable {
     }
 
     /**
-     * Construit un résumé professionnel unique par employé pour le rapport PDF
-     * (poste, type de contrat, salaire, bulletins, primes, comptes bancaires).
+     * Construit le résumé du rapport PDF : si l'IA (OpenAI) est configurée, le résumé est généré par l'IA ;
+     * sinon repli sur la logique métier buildProfessionalSummary.
+     */
+    private String buildProfessionalSummaryWithAI(int empId, String employeeName) {
+        String rawData = buildRawDataForAISummary(empId, employeeName);
+        FinanceChatbotAIService aiService = new FinanceChatbotAIService();
+        if (aiService.isConfigured() && rawData != null && !rawData.isBlank()) {
+            String aiSummary = aiService.generateReportSummary(rawData);
+            if (aiSummary != null && !aiSummary.isBlank())
+                return aiSummary;
+        }
+        return buildProfessionalSummary(empId, employeeName);
+    }
+
+    /**
+     * Données brutes (texte) pour l'IA : contrat, bulletins, primes, comptes. Utilisé par generateReportSummary.
+     */
+    private String buildRawDataForAISummary(int empId, String employeeName) {
+        String name = (employeeName != null && !employeeName.isBlank()) ? employeeName : "L'employé";
+        java.text.NumberFormat nf = java.text.NumberFormat.getNumberInstance(Locale.FRANCE);
+        nf.setMinimumFractionDigits(2);
+        nf.setMaximumFractionDigits(2);
+
+        List<ContractRow> contracts = contractData.stream().filter(c -> c.getUserId() == empId).toList();
+        List<PayslipRow> payslips = new java.util.ArrayList<>(
+                payslipData.stream().filter(p -> p.getUserId() == empId).toList());
+        payslips.sort(Comparator.comparingInt(PayslipRow::getYear).reversed().thenComparingInt(PayslipRow::getMonth).reversed());
+        List<BonusRow> bonuses = bonusData.stream().filter(b -> b.getUserId() == empId).toList();
+        long bankCount = bankData.stream().filter(b -> b.getUserId() == empId).count();
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("Données employé : ").append(name).append(".\n");
+        ContractRow active = contracts.stream()
+                .filter(c -> "ACTIVE".equalsIgnoreCase(c.getStatus()) || "ACTIF".equalsIgnoreCase(c.getStatus()))
+                .findFirst().orElse(contracts.isEmpty() ? null : contracts.get(0));
+        if (active != null) {
+            String poste = active.getPosition() != null ? active.getPosition() : "—";
+            String type = active.getType() != null ? active.getType().toUpperCase() : "—";
+            sb.append("Contrat : poste ").append(poste).append(", type ").append(type).append(", salaire de base ").append(nf.format(active.getSalary())).append(" TND.\n");
+        } else {
+            sb.append("Contrat : aucun contrat actif.\n");
+        }
+        if (!payslips.isEmpty()) {
+            sb.append("Bulletins de paie : ").append(payslips.size()).append(" émis.");
+            PayslipRow last = payslips.get(0);
+            String period = (last.getMonth() >= 1 && last.getMonth() <= 12) ? (MONTHS_FR[last.getMonth() - 1] + " " + last.getYear()) : "";
+            if (!period.isEmpty())
+                sb.append(" Dernier : ").append(period).append(", net à payer ").append(nf.format(last.getNet())).append(" TND.");
+            sb.append("\n");
+        } else {
+            sb.append("Bulletins de paie : aucun.\n");
+        }
+        if (!bonuses.isEmpty()) {
+            double totalBonus = bonuses.stream().mapToDouble(BonusRow::getAmount).sum();
+            sb.append("Primes : ").append(bonuses.size()).append(" prime(s), total ").append(nf.format(totalBonus)).append(" TND.\n");
+        } else {
+            sb.append("Primes : aucune.\n");
+        }
+        sb.append("Comptes bancaires : ").append(bankCount).append(" enregistré(s).");
+        return sb.toString();
+    }
+
+    /**
+     * Construit un résumé professionnel unique par employé pour le rapport PDF (logique métier, sans IA).
+     * Utilisé en repli si l'IA n'est pas configurée ou en erreur.
      */
     private String buildProfessionalSummary(int empId, String employeeName) {
         String name = (employeeName != null && !employeeName.isBlank()) ? employeeName : "L'employé";

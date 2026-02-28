@@ -119,8 +119,9 @@ Error loading Finance Module: FinanceView.fxml:46
 
 ### Étape 2: Ouvrir le fichier
 ```
-src/main/resources/fxml/FinanceView.fxml
+src/main/resources/finance/views/FinanceView.fxml
 ```
+(Ancien emplacement conservé : src/main/resources/fxml/FinanceView.fxml)
 
 ### Étape 3: Vérifier la ligne
 Allez à la ligne 46 et vérifiez :

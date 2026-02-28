@@ -1,0 +1,323 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.chart.*?>
+<?import javafx.scene.shape.Circle?>
+
+<!--
+  EmployeurFinanceView.fxml — Role EMPLOYER "Ma Paie"
+  TABLEAU DE BORD DYNAMIQUE ET LOGIQUE
+-->
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.skilora.finance.controller.EmployeurFinanceController"
+      spacing="0"
+      style="-fx-background-color: -fx-background;">
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  HEADER DYNAMIQUE                                      -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <HBox alignment="CENTER_LEFT" spacing="20"
+          style="-fx-padding: 24 32; -fx-background-color: -fx-card; -fx-border-color: -fx-border; -fx-border-width: 0 0 1 0;">
+        <VBox spacing="4">
+            <Label fx:id="lbl_greeting" text="Bonjour, Chargement..."
+                   style="-fx-font-size: 26px; -fx-font-weight: 800; -fx-text-fill: -fx-foreground;"/>
+            <HBox spacing="8" alignment="CENTER_LEFT">
+                <Label fx:id="lbl_subtitle" text="Ma Situation Financière"
+                       style="-fx-font-size: 14px; -fx-text-fill: -fx-muted-foreground;"/>
+                <Circle radius="3" fill="#3b82f6"/>
+                <Label fx:id="lbl_date" text="Date du jour"
+                       style="-fx-font-size: 14px; -fx-text-fill: -fx-muted-foreground;"/>
+            </HBox>
+        </VBox>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button text="Rafraîchir les données" onAction="#handleRefreshAll"
+                style="-fx-background-color: transparent; -fx-border-color: -fx-border; -fx-border-radius: 8; -fx-border-width: 1; -fx-text-fill: -fx-foreground; -fx-padding: 8 16; -fx-cursor: hand; -fx-font-weight: bold;"/>
+        <Label fx:id="lbl_userId" visible="false" managed="false"/>
+    </HBox>
+
+    <ScrollPane VBox.vgrow="ALWAYS" fitToWidth="true" style="-fx-background-color: transparent; -fx-background: transparent; -fx-padding: 0;">
+        <VBox spacing="24" style="-fx-padding: 24 32;">
+
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <!--  ASSISTANT MA PAIE — Visible en premier, emplacement clair -->
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <VBox fx:id="chatbotCard" spacing="12" style="-fx-padding: 20; -fx-background-color: linear-gradient(to bottom right, #0f172a, #1e293b); -fx-background-radius: 16; -fx-border-color: #00c4a7; -fx-border-width: 2; -fx-border-radius: 16; -fx-effect: dropshadow(gaussian, rgba(0,196,167,0.15), 12, 0, 0, 4);">
+                <HBox alignment="CENTER_LEFT" spacing="12">
+                    <Label text="💬" style="-fx-font-size: 28px;"/>
+                    <VBox spacing="2">
+                        <Label fx:id="lblChatbotTitle" text="Assistant Ma Paie" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #00c4a7;"/>
+                        <Label text="Posez vos questions sur la paie, bulletins, CNSS, IRPP, primes. Réponses personnalisées par employé." wrapText="true" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 12px;"/>
+                    </VBox>
+                </HBox>
+                <ScrollPane fx:id="chatScrollPane" fitToWidth="true" prefHeight="200" style="-fx-background-color: rgba(0,0,0,0.2); -fx-background: transparent; -fx-border-color: rgba(0,196,167,0.3); -fx-border-radius: 10; -fx-padding: 4;">
+                    <VBox fx:id="chatMessageContainer" spacing="10" style="-fx-padding: 12;"/>
+                </ScrollPane>
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <TextField fx:id="chatQuestionField" promptText="Ex: Quel est le salaire de John Doe ? ou C'est quoi le net ?"
+                               HBox.hgrow="ALWAYS" prefHeight="40" style="-fx-background-color: rgba(255,255,255,0.08); -fx-border-color: rgba(0,196,167,0.4); -fx-border-radius: 10; -fx-padding: 10 14; -fx-text-fill: -fx-foreground; -fx-font-size: 13px; -fx-prompt-text-fill: -fx-muted-foreground;"/>
+                    <Button text="Envoyer" onAction="#handleChatSend"
+                            style="-fx-background-color: #00c4a7; -fx-text-fill: #0f172a; -fx-font-weight: bold; -fx-padding: 10 24; -fx-background-radius: 10; -fx-cursor: hand; -fx-font-size: 13px;"/>
+                </HBox>
+            </VBox>
+
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <!--  SECTION : EQUIPE & FILTRES (CREATIVE)                 -->
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <VBox spacing="16" style="-fx-background-color: -fx-card; -fx-padding: 24; -fx-background-radius: 20; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 20;">
+                <HBox alignment="CENTER_LEFT" spacing="20">
+                    <VBox spacing="4" HBox.hgrow="ALWAYS">
+                        <Label text="Répertoire de l'Équipe" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                        <Label text="Consultez les dossiers financiers des collaborateurs" style="-fx-font-size: 13px; -fx-text-fill: -fx-muted-foreground;"/>
+                    </VBox>
+                    <TextField fx:id="txt_search_employee" promptText="Rechercher un employé..." 
+                               prefWidth="250" style="-fx-background-radius: 12; -fx-padding: 10 15; -fx-background-color: -fx-background; -fx-border-color: -fx-border; -fx-border-radius: 12;"/>
+                </HBox>
+
+                <Separator style="-fx-opacity: 0.5;"/>
+
+                <HBox fx:id="teamStatsContainer" spacing="16">
+                    <!-- Cards will be injected via Controller -->
+                </HBox>
+
+                <ScrollPane fitToHeight="true" minHeight="125" prefHeight="125" hbarPolicy="AS_NEEDED" vbarPolicy="NEVER" 
+                          style="-fx-background-color: transparent; -fx-background: transparent; -fx-padding: 0;">
+                    <HBox fx:id="employeeCardContainer" spacing="16" style="-fx-padding: 10 5 15 5;"/>
+                </ScrollPane>
+            </VBox>
+
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <!--  KPI CARDS (SECTION LOGIQUE : RESUME)                  -->
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <HBox spacing="16">
+                <!-- Salaire Net -->
+                <VBox spacing="8" HBox.hgrow="ALWAYS"
+                      style="-fx-padding: 20; -fx-background-color: linear-gradient(to bottom right, #1e293b, #0f172a); -fx-background-radius: 16; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 10, 0, 0, 4); -fx-border-color: rgba(59,130,246,0.3); -fx-border-width: 1; -fx-border-radius: 16;">
+                    <Label text="NET À PERCEVOIR" style="-fx-text-fill: #7dd3fc; -fx-font-size: 11px; -fx-font-weight: bold;"/>
+                    <Label fx:id="kpi_net" text="-- TND" style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: 800;"/>
+                    <Label fx:id="kpi_net_sub" text="Dernier bulletin" style="-fx-text-fill: rgba(255,255,255,0.5); -fx-font-size: 11px;"/>
+                </VBox>
+                <!-- Salaire Brut -->
+                <VBox spacing="8" HBox.hgrow="ALWAYS"
+                      style="-fx-padding: 20; -fx-background-color: -fx-card; -fx-background-radius: 16; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 16;">
+                    <Label text="SALAIRE BRUT" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 11px; -fx-font-weight: bold;"/>
+                    <Label fx:id="kpi_gross" text="-- TND" style="-fx-text-fill: -fx-foreground; -fx-font-size: 24px; -fx-font-weight: 800;"/>
+                    <Label fx:id="kpi_gross_sub" text="Base + Heures sup." style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 11px;"/>
+                </VBox>
+                <!-- Primes -->
+                <VBox spacing="8" HBox.hgrow="ALWAYS"
+                      style="-fx-padding: 20; -fx-background-color: -fx-card; -fx-background-radius: 16; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 16;">
+                    <Label text="TOTAL DES PRIMES" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 11px; -fx-font-weight: bold;"/>
+                    <Label fx:id="kpi_bonuses" text="-- TND" style="-fx-text-fill: #eab308; -fx-font-size: 24px; -fx-font-weight: 800;"/>
+                    <Label fx:id="kpi_bonuses_sub" text="Total cumulé" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 11px;"/>
+                </VBox>
+                <!-- Taxes -->
+                <VBox spacing="8" HBox.hgrow="ALWAYS"
+                      style="-fx-padding: 20; -fx-background-color: -fx-card; -fx-background-radius: 16; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 16;">
+                    <Label text="TOTAL DÉDUCTIONS" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 11px; -fx-font-weight: bold;"/>
+                    <HBox spacing="10" alignment="BOTTOM_LEFT">
+                        <Label fx:id="kpi_cnss" text="-- TND" style="-fx-text-fill: #f87171; -fx-font-size: 18px; -fx-font-weight: 700;"/>
+                        <Label text="+" style="-fx-text-fill: -fx-muted-foreground;"/>
+                        <Label fx:id="kpi_irpp" text="-- TND" style="-fx-text-fill: #f87171; -fx-font-size: 18px; -fx-font-weight: 700;"/>
+                    </HBox>
+                    <Label text="CNSS + IRPP" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 11px;"/>
+                </VBox>
+            </HBox>
+
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <!--  DYNAMIC SECTION : GRAPHS & ANALYSIS                   -->
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <GridPane hgap="24" vgap="24">
+                <columnConstraints>
+                    <ColumnConstraints hgrow="ALWAYS" percentWidth="65"/>
+                    <ColumnConstraints hgrow="ALWAYS" percentWidth="35"/>
+                </columnConstraints>
+
+                <!-- Evolution Chart -->
+                <VBox spacing="16" GridPane.columnIndex="0"
+                      style="-fx-background-color: -fx-card; -fx-padding: 24; -fx-background-radius: 20; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 20;">
+                    <HBox alignment="CENTER_LEFT">
+                        <VBox spacing="4">
+                            <Label text="Évolution de la Rémunération" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                            <Label text="Historique des 12 derniers mois" style="-fx-font-size: 12px; -fx-text-fill: -fx-muted-foreground;"/>
+                        </VBox>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Label fx:id="lbl_chart_info" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 11px;"/>
+                    </HBox>
+                    <LineChart fx:id="salaryChart" prefHeight="300" animated="true" legendVisible="true"
+                               style="-fx-background-color: transparent;">
+                        <xAxis><CategoryAxis fx:id="chartXAxis" style="-fx-tick-label-fill: -fx-muted-foreground;"/></xAxis>
+                        <yAxis><NumberAxis fx:id="chartYAxis" style="-fx-tick-label-fill: -fx-muted-foreground;" forceZeroInRange="false"/></yAxis>
+                    </LineChart>
+                </VBox>
+
+                <!-- Current Breakdown -->
+                <VBox spacing="16" GridPane.columnIndex="1"
+                      style="-fx-background-color: -fx-card; -fx-padding: 24; -fx-background-radius: 20; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 20;">
+                    <Label text="Répartition de ma Paie" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                    <StackPane VBox.vgrow="ALWAYS">
+                        <PieChart fx:id="pie_tax_breakdown" prefHeight="220" legendVisible="true" labelsVisible="false"/>
+                    </StackPane>
+                    <VBox spacing="10">
+                        <HBox alignment="CENTER_LEFT" spacing="10">
+                            <Label text="Net" prefWidth="40" style="-fx-text-fill: #7dd3fc; -fx-font-weight: bold; -fx-font-size: 12px;"/>
+                            <ProgressBar fx:id="bar_net" HBox.hgrow="ALWAYS" progress="0" prefHeight="8" style="-fx-accent: #7dd3fc;"/>
+                            <Label fx:id="pct_net" text="0%" style="-fx-text-fill: -fx-foreground; -fx-font-size: 12px; -fx-font-weight: bold;"/>
+                        </HBox>
+                        <HBox alignment="CENTER_LEFT" spacing="10">
+                            <Label text="CNSS" prefWidth="40" style="-fx-text-fill: #fbbf24; -fx-font-weight: bold; -fx-font-size: 12px;"/>
+                            <ProgressBar fx:id="bar_cnss" HBox.hgrow="ALWAYS" progress="0" prefHeight="8" style="-fx-accent: #fbbf24;"/>
+                            <Label fx:id="pct_cnss" text="0%" style="-fx-text-fill: -fx-foreground; -fx-font-size: 12px; -fx-font-weight: bold;"/>
+                        </HBox>
+                        <HBox alignment="CENTER_LEFT" spacing="10">
+                            <Label text="IRPP" prefWidth="40" style="-fx-text-fill: #f87171; -fx-font-weight: bold; -fx-font-size: 12px;"/>
+                            <ProgressBar fx:id="bar_irpp" HBox.hgrow="ALWAYS" progress="0" prefHeight="8" style="-fx-accent: #f87171;"/>
+                            <Label fx:id="pct_irpp" text="0%" style="-fx-text-fill: -fx-foreground; -fx-font-size: 12px; -fx-font-weight: bold;"/>
+                        </HBox>
+                    </VBox>
+                </VBox>
+            </GridPane>
+
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <!--  LOGICAL SECTION : CONTRACT & ANALYTICS                -->
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <HBox spacing="24">
+                <!-- Contract Card -->
+                <VBox spacing="16" prefWidth="350"
+                      style="-fx-background-color: -fx-card; -fx-padding: 24; -fx-background-radius: 20; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 20;">
+                    <Label text="Détails du Contrat" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                    <VBox spacing="12">
+                        <HBox spacing="12" alignment="CENTER_LEFT">
+                            <Label text="💼" style="-fx-font-size: 20px;"/>
+                            <VBox>
+                                <Label text="Poste Occupé" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 11px;"/>
+                                <Label fx:id="lbl_cont_position" text="--" style="-fx-text-fill: -fx-foreground; -fx-font-weight: bold;"/>
+                            </VBox>
+                        </HBox>
+                        <HBox spacing="12" alignment="CENTER_LEFT">
+                            <Label text="📄" style="-fx-font-size: 20px;"/>
+                            <VBox>
+                                <Label text="Type de Contrat" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 11px;"/>
+                                <Label fx:id="lbl_cont_type" text="--" style="-fx-text-fill: -fx-foreground; -fx-font-weight: bold;"/>
+                            </VBox>
+                        </HBox>
+                        <HBox spacing="12" alignment="CENTER_LEFT">
+                            <Label text="📅" style="-fx-font-size: 20px;"/>
+                            <VBox>
+                                <Label text="Date d'entrée" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 11px;"/>
+                                <Label fx:id="lbl_cont_start" text="--" style="-fx-text-fill: -fx-foreground; -fx-font-weight: bold;"/>
+                            </VBox>
+                        </HBox>
+                        <HBox spacing="12" alignment="CENTER_LEFT">
+                            <Label text="🛡️" style="-fx-font-size: 20px;"/>
+                            <VBox>
+                                <Label text="Statut" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 11px;"/>
+                                <Label fx:id="lbl_cont_status" text="--" style="-fx-font-weight: bold;"/>
+                            </VBox>
+                        </HBox>
+                    </VBox>
+                </VBox>
+
+                <!-- Tax Analysis Card -->
+                <VBox spacing="16" HBox.hgrow="ALWAYS"
+                      style="-fx-background-color: -fx-card; -fx-padding: 24; -fx-background-radius: 20; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 20;">
+                    <HBox alignment="CENTER_LEFT">
+                        <Label text="Analyse Fiscale Personnalisée" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Label text="Optimum fiscal" style="-fx-text-fill: #22c55e; -fx-font-size: 11px; -fx-font-weight: bold; -fx-background-color: rgba(34,197,94,0.1); -fx-padding: 4 10; -fx-background-radius: 10;"/>
+                    </HBox>
+                    <VBox spacing="16" fx:id="vbx_tax_analysis">
+                        <HBox spacing="16">
+                            <VBox spacing="4" HBox.hgrow="ALWAYS" style="-fx-background-color: -fx-background; -fx-padding: 12; -fx-background-radius: 10;">
+                                <Label text="Tranche IRPP" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 11px;"/>
+                                <Label fx:id="lbl_tax_bracket" text="Chargement..." style="-fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+                            </VBox>
+                            <VBox spacing="4" HBox.hgrow="ALWAYS" style="-fx-background-color: -fx-background; -fx-padding: 12; -fx-background-radius: 10;">
+                                <Label text="Part Sociale (CNSS)" style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 11px;"/>
+                                <Label text="9.18%" style="-fx-font-weight: bold; -fx-text-fill: #fbbf24;"/>
+                            </VBox>
+                        </HBox>
+                        <VBox spacing="8" style="-fx-background-color: rgba(59,130,246,0.05); -fx-padding: 16; -fx-background-radius: 12; -fx-border-color: rgba(59,130,246,0.2); -fx-border-width: 1;">
+                            <Label text="Conseil d'optimisation :" style="-fx-font-weight: bold; -fx-font-size: 13px; -fx-text-fill: #3b82f6;"/>
+                            <Label fx:id="lbl_tax_recommendation" text="Analyse en cours..." wrapText="true" style="-fx-text-fill: -fx-foreground; -fx-font-size: 13px;"/>
+                        </VBox>
+                    </VBox>
+                </VBox>
+            </HBox>
+
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <!--  DETAILED TABLES SECTION (TABS)                        -->
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <VBox spacing="0" style="-fx-background-color: -fx-card; -fx-background-radius: 20; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 20; -fx-overflow: hidden;">
+                <TabPane tabClosingPolicy="UNAVAILABLE" style="-fx-tab-min-height: 45px;">
+                    <Tab text="Historique des Paies">
+                        <VBox spacing="16" style="-fx-padding: 20;">
+                            <TableView fx:id="tbl_payslips" prefHeight="350">
+                                <columns>
+                                    <TableColumn fx:id="col_ps_period" text="Période" prefWidth="120"/>
+                                    <TableColumn fx:id="col_ps_base" text="Salaire de Base" prefWidth="130"/>
+                                    <TableColumn fx:id="col_ps_overtime" text="H. Supp." prefWidth="100"/>
+                                    <TableColumn fx:id="col_ps_bonus" text="Primes" prefWidth="100"/>
+                                    <TableColumn fx:id="col_ps_gross" text="Salaire Brut" prefWidth="130"/>
+                                    <TableColumn fx:id="col_ps_net" text="Salaire Net" prefWidth="130"/>
+                                    <TableColumn fx:id="col_ps_status" text="Statut" prefWidth="100"/>
+                                </columns>
+                            </TableView>
+                        </VBox>
+                    </Tab>
+                    <Tab text="Primes &amp; Bonus">
+                        <VBox style="-fx-padding: 20;">
+                            <TableView fx:id="tbl_bonuses" prefHeight="350">
+                                <columns>
+                                    <TableColumn fx:id="col_bon_amount" text="Montant (TND)" prefWidth="150"/>
+                                    <TableColumn fx:id="col_bon_reason" text="Motif" prefWidth="400"/>
+                                    <TableColumn fx:id="col_bon_date" text="Date d'octroi" prefWidth="150"/>
+                                </columns>
+                            </TableView>
+                        </VBox>
+                    </Tab>
+                    <Tab text="Comptes Bancaires">
+                        <VBox style="-fx-padding: 20;">
+                            <TableView fx:id="tbl_banks" prefHeight="350">
+                                <columns>
+                                    <TableColumn fx:id="col_bank_name" text="Banque" prefWidth="200"/>
+                                    <TableColumn fx:id="col_bank_iban" text="IBAN (masqué)" prefWidth="250"/>
+                                    <TableColumn fx:id="col_bank_currency" text="Devise" prefWidth="100"/>
+                                    <TableColumn fx:id="col_bank_primary" text="Principal" prefWidth="100"/>
+                                </columns>
+                            </TableView>
+                        </VBox>
+                    </Tab>
+                </TabPane>
+            </VBox>
+        </VBox>
+    </ScrollPane>
+
+    <!-- Hidden elements for controller compatibility -->
+    <fx:define>
+        <Label fx:id="lbl_cont_name"/>
+        <Label fx:id="lbl_payslip_count"/>
+        <Label fx:id="lbl_bonus_count"/>
+        <Label fx:id="lbl_bank_count"/>
+        <Label fx:id="lbl_contract_count"/>
+        <Label fx:id="lbl_summary_net"/>
+        <Label fx:id="lbl_summary_cnss"/>
+        <Label fx:id="lbl_summary_irpp"/>
+        <TextArea fx:id="area_tax_detail"/>
+        <TableColumn fx:id="col_ps_cnss"/>
+        <TableColumn fx:id="col_ps_irpp"/>
+        <TableColumn fx:id="col_bank_swift"/>
+        <TableColumn fx:id="col_bank_verified"/>
+        <TableColumn fx:id="col_cnt_company"/>
+        <TableColumn fx:id="col_cnt_type"/>
+        <TableColumn fx:id="col_cnt_position"/>
+        <TableColumn fx:id="col_cnt_salary"/>
+        <TableColumn fx:id="col_cnt_start"/>
+        <TableColumn fx:id="col_cnt_end"/>
+        <TableColumn fx:id="col_cnt_status"/>
+        <TableView fx:id="tbl_contracts"/>
+    </fx:define>
+
+</VBox>

@@ -5,13 +5,16 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * Chatbot léger pour la partie Finance (Ma Paie).
+ * Chatbot pour la partie Finance (Ma Paie).
+ * Si une clé OpenAI est configurée (openai.api.key dans config.properties), les réponses
+ * sont générées par l'IA (GPT). Sinon, réponses par règles (FAQ paie).
  * Répond uniquement aux questions liées à la paie, bulletins, CNSS, IRPP, contrats, primes, comptes bancaires.
  * Refuse poliment toute question hors sujet.
  */
 public class FinanceChatbotService {
 
     private static final FinanceChatbotService INSTANCE = new FinanceChatbotService();
+    private final FinanceChatbotAIService aiService = new FinanceChatbotAIService();
 
     /** Mots-clés qui indiquent une question liée à la finance / paie (au moins un doit matcher). */
     private static final String[] FINANCE_KEYWORDS = {
@@ -61,8 +64,15 @@ public class FinanceChatbotService {
     }
 
     /**
-     * Répond à l'utilisateur. Si la question n'est pas liée à la finance, retourne un message de refus.
-     * Sinon retourne une réponse basée sur des règles (FAQ paie).
+     * Indique si le chatbot utilise l'IA (OpenAI) pour répondre.
+     */
+    public boolean isUsingAI() {
+        return aiService.isConfigured();
+    }
+
+    /**
+     * Répond à l'utilisateur. Si une clé OpenAI est configurée, l'IA génère la réponse ;
+     * sinon (ou en cas d'erreur API), réponses par règles (FAQ paie).
      *
      * @param question question de l'utilisateur
      * @param context  contexte optionnel (nom employé, dernier net, période, etc.) pour personnaliser
@@ -71,13 +81,21 @@ public class FinanceChatbotService {
         if (question == null || question.isBlank())
             return "Posez-moi une question sur votre paie, vos bulletins, les déductions (CNSS, IRPP), les primes ou les comptes bancaires.";
 
+        // Si l'IA est configurée, on tente d'abord une réponse par l'IA (OpenAI)
+        if (aiService.isConfigured()) {
+            String aiResponse = aiService.askAI(question, context);
+            if (aiResponse != null && !aiResponse.isBlank())
+                return aiResponse;
+            // En cas d'erreur API (réseau, quota, etc.), repli sur les règles
+        }
+
         String q = normalize(question);
 
         if (!isFinanceRelated(question)) {
             return "Je ne réponds qu’aux questions sur la gestion finance et la paie (bulletins, salaire, CNSS, IRPP, primes, contrats, comptes bancaires). Pour toute autre sujet, merci de vous adresser aux ressources concernées.";
         }
 
-        // Réponses par intention (règles)
+        // Réponses par intention (règles) — utilisées si IA désactivée ou en repli
         if (matches(q, "salut", "bonjour", "hello", "coucou", "bonsoir"))
             return "Bonjour ! Je suis l’assistant Ma Paie. Posez-moi une question sur votre rémunération, vos bulletins ou les déductions.";
 

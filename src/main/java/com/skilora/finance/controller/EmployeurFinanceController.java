@@ -111,6 +111,8 @@ public class EmployeurFinanceController implements Initializable {
 
     // ── Assistant Ma Paie (Chatbot) ─────────────────────────────────────
     @FXML
+    private javafx.scene.control.Label lblChatbotTitle;
+    @FXML
     private javafx.scene.control.ScrollPane chatScrollPane;
     @FXML
     private VBox chatMessageContainer;
@@ -1128,8 +1130,14 @@ public class EmployeurFinanceController implements Initializable {
     }
 
     private void showChatWelcome() {
-        if (chatMessageContainer != null)
-            appendChatMessage("Assistant", "Bonjour ! Je réponds uniquement aux questions sur votre paie : bulletins, salaire net/brut, CNSS, IRPP, primes, contrats, comptes bancaires. Posez votre question ci-dessous.");
+        if (lblChatbotTitle != null && chatbotService.isUsingAI())
+            lblChatbotTitle.setText("Assistant Ma Paie (IA)");
+        if (chatMessageContainer != null) {
+            String welcome = chatbotService.isUsingAI()
+                    ? "Bonjour ! Je suis l'assistant IA. Posez-moi vos questions sur la paie : bulletins, salaire net/brut, CNSS, IRPP, primes, contrats, comptes bancaires."
+                    : "Bonjour ! Je réponds uniquement aux questions sur votre paie : bulletins, salaire net/brut, CNSS, IRPP, primes, contrats, comptes bancaires. Posez votre question ci-dessous.";
+            appendChatMessage("Assistant", welcome);
+        }
     }
 
     @FXML
