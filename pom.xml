@@ -123,6 +123,20 @@
             <version>0.4</version>
         </dependency>
 
+        <!-- OpenPDF for PDF report generation -->
+        <dependency>
+            <groupId>com.github.librepdf</groupId>
+            <artifactId>openpdf</artifactId>
+            <version>1.3.34</version>
+        </dependency>
+
+        <!-- OpenHTML-to-PDF: rend le même HTML que la capture (style, cartes, couleurs) -->
+        <dependency>
+            <groupId>io.github.openhtmltopdf</groupId>
+            <artifactId>openhtmltopdf-pdfbox</artifactId>
+            <version>1.1.28</version>
+        </dependency>
+
         <!-- JUnit 5 -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>

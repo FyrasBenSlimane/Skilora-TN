@@ -1314,15 +1314,19 @@ public class FinanceController implements Initializable {
 
     private String buildContractInfo(int empId) {
         StringBuilder sb = new StringBuilder();
+        sb.append("<div class=\"salary-grid\">");
         java.text.NumberFormat nf = java.text.NumberFormat.getIntegerInstance(Locale.FRANCE);
         List<ContractRow> userContracts = contractData.stream().filter(c -> c.getUserId() == empId).toList();
-        if (userContracts.isEmpty())
-            return "<p style=\"color:#6a7f96;font-size:14px;\">Aucun contrat trouv\u00e9.</p>";
-
+        if (userContracts.isEmpty()) {
+            sb.append("<p class=\"report-field-value\" style=\"color:#6a7f96;\">Aucun contrat trouv\u00e9.</p>");
+            sb.append("</div>");
+            return sb.toString();
+        }
         for (ContractRow c : userContracts) {
-            String pos = escapeHtml(c.getPosition() != null ? c.getPosition() : "Role non d\u00e9fini");
+            String pos = escapeHtml(c.getPosition() != null ? c.getPosition() : "\u2014");
+            String posCap = capitalizeWords(pos);
             double sal = c.getSalary();
-            String typeStr = escapeHtml(c.getType() != null ? c.getType().toUpperCase() : "\u2014");
+            String typeStr = escapeHtml(c.getType() != null ? c.getType().toUpperCase(Locale.FRENCH) : "\u2014");
             String startStr = escapeHtml(c.getStartDate() != null ? c.getStartDate() : "\u2014");
             String endStr = escapeHtml(
                     (c.getEndDate() != null && !c.getEndDate().isBlank()) ? c.getEndDate() : "\u2014");
@@ -1330,13 +1334,11 @@ public class FinanceController implements Initializable {
             try {
                 if (c.getStartDate() != null && !c.getStartDate().isBlank())
                     start = LocalDate.parse(c.getStartDate());
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) {}
             try {
                 if (c.getEndDate() != null && !c.getEndDate().isBlank())
                     end = LocalDate.parse(c.getEndDate());
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) {}
             String anciennete = "\u2014";
             if (start != null && end != null && !end.isBefore(start))
                 anciennete = formatAnciennete(start, end);
@@ -1344,46 +1346,52 @@ public class FinanceController implements Initializable {
                 anciennete = "Dates invalides";
 
             sb.append("<div class=\"salary-card\">");
-            sb.append("<div class=\"role\">").append(pos).append(" \u2022 ").append(typeStr).append("</div>");
-            sb.append("<div class=\"amount\">").append(nf.format((long) sal))
-                    .append("<span class=\"currency\">TND</span></div>");
-            sb.append("<div style=\"margin-top:12px; font-size:12px; color:#6a7f96;\">Du ").append(startStr)
-                    .append(" au ").append(endStr).append(" \u2022 Anciennet\u00e9 : ").append(escapeHtml(anciennete))
-                    .append("</div>");
+            sb.append("<div class=\"report-field\"><span class=\"report-field-label\">Position dans notre soci\u00e9t\u00e9 :</span> <span class=\"report-field-value\">").append(posCap).append("</span></div>");
+            sb.append("<div class=\"report-field\"><span class=\"report-field-label\">Type de contrat :</span> <span class=\"report-field-value\">").append(typeStr).append("</span></div>");
+            sb.append("<div class=\"report-field\"><span class=\"report-field-label\">Salaire mensuel (salaire de base) :</span> <span class=\"report-field-value\">").append(nf.format((long) sal)).append(" <span class=\"currency\">TND</span></span></div>");
+            sb.append("<div class=\"report-field\"><span class=\"report-field-label\">Date de d\u00e9but du travail :</span> <span class=\"report-field-value\">").append(startStr).append("</span></div>");
+            sb.append("<div class=\"report-field\"><span class=\"report-field-label\">Date de fin du contrat :</span> <span class=\"report-field-value\">").append(endStr).append("</span></div>");
+            sb.append("<div class=\"report-field\"><span class=\"report-field-label\">Anciennet\u00e9 :</span> <span class=\"report-field-value\">").append(escapeHtml(anciennete)).append("</span></div>");
             sb.append("</div>");
         }
+        sb.append("</div>");
         return sb.toString();
     }
 
     private String buildBankInfo(int empId) {
         StringBuilder sb = new StringBuilder();
+        sb.append("<div class=\"bank-grid\">");
         List<BankAccountRow> userBanks = bankData.stream().filter(b -> b.getUserId() == empId).toList();
-        if (userBanks.isEmpty())
-            return "<p style=\"color:#6a7f96;font-size:14px;\">Aucun compte bancaire.</p>";
+        if (userBanks.isEmpty()) {
+            sb.append("<p class=\"report-field-value\" style=\"color:#6a7f96;\">Aucun compte bancaire.</p>");
+            sb.append("</div>");
+            return sb.toString();
+        }
         for (BankAccountRow b : userBanks) {
-            String bankName = escapeHtml(b.getBankName() != null ? b.getBankName() : "Banque inconnue");
-            String iban = escapeHtml(b.getIban() != null ? b.getIban() : "IBAN inconnu");
+            String bankName = escapeHtml(b.getBankName() != null ? b.getBankName() : "\u2014");
+            String iban = escapeHtml(b.getIban() != null ? b.getIban() : "\u2014");
             sb.append("<div class=\"bank-card\">");
-            sb.append("<div class=\"bank-name\">").append(bankName).append("</div>");
-            sb.append("<div class=\"iban\">").append(iban).append("</div>");
+            sb.append("<div class=\"report-field\"><span class=\"report-field-label\">Nom de la banque :</span> <span class=\"report-field-value\">").append(capitalizeWords(bankName)).append("</span></div>");
+            sb.append("<div class=\"report-field\"><span class=\"report-field-label\">IBAN (num\u00e9ro de compte) :</span> <span class=\"report-field-value\">").append(iban).append("</span></div>");
             sb.append("</div>");
         }
+        sb.append("</div>");
         return sb.toString();
     }
 
     private String buildBonusInfo(int empId) {
         StringBuilder sb = new StringBuilder();
         List<BonusRow> list = bonusData.stream().filter(b -> b.getUserId() == empId).toList();
-        if (list.isEmpty())
-            return "<p style=\"color:#6a7f96;font-size:14px;\">Aucune prime.</p>";
+        if (list.isEmpty()) {
+            return "<p class=\"report-field-value\" style=\"color:#6a7f96;\">Aucune prime.</p>";
+        }
         double total = list.stream().mapToDouble(BonusRow::getAmount).sum();
         String label = list.size() == 1 && list.get(0).getReason() != null && !list.get(0).getReason().isEmpty()
-                ? escapeHtml(list.get(0).getReason())
-                : "Prime mensuelle" + (list.size() > 1 ? " (Total)" : "");
+                ? capitalizeWords(escapeHtml(list.get(0).getReason()))
+                : (list.size() > 1 ? "Total des primes" : "Prime mensuelle");
         sb.append("<div class=\"bonus-badge\">");
-        sb.append("<div class=\"b-amount\">").append(String.format(Locale.FRANCE, "%.0f", total))
-                .append("<span class=\"b-currency\">TND</span></div>");
-        sb.append("<div class=\"b-label\">").append(label).append("</div>");
+        sb.append("<div class=\"report-field\"><span class=\"report-field-label\">Montant total des primes :</span> <span class=\"b-amount\">").append(String.format(Locale.FRANCE, "%.0f", total)).append(" <span class=\"b-currency\">TND</span></span></div>");
+        sb.append("<div class=\"report-field\"><span class=\"report-field-label\">D\u00e9signation :</span> <span class=\"b-label\">").append(label).append("</span></div>");
         sb.append("</div>");
         return sb.toString();
     }
@@ -1444,7 +1452,7 @@ public class FinanceController implements Initializable {
         StringBuilder sb = new StringBuilder();
         List<PayslipRow> userPayslips = payslipData.stream().filter(p -> p.getUserId() == empId).toList();
         if (userPayslips.isEmpty())
-            return "<p style=\"color:#6a7f96;font-size:14px;\">Aucun bulletin de paie r\u00e9cent.</p>";
+            return "<p class=\"report-field-value\" style=\"color:#6a7f96;\">Aucun bulletin de paie r\u00e9cent.</p>";
 
         java.text.NumberFormat nfDecimal = java.text.NumberFormat.getNumberInstance(Locale.FRANCE);
         nfDecimal.setMinimumFractionDigits(2);
@@ -1459,16 +1467,32 @@ public class FinanceController implements Initializable {
             String tag = paid ? "Pay\u00e9" : "En attente";
 
             sb.append("<div class=\"payslip-row\"><table><tr>");
-            sb.append(
-                    "<td style=\"width:38%;\"><div class=\"payslip-col-label\">P\u00e9riode</div><div class=\"payslip-col-value\">")
-                    .append(escapeHtml(periodLabel)).append("</div></td>");
-            sb.append(
-                    "<td style=\"width:42%;\"><div class=\"payslip-col-label\">Net \u00e0 payer</div><div class=\"payslip-net\">")
-                    .append(nfDecimal.format(p.getNet()))
-                    .append("<span class=\"payslip-net-currency\">TND</span></div></td>");
-            sb.append("<td style=\"text-align:right;\"><span class=\"tag\">").append(escapeHtml(tag))
-                    .append("</span></td>");
+            sb.append("<td style=\"width:38%;\"><div class=\"payslip-col-label\">P\u00e9riode :</div><div class=\"payslip-col-value\">").append(escapeHtml(periodLabel)).append("</div></td>");
+            sb.append("<td style=\"width:42%;\"><div class=\"payslip-col-label\">Net \u00e0 payer :</div><div class=\"payslip-net\">").append(nfDecimal.format(p.getNet())).append(" <span class=\"payslip-net-currency\">TND</span></div></td>");
+            sb.append("<td style=\"text-align:right;\"><div class=\"payslip-col-label\">Statut :</div><span class=\"tag\">").append(escapeHtml(tag)).append("</span></td>");
             sb.append("</tr></table></div>");
+        }
+        return sb.toString();
+    }
+
+    /** Met la première lettre de chaque mot en majuscule (ex. "formateur java" → "Formateur Java"). */
+    private static String capitalizeWords(String s) {
+        if (s == null || s.isBlank())
+            return s == null ? "" : s.trim();
+        String t = s.trim();
+        StringBuilder sb = new StringBuilder();
+        boolean cap = true;
+        for (int i = 0; i < t.length(); i++) {
+            char c = t.charAt(i);
+            if (Character.isWhitespace(c)) {
+                cap = true;
+                sb.append(c);
+            } else if (cap) {
+                sb.append(Character.toUpperCase(c));
+                cap = false;
+            } else {
+                sb.append(Character.toLowerCase(c));
+            }
         }
         return sb.toString();
     }
