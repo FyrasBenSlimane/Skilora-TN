@@ -26,15 +26,15 @@
     <HBox fx:id="statusFilterBox" spacing="6" alignment="CENTER_LEFT" style="-fx-padding: 0 0 4 0;"/>
 
     <!-- Applications table -->
-    <TLTable fx:id="applicationsTable" VBox.vgrow="ALWAYS">
+    <TLTable fx:id="applicationsTable" VBox.vgrow="ALWAYS" tableMenuButtonVisible="true">
         <columns>
-            <TableColumn fx:id="candidateCol" text="Candidat"  prefWidth="130"/>
-            <TableColumn fx:id="jobCol"        text="Offre"     prefWidth="160"/>
-            <TableColumn fx:id="dateCol"       text="Date"      prefWidth="90"/>
-            <TableColumn fx:id="matchCol"      text="Match"     prefWidth="65"/>
-            <TableColumn fx:id="scoreCol"      text="Score"     prefWidth="65"/>
-            <TableColumn fx:id="statusCol"     text="Statut"    prefWidth="100"/>
-            <TableColumn fx:id="actionsCol"    text="Actions"   prefWidth="190"/>
+            <TableColumn fx:id="candidateCol" text="Candidat"  prefWidth="145" minWidth="120"/>
+            <TableColumn fx:id="jobCol"        text="Offre"     prefWidth="230" minWidth="180"/>
+            <TableColumn fx:id="dateCol"       text="Date"      prefWidth="115" minWidth="110"/>
+            <TableColumn fx:id="matchCol"      text="Match %"   prefWidth="95"  minWidth="85"/>
+            <TableColumn fx:id="scoreCol"      text="Score profil" prefWidth="95" minWidth="85"/>
+            <TableColumn fx:id="statusCol"     text="Statut"    prefWidth="115" minWidth="100"/>
+            <TableColumn fx:id="actionsCol"    text="Actions"   prefWidth="70"  minWidth="55"/>
         </columns>
     </TLTable>
 
