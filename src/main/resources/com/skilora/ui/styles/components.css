@@ -3599,6 +3599,24 @@
     -fx-fill: -fx-foreground !important;
 }
 
+.badge-recommended {
+    -fx-background-color: #2563eb;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-padding: 4 10;
+    -fx-background-radius: 6;
+    -fx-font-size: 12;
+}
+
+.badge-closed {
+    -fx-background-color: #dc2626;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-padding: 4 10;
+    -fx-background-radius: 6;
+    -fx-font-size: 12;
+}
+
 /* ========== GLOBAL SVG ICON THEME ADAPTATION ========== */
 /* Base rule: all SVG icons use muted-foreground by default */
 .svg-path {
