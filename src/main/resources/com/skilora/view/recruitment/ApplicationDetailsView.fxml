@@ -1,26 +1,111 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <?import com.skilora.framework.components.TLAvatar?>
 <?import com.skilora.framework.components.TLButton?>
-<?import com.skilora.framework.components.TLTextarea?>
 
-<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.skilora.controller.recruitment.ApplicationDetailsController"
-      spacing="16">
-    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
-    <HBox spacing="16" alignment="CENTER_LEFT">
-        <TLAvatar fx:id="candidateAvatar"/>
-        <VBox spacing="2">
-            <Label fx:id="candidateNameLabel" styleClass="page-title"/>
-            <Label fx:id="aiScoresLabel" styleClass="text-muted"/>
+<!--
+  ApplicationDetailsView.fxml
+  Complete employer view of a candidature — 4 tabs:
+    1. Profil candidat  (personal info / skills / experience)
+    2. Candidature      (cover letter / CV / interview)
+    3. Matching         (AI score + matched / missing skills)
+    4. Offre d'emploi   (full job offer description)
+  + persistent header + action bar
+-->
+<BorderPane xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.skilora.controller.recruitment.ApplicationDetailsController"
+            minWidth="900" minHeight="640" prefWidth="960" prefHeight="720">
+
+    <!-- ── Persistent header ─────────────────────────────────── -->
+    <top>
+        <VBox styleClass="app-topbar" spacing="0">
+            <padding><Insets top="16" right="24" bottom="16" left="24"/></padding>
+            <HBox spacing="18" alignment="CENTER_LEFT">
+
+                <!-- Avatar -->
+                <TLAvatar fx:id="candidateAvatar"/>
+
+                <!-- Name + job meta -->
+                <VBox spacing="4" HBox.hgrow="ALWAYS">
+                    <Label fx:id="candidateNameLabel" styleClass="page-title"/>
+                    <Label fx:id="jobInfoLabel"       styleClass="text-muted"/>
+                    <HBox spacing="20">
+                        <Label fx:id="phoneLabelHdr"    styleClass="text-muted"/>
+                        <Label fx:id="locationLabelHdr" styleClass="text-muted"/>
+                        <Label fx:id="appliedDateLabel" styleClass="text-muted"/>
+                    </HBox>
+                </VBox>
+
+                <!-- Match + Status badges (right side) -->
+                <VBox spacing="6" alignment="CENTER_RIGHT" minWidth="140">
+                    <Label fx:id="matchBadgeLabel"/>
+                    <Label fx:id="statusBadgeLabel"/>
+                    <Label fx:id="scoreLabelHdr" styleClass="text-muted"/>
+                </VBox>
+            </HBox>
         </VBox>
-    </HBox>
-    <Label text="Lettre de motivation" styleClass="form-title"/>
-    <TLTextarea fx:id="coverLetterArea" prefRowCount="6" wrapText="true"/>
-    <HBox spacing="12" alignment="CENTER_LEFT">
-        <Label fx:id="cvFileNameLabel" styleClass="text-muted"/>
-        <TLButton fx:id="viewCvBtn" text="Voir le CV"/>
-    </HBox>
-    <TLButton fx:id="closeBtn" text="Fermer"/>
-</VBox>
+    </top>
+
+    <!-- ── Tabbed content ────────────────────────────────────── -->
+    <center>
+        <TabPane fx:id="mainTabPane" tabClosingPolicy="UNAVAILABLE">
+
+            <!-- ─── TAB 1 : Profil candidat ─── -->
+            <Tab text="👤  Profil candidat">
+                <ScrollPane fitToWidth="true" styleClass="transparent-bg">
+                    <VBox fx:id="profileTabContent" spacing="20">
+                        <padding><Insets top="24" right="28" bottom="24" left="28"/></padding>
+                    </VBox>
+                </ScrollPane>
+            </Tab>
+
+            <!-- ─── TAB 2 : Candidature ─── -->
+            <Tab text="📄  Candidature">
+                <ScrollPane fitToWidth="true" styleClass="transparent-bg">
+                    <VBox fx:id="applicationTabContent" spacing="20">
+                        <padding><Insets top="24" right="28" bottom="24" left="28"/></padding>
+                    </VBox>
+                </ScrollPane>
+            </Tab>
+
+            <!-- ─── TAB 3 : Matching ─── -->
+            <Tab text="🎯  Analyse matching">
+                <ScrollPane fitToWidth="true" styleClass="transparent-bg">
+                    <VBox fx:id="matchingTabContent" spacing="20">
+                        <padding><Insets top="24" right="28" bottom="24" left="28"/></padding>
+                    </VBox>
+                </ScrollPane>
+            </Tab>
+
+            <!-- ─── TAB 4 : Offre d'emploi ─── -->
+            <Tab text="💼  Offre d'emploi">
+                <ScrollPane fitToWidth="true" styleClass="transparent-bg">
+                    <VBox fx:id="offerTabContent" spacing="20">
+                        <padding><Insets top="24" right="28" bottom="24" left="28"/></padding>
+                    </VBox>
+                </ScrollPane>
+            </Tab>
+
+        </TabPane>
+    </center>
+
+    <!-- ── Persistent action bar ─────────────────────────────── -->
+    <bottom>
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <padding><Insets top="12" right="20" bottom="12" left="20"/></padding>
+            <style>-fx-background-color: -fx-card; -fx-border-color: -fx-border; -fx-border-width: 1 0 0 0;</style>
+
+            <Button fx:id="acceptBtn"    text="✓ Accepter"              onAction="#handleAccept"/>
+            <Button fx:id="reviewBtn"    text="🔍 En révision"           onAction="#handleReview"/>
+            <Button fx:id="interviewBtn" text="📅 Programmer entretien"  onAction="#handleScheduleInterview"/>
+            <Button fx:id="rejectBtn"    text="✗ Refuser"               onAction="#handleReject"/>
+
+            <Region HBox.hgrow="ALWAYS"/>
+            <Label fx:id="actionFeedbackLabel" styleClass="text-muted"/>
+            <Button fx:id="closeBtn" text="Fermer" onAction="#handleClose"/>
+        </HBox>
+    </bottom>
+
+</BorderPane>
