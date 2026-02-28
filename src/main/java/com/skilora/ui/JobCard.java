@@ -12,14 +12,9 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.Cursor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.function.Consumer;
 
 public class JobCard extends VBox {
-
-    private static final Logger logger = LoggerFactory.getLogger(JobCard.class);
 
     private final JobOpportunity job;
 
@@ -64,47 +59,26 @@ public class JobCard extends VBox {
         Label title = new Label(job.getTitle());
         title.getStyleClass().add("job-card-title");
         title.setWrapText(true);
-        title.setVisible(true);
-        title.setOpacity(1.0);
-        title.setStyle("-fx-text-fill: -fx-foreground; -fx-opacity: 1.0;");
         titleRow.getChildren().add(title);
 
         if (job.isRecommended()) {
             Label recoBadge = new Label("⭐ Recommandée");
-            recoBadge.getStyleClass().add("job-card-badge");
-            recoBadge.setStyle("-fx-background-color: #2563eb; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 6 10; -fx-background-radius: 6; -fx-font-size: 12px;");
+            recoBadge.getStyleClass().addAll("job-card-badge", "badge-recommended");
             titleRow.getChildren().add(recoBadge);
         }
-        
-        // Show "Fermée" badge next to title if closed (more visible)
-        String jobStatus = job.getStatus();
-        // Debug: Always log the status to see what we're getting
-        if (jobStatus != null) {
-            System.out.println("DEBUG JobCard - Job ID: " + job.getId() + ", Title: " + job.getTitle() + ", Status: '" + jobStatus + "'");
-        } else {
-            System.out.println("DEBUG JobCard - Job ID: " + job.getId() + ", Title: " + job.getTitle() + ", Status: NULL");
-        }
-        // Check for CLOSED status (case-insensitive for safety)
-        boolean isClosed = jobStatus != null && ("CLOSED".equalsIgnoreCase(jobStatus));
+
+        // Closed badge
+        boolean isClosed = "CLOSED".equalsIgnoreCase(job.getStatus());
         if (isClosed) {
-            System.out.println("DEBUG JobCard - Job is CLOSED! Adding badge for ID: " + job.getId());
             Label closedBadge = new Label("🔒 FERMÉE");
-            closedBadge.getStyleClass().add("job-card-badge");
-            // Use explicit red color to ensure visibility
-            closedBadge.setStyle("-fx-background-color: #dc2626; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 6 10; -fx-background-radius: 6; -fx-font-size: 12px;");
+            closedBadge.getStyleClass().addAll("job-card-badge", "badge-closed");
             titleRow.getChildren().add(closedBadge);
-            logger.info("JobCard - Added 'FERMÉE' badge for closed job ID: {}, Status: {}", job.getId(), jobStatus);
-        } else {
-            System.out.println("DEBUG JobCard - Job is NOT closed. Status: '" + jobStatus + "'");
         }
         
         header.getChildren().add(titleRow);
 
         Label source = new Label(job.getSource());
         source.getStyleClass().add("job-card-source");
-        source.setVisible(true);
-        source.setOpacity(1.0);
-        source.setStyle("-fx-text-fill: -fx-muted-foreground; -fx-opacity: 1.0;");
         header.getChildren().add(source);
 
         // Tags / Metadata (FlowPane so badges wrap and are not truncated)
@@ -141,9 +115,6 @@ public class JobCard extends VBox {
         desc.setWrapText(true);
         desc.getStyleClass().add("job-card-desc");
         desc.setMinHeight(40);
-        desc.setVisible(true);
-        desc.setOpacity(1.0);
-        desc.setStyle("-fx-text-fill: -fx-foreground; -fx-opacity: 1.0;");
         
         // Add salary info if available (for database offers)
         if (job.getSalaryInfo() != null && !job.getSalaryInfo().isEmpty()) {
@@ -181,19 +152,11 @@ public class JobCard extends VBox {
         // Only show Apply button if onJobClick callback is provided (for opening application dialog)
         // But disable it if the offer is closed
         if (onJobClick != null) {
-            String status = job.getStatus();
-            System.out.println("DEBUG JobCard Button - Job ID: " + job.getId() + ", Status for button: '" + status + "'");
-            boolean isClosedStatus = status != null && "CLOSED".equalsIgnoreCase(status);
+            boolean isClosedStatus = isClosed;
             TLButton applyBtn;
             if (isClosedStatus) {
-                System.out.println("DEBUG JobCard Button - Creating FERMÉE button for closed job ID: " + job.getId());
-                // Show "Fermée" in red for closed offers
                 applyBtn = new TLButton("FERMÉE", ButtonVariant.DANGER);
                 applyBtn.setDisable(true);
-                applyBtn.setOpacity(1.0); // Keep it visible even when disabled
-                // Force red color even when disabled
-                applyBtn.setStyle("-fx-background-color: #dc2626; -fx-text-fill: white; -fx-opacity: 1.0;");
-                logger.info("JobCard - Created disabled 'FERMÉE' button for closed job ID: {}, Status: {}", job.getId(), status);
             } else {
                 applyBtn = new TLButton("Apply", ButtonVariant.PRIMARY);
                 applyBtn.setOnAction(e -> {
