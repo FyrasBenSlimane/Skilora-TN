@@ -1,5 +1,6 @@
 package com.skilora.controller.usermanagement;
 
+// Gestion_Rect – recruitment & register flow
 import com.skilora.framework.components.TLButton;
 import com.skilora.framework.components.TLPasswordField;
 import com.skilora.framework.components.TLTextField;
