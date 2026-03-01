@@ -8,45 +8,52 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.layout.StackPane?>
 
-<VBox prefHeight="650.0" prefWidth="520.0" stylesheets="@/tn/esprit/skylora/style/style.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="tn.esprit.skylora.controllers.TicketDetailController">
+<VBox spacing="25" stylesheets="@/tn/esprit/skylora/style/style.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="tn.esprit.skylora.controllers.TicketDetailController">
     <children>
-        <VBox spacing="10" style="-fx-background-color: #F3F4F6; -fx-padding: 20;">
+        <HBox spacing="20" alignment="CENTER_LEFT" style="-fx-padding: 0 0 10 0; -fx-border-color: transparent transparent -fx-base-border transparent; -fx-border-width: 0 0 1 0;">
             <children>
-                <!-- Header: subject + status + QR Code -->
-                <HBox alignment="TOP_LEFT" spacing="10">
+                <Button text="← Retour" onAction="#handleBack" styleClass="btn-secondary" />
+                <Label styleClass="section-title" text="Détails du Ticket" />
+            </children>
+        </HBox>
+        <VBox spacing="10" style="-fx-background-color: transparent; -fx-padding: 20;">
+            <children>
+                <!-- Header: subject + status + QR Toggle -->
+                <HBox alignment="CENTER_LEFT" spacing="10">
                     <VBox spacing="5" HBox.hgrow="ALWAYS">
                         <HBox alignment="CENTER_LEFT" spacing="10">
                             <Label fx:id="subjectLabel" styleClass="section-title" text="Détails du Ticket" wrapText="true" />
                             <Label fx:id="statusBadge" styleClass="badge" text="OPEN" />
+                            <Button onAction="#handleShowQR" style="-fx-background-color: transparent; -fx-text-fill: -fx-base-primary; -fx-font-size: 16px;" text="🔗 QR">
+                                <tooltip>
+                                    <Tooltip text="View QR Code for Web" />
+                                </tooltip>
+                            </Button>
                         </HBox>
                         <Label fx:id="metaLabel" styleClass="ticket-meta" text="Catégorie: PAYMENT | Priorité: HIGH" />
                         <Label fx:id="dateLabel" styleClass="ticket-meta" text="Créé le : --/--/----" />
                     </VBox>
-                    <Region HBox.hgrow="ALWAYS" />
-                    <VBox alignment="CENTER" spacing="4" style="-fx-background-color: white; -fx-padding: 5; -fx-background-radius: 8; -fx-border-color: #E5E7EB; -fx-border-radius: 8;">
-                        <ImageView fx:id="qrCodeView" fitWidth="80" fitHeight="80" preserveRatio="true" />
-                        <Label text="QR Ticket" style="-fx-font-size: 9px; -fx-text-fill: #6B7280; -fx-font-weight: bold;"/>
-                    </VBox>
                 </HBox>
                 <Separator />
-                <Label fx:id="descriptionLabel" text="Description du problème..." wrapText="true" style="-fx-font-size: 14px; -fx-text-fill: #374151; -fx-padding: 5 0 0 0;" />
+                <Label fx:id="descriptionLabel" text="Description du problème..." wrapText="true" style="-fx-font-size: 14px; -fx-text-fill: -fx-base-text; -fx-padding: 5 0 0 0;" />
                 
                 <!-- Feedback Section (Visible only if feedback exists) -->
-                <VBox fx:id="feedbackSection" spacing="10" style="-fx-background-color: #FEF3C7; -fx-padding: 15; -fx-background-radius: 8; -fx-border-color: #F59E0B; -fx-border-radius: 8;" visible="false" managed="false">
+                <VBox fx:id="feedbackSection" spacing="10" style="-fx-background-color: -fx-base-surface; -fx-padding: 15; -fx-background-radius: 8; -fx-border-color: #F59E0B; -fx-border-radius: 8;" visible="false" managed="false">
                     <children>
                         <HBox alignment="CENTER_LEFT" spacing="10">
                             <children>
-                                <Label text="Votre Feedback" style="-fx-font-weight: bold; -fx-text-fill: #92400E;" />
+                                <Label text="Votre Feedback" style="-fx-font-weight: bold; -fx-text-fill: #F59E0B;" />
                                 <Region HBox.hgrow="ALWAYS" />
                                 <Label fx:id="feedbackRatingLabel" style="-fx-font-weight: bold; -fx-text-fill: #D97706; -fx-font-size: 16px;" text="★ 5/5" />
                             </children>
                         </HBox>
-                        <Label fx:id="feedbackCommentLabel" text="Commentaire du feedback..." wrapText="true" style="-fx-text-fill: #4B5563; -fx-font-style: italic;" />
+                        <Label fx:id="feedbackCommentLabel" text="Commentaire du feedback..." wrapText="true" style="-fx-text-fill: -fx-base-text-muted; -fx-font-style: italic;" />
                         <HBox fx:id="feedbackActions" spacing="10" alignment="CENTER_RIGHT">
                             <children>
                                 <Button onAction="#handleEditFeedback" styleClass="btn-secondary" text="Modifier" style="-fx-font-size: 11px; -fx-padding: 2 10;" />
-                                <Button onAction="#handleDeleteFeedback" style="-fx-background-color: #FEE2E2; -fx-text-fill: #B91C1C; -fx-font-size: 11px; -fx-padding: 2 10;" text="Supprimer" />
+                                <Button onAction="#handleDeleteFeedback" style="-fx-background-color: #EF4444; -fx-text-fill: white; -fx-font-size: 11px; -fx-padding: 2 10;" text="Supprimer" />
                             </children>
                         </HBox>
                     </children>
@@ -63,10 +70,14 @@
             </content>
         </ScrollPane>
         
-        <VBox fx:id="aiSuggestionBox" spacing="5" style="-fx-padding: 0 20 10 20;" visible="false" managed="false">
+        <VBox fx:id="aiSuggestionBox" spacing="8" style="-fx-padding: 15 20; -fx-background-color: #1E1B4B; -fx-background-radius: 12; -fx-border-color: #818CF8; -fx-border-width: 1; -fx-border-radius: 12; -fx-margin: 0 20 10 20;" visible="false" managed="false">
             <children>
-                <Label text="Suggestion IA :" style="-fx-font-weight: bold; -fx-text-fill: #7C3AED; -fx-font-size: 11px;" />
-                <Label fx:id="aiSuggestionLabel" wrapText="true" style="-fx-text-fill: #4B5563; -fx-font-style: italic; -fx-font-size: 12px; -fx-background-color: #F5F3FF; -fx-padding: 10; -fx-background-radius: 5;" />
+                <HBox alignment="CENTER_LEFT" spacing="10">
+                    <Label text="✨ Suggestion IA" style="-fx-font-weight: bold; -fx-text-fill: #818CF8; -fx-font-size: 13px;" />
+                    <Region HBox.hgrow="ALWAYS" />
+                    <Button text="✕" onAction="#handleCloseAISuggestion" style="-fx-background-color: transparent; -fx-text-fill: -fx-base-text-muted; -fx-padding: 0; -fx-cursor: hand;" />
+                </HBox>
+                <Label fx:id="aiSuggestionLabel" wrapText="true" style="-fx-text-fill: #E0E7FF; -fx-font-style: italic; -fx-font-size: 13px; -fx-line-spacing: 1.2;" />
             </children>
         </VBox>
         

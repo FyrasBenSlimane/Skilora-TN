@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+
+<VBox prefHeight="750.0" prefWidth="1100.0" stylesheets="@/tn/esprit/skylora/style/style.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="tn.esprit.skylora.controllers.MainShellController">
+    <children>
+        <fx:include source="Navbar.fxml" />
+        <StackPane fx:id="contentArea" VBox.vgrow="ALWAYS" style="-fx-background-color: -fx-base-bg;" />
+    </children>
+</VBox>

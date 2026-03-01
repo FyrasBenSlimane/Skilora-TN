@@ -200,13 +200,25 @@
 
 .table-view .column-header {
     -fx-background-color: transparent;
-    -fx-text-fill: -fx-base-text;
+    -fx-text-fill: white;
 }
 
 .table-row-cell {
     -fx-background-color: transparent;
-    -fx-text-fill: -fx-base-text;
+    -fx-text-fill: white;
     -fx-border-color: -fx-base-border transparent transparent transparent;
+}
+
+.table-row-cell .text {
+    -fx-fill: white;
+}
+
+.table-cell {
+    -fx-text-fill: white;
+}
+
+.table-cell .text {
+    -fx-fill: white;
 }
 
 .table-row-cell:selected {
@@ -274,29 +286,29 @@
 
 /* Stat Cards Administration */
 .stat-card {
-    -fx-background-color: -fx-base-surface;
+    -fx-background-color: #000000;
     -fx-padding: 20;
     -fx-spacing: 5;
     -fx-background-radius: 12;
-    -fx-border-color: -fx-base-border;
+    -fx-border-color: #333333;
     -fx-border-width: 1;
     -fx-alignment: center;
 }
 
 .stat-card:hover {
-    -fx-border-color: -fx-base-primary;
+    -fx-background-color: #1A1A1A;
     -fx-translate-y: -2;
 }
 
 .stat-value {
     -fx-font-size: 28px;
     -fx-font-weight: bold;
-    -fx-text-fill: -fx-base-primary;
+    -fx-text-fill: white;
 }
 
 .stat-label {
     -fx-font-size: 13px;
-    -fx-text-fill: -fx-base-text-muted;
+    -fx-text-fill: rgba(255, 255, 255, 0.9);
     -fx-text-transform: uppercase;
 }
 

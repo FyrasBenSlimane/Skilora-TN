@@ -2,7 +2,6 @@ package tn.esprit.skylora.controllers;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.TextArea;
-import javafx.stage.Stage;
 import org.controlsfx.control.Notifications;
 import org.controlsfx.control.Rating;
 import tn.esprit.skylora.entities.Feedback;
@@ -51,7 +50,7 @@ public class FeedbackModalController {
         String comment = commentArea.getText().toLowerCase();
 
         // 1. Vérification des mots inappropriés
-        String[] badWords = { "merde", "con", "putain", "saloperie", "fuck", "shit" };
+        String[] badWords = { "bad1", "bad2", "bad3", "bad4", "bad5", "bad6" };
         boolean hasBadWord = false;
         for (String word : badWords) {
             if (comment.contains(word)) {
@@ -150,10 +149,9 @@ public class FeedbackModalController {
     }
 
     /**
-     * Ferme la fenêtre modale.
+     * Retourne au tableau de bord.
      */
     private void closeModal() {
-        Stage stage = (Stage) ratingField.getScene().getWindow();
-        stage.close();
+        MainShellController.getInstance().loadView("/tn/esprit/skylora/gui/UserDashboard.fxml");
     }
 }

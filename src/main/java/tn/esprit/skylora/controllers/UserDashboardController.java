@@ -4,12 +4,9 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.FlowPane;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
 import tn.esprit.skylora.entities.Ticket;
 import tn.esprit.skylora.services.ServiceTicket;
 
@@ -35,6 +32,10 @@ public class UserDashboardController implements Initializable {
     private ServiceTicket serviceTicket = new ServiceTicket();
     private List<Ticket> allTickets = new java.util.ArrayList<>();
     private int currentUserId = 1; // Simulation: utilisateur connecté
+    private tn.esprit.skylora.utils.AudioRecorder recorder = new tn.esprit.skylora.utils.AudioRecorder();
+
+    @FXML
+    private javafx.scene.control.Button micBtn;
 
     @Override
     // Initialise la page et charge les tickets de l'utilisateur
@@ -111,21 +112,34 @@ public class UserDashboardController implements Initializable {
     }
 
     @FXML
-    // Ouvre la fenêtre pour créer un nouveau ticket
     private void handleNewTicket() {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/tn/esprit/skylora/gui/TicketModal.fxml"));
-            Parent root = loader.load();
-            TicketModalController controller = loader.getController();
-            controller.setParentController(this);
+        MainShellController.getInstance().loadView("/tn/esprit/skylora/gui/TicketModal.fxml");
+    }
 
-            Stage stage = new Stage();
-            stage.initModality(Modality.APPLICATION_MODAL);
-            stage.setTitle("Nouveau Ticket");
-            stage.setScene(new Scene(root));
-            stage.show();
-        } catch (IOException e) {
-            e.printStackTrace();
+    @FXML
+    private void handleSpeechToText() {
+        if (!recorder.isRecording()) {
+            try {
+                recorder.start();
+                micBtn.setText("🛑");
+                micBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #EF4444; -fx-font-size: 18px;");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else {
+            byte[] audioData = recorder.stop();
+            micBtn.setText("🎤");
+            micBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: -fx-base-primary; -fx-font-size: 18px;");
+
+            new Thread(() -> {
+                String transcript = tn.esprit.skylora.utils.DeepgramService.transcribe(audioData);
+                javafx.application.Platform.runLater(() -> {
+                    if (transcript != null && !transcript.isEmpty()) {
+                        searchField.setText(transcript);
+                        filterTickets();
+                    }
+                });
+            }).start();
         }
     }
 

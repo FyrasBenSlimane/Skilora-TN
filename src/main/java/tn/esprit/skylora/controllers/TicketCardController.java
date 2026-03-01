@@ -3,11 +3,8 @@ package tn.esprit.skylora.controllers;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
 import tn.esprit.skylora.entities.Ticket;
 
 import java.io.IOException;
@@ -72,38 +69,22 @@ public class TicketCardController {
             FeedbackModalController controller = loader.getController();
             controller.setTicketId(ticket.getId());
 
-            Stage stage = new Stage();
-            stage.initModality(Modality.APPLICATION_MODAL);
-            stage.setTitle("Noter le service");
-            stage.setScene(new Scene(root));
-
-            // Refresh dashboard after closing modal
-            stage.setOnHidden(event -> {
-                if (parentController != null)
-                    parentController.loadTickets();
-            });
-
-            stage.show();
+            MainShellController.getInstance().loadViewCustom(root);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     @FXML
-    // Ouvre la fenêtre pour modifier ce ticket
+    // Ouvre la fenêtre pour modifier ce ticket dans la zone de contenu
     private void handleEdit() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/tn/esprit/skylora/gui/TicketModal.fxml"));
             Parent root = loader.load();
             TicketModalController controller = loader.getController();
-            controller.setParentController(parentController);
             controller.setTicketData(ticket);
 
-            Stage stage = new Stage();
-            stage.initModality(Modality.APPLICATION_MODAL);
-            stage.setTitle("Modifier Ticket");
-            stage.setScene(new Scene(root));
-            stage.show();
+            MainShellController.getInstance().loadViewCustom(root);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -130,19 +111,16 @@ public class TicketCardController {
     }
 
     @FXML
-    // Ouvre les détails complets du ticket
+    // Ouvre les détails complets du ticket dans la zone de contenu
     private void handleView() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/tn/esprit/skylora/gui/TicketDetail.fxml"));
             Parent root = loader.load();
             TicketDetailController controller = loader.getController();
-            controller.setAdminMode(false); // Ensure user mode (ID 1)
+            controller.setAdminMode(false);
             controller.setTicket(ticket);
 
-            Stage stage = new Stage();
-            stage.setTitle("Détails du Ticket");
-            stage.setScene(new Scene(root));
-            stage.show();
+            MainShellController.getInstance().loadViewCustom(root);
         } catch (IOException e) {
             e.printStackTrace();
         }

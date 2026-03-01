@@ -6,12 +6,9 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.HBox;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import tn.esprit.skylora.entities.Ticket;
@@ -59,9 +56,18 @@ public class AdminDashboardController implements Initializable {
     private Label pendingTicketsLabel;
     @FXML
     private Label avgRatingLabel;
+    @FXML
+    private Label avgResolutionTimeLabel;
+    @FXML
+    private Label topCategoryLabel;
 
     @FXML
-    private TextField adminSearchField;
+    private javafx.scene.control.Button adminMicBtn;
+
+    private tn.esprit.skylora.utils.AudioRecorder recorder = new tn.esprit.skylora.utils.AudioRecorder();
+
+    @FXML
+    private javafx.scene.control.TextField adminSearchField;
     @FXML
     private ComboBox<String> adminStatusFilter;
     @FXML
@@ -69,8 +75,6 @@ public class AdminDashboardController implements Initializable {
 
     @FXML
     private TableView<Ticket> adminTicketTable;
-    @FXML
-    private TableColumn<Ticket, Integer> colAdminId;
     @FXML
     private TableColumn<Ticket, String> colAdminSubject;
     @FXML
@@ -112,7 +116,6 @@ public class AdminDashboardController implements Initializable {
      * boutons d'actions.
      */
     private void setupTable() {
-        colAdminId.setCellValueFactory(new PropertyValueFactory<>("id"));
         colAdminSubject.setCellValueFactory(new PropertyValueFactory<>("subject"));
         colAdminUser.setCellValueFactory(new PropertyValueFactory<>("utilisateurId"));
         colAdminCategory.setCellValueFactory(new PropertyValueFactory<>("categorie"));
@@ -160,7 +163,8 @@ public class AdminDashboardController implements Initializable {
         setupActionsColumn();
     }
 
-    // Ajoute les boutons d'action (voir, changer statut) dans chaque ligne
+    // Ajoute les boutons d'action (voir, changer statut, supprimer) dans chaque
+    // ligne
     private void setupActionsColumn() {
         Callback<TableColumn<Ticket, Void>, TableCell<Ticket, Void>> cellFactory = new Callback<TableColumn<Ticket, Void>, TableCell<Ticket, Void>>() {
             @Override
@@ -168,11 +172,16 @@ public class AdminDashboardController implements Initializable {
                 return new TableCell<Ticket, Void>() {
                     private final Button viewBtn = new Button("👁");
                     private final Button statusBtn = new Button("⚙");
-                    private final HBox pane = new HBox(5, viewBtn, statusBtn);
+                    private final Button suppBtn = new Button("🗑");
+                    private final HBox pane = new HBox(5, viewBtn, statusBtn, suppBtn);
 
                     {
-                        viewBtn.setStyle("-fx-background-color: #10B981; -fx-text-fill: white; -fx-cursor: hand;");
-                        statusBtn.setStyle("-fx-background-color: #F59E0B; -fx-text-fill: white; -fx-cursor: hand;");
+                        viewBtn.setStyle(
+                                "-fx-background-color: #10B981; -fx-text-fill: white; -fx-cursor: hand; -fx-min-width: 35px; -fx-padding: 5px 10px;");
+                        statusBtn.setStyle(
+                                "-fx-background-color: #F59E0B; -fx-text-fill: white; -fx-cursor: hand; -fx-min-width: 35px; -fx-padding: 5px 10px;");
+                        suppBtn.setStyle(
+                                "-fx-background-color: #EF4444; -fx-text-fill: white; -fx-cursor: hand; -fx-min-width: 60px; -fx-padding: 5px 10px;");
 
                         viewBtn.setOnAction(event -> {
                             Ticket ticket = getTableView().getItems().get(getIndex());
@@ -182,6 +191,11 @@ public class AdminDashboardController implements Initializable {
                         statusBtn.setOnAction(event -> {
                             Ticket ticket = getTableView().getItems().get(getIndex());
                             handleQuickStatusUpdate(ticket);
+                        });
+
+                        suppBtn.setOnAction(event -> {
+                            Ticket ticket = getTableView().getItems().get(getIndex());
+                            handleDeleteTicket(ticket);
                         });
                     }
 
@@ -206,6 +220,8 @@ public class AdminDashboardController implements Initializable {
     private void setupFilters() {
         adminStatusFilter.getItems().addAll("TOUS", "OUVERT", "EN_COURS", "RESOLU", "CLOTURE");
         adminPriorityFilter.getItems().addAll("TOUS", "LOW", "MEDIUM", "HIGH", "URGENT");
+        adminStatusFilter.setValue("TOUS");
+        adminPriorityFilter.setValue("TOUS");
 
         adminSearchField.textProperty().addListener((obs, oldV, newV) -> filterData());
         adminStatusFilter.valueProperty().addListener((obs, oldV, newV) -> filterData());
@@ -220,6 +236,11 @@ public class AdminDashboardController implements Initializable {
     @FXML
     public void refreshData() {
         try {
+            // Clear previous data first so the table never shows stale rows
+            allTickets.clear();
+            observableTickets.clear();
+            adminTicketTable.getItems().clear();
+
             allTickets = serviceTicket.afficher();
 
             // Fetch all feedback to populate the rating column efficiently
@@ -258,16 +279,63 @@ public class AdminDashboardController implements Initializable {
             pendingTicketsLabel.setText(String.valueOf(pending));
             avgRatingLabel.setText(String.format("%.1f", avgRating));
 
+            // Extra Stats Calculation
+            calculateExtraStats();
+
             // Animation des labels de stats
             animateLabel(totalTicketsLabel);
             animateLabel(openTicketsLabel);
             animateLabel(resolvedTicketsLabel);
             animateLabel(pendingTicketsLabel);
             animateLabel(avgRatingLabel);
+            animateLabel(avgResolutionTimeLabel);
+            animateLabel(topCategoryLabel);
 
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    private void calculateExtraStats() {
+        if (allTickets == null || allTickets.isEmpty()) {
+            avgResolutionTimeLabel.setText("0h");
+            topCategoryLabel.setText("N/A");
+            return;
+        }
+
+        // 1. Avg Resolution Time (for RESOLVED tickets)
+        long totalHours = 0;
+        int resolvedCount = 0;
+
+        for (Ticket t : allTickets) {
+            if ("RESOLU".equals(t.getStatut()) && t.getDateCreation() != null && t.getDateResolution() != null) {
+                java.time.Duration duration = java.time.Duration.between(t.getDateCreation(), t.getDateResolution());
+                totalHours += duration.toHours();
+                resolvedCount++;
+            }
+        }
+
+        if (resolvedCount > 0) {
+            long avgHours = totalHours / resolvedCount;
+            if (avgHours > 24) {
+                avgResolutionTimeLabel.setText((avgHours / 24) + "j");
+            } else {
+                avgResolutionTimeLabel.setText(avgHours + "h");
+            }
+        } else {
+            avgResolutionTimeLabel.setText("0h");
+        }
+
+        // 2. Most Active Category
+        Map<String, Long> categoryCount = allTickets.stream()
+                .filter(t -> t.getCategorie() != null)
+                .collect(Collectors.groupingBy(Ticket::getCategorie, Collectors.counting()));
+
+        String topCat = categoryCount.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse("N/A");
+        topCategoryLabel.setText(topCat);
     }
 
     /**
@@ -288,11 +356,12 @@ public class AdminDashboardController implements Initializable {
      * Appelé automatiquement lors de toute modification d'un filtre.
      */
     private void filterData() {
-        String search = adminSearchField.getText().toLowerCase();
+        String search = (adminSearchField.getText() != null ? adminSearchField.getText() : "").toLowerCase();
         String status = adminStatusFilter.getValue();
         String priority = adminPriorityFilter.getValue();
 
-        List<Ticket> filtered = allTickets.stream()
+        List<Ticket> source = allTickets != null ? allTickets : java.util.Collections.emptyList();
+        List<Ticket> filtered = source.stream()
                 .filter(t -> t.getSubject().toLowerCase().contains(search)
                         || String.valueOf(t.getUtilisateurId()).contains(search))
                 .filter(t -> status == null || status.equals("TOUS") || t.getStatut().equals(status))
@@ -318,10 +387,7 @@ public class AdminDashboardController implements Initializable {
             controller.setAdminMode(true);
             controller.setTicket(ticket);
 
-            Stage stage = new Stage();
-            stage.setTitle("Admin - Détails du Ticket #" + ticket.getId());
-            stage.setScene(new Scene(root));
-            stage.show();
+            MainShellController.getInstance().loadViewCustom(root);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -364,22 +430,68 @@ public class AdminDashboardController implements Initializable {
     }
 
     /**
+     * Supprime un ticket après confirmation. Rafraîchit le tableau après
+     * suppression.
+     *
+     * @param ticket Le ticket à supprimer
+     */
+    private void handleDeleteTicket(Ticket ticket) {
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Supprimer le ticket");
+        confirm.setHeaderText("Supprimer le ticket #" + ticket.getId() + " ?");
+        confirm.setContentText("Sujet : " + ticket.getSubject() + "\n\nCette action est irréversible.");
+
+        confirm.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                try {
+                    serviceTicket.supprimer(ticket.getId());
+                    refreshData();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    Alert error = new Alert(Alert.AlertType.ERROR);
+                    error.setTitle("Erreur");
+                    error.setHeaderText(null);
+                    error.setContentText("Impossible de supprimer le ticket : " + e.getMessage());
+                    error.showAndWait();
+                }
+            }
+        });
+    }
+
+    /**
      * Ouvre la fenêtre des statistiques graphiques (camembert et histogramme)
      * présentant une vue visuelle de la répartition des tickets.
      */
     @FXML
     private void handleViewStats() {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/tn/esprit/skylora/gui/StatisticsView.fxml"));
-            Parent root = loader.load();
+        MainShellController.getInstance().loadView("/tn/esprit/skylora/gui/StatisticsView.fxml");
+    }
 
-            Stage stage = new Stage();
-            stage.initModality(Modality.APPLICATION_MODAL);
-            stage.setTitle("Statistiques Support");
-            stage.setScene(new Scene(root));
-            stage.show();
-        } catch (IOException e) {
-            e.printStackTrace();
+    @FXML
+    private void handleSpeechToText() {
+        if (!recorder.isRecording()) {
+            try {
+                recorder.start();
+                adminMicBtn.setText("🛑");
+                adminMicBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #EF4444; -fx-font-size: 18px;");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else {
+            byte[] audioData = recorder.stop();
+            adminMicBtn.setText("🎤");
+            adminMicBtn.setStyle(
+                    "-fx-background-color: transparent; -fx-text-fill: -fx-base-primary; -fx-font-size: 18px;");
+
+            new Thread(() -> {
+                String transcript = tn.esprit.skylora.utils.DeepgramService.transcribe(audioData);
+                javafx.application.Platform.runLater(() -> {
+                    if (transcript != null && !transcript.isEmpty()) {
+                        adminSearchField.setText(transcript);
+                        filterData();
+                    }
+                });
+            }).start();
         }
     }
 
@@ -429,47 +541,46 @@ public class AdminDashboardController implements Initializable {
         document.open();
 
         // ── Title ──
-        Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, Color.decode("#1E293B"));
-        Paragraph title = new Paragraph("Rapport des Tickets de Support - Skylora", titleFont);
+        Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 24, new Color(59, 130, 246));
+        Paragraph title = new Paragraph("🌟 RAPPORT DES TICKETS DE SUPPORT - SKYLORA 🌟", titleFont);
         title.setAlignment(Element.ALIGN_CENTER);
         title.setSpacingAfter(5);
         document.add(title);
 
-        Font subFont = FontFactory.getFont(FontFactory.HELVETICA, 10, Color.decode("#6B7280"));
-        Paragraph sub = new Paragraph("Généré le : " + java.time.LocalDateTime.now()
-                .format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")), subFont);
+        Font subFont = FontFactory.getFont(FontFactory.HELVETICA, 12, new Color(251, 191, 36));
+        Paragraph sub = new Paragraph("✨ Généré le : " + java.time.LocalDateTime.now()
+                .format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) + " ✨", subFont);
         sub.setAlignment(Element.ALIGN_CENTER);
         sub.setSpacingAfter(20);
         document.add(sub);
 
         // ── Table ──
-        PdfPTable table = new PdfPTable(8);
+        PdfPTable table = new PdfPTable(7);
         table.setWidthPercentage(100);
-        table.setWidths(new float[] { 1.5f, 4f, 2f, 3f, 2.5f, 2.5f, 3f, 2f });
+        table.setWidths(new float[] { 4f, 2f, 3f, 2.5f, 2.5f, 3f, 2f });
 
         // Header style
-        Color headerBg = Color.decode("#1E293B");
-        Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, Color.WHITE);
-        String[] headers = { "ID", "Sujet", "Utilisateur", "Catégorie", "Priorité", "Statut", "Date Création", "Note" };
+        Color headerBg = new Color(59, 130, 246);
+        Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, Color.WHITE);
+        String[] headers = { "Sujet", "Utilisateur", "Catégorie", "Priorité", "Statut", "Date Création", "Note" };
         for (String header : headers) {
             PdfPCell cell = new PdfPCell(new Phrase(header, headerFont));
             cell.setBackgroundColor(headerBg);
-            cell.setPadding(8);
+            cell.setPadding(10);
             cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-            cell.setBorderColor(Color.decode("#334155"));
+            cell.setBorderColor(new Color(30, 64, 175));
             table.addCell(cell);
         }
 
         // Row data
-        Font rowFont = FontFactory.getFont(FontFactory.HELVETICA, 8, Color.decode("#374151"));
+        Font rowFont = FontFactory.getFont(FontFactory.HELVETICA, 9, new Color(55, 65, 81));
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         boolean alternate = false;
         for (Ticket t : tickets) {
-            Color rowColor = alternate ? Color.decode("#F8FAFC") : Color.WHITE;
+            Color rowColor = alternate ? new Color(240, 249, 255) : Color.WHITE;
             alternate = !alternate;
 
             String[] values = {
-                    String.valueOf(t.getId()),
                     t.getSubject(),
                     String.valueOf(t.getUtilisateurId()),
                     t.getCategorie(),
@@ -482,9 +593,9 @@ public class AdminDashboardController implements Initializable {
             for (String val : values) {
                 PdfPCell cell = new PdfPCell(new Phrase(val, rowFont));
                 cell.setBackgroundColor(rowColor);
-                cell.setPadding(6);
+                cell.setPadding(8);
                 cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-                cell.setBorderColor(Color.decode("#E2E8F0"));
+                cell.setBorderColor(new Color(226, 232, 240));
                 table.addCell(cell);
             }
         }

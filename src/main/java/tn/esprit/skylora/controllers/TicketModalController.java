@@ -3,7 +3,6 @@ package tn.esprit.skylora.controllers;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
-import javafx.stage.Stage;
 import tn.esprit.skylora.entities.Ticket;
 import tn.esprit.skylora.services.ServiceTicket;
 
@@ -165,7 +164,9 @@ public class TicketModalController implements Initializable {
                 serviceTicket.modifier(existingTicket);
             }
 
-            parentController.loadTickets();
+            if (parentController != null) {
+                parentController.loadTickets();
+            }
             close();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -181,6 +182,6 @@ public class TicketModalController implements Initializable {
     }
 
     private void close() {
-        ((Stage) saveButton.getScene().getWindow()).close();
+        MainShellController.getInstance().loadView("/tn/esprit/skylora/gui/UserDashboard.fxml");
     }
 }

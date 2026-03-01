@@ -5,9 +5,8 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.text.Font?>
 
-<VBox prefHeight="700.0" prefWidth="1000.0" stylesheets="@/tn/esprit/skylora/style/style.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="tn.esprit.skylora.controllers.UserDashboardController">
+<VBox stylesheets="@/tn/esprit/skylora/style/style.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="tn.esprit.skylora.controllers.UserDashboardController">
     <children>
-        <fx:include source="Navbar.fxml" />
         
         <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent;">
             <content>
@@ -17,7 +16,12 @@
                             <children>
                                 <Label styleClass="section-title" text="Mes Tickets Support" />
                                 <Region HBox.hgrow="ALWAYS" />
-                                <TextField fx:id="searchField" prefWidth="250.0" promptText="Rechercher un ticket..." />
+                                <HBox spacing="10" alignment="CENTER_LEFT">
+                                    <children>
+                                        <TextField fx:id="searchField" prefWidth="300.0" promptText="Rechercher un ticket..." />
+                                        <Button fx:id="micBtn" onAction="#handleSpeechToText" style="-fx-background-color: transparent; -fx-text-fill: -fx-base-primary; -fx-font-size: 18px; -fx-padding: 0 5;" text="🎤" />
+                                    </children>
+                                </HBox>
                                 <ComboBox fx:id="statusFilter" prefWidth="150.0" promptText="Filtrer par statut" />
                                 <Button onAction="#handleNewTicket" styleClass="btn-primary" text="+ Nouveau Ticket" />
                             </children>

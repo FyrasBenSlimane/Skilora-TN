@@ -65,11 +65,11 @@ public class ServiceTicket {
         List<Ticket> list = new ArrayList<>();
         String sql = "SELECT * FROM ticket";
 
-        Statement st = cnx.createStatement();
-        ResultSet rs = st.executeQuery(sql);
-
-        while (rs.next()) {
-            list.add(mapResultSetToTicket(rs));
+        try (Statement st = cnx.createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            while (rs.next()) {
+                list.add(mapResultSetToTicket(rs));
+            }
         }
         return list;
     }

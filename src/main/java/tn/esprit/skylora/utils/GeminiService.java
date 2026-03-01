@@ -22,7 +22,8 @@ import java.net.http.HttpResponse;
 public class GeminiService {
 
     /** Clé API pour authentifier les requêtes vers Gemini */
-    private static final String API_KEY = "AIzaSyCmGSjJ7uYimw8x0MhU6f_gg4W6vSbNUGU";
+    ////AIzaSyB83xFc09H8vaPA2jKAbjsAnMeGqJjN_5g
+    private static final String API_KEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 
     /** URL de l'endpoint Gemini pour la génération de contenu */
     private static final String API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key="

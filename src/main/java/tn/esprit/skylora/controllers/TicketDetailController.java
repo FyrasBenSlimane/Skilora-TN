@@ -17,6 +17,7 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
@@ -50,8 +51,7 @@ public class TicketDetailController {
     private Label descriptionLabel;
     @FXML
     private Label dateLabel;
-    @FXML
-    private ImageView qrCodeView;
+    private javafx.scene.image.Image qrCodeImage;
     @FXML
     private VBox messageContainer;
     @FXML
@@ -90,6 +90,11 @@ public class TicketDetailController {
         this.ticket = ticket;
         subjectLabel.setText(ticket.getSubject());
         statusBadge.setText(ticket.getStatut());
+        // Générer le QR Code avec un message personnalisé
+        String qrData = "🚀 SKYLORA WEB is coming soon!\n" +
+                "Scannez pour découvrir le futur du support.\n" +
+                "Ticket ID: #" + ticket.getId();
+        generateQRCode(qrData);
         statusBadge.getStyleClass().add("status-" + ticket.getStatut().toLowerCase().replace("_", "-"));
         metaLabel.setText("Catégorie: " + ticket.getCategorie() + " | Priorité: " + ticket.getPriorite());
         descriptionLabel.setText(ticket.getDescription());
@@ -99,7 +104,6 @@ public class TicketDetailController {
                     .setText("Créé le : " + ticket.getDateCreation().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
         }
 
-        generateQRCode();
         loadMessages();
         loadFeedback();
     }
@@ -110,7 +114,7 @@ public class TicketDetailController {
             if (feedback != null) {
                 feedbackSection.setVisible(true);
                 feedbackSection.setManaged(true);
-                feedbackRatingLabel.setText("★ " + feedback.getRating() + "/5");
+                feedbackRatingLabel.setText(feedback.getRating() + "/5");
                 feedbackCommentLabel.setText(feedback.getComment());
 
                 // Only creator can edit/delete. Admin can only see.
@@ -127,28 +131,9 @@ public class TicketDetailController {
         }
     }
 
-    // Génère un QR code avec les informations du ticket
-    private void generateQRCode() {
+    // Génère un QR code avec les informations spécifiées
+    private void generateQRCode(String content) {
         try {
-            // Build the QR content string
-            String rating = "N/A";
-            try {
-                ServiceFeedback sf = new ServiceFeedback();
-                Feedback f = sf.getFeedbackByTicketId(ticket.getId());
-                if (f != null)
-                    rating = f.getRating() + "/5";
-            } catch (Exception ignored) {
-            }
-
-            String date = ticket.getDateCreation() != null
-                    ? ticket.getDateCreation().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-                    : "N/A";
-
-            String content = String.format(
-                    "TICKET #%d\nSujet: %s\nStatut: %s\nCatégorie: %s\nDate: %s\nNote: %s",
-                    ticket.getId(), ticket.getSubject(), ticket.getStatut(),
-                    ticket.getCategorie(), date, rating);
-
             // Generate QR using ZXing
             Map<EncodeHintType, Object> hints = new EnumMap<>(EncodeHintType.class);
             hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M);
@@ -168,7 +153,7 @@ public class TicketDetailController {
                 }
             }
 
-            qrCodeView.setImage(SwingFXUtils.toFXImage(image, null));
+            this.qrCodeImage = SwingFXUtils.toFXImage(image, null);
 
         } catch (WriterException e) {
             System.err.println("QR Code generation failed: " + e.getMessage());
@@ -261,22 +246,33 @@ public class TicketDetailController {
             }
         }
     }
-
+    ////////////////////////////////
+    ////////////////////////////////
+    ////////////////////////////////
+    ////////////////////////////////
+    ////////////////////////////////
+    ////////////////////////////////
+////////btn suggestion ai fl message
     @FXML
     private void handleAISuggestion() {
-        if (!isAdminMode)
-            return; // Only for admins
-
+        // Remove restriction to allow users to see suggestions too, or just fix it for
+        // everyone
         new Thread(() -> {
-            String suggestion = tn.esprit.skylora.utils.GeminiService.suggestReply(ticket.getSubject(),
-                    ticket.getDescription());
-            javafx.application.Platform.runLater(() -> {
-                if (suggestion != null && !suggestion.startsWith("Error")) {
-                    aiSuggestionBox.setVisible(true);
-                    aiSuggestionBox.setManaged(true);
-                    aiSuggestionLabel.setText(suggestion);
-                }
-            });
+            try {
+                String suggestion = tn.esprit.skylora.utils.GeminiService.suggestReply(ticket.getSubject(),
+                        ticket.getDescription());
+                javafx.application.Platform.runLater(() -> {
+                    if (suggestion != null && !suggestion.startsWith("Error")) {
+                        aiSuggestionBox.setVisible(true);
+                        aiSuggestionBox.setManaged(true);
+                        aiSuggestionLabel.setText(suggestion);
+                    } else {
+                        System.err.println("Gemini Suggestion Error or Empty: " + suggestion);
+                    }
+                });
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }).start();
     }
 
@@ -312,7 +308,10 @@ public class TicketDetailController {
                     feedback.setComment(newComment);
                     serviceFeedback.modifier(feedback);
                     loadFeedback();
-                    generateQRCode(); // Update QR as it contains info
+                    String qrData = "🚀 SKYLORA WEB is coming soon!\n" +
+                            "Scannez pour découvrir le futur du support.\n" +
+                            "Ticket ID: #" + ticket.getId();
+                    generateQRCode(qrData); // Update QR as it contains info
                 } catch (SQLException e) {
                     e.printStackTrace();
                 }
@@ -335,11 +334,78 @@ public class TicketDetailController {
                 if (feedback != null) {
                     serviceFeedback.supprimer(feedback.getId());
                     loadFeedback();
-                    generateQRCode();
+                    String qrData = "🚀 SKYLORA WEB is coming soon!\n" +
+                            "Scannez pour découvrir le futur du support.\n" +
+                            "Ticket ID: #" + ticket.getId();
+                    generateQRCode(qrData);
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
             }
         }
+    }
+
+    @FXML
+    private void handleBack() {
+        MainShellController.getInstance().loadView(isAdminMode ? "/tn/esprit/skylora/gui/AdminDashboard.fxml"
+                : "/tn/esprit/skylora/gui/UserDashboard.fxml");
+    }
+
+    @FXML
+    private void handleViewWebPage() {
+        try {
+            java.awt.Desktop.getDesktop().browse(new java.net.URI("https://skylora.tn"));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
+    private void handleShowQR() {
+        try {
+            VBox root = new VBox(20);
+            root.setAlignment(Pos.CENTER);
+            root.setPadding(new Insets(30));
+            root.setStyle(
+                    "-fx-background-color: #111827; -fx-background-radius: 15; -fx-border-color: #4F46E5; -fx-border-width: 2; -fx-border-radius: 15;");
+
+            Label title = new Label("SKYLORA WEB");
+            title.setStyle("-fx-font-weight: bold; -fx-font-size: 20px; -fx-text-fill: #4F46E5;");
+
+            Label subTitle = new Label("is coming soon");
+            subTitle.setStyle("-fx-font-size: 14px; -fx-text-fill: #9CA3AF;");
+
+            StackPane qrContainer = new StackPane();
+            qrContainer.setStyle("-fx-background-color: white; -fx-padding: 15; -fx-background-radius: 12;");
+
+            ImageView popupQrView = new ImageView(qrCodeImage);
+            popupQrView.setFitWidth(200);
+            popupQrView.setFitHeight(200);
+            qrContainer.getChildren().add(popupQrView);
+
+            Button closeBtn = new Button("Fermer");
+            closeBtn.getStyleClass().add("btn-secondary");
+            closeBtn.setOnAction(e -> ((javafx.stage.Stage) closeBtn.getScene().getWindow()).close());
+
+            root.getChildren().addAll(title, subTitle, qrContainer, closeBtn);
+
+            javafx.scene.Scene scene = new javafx.scene.Scene(root);
+            scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
+
+            javafx.stage.Stage stage = new javafx.stage.Stage();
+            stage.initStyle(javafx.stage.StageStyle.TRANSPARENT);
+            stage.setScene(scene);
+            stage.setTitle("Skylora Web QR Code");
+            stage.show();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
+    private void handleCloseAISuggestion() {
+        aiSuggestionBox.setVisible(false);
+        aiSuggestionBox.setManaged(false);
     }
 }

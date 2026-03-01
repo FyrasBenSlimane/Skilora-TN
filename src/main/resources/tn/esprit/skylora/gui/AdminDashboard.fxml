@@ -5,16 +5,15 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.text.Font?>
 
-<VBox prefHeight="750.0" prefWidth="1100.0" stylesheets="@/tn/esprit/skylora/style/style.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="tn.esprit.skylora.controllers.AdminDashboardController">
+<VBox stylesheets="@/tn/esprit/skylora/style/style.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="tn.esprit.skylora.controllers.AdminDashboardController">
     <children>
-        <fx:include source="Navbar.fxml" />
         
         <VBox spacing="20" styleClass="dashboard-container" VBox.vgrow="ALWAYS">
             <children>
                 <Label styleClass="section-title" text="Tableau de Bord Administrateur" />
                 
                 <!-- Stats Cards -->
-                <HBox spacing="20">
+                <HBox spacing="15">
                     <children>
                         <VBox styleClass="stat-card" HBox.hgrow="ALWAYS">
                             <children>
@@ -31,19 +30,36 @@
                         <VBox styleClass="stat-card" HBox.hgrow="ALWAYS">
                             <children>
                                 <Label fx:id="resolvedTicketsLabel" styleClass="stat-value" text="0" />
-                                <Label styleClass="stat-label" text="Tickets Résolus" />
+                                <Label styleClass="stat-label" text="Résolus" />
                             </children>
                         </VBox>
                         <VBox styleClass="stat-card" HBox.hgrow="ALWAYS">
                             <children>
                                 <Label fx:id="pendingTicketsLabel" styleClass="stat-value" text="0" />
-                                <Label styleClass="stat-label" text="En Attente" />
+                                <Label styleClass="stat-label" text="En Cours" />
                             </children>
                         </VBox>
-                        <VBox styleClass="stat-card" HBox.hgrow="ALWAYS" style="-fx-background-color: #5B21B6;">
+                        <VBox styleClass="stat-card" HBox.hgrow="ALWAYS">
                             <children>
                                 <Label fx:id="avgRatingLabel" styleClass="stat-value" text="0.0" />
-                                <Label styleClass="stat-label" text="Satisfaction / 5" />
+                                <Label styleClass="stat-label" text="Note Moyenne" />
+                            </children>
+                        </VBox>
+                    </children>
+                </HBox>
+                
+                <HBox spacing="20">
+                    <children>
+                        <VBox styleClass="stat-card" HBox.hgrow="ALWAYS">
+                            <children>
+                                <Label fx:id="avgResolutionTimeLabel" styleClass="stat-value" text="0h" />
+                                <Label styleClass="stat-label" text="Temps Moyen de Résolution" />
+                            </children>
+                        </VBox>
+                        <VBox styleClass="stat-card" HBox.hgrow="ALWAYS">
+                            <children>
+                                <Label fx:id="topCategoryLabel" styleClass="stat-value" text="N/A" />
+                                <Label styleClass="stat-label" text="Catégorie la plus active" />
                             </children>
                         </VBox>
                     </children>
@@ -54,7 +70,12 @@
                     <children>
                         <HBox spacing="15" alignment="CENTER_LEFT">
                             <children>
-                                <TextField fx:id="adminSearchField" prefWidth="300.0" promptText="Rechercher par sujet ou utilisateur..." />
+                                <HBox spacing="10" alignment="CENTER_LEFT">
+                                    <children>
+                                        <TextField fx:id="adminSearchField" prefWidth="300.0" promptText="Rechercher par sujet ou utilisateur..." />
+                                        <Button fx:id="adminMicBtn" onAction="#handleSpeechToText" style="-fx-background-color: transparent; -fx-text-fill: -fx-base-primary; -fx-font-size: 18px; -fx-padding: 0 5;" text="🎤" />
+                                    </children>
+                                </HBox>
                                 <ComboBox fx:id="adminStatusFilter" prefWidth="150.0" promptText="Statut" />
                                 <ComboBox fx:id="adminPriorityFilter" prefWidth="150.0" promptText="Priorité" />
                                 <Region HBox.hgrow="ALWAYS" />
@@ -66,7 +87,6 @@
                         
                         <TableView fx:id="adminTicketTable" VBox.vgrow="ALWAYS">
                             <columns>
-                                <TableColumn fx:id="colAdminId" prefWidth="50.0" text="ID" />
                                 <TableColumn fx:id="colAdminSubject" prefWidth="200.0" text="Sujet" />
                                 <TableColumn fx:id="colAdminUser" prefWidth="100.0" text="Utilisateur" />
                                 <TableColumn fx:id="colAdminCategory" prefWidth="120.0" text="Catégorie" />
@@ -74,7 +94,7 @@
                                 <TableColumn fx:id="colAdminStatus" prefWidth="100.0" text="Statut" />
                                 <TableColumn fx:id="colAdminDate" prefWidth="150.0" text="Date Création" />
                                 <TableColumn fx:id="colAdminRating" prefWidth="80.0" text="Note" />
-                                <TableColumn fx:id="colAdminActions" prefWidth="150.0" text="Actions" />
+                                <TableColumn fx:id="colAdminActions" prefWidth="200.0" text="Actions" />
                             </columns>
                         </TableView>
                     </children>
