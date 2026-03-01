@@ -173,12 +173,40 @@ public class MessagingService {
      * @return l'ID du message envoyé, ou -1 en cas d'échec
      */
     public int sendMessage(int conversationId, int senderId, String content) {
-        String sql = "INSERT INTO messages (conversation_id, sender_id, content, created_date) VALUES (?, ?, ?, NOW())";
+        return sendMessage(conversationId, senderId, content, "TEXT", null, null);
+    }
+
+    /**
+     * Envoie un message avec média (image ou vidéo) dans une conversation.
+     * Le type de message détermine le rendu dans l'UI (TEXT, IMAGE, VIDEO, VOCAL).
+     */
+    public int sendMessage(int conversationId, int senderId, String content, String messageType, String mediaUrl, String fileName) {
+        return sendMessage(conversationId, senderId, content, messageType, mediaUrl, fileName, 0);
+    }
+
+    /**
+     * Envoie un message avec média et durée (pour les messages vocaux).
+     *
+     * @param conversationId l'ID de la conversation
+     * @param senderId       l'ID de l'expéditeur
+     * @param content        le contenu textuel (légende optionnelle pour les médias)
+     * @param messageType    type : TEXT, IMAGE, VIDEO, VOCAL
+     * @param mediaUrl       URL du fichier média (Cloudinary ou local)
+     * @param fileName       nom original du fichier
+     * @param duration       durée en secondes (pour les vocaux)
+     * @return l'ID du message envoyé, ou -1 en cas d'échec
+     */
+    public int sendMessage(int conversationId, int senderId, String content, String messageType, String mediaUrl, String fileName, int duration) {
+        String sql = "INSERT INTO messages (conversation_id, sender_id, content, message_type, media_url, file_name, duration, created_date) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            stmt.setInt(1, conversationId);    // Conversation cible
-            stmt.setInt(2, senderId);          // Expéditeur
-            stmt.setString(3, content);        // Contenu du message
+            stmt.setInt(1, conversationId);
+            stmt.setInt(2, senderId);
+            stmt.setString(3, content);
+            stmt.setString(4, messageType != null ? messageType : "TEXT");
+            stmt.setString(5, mediaUrl);
+            stmt.setString(6, fileName);
+            stmt.setInt(7, duration);
             stmt.executeUpdate();
             
             ResultSet rs = stmt.getGeneratedKeys();
@@ -356,6 +384,102 @@ public class MessagingService {
     }
 
     // ═══════════════════════════════════════════════════════════
+    //  INDICATEUR DE SAISIE — "En train d'écrire..." (temps réel)
+    // ═══════════════════════════════════════════════════════════
+
+    /**
+     * Met à jour le statut de saisie d'un utilisateur dans une conversation.
+     * Utilise INSERT ... ON DUPLICATE KEY UPDATE pour créer ou mettre à jour
+     * le timestamp de dernière frappe. Appelée à chaque frappe clavier.
+     *
+     * @param conversationId l'ID de la conversation
+     * @param userId         l'ID de l'utilisateur qui tape
+     */
+    public void updateTypingStatus(int conversationId, int userId) {
+        String sql = "INSERT INTO typing_status (user_id, conversation_id, last_typed) VALUES (?, ?, NOW()) "
+                   + "ON DUPLICATE KEY UPDATE last_typed = NOW()";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, userId);
+            stmt.setInt(2, conversationId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            logger.debug("Error updating typing status: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Vérifie si un autre utilisateur est actuellement en train de taper dans une conversation.
+     * Un utilisateur est considéré "en train d'écrire" si sa dernière frappe
+     * date de moins de 3 secondes (TIMESTAMPDIFF).
+     *
+     * @param conversationId l'ID de la conversation
+     * @param otherUserId    l'ID de l'autre participant à vérifier
+     * @return true si l'autre utilisateur tape actuellement
+     */
+    public boolean isUserTyping(int conversationId, int otherUserId) {
+        String sql = "SELECT COUNT(*) FROM typing_status WHERE user_id = ? AND conversation_id = ? "
+                   + "AND TIMESTAMPDIFF(SECOND, last_typed, NOW()) < 4";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, otherUserId);
+            stmt.setInt(2, conversationId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1) > 0;
+            }
+        } catch (SQLException e) {
+            logger.debug("Error checking typing status: {}", e.getMessage());
+        }
+        return false;
+    }
+
+    /**
+     * Efface le statut de saisie quand l'utilisateur envoie un message
+     * ou quitte la conversation.
+     *
+     * @param conversationId l'ID de la conversation
+     * @param userId         l'ID de l'utilisateur
+     */
+    public void clearTypingStatus(int conversationId, int userId) {
+        String sql = "DELETE FROM typing_status WHERE user_id = ? AND conversation_id = ?";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, userId);
+            stmt.setInt(2, conversationId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            logger.debug("Error clearing typing status: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Récupère le statut de lecture (is_read) de tous les messages envoyés par un
+     * utilisateur dans une conversation. Utilisé pour le polling temps réel du "Vu".
+     * Retourne uniquement les messages du senderId pour éviter des requêtes inutiles.
+     *
+     * @param conversationId l'ID de la conversation
+     * @param senderId       l'ID de l'expéditeur (l'utilisateur courant)
+     * @return Map (messageId → isRead) pour chaque message envoyé par senderId
+     */
+    public java.util.Map<Integer, Boolean> getReadStatusForMyMessages(int conversationId, int senderId) {
+        java.util.Map<Integer, Boolean> statusMap = new java.util.HashMap<>();
+        String sql = "SELECT id, is_read FROM messages WHERE conversation_id = ? AND sender_id = ?";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, conversationId);
+            stmt.setInt(2, senderId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                statusMap.put(rs.getInt("id"), rs.getBoolean("is_read"));
+            }
+        } catch (SQLException e) {
+            logger.debug("Error fetching read status: {}", e.getMessage());
+        }
+        return statusMap;
+    }
+
+    // ═══════════════════════════════════════════════════════════
     //  MAPPING — Conversion ResultSet → Objet Java
     // ═══════════════════════════════════════════════════════════
 
@@ -400,6 +524,12 @@ public class MessagingService {
         msg.setContent(rs.getString("content"));
         msg.setRead(rs.getBoolean("is_read"));
         
+        // Champs média
+        msg.setMessageType(rs.getString("message_type"));
+        msg.setMediaUrl(rs.getString("media_url"));
+        msg.setFileName(rs.getString("file_name"));
+        msg.setDuration(rs.getInt("duration"));
+        
         // Conversion Timestamp SQL → LocalDateTime Java
         Timestamp created = rs.getTimestamp("created_date");
         if (created != null) msg.setCreatedDate(created.toLocalDateTime());
@@ -407,5 +537,99 @@ public class MessagingService {
         msg.setSenderName(rs.getString("sender_name")); // Nom de l'expéditeur (JOIN)
         
         return msg;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  REACTIONS — Réactions emoji sur les messages privés
+    // ═══════════════════════════════════════════════════════════
+
+    /**
+     * Toggle a reaction on a private message. If the user already reacted with the same emoji, remove it.
+     */
+    public void toggleReaction(int messageId, int userId, String emoji) {
+        String checkSql = "SELECT id FROM message_reactions WHERE message_id = ? AND user_id = ? AND emoji = ?";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
+            checkStmt.setInt(1, messageId);
+            checkStmt.setInt(2, userId);
+            checkStmt.setString(3, emoji);
+            ResultSet rs = checkStmt.executeQuery();
+            if (rs.next()) {
+                // Remove existing reaction
+                try (PreparedStatement delStmt = conn.prepareStatement(
+                        "DELETE FROM message_reactions WHERE id = ?")) {
+                    delStmt.setInt(1, rs.getInt("id"));
+                    delStmt.executeUpdate();
+                }
+            } else {
+                // Add new reaction
+                try (PreparedStatement insStmt = conn.prepareStatement(
+                        "INSERT INTO message_reactions (message_id, user_id, emoji) VALUES (?, ?, ?)")) {
+                    insStmt.setInt(1, messageId);
+                    insStmt.setInt(2, userId);
+                    insStmt.setString(3, emoji);
+                    insStmt.executeUpdate();
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Error toggling reaction: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Get all reactions for messages in a conversation.
+     * Returns a map of messageId -> map of emoji -> count.
+     */
+    public java.util.Map<Integer, java.util.Map<String, Integer>> getReactionsForConversation(int conversationId) {
+        java.util.Map<Integer, java.util.Map<String, Integer>> result = new java.util.HashMap<>();
+        String sql = """
+                SELECT mr.message_id, mr.emoji, COUNT(*) as cnt
+                FROM message_reactions mr
+                JOIN messages m ON mr.message_id = m.id
+                WHERE m.conversation_id = ?
+                GROUP BY mr.message_id, mr.emoji
+                """;
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, conversationId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                int msgId = rs.getInt("message_id");
+                String emoji = rs.getString("emoji");
+                int count = rs.getInt("cnt");
+                result.computeIfAbsent(msgId, k -> new java.util.LinkedHashMap<>()).put(emoji, count);
+            }
+        } catch (SQLException e) {
+            logger.error("Error fetching reactions: {}", e.getMessage(), e);
+        }
+        return result;
+    }
+
+    /**
+     * Get the emojis the current user has reacted with for messages in a conversation.
+     * Returns a map of messageId -> set of emojis.
+     */
+    public java.util.Map<Integer, java.util.Set<String>> getUserReactionsForConversation(int conversationId, int userId) {
+        java.util.Map<Integer, java.util.Set<String>> result = new java.util.HashMap<>();
+        String sql = """
+                SELECT mr.message_id, mr.emoji
+                FROM message_reactions mr
+                JOIN messages m ON mr.message_id = m.id
+                WHERE m.conversation_id = ? AND mr.user_id = ?
+                """;
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, conversationId);
+            stmt.setInt(2, userId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                int msgId = rs.getInt("message_id");
+                String emoji = rs.getString("emoji");
+                result.computeIfAbsent(msgId, k -> new java.util.HashSet<>()).add(emoji);
+            }
+        } catch (SQLException e) {
+            logger.error("Error fetching user reactions: {}", e.getMessage(), e);
+        }
+        return result;
     }
 }

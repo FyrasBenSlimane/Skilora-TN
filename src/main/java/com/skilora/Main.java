@@ -32,6 +32,10 @@ public class Main extends Application {
         // Register shutdown hook to close database connections
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
+                // Marquer l'utilisateur hors ligne avant de fermer la BDD
+                com.skilora.community.service.OnlineStatusService.getInstance().stopHeartbeat();
+            } catch (Exception ignored) {}
+            try {
                 com.skilora.config.DatabaseConfig.getInstance().closeConnection();
             } catch (Exception ignored) {}
         }));

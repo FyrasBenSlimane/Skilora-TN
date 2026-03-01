@@ -2511,6 +2511,69 @@
     -fx-padding: 8px;
 }
 
+/* ── Media Message Bubbles (image/vidéo) ── */
+.msg-bubble-mine .image-view,
+.msg-bubble-theirs .image-view {
+    -fx-cursor: hand;
+}
+.msg-media-video {
+    -fx-background-color: rgba(0,0,0,0.05);
+    -fx-background-radius: 8px;
+    -fx-padding: 12;
+    -fx-cursor: hand;
+}
+
+/* ── Vocal Message Player (🎤 like Messenger) ── */
+.msg-vocal-player {
+    -fx-padding: 6 4;
+    -fx-alignment: center-left;
+}
+.vocal-progress-bar {
+    -fx-accent: #3b82f6;
+    -fx-pref-height: 6px;
+    -fx-max-height: 6px;
+    -fx-background-radius: 3px;
+}
+.vocal-progress-bar > .bar {
+    -fx-background-color: #3b82f6;
+    -fx-background-radius: 3px;
+    -fx-background-insets: 0;
+}
+.vocal-progress-bar > .track {
+    -fx-background-color: rgba(255,255,255,0.2);
+    -fx-background-radius: 3px;
+}
+
+/* ── Message Seen / Sent Indicators ("Vu" / "Envoyé") ── */
+.msg-seen-indicator {
+    -fx-font-size: 10px;
+    -fx-font-weight: 600;
+    -fx-text-fill: #3b82f6;
+}
+.msg-sent-indicator {
+    -fx-font-size: 10px;
+    -fx-text-fill: rgba(255,255,255,0.6);
+}
+
+/* ── Typing Indicator ("en train d'écrire...") ── */
+.typing-indicator {
+    -fx-padding: 4 16 4 16;
+    -fx-font-size: 12px;
+    -fx-font-style: italic;
+    -fx-text-fill: -fx-muted-foreground;
+}
+.typing-indicator-dot {
+    -fx-background-color: -fx-muted-foreground;
+    -fx-background-radius: 999;
+    -fx-min-width: 6px; -fx-min-height: 6px;
+    -fx-max-width: 6px; -fx-max-height: 6px;
+}
+.typing-indicator-bubble {
+    -fx-background-color: -fx-muted;
+    -fx-background-radius: 16 16 16 4;
+    -fx-padding: 8 14 8 14;
+}
+
 /* ── Event/Group Banner Header ── */
 .community-banner {
     -fx-background-color: -fx-secondary;

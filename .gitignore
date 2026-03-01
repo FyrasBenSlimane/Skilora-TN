@@ -26,3 +26,6 @@ Thumbs.db
 # Temp
 tmp/
 *.tmp
+
+# Environment
+.env

@@ -71,11 +71,22 @@ public class CloudinaryUploadService {
     /** URL de l'API d'upload Cloudinary (format: /v1_1/{cloud_name}/image/upload) */
     private static final String UPLOAD_URL = "https://api.cloudinary.com/v1_1/" + CLOUD_NAME + "/image/upload";
 
+    /** URL de l'API d'upload vidéo Cloudinary */
+    private static final String VIDEO_UPLOAD_URL = "https://api.cloudinary.com/v1_1/" + CLOUD_NAME + "/video/upload";
+
     /** Taille max d'upload en bytes (10 MB) */
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
+    /** Taille max vidéo en bytes (50 MB) */
+    private static final long MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50 MB
+
     /** Extensions de fichiers image autorisées */
     private static final String[] ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"};
+
+    /** Extensions de fichiers vidéo autorisées */
+    private static final String[] ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".wmv", ".mkv", ".webm"};
+    private static final String[] ALLOWED_AUDIO_EXTENSIONS = {".wav", ".mp3", ".ogg", ".m4a", ".aac", ".wma"};
+    private static final long MAX_AUDIO_SIZE = 25 * 1024 * 1024; // 25 MB
 
     // ── Singleton ──
     private static volatile CloudinaryUploadService instance;
@@ -313,5 +324,248 @@ public class CloudinaryUploadService {
      */
     public String[] getAllowedExtensionPatterns() {
         return new String[]{"*.jpg", "*.jpeg", "*.png", "*.gif", "*.webp", "*.bmp"};
+    }
+
+    /**
+     * Retourne les extensions vidéo autorisées pour le FileChooser de JavaFX.
+     */
+    public String[] getAllowedVideoExtensionPatterns() {
+        return new String[]{"*.mp4", "*.avi", "*.mov", "*.wmv", "*.mkv", "*.webm"};
+    }
+
+    /**
+     * Retourne toutes les extensions autorisées (images + vidéos) pour le FileChooser.
+     */
+    public String[] getAllowedMediaExtensionPatterns() {
+        return new String[]{"*.jpg", "*.jpeg", "*.png", "*.gif", "*.webp", "*.bmp",
+                            "*.mp4", "*.avi", "*.mov", "*.wmv", "*.mkv", "*.webm"};
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  UPLOAD VIDÉO
+    // ══════════════════════════════════════════════════════════
+
+    /**
+     * Upload une vidéo vers Cloudinary ou en local (fallback).
+     * Utilise l'endpoint /video/upload de Cloudinary.
+     *
+     * @param file le fichier vidéo à uploader
+     * @return l'URL de la vidéo hébergée
+     */
+    public String uploadVideo(File file) {
+        if (file == null || !file.exists()) {
+            throw new RuntimeException("Le fichier vidéo est introuvable.");
+        }
+        if (file.length() > MAX_VIDEO_SIZE) {
+            throw new RuntimeException("La vidéo dépasse la taille maximale de 50 MB.");
+        }
+        if (!isAllowedVideoExtension(file.getName())) {
+            throw new RuntimeException("Format vidéo non autorisé. Formats : mp4, avi, mov, wmv, mkv, webm.");
+        }
+
+        try {
+            String boundary = "----CloudinaryBoundary" + UUID.randomUUID().toString().replace("-", "");
+            URI uri = URI.create(VIDEO_UPLOAD_URL);
+            java.net.URL url = uri.toURL();
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setDoOutput(true);
+            connection.setRequestMethod("POST");
+            connection.setConnectTimeout(60000);
+            connection.setReadTimeout(120000);
+            connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+
+            try (OutputStream outputStream = connection.getOutputStream();
+                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8), true)) {
+
+                writer.append("--").append(boundary).append("\r\n");
+                writer.append("Content-Disposition: form-data; name=\"file\"; filename=\"")
+                        .append(file.getName()).append("\"\r\n");
+                writer.append("Content-Type: ").append(getVideoContentType(file.getName())).append("\r\n");
+                writer.append("\r\n");
+                writer.flush();
+
+                Files.copy(file.toPath(), outputStream);
+                outputStream.flush();
+                writer.append("\r\n");
+
+                writer.append("--").append(boundary).append("\r\n");
+                writer.append("Content-Disposition: form-data; name=\"upload_preset\"\r\n");
+                writer.append("\r\n");
+                writer.append(UPLOAD_PRESET).append("\r\n");
+
+                writer.append("--").append(boundary).append("\r\n");
+                writer.append("Content-Disposition: form-data; name=\"folder\"\r\n");
+                writer.append("\r\n");
+                writer.append("skilora/community/videos").append("\r\n");
+
+                writer.append("--").append(boundary).append("--\r\n");
+                writer.flush();
+            }
+
+            int responseCode = connection.getResponseCode();
+            InputStream responseStream = (responseCode >= 200 && responseCode < 300)
+                    ? connection.getInputStream()
+                    : connection.getErrorStream();
+
+            StringBuilder responseBody = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(responseStream, StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    responseBody.append(line);
+                }
+            }
+
+            if (responseCode == 200) {
+                JSONObject jsonResponse = new JSONObject(responseBody.toString());
+                String secureUrl = jsonResponse.getString("secure_url");
+                logger.info("Video uploaded successfully: {}", secureUrl);
+                return secureUrl;
+            } else {
+                logger.warn("Cloudinary video upload failed with code {}: {} — fallback local", responseCode, responseBody);
+                return saveLocally(file);
+            }
+
+        } catch (IOException e) {
+            logger.warn("Cloudinary video upload error: {} — fallback local", e.getMessage());
+            return saveLocally(file);
+        }
+    }
+
+    /**
+     * Vérifie si l'extension est une extension vidéo autorisée.
+     */
+    public boolean isAllowedVideoExtension(String filename) {
+        String lower = filename.toLowerCase();
+        for (String ext : ALLOWED_VIDEO_EXTENSIONS) {
+            if (lower.endsWith(ext)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Détermine le type MIME pour une vidéo.
+     */
+    private String getVideoContentType(String filename) {
+        String lower = filename.toLowerCase();
+        if (lower.endsWith(".mp4")) return "video/mp4";
+        if (lower.endsWith(".avi")) return "video/x-msvideo";
+        if (lower.endsWith(".mov")) return "video/quicktime";
+        if (lower.endsWith(".wmv")) return "video/x-ms-wmv";
+        if (lower.endsWith(".mkv")) return "video/x-matroska";
+        if (lower.endsWith(".webm")) return "video/webm";
+        return "video/mp4";
+    }
+
+    /**
+     * Détermine si un fichier est une vidéo ou une image selon son extension.
+     * @return "IMAGE" ou "VIDEO"
+     */
+    public String detectMediaType(File file) {
+        if (isAllowedAudioExtension(file.getName())) return "VOCAL";
+        if (isAllowedVideoExtension(file.getName())) return "VIDEO";
+        return "IMAGE";
+    }
+
+    /**
+     * Upload un fichier audio vers Cloudinary (endpoint vidéo, qui gère aussi l'audio).
+     */
+    public String uploadAudio(File file) {
+        if (file == null || !file.exists()) {
+            throw new RuntimeException("Le fichier audio est introuvable.");
+        }
+        if (file.length() > MAX_AUDIO_SIZE) {
+            throw new RuntimeException("Le fichier audio dépasse la taille maximale de 25 MB.");
+        }
+
+        try {
+            String boundary = "----CloudinaryBoundary" + java.util.UUID.randomUUID().toString().replace("-", "");
+            URI uri = URI.create(VIDEO_UPLOAD_URL); // Cloudinary gère audio via l'endpoint vidéo
+            java.net.URL url = uri.toURL();
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setDoOutput(true);
+            connection.setRequestMethod("POST");
+            connection.setConnectTimeout(30000);
+            connection.setReadTimeout(60000);
+            connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+
+            try (OutputStream outputStream = connection.getOutputStream();
+                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(outputStream, java.nio.charset.StandardCharsets.UTF_8), true)) {
+
+                writer.append("--").append(boundary).append("\r\n");
+                writer.append("Content-Disposition: form-data; name=\"file\"; filename=\"")
+                        .append(file.getName()).append("\"\r\n");
+                writer.append("Content-Type: ").append(getAudioContentType(file.getName())).append("\r\n");
+                writer.append("\r\n");
+                writer.flush();
+
+                java.nio.file.Files.copy(file.toPath(), outputStream);
+                outputStream.flush();
+                writer.append("\r\n");
+
+                writer.append("--").append(boundary).append("\r\n");
+                writer.append("Content-Disposition: form-data; name=\"upload_preset\"\r\n");
+                writer.append("\r\n");
+                writer.append(UPLOAD_PRESET).append("\r\n");
+
+                writer.append("--").append(boundary).append("\r\n");
+                writer.append("Content-Disposition: form-data; name=\"folder\"\r\n");
+                writer.append("\r\n");
+                writer.append("skilora/community/vocal").append("\r\n");
+
+                writer.append("--").append(boundary).append("\r\n");
+                writer.append("Content-Disposition: form-data; name=\"resource_type\"\r\n");
+                writer.append("\r\n");
+                writer.append("video").append("\r\n"); // Cloudinary traite audio comme 'video'
+
+                writer.append("--").append(boundary).append("--\r\n");
+                writer.flush();
+            }
+
+            int responseCode = connection.getResponseCode();
+            InputStream responseStream = (responseCode >= 200 && responseCode < 300)
+                    ? connection.getInputStream()
+                    : connection.getErrorStream();
+
+            StringBuilder responseBody = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(responseStream, java.nio.charset.StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    responseBody.append(line);
+                }
+            }
+
+            if (responseCode == 200) {
+                JSONObject jsonResponse = new JSONObject(responseBody.toString());
+                String secureUrl = jsonResponse.getString("secure_url");
+                logger.info("Audio uploaded successfully: {}", secureUrl);
+                return secureUrl;
+            } else {
+                logger.warn("Cloudinary audio upload failed with code {}: {} — fallback local", responseCode, responseBody);
+                return saveLocally(file);
+            }
+
+        } catch (IOException e) {
+            logger.warn("Cloudinary audio upload error: {} — fallback local", e.getMessage());
+            return saveLocally(file);
+        }
+    }
+
+    public boolean isAllowedAudioExtension(String filename) {
+        String lower = filename.toLowerCase();
+        for (String ext : ALLOWED_AUDIO_EXTENSIONS) {
+            if (lower.endsWith(ext)) return true;
+        }
+        return false;
+    }
+
+    private String getAudioContentType(String filename) {
+        String lower = filename.toLowerCase();
+        if (lower.endsWith(".wav")) return "audio/wav";
+        if (lower.endsWith(".mp3")) return "audio/mpeg";
+        if (lower.endsWith(".ogg")) return "audio/ogg";
+        if (lower.endsWith(".m4a")) return "audio/mp4";
+        if (lower.endsWith(".aac")) return "audio/aac";
+        if (lower.endsWith(".wma")) return "audio/x-ms-wma";
+        return "audio/wav";
     }
 }

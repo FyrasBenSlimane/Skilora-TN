@@ -1,6 +1,7 @@
 package com.skilora.community.controller;
 
 import com.skilora.framework.components.*;
+import com.skilora.config.DatabaseConfig;
 import com.skilora.user.entity.*;
 import com.skilora.user.enums.Role;
 import com.skilora.community.entity.*;
@@ -45,31 +46,35 @@ import java.util.ResourceBundle;
  * CommunityController — Contrôleur principal du module Communauté.
  *
  * Architecture MVC (Modèle-Vue-Contrôleur) :
- *   - Modèle   : PostService, MessagingService, ConnectionService, etc. (couche DAO/Service)
- *   - Vue      : composants JavaFX (TLCard, TLDialog, TLButton, TLTabs, etc.)
- *   - Contrôleur : cette classe — gère les interactions utilisateur et la logique métier
+ * - Modèle : PostService, MessagingService, ConnectionService, etc. (couche
+ * DAO/Service)
+ * - Vue : composants JavaFX (TLCard, TLDialog, TLButton, TLTabs, etc.)
+ * - Contrôleur : cette classe — gère les interactions utilisateur et la logique
+ * métier
  *
  * Fonctionnalités CRUD gérées :
- *   - Posts         : Créer, Lire (feed/findAll), Modifier, Supprimer, Like, Commenter
- *   - Messages      : Créer conversation, Envoyer, Lire, Modifier, Supprimer, Marquer lu
- *   - Connexions    : Envoyer demande, Accepter, Refuser, Supprimer, Suggestions
- *   - Événements    : Créer, Lire, Modifier, Supprimer, RSVP
- *   - Groupes       : Créer, Lire, Modifier, Supprimer, Rejoindre/Quitter
- *   - Blog          : Créer article, Lire, Modifier, Supprimer, Publier/Brouillon
+ * - Posts : Créer, Lire (feed/findAll), Modifier, Supprimer, Like, Commenter
+ * - Messages : Créer conversation, Envoyer, Lire, Modifier, Supprimer, Marquer
+ * lu
+ * - Connexions : Envoyer demande, Accepter, Refuser, Supprimer, Suggestions
+ * - Événements : Créer, Lire, Modifier, Supprimer, RSVP
+ * - Groupes : Créer, Lire, Modifier, Supprimer, Rejoindre/Quitter
+ * - Blog : Créer article, Lire, Modifier, Supprimer, Publier/Brouillon
  *
  * Contrôle de saisie (validation) :
- *   - Post : contenu non vide (DialogUtils.showError si vide)
- *   - Message : contenu non vide (ignoré silencieusement si vide)
- *   - Commentaire : contenu non vide (ignoré si vide)
- *   - Événement : titre obligatoire + format date validé
- *   - Groupe : nom obligatoire
- *   - Blog : titre + contenu obligatoires
+ * - Post : contenu non vide (DialogUtils.showError si vide)
+ * - Message : contenu non vide (ignoré silencieusement si vide)
+ * - Commentaire : contenu non vide (ignoré si vide)
+ * - Événement : titre obligatoire + format date validé
+ * - Groupe : nom obligatoire
+ * - Blog : titre + contenu obligatoires
  *
  * Droits par rôle :
- *   ADMIN    : CRUD complet sur tout le contenu. Peut supprimer n'importe quel post.
- *   EMPLOYER : CRUD sur ses propres posts/événements/groupes/blogs. Messagerie.
- *   TRAINER  : CRUD sur ses propres posts/événements/groupes/blogs. Contenu éducatif.
- *   USER     : CRUD sur ses propres posts. Rejoindre groupes/événements. Messagerie.
+ * ADMIN : CRUD complet sur tout le contenu. Peut supprimer n'importe quel post.
+ * EMPLOYER : CRUD sur ses propres posts/événements/groupes/blogs. Messagerie.
+ * TRAINER : CRUD sur ses propres posts/événements/groupes/blogs. Contenu
+ * éducatif.
+ * USER : CRUD sur ses propres posts. Rejoindre groupes/événements. Messagerie.
  */
 public class CommunityController implements Initializable {
 
@@ -78,16 +83,21 @@ public class CommunityController implements Initializable {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     // ── Composants FXML injectés depuis le fichier FXML ──
-    @FXML private Label titleLabel;      // Titre principal de la page
-    @FXML private Label subtitleLabel;   // Sous-titre
-    @FXML private TLButton newPostBtn;   // Bouton "Nouveau Post"
-    @FXML private HBox tabBox;           // Conteneur des onglets
-    @FXML private VBox contentPane;      // Zone d'affichage du contenu principal
+    @FXML
+    private Label titleLabel; // Titre principal de la page
+    @FXML
+    private Label subtitleLabel; // Sous-titre
+    @FXML
+    private TLButton newPostBtn; // Bouton "Nouveau Post"
+    @FXML
+    private HBox tabBox; // Conteneur des onglets
+    @FXML
+    private VBox contentPane; // Zone d'affichage du contenu principal
 
     // ── État du contrôleur ──
-    private User currentUser;            // Utilisateur connecté (injecté par MainView)
-    private String activeTab = "feed";   // Onglet actuellement actif
-    private TLTabs communityTabs;        // Composant des onglets avec badges
+    private User currentUser; // Utilisateur connecté (injecté par MainView)
+    private String activeTab = "feed"; // Onglet actuellement actif
+    private TLTabs communityTabs; // Composant des onglets avec badges
     private CommunityNotificationService notificationService; // Service de notifications temps réel
 
     // ── Services des nouvelles fonctionnalités (Sprint 2) ──
@@ -111,16 +121,20 @@ public class CommunityController implements Initializable {
      */
     public void initializeContext(User user) {
         this.currentUser = user;
-        titleLabel.setText(I18n.get("community.title"));        // Titre i18n
-        subtitleLabel.setText(I18n.get("community.subtitle"));  // Sous-titre i18n
+        titleLabel.setText(I18n.get("community.title")); // Titre i18n
+        subtitleLabel.setText(I18n.get("community.subtitle")); // Sous-titre i18n
 
         // Afficher le bouton « Nouveau Post » pour tous les rôles
         newPostBtn.setVisible(true);
         newPostBtn.setManaged(true);
 
-        setupTabs();                   // Créer les 6 onglets
-        startRealTimeNotifications();  // Démarrer le poller de notifications
-        loadFeedTab();                 // Charger le fil d'actualité par défaut
+        setupTabs(); // Créer les 6 onglets
+        startRealTimeNotifications(); // Démarrer le poller de notifications
+
+        // ── Démarrer le heartbeat de présence en ligne ──
+        OnlineStatusService.getInstance().startHeartbeat(currentUser.getId());
+
+        loadFeedTab(); // Charger le fil d'actualité par défaut
     }
 
     /**
@@ -181,10 +195,12 @@ public class CommunityController implements Initializable {
             notificationService.stop();
             notificationService = null;
         }
+        // Arrêter le heartbeat de présence en ligne
+        OnlineStatusService.getInstance().stopHeartbeat();
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  CONFIGURATION DES ONGLETS — 6 onglets avec badges
+    // CONFIGURATION DES ONGLETS — 6 onglets avec badges
     // ═══════════════════════════════════════════════════════════
 
     /**
@@ -214,17 +230,17 @@ public class CommunityController implements Initializable {
     private void onTabChanged(String tabId) {
         activeTab = tabId;
         switch (tabId) {
-            case "feed"        -> loadFeedTab();        // Fil d'actualité
-            case "connections"  -> loadConnectionsTab(); // Réseau de connexions
-            case "messages"     -> loadMessagesTab();    // Messagerie
-            case "events"       -> loadEventsTab();      // Événements
-            case "groups"       -> loadGroupsTab();      // Groupes
-            case "blog"         -> loadBlogTab();        // Articles de blog
+            case "feed" -> loadFeedTab(); // Fil d'actualité
+            case "connections" -> loadConnectionsTab(); // Réseau de connexions
+            case "messages" -> loadMessagesTab(); // Messagerie
+            case "events" -> loadEventsTab(); // Événements
+            case "groups" -> loadGroupsTab(); // Groupes
+            case "blog" -> loadBlogTab(); // Articles de blog
         }
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  VÉRIFICATION DES RÔLES — Contrôle d'accès
+    // VÉRIFICATION DES RÔLES — Contrôle d'accès
     // ═══════════════════════════════════════════════════════════
 
     /** Vérifie si l'utilisateur connecté est un Administrateur */
@@ -244,13 +260,15 @@ public class CommunityController implements Initializable {
 
     /**
      * Vérifie si l'utilisateur peut modifier ou supprimer un contenu.
-     * L'Admin peut tout modifier. Les autres ne peuvent modifier que leur propre contenu.
+     * L'Admin peut tout modifier. Les autres ne peuvent modifier que leur propre
+     * contenu.
      *
      * @param authorId l'ID de l'auteur du contenu
      * @return true si l'utilisateur a le droit de modifier/supprimer
      */
     private boolean canEditOrDelete(int authorId) {
-        if (currentUser == null) return false;
+        if (currentUser == null)
+            return false;
         return isAdmin() || currentUser.getId() == authorId; // Admin OU propriétaire
     }
 
@@ -264,19 +282,22 @@ public class CommunityController implements Initializable {
         return true; // Tous les rôles peuvent créer des groupes
     }
 
-    /** Vérifie si le rôle peut créer des articles de blog (Admin, Employer, Trainer) */
+    /**
+     * Vérifie si le rôle peut créer des articles de blog (Admin, Employer, Trainer)
+     */
     private boolean canCreateBlog() {
         return isAdmin() || isEmployer() || isTrainer();
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  POSTS / FEED — CRUD complet (Créer, Lire, Modifier, Supprimer)
+    // POSTS / FEED — CRUD complet (Créer, Lire, Modifier, Supprimer)
     // ═══════════════════════════════════════════════════════════
 
     /** Gestionnaire du bouton FXML « Nouveau Post » */
     @FXML
     private void handleNewPost() {
-        if (currentUser == null) return; // Sécurité : utilisateur non connecté
+        if (currentUser == null)
+            return; // Sécurité : utilisateur non connecté
         showPostDialog(null); // null = création (pas de post existant)
     }
 
@@ -286,8 +307,8 @@ public class CommunityController implements Initializable {
      * Si existingPost n'est pas null → mode modification (préremplit les champs).
      *
      * CONTRÔLE DE SAISIE :
-     *   - Le contenu ne doit pas être vide (sinon DialogUtils.showError)
-     *   - L'URL image est optionnelle
+     * - Le contenu ne doit pas être vide (sinon DialogUtils.showError)
+     * - L'URL image est optionnelle
      *
      * @param existingPost le post à modifier, ou null pour créer
      */
@@ -311,7 +332,8 @@ public class CommunityController implements Initializable {
             imageUrlField.setText(existingPost.getImageUrl());
         }
 
-        // ── UPLOAD CLOUDINARY — Bouton pour téléverser une image via l'API Cloudinary ──
+        // ── UPLOAD CLOUDINARY — Bouton pour téléverser une image via l'API Cloudinary
+        // ──
         TLButton uploadBtn = new TLButton("📷  Upload Image", TLButton.ButtonVariant.OUTLINE);
         uploadBtn.setSize(TLButton.ButtonSize.SM);
         uploadBtn.setOnAction(ev -> {
@@ -377,7 +399,8 @@ public class CommunityController implements Initializable {
             boolean hasText = text != null && !text.trim().isEmpty();
             boolean hasImage = imageUrl != null && !imageUrl.trim().isEmpty();
 
-            // ═══ CONTRÔLE DE SAISIE : texte OU image requis (pas les deux obligatoires) ═══
+            // ═══ CONTRÔLE DE SAISIE : texte OU image requis (pas les deux obligatoires)
+            // ═══
             if (!hasText && !hasImage) {
                 DialogUtils.showError(I18n.get("message.error"),
                         "Veuillez saisir un texte ou uploader une image.");
@@ -503,7 +526,8 @@ public class CommunityController implements Initializable {
      */
     private void loadFeedTab() {
         contentPane.getChildren().clear();
-        if (currentUser == null) return;
+        if (currentUser == null)
+            return;
 
         // ── RECHERCHE AVANCÉE — Barre de recherche globale en haut du feed ──
         contentPane.getChildren().add(buildSearchBar());
@@ -529,7 +553,7 @@ public class CommunityController implements Initializable {
             @Override
             protected List<Post> call() {
                 if (isAdmin()) {
-                    return PostService.getInstance().findAll();   // Admin : tous les posts
+                    return PostService.getInstance().findAll(); // Admin : tous les posts
                 }
                 return PostService.getInstance().getFeed(currentUser.getId(), 1, 50); // Feed filtré
             }
@@ -553,9 +577,9 @@ public class CommunityController implements Initializable {
      * Affiche les posts triés dans le conteneur.
      * Trie par date de création : "Plus récent" (DESC) ou "Plus ancien" (ASC).
      *
-     * @param container  le VBox conteneur des posts
-     * @param posts      la liste de posts à afficher
-     * @param sortVal    "Plus récent" ou "Plus ancien"
+     * @param container le VBox conteneur des posts
+     * @param posts     la liste de posts à afficher
+     * @param sortVal   "Plus récent" ou "Plus ancien"
      */
     private void displaySortedPosts(VBox container, List<Post> posts, String sortVal) {
         container.getChildren().clear();
@@ -584,9 +608,12 @@ public class CommunityController implements Initializable {
         sorted.sort((a, b) -> {
             LocalDateTime da = a.getCreatedDate();
             LocalDateTime db = b.getCreatedDate();
-            if (da == null && db == null) return 0;
-            if (da == null) return 1;
-            if (db == null) return -1;
+            if (da == null && db == null)
+                return 0;
+            if (da == null)
+                return 1;
+            if (db == null)
+                return -1;
             return ascending ? da.compareTo(db) : db.compareTo(da);
         });
 
@@ -689,7 +716,9 @@ public class CommunityController implements Initializable {
             // Toggle like dans un thread séparé puis recharger le feed
             Task<Boolean> likeTask = new Task<>() {
                 @Override
-                protected Boolean call() { return PostService.getInstance().toggleLike(post.getId(), currentUser.getId()); }
+                protected Boolean call() {
+                    return PostService.getInstance().toggleLike(post.getId(), currentUser.getId());
+                }
             };
             likeTask.setOnSucceeded(ev -> loadFeedTab());
             new Thread(likeTask, "LikeThread").start();
@@ -803,7 +832,9 @@ public class CommunityController implements Initializable {
         // Charger les commentaires depuis la base de données
         Task<List<PostComment>> commentsTask = new Task<>() {
             @Override
-            protected List<PostComment> call() { return PostService.getInstance().getComments(post.getId()); }
+            protected List<PostComment> call() {
+                return PostService.getInstance().getComments(post.getId());
+            }
         };
         commentsTask.setOnSucceeded(e -> {
             List<PostComment> comments = commentsTask.getValue();
@@ -941,8 +972,8 @@ public class CommunityController implements Initializable {
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  CONNEXIONS — CRUD avec gestion par rôle
-    //  (Demandes en attente, Connexions acceptées, Suggestions)
+    // CONNEXIONS — CRUD avec gestion par rôle
+    // (Demandes en attente, Connexions acceptées, Suggestions)
     // ═══════════════════════════════════════════════════════════
 
     /**
@@ -954,7 +985,8 @@ public class CommunityController implements Initializable {
      */
     private void loadConnectionsTab() {
         contentPane.getChildren().clear();
-        if (currentUser == null) return;
+        if (currentUser == null)
+            return;
 
         VBox connectionsPane = new VBox(16);
 
@@ -1069,7 +1101,8 @@ public class CommunityController implements Initializable {
                 Platform.runLater(() -> {
                     showToast(I18n.get("connection.success.accepted"));
                     loadConnectionsTab(); // Recharger l'onglet
-                    if (notificationService != null) notificationService.pollNow(); // Actualiser les notifications
+                    if (notificationService != null)
+                        notificationService.pollNow(); // Actualiser les notifications
                 });
             }, "AcceptThread").start();
         });
@@ -1083,7 +1116,8 @@ public class CommunityController implements Initializable {
                 ConnectionService.getInstance().rejectRequest(conn.getId());
                 Platform.runLater(() -> {
                     loadConnectionsTab();
-                    if (notificationService != null) notificationService.pollNow();
+                    if (notificationService != null)
+                        notificationService.pollNow();
                 });
             }, "RejectThread").start();
         });
@@ -1182,7 +1216,8 @@ public class CommunityController implements Initializable {
                 Platform.runLater(() -> {
                     showToast(I18n.get("connection.success.sent"));
                     loadConnectionsTab();
-                    if (notificationService != null) notificationService.pollNow();
+                    if (notificationService != null)
+                        notificationService.pollNow();
                 });
             }, "SendRequestThread").start();
         });
@@ -1201,24 +1236,24 @@ public class CommunityController implements Initializable {
     private void removeConnection(int connectionId) {
         DialogUtils.showConfirmation(
                 I18n.get("community.remove.confirm.title"),
-                I18n.get("community.remove.confirm.message")
-        ).ifPresent(result -> {
-            if (result == ButtonType.OK) {
-                new Thread(() -> {
-                    ConnectionService.getInstance().removeConnection(connectionId);
-                    Platform.runLater(() -> {
-                        showToast(I18n.get("connection.success.removed"));
-                        loadConnectionsTab();
-                        if (notificationService != null) notificationService.pollNow();
-                    });
-                }, "RemoveConnThread").start();
-            }
-        });
+                I18n.get("community.remove.confirm.message")).ifPresent(result -> {
+                    if (result == ButtonType.OK) {
+                        new Thread(() -> {
+                            ConnectionService.getInstance().removeConnection(connectionId);
+                            Platform.runLater(() -> {
+                                showToast(I18n.get("connection.success.removed"));
+                                loadConnectionsTab();
+                                if (notificationService != null)
+                                    notificationService.pollNow();
+                            });
+                        }, "RemoveConnThread").start();
+                    }
+                });
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  MESSAGES — Messagerie complète avec liste de conversations
-    //  (Lire, Envoyer, Modifier, Supprimer des messages)
+    // MESSAGES — Messagerie complète avec liste de conversations
+    // (Lire, Envoyer, Modifier, Supprimer des messages)
     // ═══════════════════════════════════════════════════════════
 
     /**
@@ -1227,7 +1262,8 @@ public class CommunityController implements Initializable {
      */
     private void loadMessagesTab() {
         contentPane.getChildren().clear();
-        if (currentUser == null) return;
+        if (currentUser == null)
+            return;
 
         VBox messagesPane = new VBox(12);
 
@@ -1293,32 +1329,37 @@ public class CommunityController implements Initializable {
             convTask.setOnSucceeded(e2 -> {
                 List<Conversation> allConversations = convTask.getValue();
                 // Afficher toutes les conversations par défaut
-                displayFilteredConversations(convListContainer, allConversations, false, "Toutes les dates", sortFilter.getValue());
+                displayFilteredConversations(convListContainer, allConversations, false, "Toutes les dates",
+                        sortFilter.getValue());
 
                 // ── Filtre "Toutes" : afficher toutes les conversations ──
                 filterAllBtn.setOnAction(ev -> {
                     filterAllBtn.setVariant(TLButton.ButtonVariant.PRIMARY);
                     filterUnreadBtn.setVariant(TLButton.ButtonVariant.OUTLINE);
-                    displayFilteredConversations(convListContainer, allConversations, false, dateFilter.getValue(), sortFilter.getValue());
+                    displayFilteredConversations(convListContainer, allConversations, false, dateFilter.getValue(),
+                            sortFilter.getValue());
                 });
 
                 // ── Filtre "Non lues" : seulement celles avec unreadCount > 0 ──
                 filterUnreadBtn.setOnAction(ev -> {
                     filterUnreadBtn.setVariant(TLButton.ButtonVariant.PRIMARY);
                     filterAllBtn.setVariant(TLButton.ButtonVariant.OUTLINE);
-                    displayFilteredConversations(convListContainer, allConversations, true, dateFilter.getValue(), sortFilter.getValue());
+                    displayFilteredConversations(convListContainer, allConversations, true, dateFilter.getValue(),
+                            sortFilter.getValue());
                 });
 
                 // ── Filtre par date : re-filtrer quand la date change ──
                 dateFilter.valueProperty().addListener((obs, oldVal, newVal) -> {
                     boolean unreadOnly = filterUnreadBtn.getVariant() == TLButton.ButtonVariant.PRIMARY;
-                    displayFilteredConversations(convListContainer, allConversations, unreadOnly, newVal, sortFilter.getValue());
+                    displayFilteredConversations(convListContainer, allConversations, unreadOnly, newVal,
+                            sortFilter.getValue());
                 });
 
                 // ── Tri par date : re-trier quand le tri change ──
                 sortFilter.valueProperty().addListener((obs, oldVal, newVal) -> {
                     boolean unreadOnly = filterUnreadBtn.getVariant() == TLButton.ButtonVariant.PRIMARY;
-                    displayFilteredConversations(convListContainer, allConversations, unreadOnly, dateFilter.getValue(), newVal);
+                    displayFilteredConversations(convListContainer, allConversations, unreadOnly, dateFilter.getValue(),
+                            newVal);
                 });
             });
             new Thread(convTask, "ConversationsThread").start();
@@ -1333,24 +1374,25 @@ public class CommunityController implements Initializable {
      * Filtre par : non lues uniquement + période de date.
      * Style Facebook : les conversations non lues ont un fond accentué.
      *
-     * @param container      le VBox conteneur des conversations
-     * @param conversations  toutes les conversations
-     * @param unreadOnly     true = afficher seulement les non lues
-     * @param dateFilterVal  valeur du filtre date ("Toutes les dates", "Aujourd'hui", etc.)
-     * @param sortVal        valeur du tri ("Plus récent" ou "Plus ancien")
+     * @param container     le VBox conteneur des conversations
+     * @param conversations toutes les conversations
+     * @param unreadOnly    true = afficher seulement les non lues
+     * @param dateFilterVal valeur du filtre date ("Toutes les dates",
+     *                      "Aujourd'hui", etc.)
+     * @param sortVal       valeur du tri ("Plus récent" ou "Plus ancien")
      */
     private void displayFilteredConversations(VBox container, List<Conversation> conversations,
-                                               boolean unreadOnly, String dateFilterVal, String sortVal) {
+            boolean unreadOnly, String dateFilterVal, String sortVal) {
         container.getChildren().clear();
 
         // Déterminer la date limite selon le filtre
         LocalDateTime dateCutoff = null;
         if (dateFilterVal != null) {
             dateCutoff = switch (dateFilterVal) {
-                case "Aujourd'hui"   -> LocalDateTime.now().minusDays(1);
+                case "Aujourd'hui" -> LocalDateTime.now().minusDays(1);
                 case "Cette semaine" -> LocalDateTime.now().minusDays(7);
-                case "Ce mois"       -> LocalDateTime.now().minusDays(30);
-                default              -> null; // Toutes les dates
+                case "Ce mois" -> LocalDateTime.now().minusDays(30);
+                default -> null; // Toutes les dates
             };
         }
 
@@ -1358,10 +1400,12 @@ public class CommunityController implements Initializable {
         List<Conversation> filtered = new java.util.ArrayList<>();
         for (Conversation conv : conversations) {
             // Filtre non lus
-            if (unreadOnly && conv.getUnreadCount() <= 0) continue;
+            if (unreadOnly && conv.getUnreadCount() <= 0)
+                continue;
             // Filtre par date
             if (dateCutoff != null && conv.getLastMessageDate() != null
-                    && conv.getLastMessageDate().isBefore(dateCutoff)) continue;
+                    && conv.getLastMessageDate().isBefore(dateCutoff))
+                continue;
             filtered.add(conv);
         }
 
@@ -1370,9 +1414,12 @@ public class CommunityController implements Initializable {
         filtered.sort((a, b) -> {
             LocalDateTime da = a.getLastMessageDate();
             LocalDateTime db = b.getLastMessageDate();
-            if (da == null && db == null) return 0;
-            if (da == null) return 1;
-            if (db == null) return -1;
+            if (da == null && db == null)
+                return 0;
+            if (da == null)
+                return 1;
+            if (db == null)
+                return -1;
             return ascending ? da.compareTo(db) : db.compareTo(da);
         });
 
@@ -1413,7 +1460,29 @@ public class CommunityController implements Initializable {
         content.setAlignment(Pos.CENTER_LEFT);
 
         String userName = conv.getOtherUserName() != null ? conv.getOtherUserName() : "User";
+
+        // ── Avatar avec indicateur de présence en ligne (point vert/gris) ──
         StackPane avatar = createAvatar(userName);
+        int otherUserId = (conv.getParticipant1() == currentUser.getId())
+                ? conv.getParticipant2()
+                : conv.getParticipant1();
+
+        // Point indicateur en ligne / hors ligne
+        javafx.scene.shape.Circle onlineDot = new javafx.scene.shape.Circle(5);
+        onlineDot.setStroke(javafx.scene.paint.Color.WHITE);
+        onlineDot.setStrokeWidth(1.5);
+        onlineDot.setFill(javafx.scene.paint.Color.GRAY); // Gris par défaut
+        StackPane.setAlignment(onlineDot, Pos.BOTTOM_RIGHT);
+        avatar.getChildren().add(onlineDot);
+
+        // Vérifier le statut en ligne en arrière-plan
+        new Thread(() -> {
+            boolean online = OnlineStatusService.getInstance().isUserOnline(otherUserId);
+            Platform.runLater(() -> {
+                onlineDot.setFill(
+                        online ? javafx.scene.paint.Color.web("#22c55e") : javafx.scene.paint.Color.web("#9ca3af"));
+            });
+        }, "OnlineDotThread").start();
 
         VBox textBox = new VBox(3);
         Label name = new Label(userName);
@@ -1485,9 +1554,19 @@ public class CommunityController implements Initializable {
         chatHeader.setPadding(new Insets(12, 16, 12, 16));
         chatHeader.setStyle("-fx-background-color: -fx-card; -fx-border-color: -fx-border; -fx-border-width: 0 0 1 0;");
 
+        // ── Déterminer l'ID de l'autre participant ──
+        int otherUserId = (conv.getParticipant1() == currentUser.getId())
+                ? conv.getParticipant2()
+                : conv.getParticipant1();
+
         TLButton backBtn = new TLButton("←", TLButton.ButtonVariant.GHOST);
         backBtn.setSize(TLButton.ButtonSize.SM);
-        backBtn.setOnAction(e -> loadMessagesTab()); // Retour à la liste
+        backBtn.setOnAction(e -> {
+            // Effacer le statut de saisie en quittant la conversation
+            new Thread(() -> MessagingService.getInstance().clearTypingStatus(conv.getId(), currentUser.getId()),
+                    "ClearTypingThread").start();
+            loadMessagesTab(); // Retour à la liste
+        });
 
         String otherName = conv.getOtherUserName() != null ? conv.getOtherUserName() : "Conversation";
         StackPane headerAvatar = createAvatar(otherName, 36);
@@ -1495,11 +1574,83 @@ public class CommunityController implements Initializable {
         VBox headerInfo = new VBox(1);
         Label chatTitle = new Label(otherName);
         chatTitle.setStyle("-fx-font-size: 15px; -fx-font-weight: 700; -fx-text-fill: -fx-foreground;");
-        Label onlineLabel = new Label("Online");
-        onlineLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #22c55e; -fx-font-weight: 500;");
+
+        // ── STATUT EN LIGNE/HORS LIGNE (temps réel) ──
+        Label onlineLabel = new Label("...");
+        onlineLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-muted-foreground; -fx-font-weight: 500;");
         headerInfo.getChildren().addAll(chatTitle, onlineLabel);
 
+        // Vérification initiale + polling du statut en ligne toutes les 5 secondes
+        javafx.animation.Timeline onlinePollTimeline = new javafx.animation.Timeline(
+                new javafx.animation.KeyFrame(Duration.ZERO, initEv -> {
+                    new Thread(() -> {
+                        boolean online = OnlineStatusService.getInstance().isUserOnline(otherUserId);
+                        String statusText = OnlineStatusService.getInstance().getStatusText(otherUserId);
+                        Platform.runLater(() -> {
+                            onlineLabel.setText(statusText);
+                            onlineLabel.setStyle("-fx-font-size: 11px; -fx-font-weight: 500; -fx-text-fill: "
+                                    + (online ? "#22c55e;" : "-fx-muted-foreground;"));
+                        });
+                    }, "OnlineCheckThread").start();
+                }),
+                new javafx.animation.KeyFrame(Duration.seconds(5), tickEv -> {
+                    new Thread(() -> {
+                        boolean online = OnlineStatusService.getInstance().isUserOnline(otherUserId);
+                        String statusText = OnlineStatusService.getInstance().getStatusText(otherUserId);
+                        Platform.runLater(() -> {
+                            onlineLabel.setText(statusText);
+                            onlineLabel.setStyle("-fx-font-size: 11px; -fx-font-weight: 500; -fx-text-fill: "
+                                    + (online ? "#22c55e;" : "-fx-muted-foreground;"));
+                        });
+                    }, "OnlineCheckThread").start();
+                }));
+        onlinePollTimeline.setCycleCount(javafx.animation.Animation.INDEFINITE);
+        onlinePollTimeline.play();
+
         chatHeader.getChildren().addAll(backBtn, headerAvatar, headerInfo);
+
+        // Bouton Résumé IA pour la conversation privée
+        Button privateSummaryBtn = new Button("📝 Résumé IA");
+        privateSummaryBtn.getStyleClass().addAll("btn", "btn-outline");
+        privateSummaryBtn.setStyle("-fx-font-size: 11px; -fx-padding: 4 12; -fx-cursor: hand;");
+        Region chatHeaderSpacer = new Region();
+        HBox.setHgrow(chatHeaderSpacer, Priority.ALWAYS);
+        chatHeader.getChildren().addAll(chatHeaderSpacer, privateSummaryBtn);
+
+        // Action du bouton Résumé IA (conversation privée)
+        privateSummaryBtn.setOnAction(summaryEv -> {
+            privateSummaryBtn.setDisable(true);
+            privateSummaryBtn.setText("⏳ Résumé en cours...");
+            new Thread(() -> {
+                List<Message> allMsgs = MessagingService.getInstance().getMessages(conv.getId(), 1, 500);
+                List<String> formatted = new ArrayList<>();
+                for (Message m : allMsgs) {
+                    String sender = m.getSenderName() != null ? m.getSenderName() : (m.getSenderId() == currentUser.getId() ? "Moi" : otherName);
+                    String text = m.getContent() != null && !m.getContent().isEmpty() ? m.getContent() : "[" + m.getMessageType() + "]";
+                    formatted.add(sender + ": " + text);
+                }
+                String summary = AISummaryService.getInstance().summarize(formatted);
+                Platform.runLater(() -> {
+                    privateSummaryBtn.setDisable(false);
+                    privateSummaryBtn.setText("📝 Résumé IA");
+                    TLDialog<Void> summaryDialog = new TLDialog<>();
+                    summaryDialog.setDialogTitle("📝 Résumé IA - " + otherName);
+                    summaryDialog.setDescription("Résumé généré par intelligence artificielle");
+                    Label summaryLabel = new Label(summary);
+                    summaryLabel.setWrapText(true);
+                    summaryLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: -fx-foreground; -fx-line-spacing: 4;");
+                    summaryLabel.setMaxWidth(500);
+                    javafx.scene.control.ScrollPane summaryScroll = new javafx.scene.control.ScrollPane(summaryLabel);
+                    summaryScroll.setFitToWidth(true);
+                    summaryScroll.setPrefHeight(300);
+                    summaryScroll.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+                    summaryDialog.setContent(summaryScroll);
+                    summaryDialog.addButton(ButtonType.OK);
+                    summaryDialog.setResultConverter(bt -> null);
+                    summaryDialog.showAndWait();
+                });
+            }, "PrivateAISummaryThread").start();
+        });
 
         // ── Zone des messages avec défilement ──
         VBox messagesList = new VBox(6);
@@ -1511,17 +1662,30 @@ public class CommunityController implements Initializable {
         VBox.setVgrow(scroll, Priority.ALWAYS);
 
         // Charger les messages et marquer comme lus
+        // Holder for reaction data fetched alongside messages
+        final java.util.Map<Integer, java.util.Map<String, Integer>>[] convReactionsHolder = new java.util.Map[]{null};
+        final java.util.Map<Integer, java.util.Set<String>>[] convMyReactionsHolder = new java.util.Map[]{null};
         Task<List<Message>> messagesTask = new Task<>() {
             @Override
             protected List<Message> call() {
                 // D'abord marquer les messages de cette conversation comme lus
                 MessagingService.getInstance().markAsRead(conv.getId(), currentUser.getId());
+                // Charger les réactions
+                convReactionsHolder[0] = MessagingService.getInstance().getReactionsForConversation(conv.getId());
+                convMyReactionsHolder[0] = MessagingService.getInstance().getUserReactionsForConversation(conv.getId(), currentUser.getId());
                 // Puis charger les messages (page 1, max 100)
                 return MessagingService.getInstance().getMessages(conv.getId(), 1, 100);
             }
         };
         messagesTask.setOnSucceeded(e -> Platform.runLater(() -> {
             List<Message> messages = messagesTask.getValue();
+            java.util.Map<Integer, java.util.Map<String, Integer>> allReactions =
+                    convReactionsHolder[0] != null ? convReactionsHolder[0] : java.util.Collections.emptyMap();
+            java.util.Map<Integer, java.util.Set<String>> allMyReactions =
+                    convMyReactionsHolder[0] != null ? convMyReactionsHolder[0] : java.util.Collections.emptyMap();
+            // Map pour stocker les labels "Envoyé" non lus → mise à jour temps réel vers
+            // "Vu"
+            java.util.Map<Integer, Label> unreadStatusLabels = new java.util.HashMap<>();
             for (Message msg : messages) {
                 boolean isMine = msg.getSenderId() == currentUser.getId(); // Mon message ?
                 HBox row = new HBox(8);
@@ -1540,24 +1704,223 @@ public class CommunityController implements Initializable {
                 bubble.setMaxWidth(350);
                 bubble.getStyleClass().add(isMine ? "msg-bubble-mine" : "msg-bubble-theirs");
 
-                Label msgText = new Label(msg.getContent());
-                msgText.setWrapText(true);
-                msgText.setStyle(isMine
-                        ? "-fx-text-fill: -fx-primary-foreground; -fx-font-size: 13px;"
-                        : "-fx-text-fill: -fx-foreground; -fx-font-size: 13px;");
+                // ── CONTENU DU MESSAGE — Texte, Image ou Vidéo ──
+                if (msg.isImage() && msg.hasMedia()) {
+                    // ── IMAGE — Afficher l'image dans la bulle ──
+                    try {
+                        ImageView imgView = new ImageView();
+                        imgView.setPreserveRatio(true);
+                        imgView.setFitWidth(280);
+                        imgView.setSmooth(true);
+                        imgView.setStyle("-fx-cursor: hand;");
+
+                        // Charger l'image en arrière-plan pour ne pas bloquer l'UI
+                        Image image = new Image(msg.getMediaUrl(), 280, 0, true, true, true);
+                        imgView.setImage(image);
+
+                        // Coins arrondis sur l'image
+                        javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle(280, 200);
+                        clip.setArcWidth(12);
+                        clip.setArcHeight(12);
+                        image.progressProperty().addListener((obsImg, ov, nv) -> {
+                            if (nv.doubleValue() >= 1.0 && image.getHeight() > 0) {
+                                double ratio = 280.0 / image.getWidth();
+                                clip.setHeight(image.getHeight() * ratio);
+                                imgView.setClip(clip);
+                            }
+                        });
+
+                        bubble.getChildren().add(imgView);
+
+                        // Légende textuelle (si présente)
+                        if (msg.getContent() != null && !msg.getContent().isBlank()) {
+                            Label captionLabel = new Label(msg.getContent());
+                            captionLabel.setWrapText(true);
+                            captionLabel.setStyle(isMine
+                                    ? "-fx-text-fill: -fx-primary-foreground; -fx-font-size: 12px; -fx-padding: 4 0 0 0;"
+                                    : "-fx-text-fill: -fx-foreground; -fx-font-size: 12px; -fx-padding: 4 0 0 0;");
+                            bubble.getChildren().add(captionLabel);
+                        }
+                    } catch (Exception imgEx) {
+                        // Fallback : afficher le lien si l'image ne charge pas
+                        Label fallback = new Label("📷 " + (msg.getFileName() != null ? msg.getFileName() : "Image"));
+                        fallback.setWrapText(true);
+                        fallback.setStyle(isMine ? "-fx-text-fill: -fx-primary-foreground; -fx-font-size: 13px;"
+                                : "-fx-text-fill: -fx-foreground; -fx-font-size: 13px;");
+                        bubble.getChildren().add(fallback);
+                    }
+                } else if (msg.isVideo() && msg.hasMedia()) {
+                    // ── VIDÉO — Afficher une vignette cliquable ──
+                    VBox videoBox = new VBox(4);
+                    videoBox.setAlignment(Pos.CENTER);
+
+                    // Icône play + nom du fichier
+                    Label videoIcon = new Label("🎬");
+                    videoIcon.setStyle("-fx-font-size: 36px;");
+
+                    Label videoName = new Label(msg.getFileName() != null ? msg.getFileName() : "Vidéo");
+                    videoName.setWrapText(true);
+                    videoName.setStyle(isMine
+                            ? "-fx-text-fill: -fx-primary-foreground; -fx-font-size: 12px;"
+                            : "-fx-text-fill: -fx-foreground; -fx-font-size: 12px;");
+
+                    Label playHint = new Label("▶ Cliquer pour ouvrir");
+                    playHint.setStyle("-fx-font-size: 10px; -fx-text-fill: "
+                            + (isMine ? "-fx-primary-foreground;" : "-fx-muted-foreground;"));
+
+                    videoBox.getChildren().addAll(videoIcon, videoName, playHint);
+                    videoBox.setStyle("-fx-cursor: hand; -fx-padding: 12;");
+
+                    // Clic : ouvrir la vidéo dans le lecteur par défaut du système
+                    videoBox.setOnMouseClicked(vidEv -> {
+                        try {
+                            String mediaUrl = msg.getMediaUrl();
+                            if (mediaUrl.startsWith("file:")) {
+                                java.awt.Desktop.getDesktop().open(new java.io.File(java.net.URI.create(mediaUrl)));
+                            } else {
+                                java.awt.Desktop.getDesktop().browse(java.net.URI.create(mediaUrl));
+                            }
+                        } catch (Exception ex) {
+                            logger.warn("Cannot open video: {}", ex.getMessage());
+                        }
+                    });
+
+                    bubble.getChildren().add(videoBox);
+
+                    // Légende textuelle (si présente)
+                    if (msg.getContent() != null && !msg.getContent().isBlank()) {
+                        Label captionLabel = new Label(msg.getContent());
+                        captionLabel.setWrapText(true);
+                        captionLabel.setStyle(isMine
+                                ? "-fx-text-fill: -fx-primary-foreground; -fx-font-size: 12px; -fx-padding: 4 0 0 0;"
+                                : "-fx-text-fill: -fx-foreground; -fx-font-size: 12px; -fx-padding: 4 0 0 0;");
+                        bubble.getChildren().add(captionLabel);
+                    }
+                } else if (msg.isVocal() && msg.hasMedia()) {
+                    // ── VOCAL — Lecteur audio intégré dans la bulle (comme Messenger) ──
+                    HBox vocalBox = new HBox(8);
+                    vocalBox.setAlignment(Pos.CENTER_LEFT);
+                    vocalBox.getStyleClass().add("msg-vocal-player");
+
+                    // Bouton play/pause
+                    Label playPauseIcon = new Label("▶");
+                    playPauseIcon.setStyle("-fx-font-size: 20px; -fx-cursor: hand; -fx-text-fill: " +
+                            (isMine ? "-fx-primary-foreground;" : "-fx-primary;"));
+
+                    // Barre de progression
+                    javafx.scene.control.ProgressBar progressBar = new javafx.scene.control.ProgressBar(0);
+                    progressBar.setPrefWidth(150);
+                    progressBar.setPrefHeight(6);
+                    progressBar.getStyleClass().add("vocal-progress-bar");
+
+                    // Durée
+                    String durationText = com.skilora.community.service.AudioRecorderService
+                            .formatDuration(msg.getDuration());
+                    Label durationLabel = new Label(durationText);
+                    durationLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: " +
+                            (isMine ? "-fx-primary-foreground;" : "-fx-muted-foreground;"));
+
+                    // État de lecture (partagé dans un tableau pour accès depuis lambda)
+                    final javafx.scene.media.MediaPlayer[] playerHolder = { null };
+                    final boolean[] isPlaying = { false };
+
+                    playPauseIcon.setOnMouseClicked(playEv -> {
+                        if (isPlaying[0] && playerHolder[0] != null) {
+                            // Pause
+                            playerHolder[0].pause();
+                            playPauseIcon.setText("▶");
+                            isPlaying[0] = false;
+                        } else {
+                            if (playerHolder[0] == null) {
+                                try {
+                                    javafx.scene.media.Media media = new javafx.scene.media.Media(msg.getMediaUrl());
+                                    playerHolder[0] = new javafx.scene.media.MediaPlayer(media);
+
+                                    playerHolder[0].currentTimeProperty().addListener((obsT, oldT, newT) -> {
+                                        if (playerHolder[0].getTotalDuration() != null &&
+                                                playerHolder[0].getTotalDuration().toMillis() > 0) {
+                                            double progress = newT.toMillis()
+                                                    / playerHolder[0].getTotalDuration().toMillis();
+                                            Platform.runLater(() -> {
+                                                progressBar.setProgress(progress);
+                                                int elapsed = (int) (newT.toSeconds());
+                                                durationLabel.setText(com.skilora.community.service.AudioRecorderService
+                                                        .formatDuration(elapsed));
+                                            });
+                                        }
+                                    });
+
+                                    playerHolder[0].setOnEndOfMedia(() -> Platform.runLater(() -> {
+                                        playPauseIcon.setText("▶");
+                                        progressBar.setProgress(0);
+                                        durationLabel.setText(durationText);
+                                        isPlaying[0] = false;
+                                        playerHolder[0].stop();
+                                        playerHolder[0].dispose();
+                                        playerHolder[0] = null;
+                                    }));
+
+                                    playerHolder[0].setOnError(() -> Platform.runLater(() -> {
+                                        playPauseIcon.setText("▶");
+                                        isPlaying[0] = false;
+                                        logger.warn("Audio playback error: {}", playerHolder[0].getError());
+                                    }));
+
+                                } catch (Exception audioEx) {
+                                    logger.warn("Cannot create audio player: {}", audioEx.getMessage());
+                                    return;
+                                }
+                            }
+                            playerHolder[0].play();
+                            playPauseIcon.setText("⏸");
+                            isPlaying[0] = true;
+                        }
+                    });
+
+                    vocalBox.getChildren().addAll(playPauseIcon, progressBar, durationLabel);
+                    bubble.getChildren().add(vocalBox);
+                } else {
+                    // ── TEXTE — Message classique ──
+                    Label msgText = new Label(msg.getContent());
+                    msgText.setWrapText(true);
+                    msgText.setStyle(isMine
+                            ? "-fx-text-fill: -fx-primary-foreground; -fx-font-size: 13px;"
+                            : "-fx-text-fill: -fx-foreground; -fx-font-size: 13px;");
+                    bubble.getChildren().add(msgText);
+                }
 
                 Label timeLabel = new Label(formatDate(msg.getCreatedDate()));
-                timeLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: " + (isMine ? "-fx-primary-foreground;" : "-fx-muted-foreground;"));
+                timeLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: "
+                        + (isMine ? "-fx-primary-foreground;" : "-fx-muted-foreground;"));
 
-                bubble.getChildren().addAll(msgText, timeLabel);
+                // ── INDICATEUR "VU" — Affiché sur mes messages quand l'autre les a lus ──
+                if (isMine) {
+                    HBox statusRow = new HBox(4);
+                    statusRow.setAlignment(Pos.CENTER_RIGHT);
+                    statusRow.getChildren().add(timeLabel);
+
+                    if (msg.isRead()) {
+                        Label seenLabel = new Label("✓✓ Vu");
+                        seenLabel.getStyleClass().add("msg-seen-indicator");
+                        statusRow.getChildren().add(seenLabel);
+                    } else {
+                        Label sentLabel = new Label("✓ Envoyé");
+                        sentLabel.getStyleClass().add("msg-sent-indicator");
+                        statusRow.getChildren().add(sentLabel);
+                        unreadStatusLabels.put(msg.getId(), sentLabel);
+                    }
+                    bubble.getChildren().add(statusRow);
+                } else {
+                    bubble.getChildren().add(timeLabel);
+                }
 
                 // ── Boutons Modifier / Supprimer pour ses propres messages ──
                 // Visibles seulement au survol (setOnMouseEntered/Exited)
                 if (isMine) {
                     HBox actionBtns = new HBox(4);
                     actionBtns.setAlignment(Pos.CENTER_RIGHT);
-                    actionBtns.setVisible(false);  // Caché par défaut
-                    actionBtns.setManaged(false);   // Ne prend pas de place
+                    actionBtns.setVisible(false); // Caché par défaut
+                    actionBtns.setManaged(false); // Ne prend pas de place
 
                     // Bouton MODIFIER le message
                     TLButton editBtn = new TLButton("✏", TLButton.ButtonVariant.GHOST);
@@ -1578,7 +1941,8 @@ public class CommunityController implements Initializable {
 
                         HBox editBtns = new HBox(8);
                         editBtns.setAlignment(Pos.CENTER_RIGHT);
-                        TLButton cancelEditBtn = new TLButton(I18n.get("common.cancel"), TLButton.ButtonVariant.SECONDARY);
+                        TLButton cancelEditBtn = new TLButton(I18n.get("common.cancel"),
+                                TLButton.ButtonVariant.SECONDARY);
                         cancelEditBtn.setOnAction(ev2 -> editDlg.close());
                         TLButton saveEditBtn = new TLButton(I18n.get("common.save"), TLButton.ButtonVariant.PRIMARY);
                         saveEditBtn.setOnAction(ev2 -> {
@@ -1588,7 +1952,8 @@ public class CommunityController implements Initializable {
                                 editDlg.close();
                                 // CONTRÔLE DE SÉCURITÉ : updateMessage vérifie sender_id
                                 new Thread(() -> {
-                                    MessagingService.getInstance().updateMessage(msg.getId(), currentUser.getId(), newText.trim());
+                                    MessagingService.getInstance().updateMessage(msg.getId(), currentUser.getId(),
+                                            newText.trim());
                                     Platform.runLater(() -> openConversationView(conv)); // Recharger
                                 }, "EditMsgThread").start();
                             }
@@ -1613,7 +1978,8 @@ public class CommunityController implements Initializable {
                         confirmContent.setPadding(new Insets(16));
                         HBox confirmBtns = new HBox(8);
                         confirmBtns.setAlignment(Pos.CENTER_RIGHT);
-                        TLButton cancelDelBtn = new TLButton(I18n.get("common.cancel"), TLButton.ButtonVariant.SECONDARY);
+                        TLButton cancelDelBtn = new TLButton(I18n.get("common.cancel"),
+                                TLButton.ButtonVariant.SECONDARY);
                         cancelDelBtn.setOnAction(ev2 -> confirmDlg.close());
                         TLButton okDelBtn = new TLButton(I18n.get("common.delete"), TLButton.ButtonVariant.DANGER);
                         okDelBtn.setOnAction(ev2 -> {
@@ -1634,18 +2000,75 @@ public class CommunityController implements Initializable {
                     bubble.getChildren().add(actionBtns);
 
                     // Afficher les actions au survol de la souris (hover)
-                    row.setOnMouseEntered(ev -> { actionBtns.setVisible(true); actionBtns.setManaged(true); });
-                    row.setOnMouseExited(ev -> { actionBtns.setVisible(false); actionBtns.setManaged(false); });
+                    row.setOnMouseEntered(ev -> {
+                        actionBtns.setVisible(true);
+                        actionBtns.setManaged(true);
+                    });
+                    row.setOnMouseExited(ev -> {
+                        actionBtns.setVisible(false);
+                        actionBtns.setManaged(false);
+                    });
                 }
 
+                // ── REACTION BAR below the private message bubble ──
+                java.util.Map<String, Integer> msgReactions = allReactions.getOrDefault(msg.getId(), java.util.Collections.emptyMap());
+                java.util.Set<String> msgMyReactions = allMyReactions.getOrDefault(msg.getId(), java.util.Collections.emptySet());
+                final int pmMsgId = msg.getId();
+                FlowPane reactionBar = buildReactionBar(pmMsgId, isMine, msgReactions, msgMyReactions, emoji -> {
+                    new Thread(() -> {
+                        MessagingService.getInstance().toggleReaction(pmMsgId, currentUser.getId(), emoji);
+                        Platform.runLater(() -> openConversationView(conv));
+                    }, "PrivateReactionThread").start();
+                });
+
+                VBox bubbleWithReactions = new VBox(0);
+                bubbleWithReactions.setAlignment(isMine ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
+                bubbleWithReactions.getChildren().addAll(bubble, reactionBar);
+
                 if (isMine) {
-                    row.getChildren().add(bubble);         // Mon message : bulle seule à droite
+                    row.getChildren().add(bubbleWithReactions); // Mon message : bulle seule à droite
                 } else {
-                    row.getChildren().addAll(msgAvatar, bubble); // Son message : avatar + bulle à gauche
+                    row.getChildren().addAll(msgAvatar, bubbleWithReactions); // Son message : avatar + bulle à gauche
                 }
                 messagesList.getChildren().add(row);
             }
             Platform.runLater(() -> scroll.setVvalue(1.0)); // Défiler vers le bas
+
+            // ── POLLING TEMPS RÉEL DU "VU" — Vérifier si mes messages ont été lus (toutes
+            // les 2s) ──
+            if (!unreadStatusLabels.isEmpty()) {
+                javafx.animation.Timeline seenPollTimeline = new javafx.animation.Timeline(
+                        new javafx.animation.KeyFrame(Duration.millis(2000), seenEv -> {
+                            new Thread(() -> {
+                                java.util.Map<Integer, Boolean> readStatus = MessagingService.getInstance()
+                                        .getReadStatusForMyMessages(conv.getId(), currentUser.getId());
+                                Platform.runLater(() -> {
+                                    // Parcourir les labels non lus et mettre à jour ceux qui sont devenus "lus"
+                                    java.util.List<Integer> nowRead = new java.util.ArrayList<>();
+                                    for (java.util.Map.Entry<Integer, Label> entry : unreadStatusLabels.entrySet()) {
+                                        Boolean isRead = readStatus.get(entry.getKey());
+                                        if (isRead != null && isRead) {
+                                            Label label = entry.getValue();
+                                            label.setText("✓✓ Vu");
+                                            label.getStyleClass().remove("msg-sent-indicator");
+                                            label.getStyleClass().add("msg-seen-indicator");
+                                            nowRead.add(entry.getKey());
+                                        }
+                                    }
+                                    // Retirer les messages déjà marqués "Vu" du polling
+                                    nowRead.forEach(unreadStatusLabels::remove);
+                                });
+                            }, "SeenPollThread").start();
+                        }));
+                seenPollTimeline.setCycleCount(javafx.animation.Animation.INDEFINITE);
+                seenPollTimeline.play();
+
+                // Arrêter le polling "Vu" quand on quitte la conversation
+                contentPane.sceneProperty().addListener((obs2, os2, ns2) -> {
+                    if (ns2 == null)
+                        seenPollTimeline.stop();
+                });
+            }
         }));
         new Thread(messagesTask, "LoadMessagesThread").start();
 
@@ -1658,36 +2081,309 @@ public class CommunityController implements Initializable {
         TLTextField msgInput = new TLTextField("", I18n.get("message.placeholder"));
         HBox.setHgrow(msgInput, Priority.ALWAYS);
 
+        // ── INDICATEUR DE SAISIE — "en train d'écrire..." (comme Facebook) ──
+        HBox typingIndicatorRow = new HBox(8);
+        typingIndicatorRow.setAlignment(Pos.CENTER_LEFT);
+        typingIndicatorRow.setPadding(new Insets(2, 16, 2, 16));
+        typingIndicatorRow.setVisible(false);
+        typingIndicatorRow.setManaged(false);
+
+        // Avatar de l'autre utilisateur dans l'indicateur
+        StackPane typingAvatar = createAvatar(otherName, 24);
+
+        // Bulle avec les 3 points animés
+        HBox typingBubble = new HBox(4);
+        typingBubble.setAlignment(Pos.CENTER);
+        typingBubble.getStyleClass().add("typing-indicator-bubble");
+
+        // Trois points qui s'animent (opacité alternée via Timeline)
+        Label dot1 = new Label("●");
+        Label dot2 = new Label("●");
+        Label dot3 = new Label("●");
+        dot1.setStyle("-fx-text-fill: -fx-muted-foreground; -fx-font-size: 10px;");
+        dot2.setStyle("-fx-text-fill: -fx-muted-foreground; -fx-font-size: 10px;");
+        dot3.setStyle("-fx-text-fill: -fx-muted-foreground; -fx-font-size: 10px;");
+        typingBubble.getChildren().addAll(dot1, dot2, dot3);
+
+        // Animation des points (effet de "pulsation" séquentielle)
+        javafx.animation.Timeline dotAnimation = new javafx.animation.Timeline(
+                new javafx.animation.KeyFrame(Duration.ZERO,
+                        new javafx.animation.KeyValue(dot1.opacityProperty(), 0.3),
+                        new javafx.animation.KeyValue(dot2.opacityProperty(), 0.3),
+                        new javafx.animation.KeyValue(dot3.opacityProperty(), 0.3)),
+                new javafx.animation.KeyFrame(Duration.millis(300),
+                        new javafx.animation.KeyValue(dot1.opacityProperty(), 1.0)),
+                new javafx.animation.KeyFrame(Duration.millis(600),
+                        new javafx.animation.KeyValue(dot1.opacityProperty(), 0.3),
+                        new javafx.animation.KeyValue(dot2.opacityProperty(), 1.0)),
+                new javafx.animation.KeyFrame(Duration.millis(900),
+                        new javafx.animation.KeyValue(dot2.opacityProperty(), 0.3),
+                        new javafx.animation.KeyValue(dot3.opacityProperty(), 1.0)),
+                new javafx.animation.KeyFrame(Duration.millis(1200),
+                        new javafx.animation.KeyValue(dot3.opacityProperty(), 0.3)));
+        dotAnimation.setCycleCount(javafx.animation.Animation.INDEFINITE);
+
+        // Texte "en train d'écrire..."
+        Label typingText = new Label(otherName + " est en train d'écrire");
+        typingText.getStyleClass().add("typing-indicator");
+
+        typingIndicatorRow.getChildren().addAll(typingAvatar, typingBubble, typingText);
+
+        // ── POLLING TEMPS RÉEL — Vérifier si l'autre utilisateur tape (toutes les
+        // 1.5s) ──
+        javafx.animation.Timeline typingPollTimeline = new javafx.animation.Timeline(
+                new javafx.animation.KeyFrame(Duration.millis(1500), ev -> {
+                    new Thread(() -> {
+                        boolean isTyping = MessagingService.getInstance().isUserTyping(conv.getId(), otherUserId);
+                        Platform.runLater(() -> {
+                            if (isTyping && !typingIndicatorRow.isVisible()) {
+                                typingIndicatorRow.setVisible(true);
+                                typingIndicatorRow.setManaged(true);
+                                dotAnimation.play();
+                                // Défiler vers le bas pour voir l'indicateur
+                                scroll.setVvalue(1.0);
+                            } else if (!isTyping && typingIndicatorRow.isVisible()) {
+                                typingIndicatorRow.setVisible(false);
+                                typingIndicatorRow.setManaged(false);
+                                dotAnimation.stop();
+                            }
+                        });
+                    }, "TypingPollThread").start();
+                }));
+        typingPollTimeline.setCycleCount(javafx.animation.Animation.INDEFINITE);
+        typingPollTimeline.play();
+
+        // ── DÉTECTION DE FRAPPE — Envoyer le statut "en train d'écrire" ──
+        msgInput.getControl().textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && !newVal.trim().isEmpty()) {
+                new Thread(() -> MessagingService.getInstance().updateTypingStatus(conv.getId(), currentUser.getId()),
+                        "TypingStatusThread").start();
+            }
+        });
+
         // ── EMOJI PICKER — Bouton emoji dans le chat ──
         TLButton chatEmojiBtn = new TLButton("😀", TLButton.ButtonVariant.GHOST);
         chatEmojiBtn.setSize(TLButton.ButtonSize.SM);
         chatEmojiBtn.setOnAction(ev -> showEmojiPickerForTextField(chatEmojiBtn, msgInput));
 
+        // ── PIÈCE JOINTE — Bouton pour envoyer une image ou vidéo (📎) ──
+        TLButton attachBtn = new TLButton("📎", TLButton.ButtonVariant.GHOST);
+        attachBtn.setSize(TLButton.ButtonSize.SM);
+        attachBtn.setStyle("-fx-font-size: 16px; -fx-cursor: hand;");
+        attachBtn.setOnAction(ev -> {
+            javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+            fileChooser.setTitle("Envoyer une image ou vidéo");
+            fileChooser.getExtensionFilters().addAll(
+                    new javafx.stage.FileChooser.ExtensionFilter("Tous les médias",
+                            cloudinaryService.getAllowedMediaExtensionPatterns()),
+                    new javafx.stage.FileChooser.ExtensionFilter("Images",
+                            cloudinaryService.getAllowedExtensionPatterns()),
+                    new javafx.stage.FileChooser.ExtensionFilter("Vidéos",
+                            cloudinaryService.getAllowedVideoExtensionPatterns()));
+            java.io.File file = fileChooser.showOpenDialog(contentPane.getScene().getWindow());
+            if (file != null) {
+                String caption = msgInput.getText();
+                msgInput.setText(""); // Vider le champ
+                attachBtn.setText("⏳");
+                attachBtn.setDisable(true);
+
+                new Thread(() -> {
+                    try {
+                        String mediaType = cloudinaryService.detectMediaType(file);
+                        String mediaUrl;
+                        if ("VIDEO".equals(mediaType)) {
+                            mediaUrl = cloudinaryService.uploadVideo(file);
+                        } else {
+                            mediaUrl = cloudinaryService.uploadImage(file);
+                        }
+
+                        // Effacer le statut de saisie + envoyer le message média
+                        MessagingService.getInstance().clearTypingStatus(conv.getId(), currentUser.getId());
+                        MessagingService.getInstance().sendMessage(
+                                conv.getId(), currentUser.getId(),
+                                (caption != null && !caption.trim().isEmpty()) ? caption.trim() : null,
+                                mediaType, mediaUrl, file.getName());
+
+                        Platform.runLater(() -> {
+                            attachBtn.setText("📎");
+                            attachBtn.setDisable(false);
+                            openConversationView(conv); // Recharger la vue
+                            if (notificationService != null)
+                                notificationService.pollNow();
+                        });
+                    } catch (Exception ex) {
+                        Platform.runLater(() -> {
+                            attachBtn.setText("📎");
+                            attachBtn.setDisable(false);
+                            DialogUtils.showError("Erreur d'envoi", ex.getMessage());
+                        });
+                    }
+                }, "MediaUploadThread").start();
+            }
+        });
+
+        // sendBtn declaration moved down after micBtn
+
+        // ── BOUTON MICRO — Enregistrement vocal (comme Messenger) ──
+        com.skilora.community.service.AudioRecorderService audioRecorder = com.skilora.community.service.AudioRecorderService
+                .getInstance();
+        TLButton micBtn = new TLButton("🎤", TLButton.ButtonVariant.GHOST);
+        micBtn.setSize(TLButton.ButtonSize.SM);
+        micBtn.setStyle("-fx-font-size: 16px; -fx-cursor: hand;");
+
+        // Indicateur d'enregistrement (caché par défaut)
+        HBox recordingIndicator = new HBox(8);
+        recordingIndicator.setAlignment(Pos.CENTER_LEFT);
+        recordingIndicator.setVisible(false);
+        recordingIndicator.setManaged(false);
+
+        Label recordDot = new Label("🔴");
+        recordDot.setStyle("-fx-font-size: 12px;");
+        Label recordTimer = new Label("0:00");
+        recordTimer.setStyle("-fx-font-size: 13px; -fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+        Label recordHint = new Label("Enregistrement en cours...");
+        recordHint.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-muted-foreground;");
+
+        TLButton cancelRecordBtn = new TLButton("✖", TLButton.ButtonVariant.GHOST);
+        cancelRecordBtn.setSize(TLButton.ButtonSize.SM);
+        cancelRecordBtn.setStyle("-fx-text-fill: #e74c3c; -fx-cursor: hand;");
+
+        recordingIndicator.getChildren().addAll(recordDot, recordTimer, recordHint, cancelRecordBtn);
+
+        // Timer de mise à jour pendant l'enregistrement
+        javafx.animation.Timeline recordTimerTimeline = new javafx.animation.Timeline(
+                new javafx.animation.KeyFrame(Duration.seconds(1), ev -> {
+                    if (audioRecorder.isRecording()) {
+                        int elapsed = audioRecorder.getElapsedSeconds();
+                        recordTimer.setText(com.skilora.community.service.AudioRecorderService.formatDuration(elapsed));
+                        // Limite 5 minutes
+                        if (elapsed >= 300) {
+                            micBtn.fire(); // Auto-stop
+                        }
+                    }
+                }));
+        recordTimerTimeline.setCycleCount(javafx.animation.Animation.INDEFINITE);
+
+        // Annuler l'enregistrement
+        cancelRecordBtn.setOnAction(ev -> {
+            audioRecorder.cancelRecording();
+            recordTimerTimeline.stop();
+            recordingIndicator.setVisible(false);
+            recordingIndicator.setManaged(false);
+            msgInput.setVisible(true);
+            msgInput.setManaged(true);
+            micBtn.setText("🎤");
+            micBtn.setStyle("-fx-font-size: 16px; -fx-cursor: hand;");
+        });
+
+        micBtn.setOnAction(ev -> {
+            if (!audioRecorder.isRecording()) {
+                // ── Démarrer l'enregistrement ──
+                try {
+                    audioRecorder.startRecording();
+                    micBtn.setText("⏹");
+                    micBtn.setStyle("-fx-font-size: 16px; -fx-cursor: hand; -fx-text-fill: #e74c3c;");
+                    recordTimer.setText("0:00");
+                    recordingIndicator.setVisible(true);
+                    recordingIndicator.setManaged(true);
+                    msgInput.setVisible(false);
+                    msgInput.setManaged(false);
+                    recordTimerTimeline.play();
+                } catch (Exception ex) {
+                    DialogUtils.showError("Microphone", ex.getMessage());
+                }
+            } else {
+                // ── Arrêter et envoyer le vocal ──
+                recordTimerTimeline.stop();
+                recordingIndicator.setVisible(false);
+                recordingIndicator.setManaged(false);
+                msgInput.setVisible(true);
+                msgInput.setManaged(true);
+                micBtn.setText("⏳");
+                micBtn.setDisable(true);
+
+                java.io.File wavFile = audioRecorder.stopRecording();
+                if (wavFile == null) {
+                    micBtn.setText("🎤");
+                    micBtn.setDisable(false);
+                    micBtn.setStyle("-fx-font-size: 16px; -fx-cursor: hand;");
+                    return;
+                }
+
+                int durationSec = com.skilora.community.service.AudioRecorderService.getWavDurationSeconds(wavFile);
+
+                new Thread(() -> {
+                    try {
+                        String audioUrl = cloudinaryService.uploadAudio(wavFile);
+                        MessagingService.getInstance().clearTypingStatus(conv.getId(), currentUser.getId());
+                        MessagingService.getInstance().sendMessage(
+                                conv.getId(), currentUser.getId(),
+                                null, "VOCAL", audioUrl, wavFile.getName(), durationSec);
+                        Platform.runLater(() -> {
+                            micBtn.setText("🎤");
+                            micBtn.setDisable(false);
+                            micBtn.setStyle("-fx-font-size: 16px; -fx-cursor: hand;");
+                            openConversationView(conv);
+                            if (notificationService != null)
+                                notificationService.pollNow();
+                        });
+                    } catch (Exception ex) {
+                        Platform.runLater(() -> {
+                            micBtn.setText("🎤");
+                            micBtn.setDisable(false);
+                            micBtn.setStyle("-fx-font-size: 16px; -fx-cursor: hand;");
+                            DialogUtils.showError("Erreur d'envoi vocal", ex.getMessage());
+                        });
+                    }
+                }, "VocalUploadThread").start();
+            }
+        });
+
         TLButton sendBtn = new TLButton("➤  " + I18n.get("message.send"), TLButton.ButtonVariant.PRIMARY);
         sendBtn.setOnAction(e -> {
+            if (audioRecorder.isRecording()) {
+                micBtn.fire();
+                return;
+            }
             String text = msgInput.getText();
             // CONTRÔLE DE SAISIE : vérifier que le message n'est pas vide
             if (text != null && !text.trim().isEmpty()) {
                 msgInput.setText(""); // Vider le champ immédiatement
-                // Envoyer le message dans un thread séparé
+                // Effacer le statut de saisie + envoyer le message
                 new Thread(() -> {
+                    MessagingService.getInstance().clearTypingStatus(conv.getId(), currentUser.getId());
                     MessagingService.getInstance().sendMessage(conv.getId(), currentUser.getId(), text.trim());
                     Platform.runLater(() -> {
                         openConversationView(conv); // Recharger la vue
-                        if (notificationService != null) notificationService.pollNow(); // Actualiser les notifications
+                        if (notificationService != null)
+                            notificationService.pollNow(); // Actualiser les notifications
                     });
                 }, "SendMsgThread").start();
             }
         });
-        inputBar.getChildren().addAll(msgInput, chatEmojiBtn, sendBtn);
 
-        chatPane.getChildren().addAll(chatHeader, scroll, inputBar);
+        inputBar.getChildren().addAll(msgInput, recordingIndicator, attachBtn, micBtn, chatEmojiBtn, sendBtn);
+
+        // ── Assembler : header + messages + typing indicator + input bar ──
+        chatPane.getChildren().addAll(chatHeader, scroll, typingIndicatorRow, inputBar);
         contentPane.getChildren().add(chatPane);
+
+        // ── Arrêter le polling quand on quitte la conversation ──
+        contentPane.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene == null) {
+                typingPollTimeline.stop();
+                dotAnimation.stop();
+                onlinePollTimeline.stop();
+                recordTimerTimeline.stop();
+                if (audioRecorder.isRecording())
+                    audioRecorder.cancelRecording();
+            }
+        });
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  ÉVÉNEMENTS — CRUD avec gestion par rôle
-    //  (Créer, Lire, Modifier, Supprimer, RSVP)
+    // ÉVÉNEMENTS — CRUD avec gestion par rôle
+    // (Créer, Lire, Modifier, Supprimer, RSVP)
     // ═══════════════════════════════════════════════════════════
 
     /**
@@ -1697,7 +2393,8 @@ public class CommunityController implements Initializable {
      */
     private void loadEventsTab() {
         contentPane.getChildren().clear();
-        if (currentUser == null) return;
+        if (currentUser == null)
+            return;
 
         VBox eventsPane = new VBox(12);
 
@@ -1806,14 +2503,16 @@ public class CommunityController implements Initializable {
         Label locationLabel = new Label(
                 event.isOnline()
                         ? "🌐  " + I18n.get("event.online")
-                        : "📍  " + I18n.get("event.location") + ": " + (event.getLocation() != null ? event.getLocation() : ""));
+                        : "📍  " + I18n.get("event.location") + ": "
+                                + (event.getLocation() != null ? event.getLocation() : ""));
         locationLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: -fx-foreground;");
 
         Label attendeesLabel = new Label("👥  " + I18n.get("event.attendees", event.getCurrentAttendees())
                 + (event.getMaxAttendees() > 0 ? " / " + event.getMaxAttendees() : ""));
         attendeesLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: -fx-foreground;");
 
-        Label organizer = new Label("🎤  Organizer: " + (event.getOrganizerName() != null ? event.getOrganizerName() : ""));
+        Label organizer = new Label(
+                "🎤  Organizer: " + (event.getOrganizerName() != null ? event.getOrganizerName() : ""));
         organizer.setStyle("-fx-font-size: 12px; -fx-text-fill: -fx-muted-foreground;");
 
         details.getChildren().addAll(dateLabel, locationLabel, attendeesLabel, organizer);
@@ -1874,9 +2573,9 @@ public class CommunityController implements Initializable {
      * Affiche le dialogue de création ou modification d'un événement.
      * 
      * CONTRÔLES DE SAISIE :
-     *   - Titre obligatoire (sinon DialogUtils.showError)
-     *   - Date au format yyyy-MM-dd HH:mm (sinon DialogUtils.showError)
-     *   - Max participants : doit être un nombre (0 = illimité)
+     * - Titre obligatoire (sinon DialogUtils.showError)
+     * - Date au format yyyy-MM-dd HH:mm (sinon DialogUtils.showError)
+     * - Max participants : doit être un nombre (0 = illimité)
      *
      * @param existingEvent l'événement à modifier, ou null pour créer
      */
@@ -1903,7 +2602,8 @@ public class CommunityController implements Initializable {
             descField.setText(existingEvent.getDescription());
             locationField.setText(existingEvent.getLocation());
             if (existingEvent.getStartDate() != null)
-                startField.setText(existingEvent.getStartDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+                startField
+                        .setText(existingEvent.getStartDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
             maxField.setText(String.valueOf(existingEvent.getMaxAttendees()));
             typeSelect.setValue(existingEvent.getEventType().name());
         }
@@ -1942,7 +2642,8 @@ public class CommunityController implements Initializable {
                 event.setMaxAttendees(0); // Par défaut : illimité
             }
             String selectedType = typeSelect.getValue();
-            if (selectedType != null) event.setEventType(EventType.valueOf(selectedType));
+            if (selectedType != null)
+                event.setEventType(EventType.valueOf(selectedType));
 
             if (isEdit) {
                 new Thread(() -> {
@@ -1989,28 +2690,90 @@ public class CommunityController implements Initializable {
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  GROUPES — CRUD complet avec gestion des membres
-    //  (Créer, Lire, Modifier, Supprimer, Rejoindre, Quitter)
+    // GROUPES — CRUD complet avec gestion des membres
+    // (Créer, Lire, Modifier, Supprimer, Rejoindre, Quitter)
     // ═══════════════════════════════════════════════════════════
 
     /**
      * Charge l'onglet Groupes.
-     * Affiche d'abord les groupes de l'utilisateur, puis tous les groupes publics.
+     * Affiche un champ de recherche, les groupes de l'utilisateur,
+     * puis les groupes publics à découvrir (non encore rejoints).
      */
     private void loadGroupsTab() {
         contentPane.getChildren().clear();
-        if (currentUser == null) return;
+        if (currentUser == null)
+            return;
 
-        VBox groupsPane = new VBox(12);
+        VBox groupsPane = new VBox(14);
+        groupsPane.setPadding(new Insets(4, 0, 0, 0));
 
-        // Bouton Créer un groupe
-        TLButton createGroupBtn = new TLButton(I18n.get("group.new"), TLButton.ButtonVariant.PRIMARY);
-        createGroupBtn.setOnAction(e -> showGroupDialog(null)); // null = création
-        HBox actionBar = new HBox(createGroupBtn);
-        actionBar.setAlignment(Pos.CENTER_RIGHT);
+        // ── Action bar : recherche + bouton créer ──
+        HBox actionBar = new HBox(10);
+        actionBar.setAlignment(Pos.CENTER_LEFT);
+
+        TLTextField searchField = new TLTextField("", "🔍  Search groups...");
+        searchField.getControl().setPrefWidth(280);
+        HBox.setHgrow(searchField, Priority.ALWAYS);
+
+        TLButton createGroupBtn = new TLButton("＋  " + I18n.get("group.new"), TLButton.ButtonVariant.PRIMARY);
+        createGroupBtn.setOnAction(e -> showGroupDialog(null));
+
+        actionBar.getChildren().addAll(searchField, createGroupBtn);
         groupsPane.getChildren().add(actionBar);
 
-        // My Groups
+        // Container for dynamic group lists (replaced on search)
+        VBox groupListContainer = new VBox(12);
+        groupsPane.getChildren().add(groupListContainer);
+
+        // Search handler
+        searchField.getControl().textProperty().addListener((obs, oldVal, newVal) -> {
+            String query = newVal != null ? newVal.trim() : "";
+            if (query.length() >= 2) {
+                Task<List<CommunityGroup>> searchTask = new Task<>() {
+                    @Override
+                    protected List<CommunityGroup> call() {
+                        return GroupService.getInstance().search(query);
+                    }
+                };
+                searchTask.setOnSucceeded(ev -> {
+                    groupListContainer.getChildren().clear();
+                    List<CommunityGroup> results = searchTask.getValue();
+                    Label resultLabel = new Label("🔎  Search Results (" + results.size() + ")");
+                    resultLabel.getStyleClass().add("h4");
+                    groupListContainer.getChildren().add(resultLabel);
+                    if (results.isEmpty()) {
+                        Label empty = new Label("No groups found matching \"" + query + "\"");
+                        empty.getStyleClass().add("text-muted");
+                        groupListContainer.getChildren().add(empty);
+                    } else {
+                        for (CommunityGroup g : results) {
+                            boolean memberOfThis = GroupService.getInstance().isMember(g.getId(), currentUser.getId());
+                            groupListContainer.getChildren().add(createGroupCard(g, memberOfThis));
+                        }
+                    }
+                });
+                new Thread(searchTask, "SearchGroupsThread").start();
+            } else if (query.isEmpty()) {
+                loadGroupLists(groupListContainer);
+            }
+        });
+
+        // Initial load
+        loadGroupLists(groupListContainer);
+
+        contentPane.getChildren().add(groupsPane);
+    }
+
+    /**
+     * Charge les listes de groupes (Mes Groupes + Découvrir).
+     * Utilisée pour l'affichage initial et le reset après effacement de recherche.
+     *
+     * @param container le conteneur VBox à remplir
+     */
+    private void loadGroupLists(VBox container) {
+        container.getChildren().clear();
+
+        // ── My Groups ──
         Task<List<CommunityGroup>> myGroupsTask = new Task<>() {
             @Override
             protected List<CommunityGroup> call() {
@@ -2019,17 +2782,25 @@ public class CommunityController implements Initializable {
         };
         myGroupsTask.setOnSucceeded(e -> {
             List<CommunityGroup> myGroups = myGroupsTask.getValue();
+
+            // My Groups section
             if (!myGroups.isEmpty()) {
-                Label myLabel = new Label("My Groups (" + myGroups.size() + ")");
+                Label myLabel = new Label("👤  My Groups (" + myGroups.size() + ")");
                 myLabel.getStyleClass().add("h4");
-                groupsPane.getChildren().add(myLabel);
+                container.getChildren().add(myLabel);
                 for (CommunityGroup g : myGroups) {
-                    groupsPane.getChildren().add(createGroupCard(g, true));
+                    container.getChildren().add(createGroupCard(g, true));
                 }
-                groupsPane.getChildren().add(new TLSeparator());
+                container.getChildren().add(new TLSeparator());
             }
 
-            // All public groups
+            // ── Discover Groups (public groups user is NOT a member of) ──
+            // Collect IDs of groups the user already joined
+            java.util.Set<Integer> myGroupIds = new java.util.HashSet<>();
+            for (CommunityGroup g : myGroups) {
+                myGroupIds.add(g.getId());
+            }
+
             Task<List<CommunityGroup>> allGroupsTask = new Task<>() {
                 @Override
                 protected List<CommunityGroup> call() {
@@ -2038,29 +2809,38 @@ public class CommunityController implements Initializable {
             };
             allGroupsTask.setOnSucceeded(e2 -> {
                 List<CommunityGroup> allGroups = allGroupsTask.getValue();
-                Label allLabel = new Label(I18n.get("group.title") + " (" + allGroups.size() + ")");
-                allLabel.getStyleClass().add("h4");
-                groupsPane.getChildren().add(allLabel);
-                if (allGroups.isEmpty()) {
-                    Label empty = new Label(I18n.get("group.empty"));
+
+                // Filter out groups user already belongs to
+                List<CommunityGroup> discoverGroups = new ArrayList<>();
+                for (CommunityGroup g : allGroups) {
+                    if (!myGroupIds.contains(g.getId())) {
+                        discoverGroups.add(g);
+                    }
+                }
+
+                Label discoverLabel = new Label("🌐  Discover Groups (" + discoverGroups.size() + ")");
+                discoverLabel.getStyleClass().add("h4");
+                container.getChildren().add(discoverLabel);
+
+                if (discoverGroups.isEmpty()) {
+                    Label empty = new Label(
+                            "You've joined all available groups! Create a new one to start a community.");
                     empty.getStyleClass().add("text-muted");
-                    groupsPane.getChildren().add(empty);
+                    container.getChildren().add(empty);
                 } else {
-                    for (CommunityGroup g : allGroups) {
-                        groupsPane.getChildren().add(createGroupCard(g, false));
+                    for (CommunityGroup g : discoverGroups) {
+                        container.getChildren().add(createGroupCard(g, false));
                     }
                 }
             });
             new Thread(allGroupsTask, "AllGroupsThread").start();
         });
         new Thread(myGroupsTask, "MyGroupsThread").start();
-
-        contentPane.getChildren().add(groupsPane);
     }
 
     /**
      * Crée une carte de groupe avec détails et actions.
-     * Actions possibles : Rejoindre / Quitter / Modifier / Supprimer.
+     * Actions possibles : Voir / Rejoindre / Quitter / Modifier / Supprimer.
      *
      * @param group    le groupe à afficher
      * @param isMember true si l'utilisateur est déjà membre
@@ -2086,7 +2866,12 @@ public class CommunityController implements Initializable {
                 group.getCategory() != null ? group.getCategory() : "General", TLBadge.Variant.SECONDARY);
         TLBadge accessBadge = new TLBadge(
                 group.isPublic() ? "Public" : "Private", TLBadge.Variant.OUTLINE);
-        badges.getChildren().addAll(categoryBadge, accessBadge);
+        if (isMember) {
+            TLBadge memberBadge = new TLBadge("✓ Member", TLBadge.Variant.SUCCESS);
+            badges.getChildren().addAll(categoryBadge, accessBadge, memberBadge);
+        } else {
+            badges.getChildren().addAll(categoryBadge, accessBadge);
+        }
         titleBox.getChildren().addAll(name, badges);
         HBox.setHgrow(titleBox, Priority.ALWAYS);
 
@@ -2110,6 +2895,12 @@ public class CommunityController implements Initializable {
         HBox actions = new HBox(8);
         actions.setAlignment(Pos.CENTER_LEFT);
         actions.setPadding(new Insets(4, 0, 0, 0));
+
+        // Bouton VOIR le détail du groupe
+        TLButton viewBtn = new TLButton("👁  View", TLButton.ButtonVariant.OUTLINE);
+        viewBtn.setSize(TLButton.ButtonSize.SM);
+        viewBtn.setOnAction(e -> openGroupDetail(group, isMember));
+        actions.getChildren().add(viewBtn);
 
         if (isMember) {
             // Bouton QUITTER le groupe
@@ -2167,10 +2958,949 @@ public class CommunityController implements Initializable {
     }
 
     /**
+     * Affiche la vue détaillée d'un groupe avec la liste de ses membres.
+     * Comprend : bannière, description, statistiques, actions (Join/Leave),
+     * et la liste complète des membres avec leur rôle.
+     *
+     * @param group    le groupe à afficher
+     * @param isMember true si l'utilisateur est membre de ce groupe
+     */
+    private void openGroupDetail(CommunityGroup group, boolean isMember) {
+        contentPane.getChildren().clear();
+
+        VBox detailPane = new VBox(16);
+        detailPane.setPadding(new Insets(20));
+
+        // ── Bouton retour ──
+        TLButton backBtn = new TLButton("←  " + I18n.get("community.tab.groups"), TLButton.ButtonVariant.GHOST);
+        backBtn.setOnAction(e -> loadGroupsTab());
+
+        // ── En-tête du groupe ──
+        HBox header = new HBox(16);
+        header.setAlignment(Pos.CENTER_LEFT);
+
+        StackPane groupAvatar = createAvatar(group.getName(), 64);
+
+        VBox titleBox = new VBox(6);
+        Label groupName = new Label(group.getName());
+        groupName.setStyle("-fx-font-size: 22px; -fx-font-weight: 700; -fx-text-fill: -fx-foreground;");
+
+        HBox badges = new HBox(8);
+        TLBadge categoryBadge = new TLBadge(
+                group.getCategory() != null ? group.getCategory() : "General", TLBadge.Variant.SECONDARY);
+        TLBadge accessBadge = new TLBadge(
+                group.isPublic() ? "Public" : "Private", TLBadge.Variant.OUTLINE);
+        TLBadge memberCountBadge = new TLBadge(group.getMemberCount() + " members", TLBadge.Variant.DEFAULT);
+        badges.getChildren().addAll(categoryBadge, accessBadge, memberCountBadge);
+
+        Label creatorLabel = new Label(
+                "Created by " + (group.getCreatorName() != null ? group.getCreatorName() : "Unknown"));
+        creatorLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: -fx-muted-foreground;");
+
+        if (group.getCreatedDate() != null) {
+            Label dateLabel = new Label("📅  " + formatDate(group.getCreatedDate()));
+            dateLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: -fx-muted-foreground;");
+            titleBox.getChildren().addAll(groupName, badges, creatorLabel, dateLabel);
+        } else {
+            titleBox.getChildren().addAll(groupName, badges, creatorLabel);
+        }
+        HBox.setHgrow(titleBox, Priority.ALWAYS);
+
+        header.getChildren().addAll(groupAvatar, titleBox);
+
+        // ── Description ──
+        VBox descSection = new VBox(6);
+        Label descTitle = new Label("📝  About this group");
+        descTitle.setStyle("-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: -fx-foreground;");
+        Label descContent = new Label(group.getDescription() != null && !group.getDescription().isBlank()
+                ? group.getDescription()
+                : "No description provided.");
+        descContent.setWrapText(true);
+        descContent.setStyle("-fx-font-size: 13px; -fx-text-fill: -fx-muted-foreground; -fx-line-spacing: 4;");
+        descSection.getChildren().addAll(descTitle, descContent);
+
+        // ── Action buttons ──
+        HBox actionButtons = new HBox(10);
+        actionButtons.setAlignment(Pos.CENTER_LEFT);
+        actionButtons.setPadding(new Insets(4, 0, 4, 0));
+
+        if (isMember) {
+            TLButton leaveBtn = new TLButton("🚪  " + I18n.get("group.leave"), TLButton.ButtonVariant.GHOST);
+            leaveBtn.setOnAction(e -> {
+                if (group.getCreatorId() == currentUser.getId()) {
+                    DialogUtils.showError("Cannot leave", "You are the group creator. Delete the group instead.");
+                    return;
+                }
+                new Thread(() -> {
+                    GroupService.getInstance().leave(group.getId(), currentUser.getId());
+                    Platform.runLater(() -> {
+                        showToast(I18n.get("group.success.left"));
+                        loadGroupsTab();
+                    });
+                }, "LeaveGroupThread").start();
+            });
+            actionButtons.getChildren().add(leaveBtn);
+        } else {
+            TLButton joinBtn = new TLButton("＋  " + I18n.get("group.join"), TLButton.ButtonVariant.PRIMARY);
+            joinBtn.setOnAction(e -> {
+                new Thread(() -> {
+                    GroupService.getInstance().join(group.getId(), currentUser.getId());
+                    Platform.runLater(() -> {
+                        showToast(I18n.get("group.success.joined"));
+                        // Refresh: reopen the detail as member
+                        openGroupDetail(group, true);
+                    });
+                }, "JoinGroupThread").start();
+            });
+            actionButtons.getChildren().add(joinBtn);
+        }
+
+        if (canEditOrDelete(group.getCreatorId())) {
+            TLButton editBtn = new TLButton(I18n.get("post.edit"), TLButton.ButtonVariant.OUTLINE);
+            editBtn.setOnAction(e -> showGroupDialog(group));
+
+            TLButton deleteBtn = new TLButton(I18n.get("post.delete"), TLButton.ButtonVariant.DANGER);
+            deleteBtn.setOnAction(e -> deleteGroup(group));
+
+            actionButtons.getChildren().addAll(editBtn, deleteBtn);
+        }
+
+        detailPane.getChildren().addAll(backBtn, header, descSection, new TLSeparator(), actionButtons,
+                new TLSeparator());
+
+        // ── Members section ──
+        Label membersTitle = new Label("👥  Members");
+        membersTitle.getStyleClass().add("h4");
+        detailPane.getChildren().add(membersTitle);
+
+        VBox membersContainer = new VBox(8);
+        Task<List<GroupMember>> membersTask = new Task<>() {
+            @Override
+            protected List<GroupMember> call() {
+                return GroupService.getInstance().getMembers(group.getId());
+            }
+        };
+        membersTask.setOnSucceeded(ev -> {
+            List<GroupMember> membersList = membersTask.getValue();
+            if (membersList.isEmpty()) {
+                Label noMembers = new Label("No members yet.");
+                noMembers.getStyleClass().add("text-muted");
+                membersContainer.getChildren().add(noMembers);
+            } else {
+                for (GroupMember member : membersList) {
+                    TLCard memberCard = new TLCard();
+                    HBox memberRow = new HBox(12);
+                    memberRow.setAlignment(Pos.CENTER_LEFT);
+                    memberRow.setPadding(new Insets(10, 16, 10, 16));
+
+                    String memberName = member.getUserName() != null ? member.getUserName()
+                            : "User #" + member.getUserId();
+                    StackPane memberAvatar = createAvatar(memberName, 36);
+
+                    VBox memberInfo = new VBox(2);
+                    Label nameLabel = new Label(memberName);
+                    nameLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: -fx-foreground;");
+
+                    HBox memberBadges = new HBox(6);
+                    String roleStr = member.getRole() != null ? member.getRole() : "MEMBER";
+                    TLBadge.Variant roleVariant = switch (roleStr) {
+                        case "ADMIN" -> TLBadge.Variant.DESTRUCTIVE;
+                        case "MODERATOR" -> TLBadge.Variant.OUTLINE;
+                        default -> TLBadge.Variant.SECONDARY;
+                    };
+                    TLBadge roleBadge = new TLBadge(roleStr, roleVariant);
+                    memberBadges.getChildren().add(roleBadge);
+
+                    if (member.getJoinedDate() != null) {
+                        Label joinDate = new Label("Joined " + formatDate(member.getJoinedDate()));
+                        joinDate.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-muted-foreground;");
+                        memberInfo.getChildren().addAll(nameLabel, memberBadges, joinDate);
+                    } else {
+                        memberInfo.getChildren().addAll(nameLabel, memberBadges);
+                    }
+                    HBox.setHgrow(memberInfo, Priority.ALWAYS);
+
+                    memberRow.getChildren().addAll(memberAvatar, memberInfo);
+
+                    // Message button for members (if it's not the current user)
+                    if (member.getUserId() != currentUser.getId()) {
+                        TLButton msgBtn = new TLButton("💬", TLButton.ButtonVariant.GHOST);
+                        msgBtn.setSize(TLButton.ButtonSize.SM);
+                        msgBtn.setOnAction(e -> openConversation(member.getUserId(), memberName));
+                        memberRow.getChildren().add(msgBtn);
+                    }
+
+                    memberCard.setContent(memberRow);
+                    membersContainer.getChildren().add(memberCard);
+                }
+            }
+        });
+        new Thread(membersTask, "GroupMembersThread").start();
+
+        detailPane.getChildren().add(membersContainer);
+
+        // ── Group Discussion (Only for members) ──
+        if (isMember) {
+            Label discussionTitle = new Label("💬  Group Discussion");
+            discussionTitle.getStyleClass().add("h4");
+
+            // Bouton Résumé IA pour le groupe
+            Button groupSummaryBtn = new Button("📝 Résumé IA");
+            groupSummaryBtn.getStyleClass().addAll("btn", "btn-outline");
+            groupSummaryBtn.setStyle("-fx-font-size: 11px; -fx-padding: 4 12; -fx-cursor: hand;");
+
+            HBox discussionHeader = new HBox(10);
+            discussionHeader.setAlignment(Pos.CENTER_LEFT);
+            Region discussionSpacer = new Region();
+            HBox.setHgrow(discussionSpacer, Priority.ALWAYS);
+            discussionHeader.getChildren().addAll(discussionTitle, discussionSpacer, groupSummaryBtn);
+
+            VBox chatContainer = new VBox(10);
+            chatContainer.setPadding(new Insets(10));
+            chatContainer.setStyle("-fx-background-color: -fx-muted; -fx-background-radius: 8px;");
+
+            // Messages wrapper
+            VBox messagesBox = new VBox(8);
+            messagesBox.setPrefHeight(300);
+            javafx.scene.control.ScrollPane scrollPane = new javafx.scene.control.ScrollPane(messagesBox);
+            scrollPane.setFitToWidth(true);
+            scrollPane.setFitToHeight(true);
+            scrollPane.setVbarPolicy(javafx.scene.control.ScrollPane.ScrollBarPolicy.AS_NEEDED);
+            scrollPane.setHbarPolicy(javafx.scene.control.ScrollPane.ScrollBarPolicy.NEVER);
+            scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent; -fx-padding: 0;");
+
+            VBox.setVgrow(scrollPane, Priority.ALWAYS);
+
+            // Enregistrer l'ID du dernier message chargé pour éviter de tout recréer
+            final int[] lastLoadedMessageId = { 0 };
+
+            // Holder so the lambda can reference itself (Java requires effectively-final locals)
+            final Runnable[] reloadMessagesHolder = { null };
+            Runnable reloadMessages = () -> {
+                new Thread(() -> {
+                    List<GroupMessage> msgs = GroupService.getInstance().getMessages(group.getId());
+                    // Mark other users' messages as read
+                    GroupService.getInstance().markMessagesAsRead(group.getId(), currentUser.getId());
+                    // Get read counts for my messages
+                    java.util.Map<Integer, Integer> readCounts = GroupService.getInstance()
+                            .getReadCountsForUserMessages(group.getId(), currentUser.getId());
+                    // Fetch reactions for group messages
+                    java.util.Map<Integer, java.util.Map<String, Integer>> allReactions =
+                            GroupService.getInstance().getReactionsForGroup(group.getId());
+                    java.util.Map<Integer, java.util.Set<String>> myReactions =
+                            GroupService.getInstance().getUserReactionsForGroup(group.getId(), currentUser.getId());
+                    Platform.runLater(() -> {
+                        messagesBox.getChildren().clear();
+                        for (GroupMessage m : msgs) {
+                            int readBy = readCounts.getOrDefault(m.getId(), 0);
+                            java.util.Map<String, Integer> msgReactions = allReactions.getOrDefault(m.getId(), java.util.Collections.emptyMap());
+                            java.util.Set<String> msgMyReactions = myReactions.getOrDefault(m.getId(), java.util.Collections.emptySet());
+                            messagesBox.getChildren().add(createGroupMessageView(m, readBy, msgReactions, msgMyReactions, reloadMessagesHolder[0]));
+                            lastLoadedMessageId[0] = Math.max(lastLoadedMessageId[0], m.getId());
+                        }
+                        scrollPane.setVvalue(1.0);
+                    });
+                }).start();
+            };
+            reloadMessagesHolder[0] = reloadMessages;
+            reloadMessages.run();
+
+            // ── Action du bouton Résumé IA (groupe) ──
+            groupSummaryBtn.setOnAction(ev -> {
+                groupSummaryBtn.setDisable(true);
+                groupSummaryBtn.setText("⏳ Résumé en cours...");
+                new Thread(() -> {
+                    List<GroupMessage> allMsgs = GroupService.getInstance().getMessages(group.getId());
+                    List<String> formatted = new ArrayList<>();
+                    for (GroupMessage gm : allMsgs) {
+                        String sender = gm.getSenderName() != null ? gm.getSenderName() : "Utilisateur #" + gm.getSenderId();
+                        String text = gm.getContent() != null && !gm.getContent().isEmpty() ? gm.getContent() : "[" + gm.getMessageType() + "]";
+                        formatted.add(sender + ": " + text);
+                    }
+                    String summary = AISummaryService.getInstance().summarize(formatted);
+                    Platform.runLater(() -> {
+                        groupSummaryBtn.setDisable(false);
+                        groupSummaryBtn.setText("📝 Résumé IA");
+                        // Afficher le résumé dans un TLDialog
+                        TLDialog<Void> summaryDialog = new TLDialog<>();
+                        summaryDialog.setDialogTitle("📝 Résumé IA - " + group.getName());
+                        summaryDialog.setDescription("Résumé généré par intelligence artificielle");
+                        Label summaryLabel = new Label(summary);
+                        summaryLabel.setWrapText(true);
+                        summaryLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: -fx-foreground; -fx-line-spacing: 4;");
+                        summaryLabel.setMaxWidth(500);
+                        javafx.scene.control.ScrollPane summaryScroll = new javafx.scene.control.ScrollPane(summaryLabel);
+                        summaryScroll.setFitToWidth(true);
+                        summaryScroll.setPrefHeight(300);
+                        summaryScroll.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+                        summaryDialog.setContent(summaryScroll);
+                        summaryDialog.addButton(ButtonType.OK);
+                        summaryDialog.setResultConverter(bt -> null);
+                        summaryDialog.showAndWait();
+                    });
+                }, "GroupAISummaryThread").start();
+            });
+
+            // ── POLLING TEMPS REEL (MESSAGES ET TYPING) ──
+            HBox typingIndicatorRow = new HBox(8);
+            typingIndicatorRow.setAlignment(Pos.CENTER_LEFT);
+            typingIndicatorRow.setPadding(new Insets(2, 16, 2, 16));
+            typingIndicatorRow.setVisible(false);
+            typingIndicatorRow.setManaged(false);
+            Label typingText = new Label("... est en train d'écrire");
+            typingText.getStyleClass().add("typing-indicator");
+            typingIndicatorRow.getChildren().addAll(typingText);
+
+            javafx.animation.Timeline groupPollTimeline = new javafx.animation.Timeline(
+                    new javafx.animation.KeyFrame(Duration.millis(3000), ev -> {
+                        new Thread(() -> {
+                            // Check messages
+                            List<GroupMessage> newMsgs = GroupService.getInstance().getMessages(group.getId());
+                            // Mark messages as read
+                            GroupService.getInstance().markMessagesAsRead(group.getId(), currentUser.getId());
+                            // Get read counts for my messages
+                            java.util.Map<Integer, Integer> readCounts = GroupService.getInstance()
+                                    .getReadCountsForUserMessages(group.getId(), currentUser.getId());
+                            // Fetch reactions for group messages
+                            java.util.Map<Integer, java.util.Map<String, Integer>> allReactions =
+                                    GroupService.getInstance().getReactionsForGroup(group.getId());
+                            java.util.Map<Integer, java.util.Set<String>> myReactions =
+                                    GroupService.getInstance().getUserReactionsForGroup(group.getId(), currentUser.getId());
+                            // Check typing
+                            List<String> typers = GroupService.getInstance().getTypingUsers(group.getId(),
+                                    currentUser.getId());
+
+                            Platform.runLater(() -> {
+                                boolean hasNew = false;
+                                for (GroupMessage m : newMsgs) {
+                                    if (m.getId() > lastLoadedMessageId[0]) {
+                                        int readBy = readCounts.getOrDefault(m.getId(), 0);
+                                        java.util.Map<String, Integer> msgReactions = allReactions.getOrDefault(m.getId(), java.util.Collections.emptyMap());
+                                        java.util.Set<String> msgMyReactions = myReactions.getOrDefault(m.getId(), java.util.Collections.emptySet());
+                                        messagesBox.getChildren().add(createGroupMessageView(m, readBy, msgReactions, msgMyReactions, reloadMessages));
+                                        lastLoadedMessageId[0] = m.getId();
+                                        hasNew = true;
+                                    }
+                                }
+
+                                // Update seen status on existing messages
+                                for (javafx.scene.Node node : messagesBox.getChildren()) {
+                                    if (node instanceof HBox msgRow && node.getUserData() instanceof Integer msgId) {
+                                        int readBy = readCounts.getOrDefault(msgId, 0);
+                                        // Find the status label inside the bubble
+                                        for (javafx.scene.Node child : msgRow.getChildren()) {
+                                            if (child instanceof VBox bubbleBox) {
+                                                for (javafx.scene.Node bubbleChild : bubbleBox.getChildren()) {
+                                                    if (bubbleChild instanceof HBox statusRow
+                                                            && statusRow.getStyleClass().contains("group-msg-status-row")) {
+                                                        for (javafx.scene.Node statusChild : statusRow.getChildren()) {
+                                                            if (statusChild instanceof Label lbl
+                                                                    && lbl.getStyleClass().contains("msg-seen-indicator")) {
+                                                                if (readBy > 0) {
+                                                                    lbl.setText("✓✓ Vu");
+                                                                    lbl.setStyle("-fx-text-fill: #3b82f6; -fx-font-size: 10px;");
+                                                                } else {
+                                                                    lbl.setText("✓ Envoyé");
+                                                                    lbl.setStyle("-fx-text-fill: -fx-primary-foreground; -fx-font-size: 10px; -fx-opacity: 0.7;");
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (hasNew)
+                                    scrollPane.setVvalue(1.0);
+
+                                if (typers.isEmpty()) {
+                                    typingIndicatorRow.setVisible(false);
+                                    typingIndicatorRow.setManaged(false);
+                                } else {
+                                    typingIndicatorRow.setVisible(true);
+                                    typingIndicatorRow.setManaged(true);
+                                    typingText.setText(String.join(", ", typers) + " en train d'écrire...");
+                                }
+                            });
+                        }).start();
+                    }));
+            groupPollTimeline.setCycleCount(javafx.animation.Animation.INDEFINITE);
+            groupPollTimeline.play();
+
+            // Stop polling on close
+            contentPane.sceneProperty().addListener((obs, os, ns) -> {
+                if (ns == null)
+                    groupPollTimeline.stop();
+            });
+
+            // Input area
+            HBox inputBar = new HBox(10);
+            inputBar.setAlignment(Pos.CENTER_LEFT);
+            inputBar.getStyleClass().add("chat-input-bar");
+            inputBar.setPadding(new Insets(10, 14, 10, 14));
+
+            TLTextField msgInput = new TLTextField("", I18n.get("message.placeholder"));
+            HBox.setHgrow(msgInput, Priority.ALWAYS);
+
+            msgInput.getControl().textProperty().addListener((obs, oldVal, newVal) -> {
+                if (newVal != null && !newVal.trim().isEmpty()) {
+                    new Thread(() -> GroupService.getInstance().updateTypingStatus(group.getId(), currentUser.getId()))
+                            .start();
+                }
+            });
+
+            TLButton chatEmojiBtn = new TLButton("😀", TLButton.ButtonVariant.GHOST);
+            chatEmojiBtn.setSize(TLButton.ButtonSize.SM);
+            chatEmojiBtn.setOnAction(ev -> showEmojiPickerForTextField(chatEmojiBtn, msgInput));
+
+            TLButton attachBtn = new TLButton("📎", TLButton.ButtonVariant.GHOST);
+            attachBtn.setSize(TLButton.ButtonSize.SM);
+            attachBtn.setStyle("-fx-font-size: 16px; -fx-cursor: hand;");
+            attachBtn.setOnAction(ev -> {
+                javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+                fileChooser.getExtensionFilters().addAll(
+                        new javafx.stage.FileChooser.ExtensionFilter("Tous les médias",
+                                cloudinaryService.getAllowedMediaExtensionPatterns()));
+                java.io.File file = fileChooser.showOpenDialog(contentPane.getScene().getWindow());
+                if (file != null) {
+                    attachBtn.setText("⏳");
+                    attachBtn.setDisable(true);
+                    new Thread(() -> {
+                        try {
+                            String mediaType = cloudinaryService.detectMediaType(file);
+                            String mediaUrl = "VIDEO".equals(mediaType) ? cloudinaryService.uploadVideo(file)
+                                    : cloudinaryService.uploadImage(file);
+                            GroupService.getInstance().clearTypingStatus(group.getId(), currentUser.getId());
+                            GroupMessage newMsg = new GroupMessage();
+                            newMsg.setGroupId(group.getId());
+                            newMsg.setSenderId(currentUser.getId());
+                            newMsg.setContent(msgInput.getText().trim());
+                            newMsg.setMessageType(mediaType);
+                            newMsg.setMediaUrl(mediaUrl);
+                            newMsg.setFileName(file.getName());
+                            GroupService.getInstance().addMessage(newMsg);
+                            reloadMessages.run();
+                            Platform.runLater(() -> {
+                                attachBtn.setText("📎");
+                                attachBtn.setDisable(false);
+                                msgInput.setText("");
+                            });
+                        } catch (Exception ex) {
+                            Platform.runLater(() -> {
+                                attachBtn.setText("📎");
+                                attachBtn.setDisable(false);
+                            });
+                        }
+                    }).start();
+                }
+            });
+
+            // Bouton Micro
+            com.skilora.community.service.AudioRecorderService audioRecorder = com.skilora.community.service.AudioRecorderService
+                    .getInstance();
+            TLButton micBtn = new TLButton("🎤", TLButton.ButtonVariant.GHOST);
+            micBtn.setSize(TLButton.ButtonSize.SM);
+            micBtn.setStyle("-fx-font-size: 16px; -fx-cursor: hand;");
+
+            HBox recordingIndicator = new HBox(8);
+            recordingIndicator.setAlignment(Pos.CENTER_LEFT);
+            recordingIndicator.setVisible(false);
+            recordingIndicator.setManaged(false);
+            Label recordTimer = new Label("0:00");
+            recordTimer.setStyle("-fx-font-size: 13px; -fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+            TLButton cancelRecordBtn = new TLButton("✖", TLButton.ButtonVariant.GHOST);
+            recordingIndicator.getChildren().addAll(new Label("🔴"), recordTimer, new Label("Enregistrement..."),
+                    cancelRecordBtn);
+
+            javafx.animation.Timeline recordTimerTimeline = new javafx.animation.Timeline(
+                    new javafx.animation.KeyFrame(Duration.seconds(1), ev -> {
+                        if (audioRecorder.isRecording()) {
+                            int elapsed = audioRecorder.getElapsedSeconds();
+                            recordTimer.setText(
+                                    com.skilora.community.service.AudioRecorderService.formatDuration(elapsed));
+                            if (elapsed >= 300)
+                                micBtn.fire();
+                        }
+                    }));
+            recordTimerTimeline.setCycleCount(javafx.animation.Animation.INDEFINITE);
+
+            cancelRecordBtn.setOnAction(ev -> {
+                audioRecorder.cancelRecording();
+                recordTimerTimeline.stop();
+                recordingIndicator.setVisible(false);
+                recordingIndicator.setManaged(false);
+                msgInput.setVisible(true);
+                msgInput.setManaged(true);
+                micBtn.setText("🎤");
+            });
+
+            micBtn.setOnAction(ev -> {
+                if (!audioRecorder.isRecording()) {
+                    try {
+                        audioRecorder.startRecording();
+                        micBtn.setText("⏹");
+                        micBtn.setStyle("-fx-font-size: 16px; -fx-cursor: hand; -fx-text-fill: #e74c3c;");
+                        recordTimer.setText("0:00");
+                        recordingIndicator.setVisible(true);
+                        recordingIndicator.setManaged(true);
+                        msgInput.setVisible(false);
+                        msgInput.setManaged(false);
+                        recordTimerTimeline.play();
+                    } catch (Exception ex) {
+                    }
+                } else {
+                    recordTimerTimeline.stop();
+                    recordingIndicator.setVisible(false);
+                    recordingIndicator.setManaged(false);
+                    msgInput.setVisible(true);
+                    msgInput.setManaged(true);
+                    micBtn.setText("⏳");
+                    micBtn.setDisable(true);
+                    final int elapsedRec = audioRecorder.getElapsedSeconds();
+                    java.io.File wavFile = audioRecorder.stopRecording();
+                    if (wavFile == null) {
+                        micBtn.setText("🎤");
+                        micBtn.setDisable(false);
+                        return;
+                    }
+                    new Thread(() -> {
+                        try {
+                            String mediaUrl = cloudinaryService.uploadAudio(wavFile);
+                            GroupService.getInstance().clearTypingStatus(group.getId(), currentUser.getId());
+                            GroupMessage newMsg = new GroupMessage();
+                            newMsg.setGroupId(group.getId());
+                            newMsg.setSenderId(currentUser.getId());
+                            newMsg.setContent("");
+                            newMsg.setMessageType("VOCAL");
+                            newMsg.setMediaUrl(mediaUrl);
+                            newMsg.setFileName(wavFile.getName());
+                            newMsg.setDuration(elapsedRec > 0 ? elapsedRec : com.skilora.community.service.AudioRecorderService.getWavDurationSeconds(wavFile));
+                            GroupService.getInstance().addMessage(newMsg);
+                            reloadMessages.run();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        Platform.runLater(() -> {
+                            micBtn.setText("🎤");
+                            micBtn.setDisable(false);
+                            micBtn.setStyle("-fx-font-size: 16px; -fx-cursor: hand;");
+                        });
+                    }).start();
+                }
+            });
+
+            TLButton sendBtn = new TLButton("➤  " + I18n.get("message.send"), TLButton.ButtonVariant.PRIMARY);
+            Runnable sendAction = () -> {
+                if (audioRecorder.isRecording()) {
+                    // ── Arrêter l'enregistrement et envoyer le vocal directement ──
+                    recordTimerTimeline.stop();
+                    recordingIndicator.setVisible(false);
+                    recordingIndicator.setManaged(false);
+                    msgInput.setVisible(true);
+                    msgInput.setManaged(true);
+                    micBtn.setText("⏳");
+                    micBtn.setDisable(true);
+                    sendBtn.setDisable(true);
+                    final int elapsedRec = audioRecorder.getElapsedSeconds();
+                    java.io.File wavFile = audioRecorder.stopRecording();
+                    if (wavFile == null) {
+                        micBtn.setText("🎤");
+                        micBtn.setDisable(false);
+                        micBtn.setStyle("-fx-font-size: 16px; -fx-cursor: hand;");
+                        sendBtn.setDisable(false);
+                        return;
+                    }
+                    new Thread(() -> {
+                        try {
+                            String mediaUrl = cloudinaryService.uploadAudio(wavFile);
+                            GroupService.getInstance().clearTypingStatus(group.getId(), currentUser.getId());
+                            GroupMessage newMsg = new GroupMessage();
+                            newMsg.setGroupId(group.getId());
+                            newMsg.setSenderId(currentUser.getId());
+                            newMsg.setContent("");
+                            newMsg.setMessageType("VOCAL");
+                            newMsg.setMediaUrl(mediaUrl);
+                            newMsg.setFileName(wavFile.getName());
+                            newMsg.setDuration(elapsedRec > 0 ? elapsedRec : com.skilora.community.service.AudioRecorderService.getWavDurationSeconds(wavFile));
+                            GroupService.getInstance().addMessage(newMsg);
+                            reloadMessages.run();
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                        }
+                        Platform.runLater(() -> {
+                            micBtn.setText("🎤");
+                            micBtn.setDisable(false);
+                            micBtn.setStyle("-fx-font-size: 16px; -fx-cursor: hand;");
+                            sendBtn.setDisable(false);
+                        });
+                    }).start();
+                    return;
+                }
+                String text = msgInput.getText();
+                if (text != null && !text.trim().isEmpty()) {
+                    msgInput.setText("");
+                    new Thread(() -> {
+                        GroupService.getInstance().clearTypingStatus(group.getId(), currentUser.getId());
+                        GroupMessage newMsg = new GroupMessage();
+                        newMsg.setGroupId(group.getId());
+                        newMsg.setSenderId(currentUser.getId());
+                        newMsg.setContent(text.trim());
+                        newMsg.setMessageType("TEXT");
+                        GroupService.getInstance().addMessage(newMsg);
+                        reloadMessages.run();
+                    }).start();
+                }
+            };
+            sendBtn.setOnAction(e -> sendAction.run());
+            msgInput.getControl().setOnAction(e -> sendAction.run());
+
+            inputBar.getChildren().addAll(chatEmojiBtn, attachBtn, recordingIndicator, msgInput, micBtn, sendBtn);
+            chatContainer.getChildren().addAll(scrollPane, typingIndicatorRow, inputBar);
+
+            // ── Layout: group info scrolls on top, chat pinned at bottom ──
+            javafx.scene.control.ScrollPane infoScroll = new javafx.scene.control.ScrollPane(detailPane);
+            infoScroll.setFitToWidth(true);
+            infoScroll.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+            VBox.setVgrow(infoScroll, Priority.ALWAYS);
+
+            VBox chatSection = new VBox(8);
+            chatSection.setPadding(new Insets(0, 20, 10, 20));
+            chatSection.getChildren().addAll(new TLSeparator(), discussionHeader, chatContainer);
+
+            VBox groupLayout = new VBox();
+            VBox.setVgrow(groupLayout, Priority.ALWAYS);
+            groupLayout.getChildren().addAll(infoScroll, chatSection);
+
+            // Make outer ScrollPane fill viewport height so chat stays pinned
+            if (contentPane.getParent() != null && contentPane.getParent().getParent() instanceof javafx.scene.control.ScrollPane outerScroll) {
+                outerScroll.setFitToHeight(true);
+                // Reset fitToHeight when navigating away (tab switch clears children)
+                javafx.collections.ListChangeListener<javafx.scene.Node> resetListener = new javafx.collections.ListChangeListener<>() {
+                    @Override
+                    public void onChanged(Change<? extends javafx.scene.Node> c) {
+                        outerScroll.setFitToHeight(false);
+                        contentPane.getChildren().removeListener(this);
+                    }
+                };
+                contentPane.getChildren().addListener(resetListener);
+            }
+
+            contentPane.getChildren().add(groupLayout);
+            return;
+        }
+
+        contentPane.getChildren().add(detailPane);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  REACTIONS — UI pour réagir aux messages (emoji)
+    // ═══════════════════════════════════════════════════════════
+
+    private static final String[] REACTION_EMOJIS = { "👍", "❤️", "😂", "😮", "😢", "🔥" };
+
+    /**
+     * Creates the reaction bar displayed below a message bubble.
+     * Shows existing reactions with counts + a "+" button to add new ones.
+     *
+     * @param msgId          the message ID
+     * @param isMine         whether this is the current user's message
+     * @param reactions      map of emoji -> count for this message
+     * @param userReactions  set of emojis the current user has reacted with
+     * @param onReact        callback (emoji) -> toggle reaction then refresh
+     */
+    private FlowPane buildReactionBar(int msgId, boolean isMine,
+                                       java.util.Map<String, Integer> reactions,
+                                       java.util.Set<String> userReactions,
+                                       java.util.function.Consumer<String> onReact) {
+        FlowPane bar = new FlowPane(4, 4);
+        bar.setAlignment(isMine ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
+        bar.setPadding(new Insets(2, 0, 0, 0));
+
+        // Show existing reactions as mini badges
+        if (reactions != null && !reactions.isEmpty()) {
+            for (var entry : reactions.entrySet()) {
+                String emoji = entry.getKey();
+                int count = entry.getValue();
+                boolean iReacted = userReactions != null && userReactions.contains(emoji);
+
+                Label badge = new Label(emoji + (count > 1 ? " " + count : ""));
+                badge.setStyle(
+                    "-fx-font-size: 12px; -fx-padding: 2 6; -fx-cursor: hand; "
+                    + "-fx-background-radius: 10; "
+                    + (iReacted
+                        ? "-fx-background-color: derive(-fx-primary, 80%); -fx-border-color: -fx-primary; -fx-border-radius: 10; -fx-border-width: 1;"
+                        : "-fx-background-color: -fx-muted; -fx-border-color: -fx-border; -fx-border-radius: 10; -fx-border-width: 1;"));
+                badge.setOnMouseClicked(ev -> onReact.accept(emoji));
+                bar.getChildren().add(badge);
+            }
+        }
+
+        // "+" button to add a reaction
+        Label addBtn = new Label("＋");
+        addBtn.setStyle(
+            "-fx-font-size: 11px; -fx-padding: 2 6; -fx-cursor: hand; "
+            + "-fx-background-color: -fx-muted; -fx-background-radius: 10; "
+            + "-fx-text-fill: -fx-muted-foreground;");
+        addBtn.setOnMouseClicked(ev -> {
+            // Show reaction picker popup
+            javafx.stage.Popup popup = new javafx.stage.Popup();
+            popup.setAutoHide(true);
+            HBox picker = new HBox(2);
+            picker.setPadding(new Insets(6, 10, 6, 10));
+            picker.setStyle(
+                "-fx-background-color: -fx-card; -fx-background-radius: 20; "
+                + "-fx-border-color: -fx-border; -fx-border-radius: 20; -fx-border-width: 1; "
+                + "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 8, 0, 0, 2);");
+            for (String emoji : REACTION_EMOJIS) {
+                Label emojiLabel = new Label(emoji);
+                emojiLabel.setStyle("-fx-font-size: 18px; -fx-cursor: hand; -fx-padding: 2 4;");
+                emojiLabel.setOnMouseEntered(e2 -> emojiLabel.setStyle("-fx-font-size: 22px; -fx-cursor: hand; -fx-padding: 0 2;"));
+                emojiLabel.setOnMouseExited(e2 -> emojiLabel.setStyle("-fx-font-size: 18px; -fx-cursor: hand; -fx-padding: 2 4;"));
+                emojiLabel.setOnMouseClicked(e2 -> {
+                    popup.hide();
+                    onReact.accept(emoji);
+                });
+                picker.getChildren().add(emojiLabel);
+            }
+            popup.getContent().add(picker);
+            javafx.geometry.Bounds bounds = addBtn.localToScreen(addBtn.getBoundsInLocal());
+            popup.show(addBtn.getScene().getWindow(), bounds.getMinX(), bounds.getMinY() - 40);
+        });
+        bar.getChildren().add(addBtn);
+
+        return bar;
+    }
+
+    private HBox createGroupMessageView(GroupMessage msg, int readByCount,
+                                        java.util.Map<String, Integer> reactions,
+                                        java.util.Set<String> myReactions,
+                                        Runnable onReactionChanged) {
+        boolean isMine = msg.getSenderId() == currentUser.getId();
+        HBox row = new HBox(8);
+        row.setAlignment(isMine ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
+        row.setPadding(new Insets(2));
+        // Store message id for polling update
+        if (isMine) row.setUserData(msg.getId());
+
+        // Avatar de l'utilisateur (seulement pour ses messages)
+        StackPane msgAvatar = null;
+        if (!isMine) {
+            String senderName = msg.getSenderName() != null ? msg.getSenderName() : "User " + msg.getSenderId();
+            msgAvatar = createAvatar(senderName, 30);
+
+            // Point indicateur en ligne / hors ligne
+            javafx.scene.shape.Circle onlineDot = new javafx.scene.shape.Circle(4);
+            onlineDot.setStroke(javafx.scene.paint.Color.WHITE);
+            onlineDot.setStrokeWidth(1);
+            onlineDot.setFill(javafx.scene.paint.Color.GRAY);
+            StackPane.setAlignment(onlineDot, Pos.BOTTOM_RIGHT);
+            msgAvatar.getChildren().add(onlineDot);
+
+            new Thread(() -> {
+                boolean online = OnlineStatusService.getInstance().isUserOnline(msg.getSenderId());
+                Platform.runLater(() -> {
+                    onlineDot.setFill(
+                            online ? javafx.scene.paint.Color.web("#22c55e") : javafx.scene.paint.Color.web("#9ca3af"));
+                });
+            }, "OnlineDotThread").start();
+        }
+
+        VBox bubble = new VBox(3);
+        bubble.setPadding(new Insets(10, 14, 10, 14));
+        bubble.setMaxWidth(350);
+        bubble.getStyleClass().add(isMine ? "msg-bubble-mine" : "msg-bubble-theirs");
+
+        // Sender name for groups if not mine
+        if (!isMine) {
+            Label senderLabel = new Label(
+                    msg.getSenderName() != null ? msg.getSenderName() : "User " + msg.getSenderId());
+            senderLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-muted-foreground;");
+            bubble.getChildren().add(senderLabel);
+        }
+
+        // ── CONTENU DU MESSAGE — Texte, Image ou Vidéo ──
+        if (msg.isImage() && msg.hasMedia()) {
+            try {
+                ImageView imgView = new ImageView();
+                imgView.setPreserveRatio(true);
+                imgView.setFitWidth(280);
+                imgView.setSmooth(true);
+                imgView.setStyle("-fx-cursor: hand;");
+                Image image = new Image(msg.getMediaUrl(), 280, 0, true, true, true);
+                imgView.setImage(image);
+                javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle(280, 200);
+                clip.setArcWidth(12);
+                clip.setArcHeight(12);
+                image.progressProperty().addListener((obsImg, ov, nv) -> {
+                    if (nv.doubleValue() >= 1.0 && image.getHeight() > 0) {
+                        double ratio = 280.0 / image.getWidth();
+                        clip.setHeight(image.getHeight() * ratio);
+                        imgView.setClip(clip);
+                    }
+                });
+                bubble.getChildren().add(imgView);
+                if (msg.getContent() != null && !msg.getContent().isBlank()) {
+                    Label captionLabel = new Label(msg.getContent());
+                    captionLabel.setWrapText(true);
+                    captionLabel.setStyle(
+                            isMine ? "-fx-text-fill: -fx-primary-foreground; -fx-font-size: 12px; -fx-padding: 4 0 0 0;"
+                                    : "-fx-text-fill: -fx-foreground; -fx-font-size: 12px; -fx-padding: 4 0 0 0;");
+                    bubble.getChildren().add(captionLabel);
+                }
+            } catch (Exception imgEx) {
+            }
+        } else if (msg.isVideo() && msg.hasMedia()) {
+            VBox videoBox = new VBox(4);
+            videoBox.setAlignment(Pos.CENTER);
+            Label videoIcon = new Label("🎬");
+            videoIcon.setStyle("-fx-font-size: 36px;");
+            Label videoName = new Label(msg.getFileName() != null ? msg.getFileName() : "Vidéo");
+            videoName.setWrapText(true);
+            videoName.setStyle(isMine ? "-fx-text-fill: -fx-primary-foreground; -fx-font-size: 12px;"
+                    : "-fx-text-fill: -fx-foreground; -fx-font-size: 12px;");
+            Label playHint = new Label("▶ Cliquer pour ouvrir");
+            playHint.setStyle("-fx-font-size: 10px; -fx-text-fill: "
+                    + (isMine ? "-fx-primary-foreground;" : "-fx-muted-foreground;"));
+            videoBox.getChildren().addAll(videoIcon, videoName, playHint);
+            videoBox.setStyle("-fx-cursor: hand; -fx-padding: 12;");
+            videoBox.setOnMouseClicked(vidEv -> {
+                try {
+                    String mediaUrl = msg.getMediaUrl();
+                    if (mediaUrl.startsWith("file:")) {
+                        java.awt.Desktop.getDesktop().open(new java.io.File(java.net.URI.create(mediaUrl)));
+                    } else {
+                        java.awt.Desktop.getDesktop().browse(java.net.URI.create(mediaUrl));
+                    }
+                } catch (Exception ex) {
+                }
+            });
+            bubble.getChildren().add(videoBox);
+            if (msg.getContent() != null && !msg.getContent().isBlank()) {
+                Label captionLabel = new Label(msg.getContent());
+                captionLabel.setWrapText(true);
+                captionLabel.setStyle(
+                        isMine ? "-fx-text-fill: -fx-primary-foreground; -fx-font-size: 12px; -fx-padding: 4 0 0 0;"
+                                : "-fx-text-fill: -fx-foreground; -fx-font-size: 12px; -fx-padding: 4 0 0 0;");
+                bubble.getChildren().add(captionLabel);
+            }
+        } else if (msg.isVocal() && msg.hasMedia()) {
+            HBox vocalBox = new HBox(8);
+            vocalBox.setAlignment(Pos.CENTER_LEFT);
+            vocalBox.getStyleClass().add("msg-vocal-player");
+            Label playPauseIcon = new Label("▶");
+            playPauseIcon.setStyle("-fx-font-size: 20px; -fx-cursor: hand; -fx-text-fill: "
+                    + (isMine ? "-fx-primary-foreground;" : "-fx-primary;"));
+            javafx.scene.control.ProgressBar progressBar = new javafx.scene.control.ProgressBar(0);
+            progressBar.setPrefWidth(150);
+            progressBar.setPrefHeight(6);
+            progressBar.getStyleClass().add("vocal-progress-bar");
+            String durationText = com.skilora.community.service.AudioRecorderService.formatDuration(msg.getDuration());
+            Label durationLabel = new Label(durationText);
+            durationLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: "
+                    + (isMine ? "-fx-primary-foreground;" : "-fx-muted-foreground;"));
+            final javafx.scene.media.MediaPlayer[] playerHolder = { null };
+            final boolean[] isPlaying = { false };
+            playPauseIcon.setOnMouseClicked(playEv -> {
+                if (isPlaying[0] && playerHolder[0] != null) {
+                    playerHolder[0].pause();
+                    playPauseIcon.setText("▶");
+                    isPlaying[0] = false;
+                } else {
+                    if (playerHolder[0] == null) {
+                        try {
+                            javafx.scene.media.Media media = new javafx.scene.media.Media(msg.getMediaUrl());
+                            playerHolder[0] = new javafx.scene.media.MediaPlayer(media);
+                            playerHolder[0].currentTimeProperty().addListener((obsT, oldT, newT) -> {
+                                if (playerHolder[0].getTotalDuration() != null
+                                        && playerHolder[0].getTotalDuration().toMillis() > 0) {
+                                    double progress = newT.toMillis() / playerHolder[0].getTotalDuration().toMillis();
+                                    Platform.runLater(() -> {
+                                        progressBar.setProgress(progress);
+                                        durationLabel.setText(com.skilora.community.service.AudioRecorderService
+                                                .formatDuration((int) newT.toSeconds()));
+                                    });
+                                }
+                            });
+                            playerHolder[0].setOnEndOfMedia(() -> Platform.runLater(() -> {
+                                playPauseIcon.setText("▶");
+                                progressBar.setProgress(0);
+                                durationLabel.setText(durationText);
+                                isPlaying[0] = false;
+                                playerHolder[0].stop();
+                                playerHolder[0].dispose();
+                                playerHolder[0] = null;
+                            }));
+                        } catch (Exception audioEx) {
+                            return;
+                        }
+                    }
+                    playerHolder[0].play();
+                    playPauseIcon.setText("⏸");
+                    isPlaying[0] = true;
+                }
+            });
+            vocalBox.getChildren().addAll(playPauseIcon, progressBar, durationLabel);
+            bubble.getChildren().add(vocalBox);
+        } else {
+            Label msgText = new Label(msg.getContent());
+            msgText.setWrapText(true);
+            msgText.setStyle(isMine ? "-fx-text-fill: -fx-primary-foreground; -fx-font-size: 13px;"
+                    : "-fx-text-fill: -fx-foreground; -fx-font-size: 13px;");
+            bubble.getChildren().add(msgText);
+        }
+
+        Label timeLabel = new Label(
+                formatDate(msg.getCreatedDate() != null ? msg.getCreatedDate() : java.time.LocalDateTime.now()));
+        timeLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: "
+                + (isMine ? "-fx-primary-foreground;" : "-fx-muted-foreground;"));
+
+        if (isMine) {
+            HBox statusRow = new HBox(4);
+            statusRow.setAlignment(Pos.CENTER_RIGHT);
+            statusRow.getStyleClass().add("group-msg-status-row");
+            statusRow.getChildren().add(timeLabel);
+            if (readByCount > 0) {
+                Label seenLabel = new Label("✓✓ Vu");
+                seenLabel.getStyleClass().add("msg-seen-indicator");
+                statusRow.getChildren().add(seenLabel);
+            } else {
+                Label sentLabel = new Label("✓ Envoyé");
+                sentLabel.getStyleClass().add("msg-seen-indicator");
+                sentLabel.setStyle("-fx-text-fill: -fx-primary-foreground; -fx-font-size: 10px; -fx-opacity: 0.7;");
+                statusRow.getChildren().add(sentLabel);
+            }
+            bubble.getChildren().add(statusRow);
+        } else {
+            bubble.getChildren().add(timeLabel);
+        }
+
+        // ── REACTION BAR below the bubble ──
+        FlowPane reactionBar = buildReactionBar(msg.getId(), isMine, reactions, myReactions, emoji -> {
+            new Thread(() -> {
+                GroupService.getInstance().toggleReaction(msg.getId(), currentUser.getId(), emoji);
+                Platform.runLater(onReactionChanged);
+            }, "GroupReactionThread").start();
+        });
+
+        VBox bubbleWithReactions = new VBox(0);
+        bubbleWithReactions.setAlignment(isMine ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
+        bubbleWithReactions.getChildren().addAll(bubble, reactionBar);
+
+        if (isMine) {
+            row.getChildren().add(bubbleWithReactions);
+        } else {
+            row.getChildren().addAll(msgAvatar, bubbleWithReactions);
+        }
+        return row;
+    }
+
+    /**
      * Affiche le dialogue de création ou modification d'un groupe.
      *
      * CONTRÔLE DE SAISIE :
-     *   - Nom du groupe obligatoire (sinon DialogUtils.showError)
+     * - Nom du groupe obligatoire (sinon DialogUtils.showError)
      *
      * @param existingGroup le groupe à modifier, ou null pour créer
      */
@@ -2187,10 +3917,31 @@ public class CommunityController implements Initializable {
         descField.getControl().setPrefRowCount(3);
         TLTextField categoryField = new TLTextField("Category", "e.g., Technology, Finance");
 
+        // Public/Private toggle
+        HBox visibilityRow = new HBox(12);
+        visibilityRow.setAlignment(Pos.CENTER_LEFT);
+        Label visibilityLabel = new Label("🌐  Public Group");
+        visibilityLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: -fx-foreground;");
+        javafx.scene.control.CheckBox publicToggle = new javafx.scene.control.CheckBox();
+        publicToggle.setSelected(true);
+        Label visibilityHint = new Label("Public groups are visible and joinable by everyone");
+        visibilityHint.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-muted-foreground;");
+        VBox visibilityInfo = new VBox(2, visibilityLabel, visibilityHint);
+        visibilityRow.getChildren().addAll(publicToggle, visibilityInfo);
+
+        // Update hint text when toggled
+        publicToggle.selectedProperty().addListener((obs, was, isNow) -> {
+            visibilityLabel.setText(isNow ? "🌐  Public Group" : "🔒  Private Group");
+            visibilityHint.setText(isNow
+                    ? "Public groups are visible and joinable by everyone"
+                    : "Private groups are hidden from search and discovery");
+        });
+
         if (isEdit) {
             nameField.setText(existingGroup.getName());
             descField.setText(existingGroup.getDescription());
             categoryField.setText(existingGroup.getCategory());
+            publicToggle.setSelected(existingGroup.isPublic());
         }
 
         HBox buttons = new HBox(8);
@@ -2211,6 +3962,7 @@ public class CommunityController implements Initializable {
                 existingGroup.setName(n.trim());
                 existingGroup.setDescription(descField.getText());
                 existingGroup.setCategory(categoryField.getText());
+                existingGroup.setPublic(publicToggle.isSelected());
                 new Thread(() -> {
                     GroupService.getInstance().update(existingGroup);
                     Platform.runLater(() -> {
@@ -2223,6 +3975,7 @@ public class CommunityController implements Initializable {
                 group.setName(n.trim());
                 group.setDescription(descField.getText());
                 group.setCategory(categoryField.getText());
+                group.setPublic(publicToggle.isSelected());
                 group.setCreatorId(currentUser.getId());
                 new Thread(() -> {
                     GroupService.getInstance().create(group);
@@ -2236,7 +3989,7 @@ public class CommunityController implements Initializable {
         });
 
         buttons.getChildren().addAll(cancelBtn, saveBtn);
-        content.getChildren().addAll(nameField, descField, categoryField, buttons);
+        content.getChildren().addAll(nameField, descField, categoryField, visibilityRow, buttons);
         dialog.setContent(content);
         dialog.show();
     }
@@ -2259,8 +4012,8 @@ public class CommunityController implements Initializable {
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  BLOG — CRUD complet (Admin, Employer, Trainer peuvent créer)
-    //  (Créer, Lire, Modifier, Supprimer, Publier/Brouillon)
+    // BLOG — CRUD complet (Admin, Employer, Trainer peuvent créer)
+    // (Créer, Lire, Modifier, Supprimer, Publier/Brouillon)
     // ═══════════════════════════════════════════════════════════
 
     /**
@@ -2271,7 +4024,8 @@ public class CommunityController implements Initializable {
      */
     private void loadBlogTab() {
         contentPane.getChildren().clear();
-        if (currentUser == null) return;
+        if (currentUser == null)
+            return;
 
         VBox blogPane = new VBox(12);
 
@@ -2317,7 +4071,8 @@ public class CommunityController implements Initializable {
     }
 
     /**
-     * Crée une carte d'article de blog avec en-tête, résumé, méta-données et actions.
+     * Crée une carte d'article de blog avec en-tête, résumé, méta-données et
+     * actions.
      *
      * @param article l'article à afficher
      * @return TLCard avec toutes les informations
@@ -2436,7 +4191,8 @@ public class CommunityController implements Initializable {
         VBox authorInfo = new VBox(1);
         Label authorLabel = new Label(authorName);
         authorLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: 600; -fx-text-fill: -fx-foreground;");
-        Label dateLabel = new Label(formatDate(article.getPublishedDate() != null ? article.getPublishedDate() : article.getCreatedDate()));
+        Label dateLabel = new Label(
+                formatDate(article.getPublishedDate() != null ? article.getPublishedDate() : article.getCreatedDate()));
         dateLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: -fx-muted-foreground;");
         authorInfo.getChildren().addAll(authorLabel, dateLabel);
         authorRow.getChildren().addAll(authorAvatar, authorInfo);
@@ -2465,9 +4221,9 @@ public class CommunityController implements Initializable {
      * Affiche le dialogue de création ou modification d'un article de blog.
      *
      * CONTRÔLES DE SAISIE :
-     *   - Titre obligatoire (sinon DialogUtils.showError)
-     *   - Contenu obligatoire (sinon DialogUtils.showError)
-     *   - Options : Sauvegarder en brouillon ou Publier
+     * - Titre obligatoire (sinon DialogUtils.showError)
+     * - Contenu obligatoire (sinon DialogUtils.showError)
+     * - Options : Sauvegarder en brouillon ou Publier
      *
      * @param existingArticle l'article à modifier, ou null pour créer
      */
@@ -2500,10 +4256,12 @@ public class CommunityController implements Initializable {
         cancelBtn.setOnAction(e -> dialog.close());
 
         TLButton draftBtn = new TLButton(I18n.get("blog.draft"), TLButton.ButtonVariant.OUTLINE);
-        draftBtn.setOnAction(e -> saveBlogArticle(isEdit, existingArticle, titleField, contentField, summaryField, categoryField, tagsField, false, dialog));
+        draftBtn.setOnAction(e -> saveBlogArticle(isEdit, existingArticle, titleField, contentField, summaryField,
+                categoryField, tagsField, false, dialog));
 
         TLButton publishBtn = new TLButton(I18n.get("blog.publish"), TLButton.ButtonVariant.PRIMARY);
-        publishBtn.setOnAction(e -> saveBlogArticle(isEdit, existingArticle, titleField, contentField, summaryField, categoryField, tagsField, true, dialog));
+        publishBtn.setOnAction(e -> saveBlogArticle(isEdit, existingArticle, titleField, contentField, summaryField,
+                categoryField, tagsField, true, dialog));
 
         buttons.getChildren().addAll(cancelBtn, draftBtn, publishBtn);
         content.getChildren().addAll(titleField, summaryField, contentField, categoryField, tagsField, buttons);
@@ -2515,22 +4273,22 @@ public class CommunityController implements Initializable {
      * Sauvegarde un article de blog (création ou mise à jour).
      *
      * CONTRÔLES DE SAISIE :
-     *   - Titre obligatoire
-     *   - Contenu obligatoire
+     * - Titre obligatoire
+     * - Contenu obligatoire
      *
-     * @param isEdit       true si modification, false si création
-     * @param existing     l'article existant (en mode édition)
-     * @param titleField   champ titre
-     * @param contentField champ contenu
-     * @param summaryField champ résumé
+     * @param isEdit        true si modification, false si création
+     * @param existing      l'article existant (en mode édition)
+     * @param titleField    champ titre
+     * @param contentField  champ contenu
+     * @param summaryField  champ résumé
      * @param categoryField champ catégorie
-     * @param tagsField    champ tags
-     * @param publish      true pour publier, false pour brouillon
-     * @param dialog       le dialogue à fermer après sauvegarde
+     * @param tagsField     champ tags
+     * @param publish       true pour publier, false pour brouillon
+     * @param dialog        le dialogue à fermer après sauvegarde
      */
     private void saveBlogArticle(boolean isEdit, BlogArticle existing, TLTextField titleField,
-                                  TLTextarea contentField, TLTextField summaryField, TLTextField categoryField,
-                                  TLTextField tagsField, boolean publish, TLDialog<?> dialog) {
+            TLTextarea contentField, TLTextField summaryField, TLTextField categoryField,
+            TLTextField tagsField, boolean publish, TLDialog<?> dialog) {
         String t = titleField.getText();
         // CONTRÔLE DE SAISIE : titre obligatoire
         if (t == null || t.trim().isEmpty()) {
@@ -2591,14 +4349,14 @@ public class CommunityController implements Initializable {
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  HELPERS AVATAR — Style réseau social moderne
-    //  (Cercle coloré avec initiales du nom)
+    // HELPERS AVATAR — Style réseau social moderne
+    // (Cercle coloré avec initiales du nom)
     // ═══════════════════════════════════════════════════════════
 
     /** Palette de couleurs pour les avatars (8 couleurs différentes) */
     private static final String[] AVATAR_COLORS = {
-        "#3b82f6", "#22c55e", "#a855f7", "#f97316",
-        "#ec4899", "#06b6d4", "#ef4444", "#6366f1"
+            "#3b82f6", "#22c55e", "#a855f7", "#f97316",
+            "#ec4899", "#06b6d4", "#ef4444", "#6366f1"
     };
 
     /**
@@ -2643,7 +4401,8 @@ public class CommunityController implements Initializable {
      * @return les initiales en majuscules
      */
     private String getInitials(String name) {
-        if (name == null || name.isBlank()) return "?";
+        if (name == null || name.isBlank())
+            return "?";
         String[] parts = name.trim().split("\\s+");
         if (parts.length >= 2) {
             return ("" + parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
@@ -2652,18 +4411,20 @@ public class CommunityController implements Initializable {
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  MÉTHODES UTILITAIRES
+    // MÉTHODES UTILITAIRES
     // ═══════════════════════════════════════════════════════════
 
     /** Formate une date en chaîne lisible (dd MMM yyyy, HH:mm). */
     private String formatDate(LocalDateTime dateTime) {
-        if (dateTime == null) return "";
+        if (dateTime == null)
+            return "";
         return dateTime.format(DATE_FMT); // Format défini dans les constantes
     }
 
     /**
      * Affiche un toast de succès dans l'interface.
-     * Protégé par try-catch pour éviter les erreurs si la scène n'est pas disponible.
+     * Protégé par try-catch pour éviter les erreurs si la scène n'est pas
+     * disponible.
      *
      * @param message le message à afficher
      */
@@ -2678,23 +4439,23 @@ public class CommunityController implements Initializable {
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  RECHERCHE AVANCÉE — Barre de recherche globale multi-entités
-    //  (Feature F1 — Sprint 2)
+    // RECHERCHE AVANCÉE — Barre de recherche globale multi-entités
+    // (Feature F1 — Sprint 2)
     // ═══════════════════════════════════════════════════════════
 
     /**
      * Construit la barre de recherche avancée pour le fil d'actualité.
      *
      * Composants :
-     *   - TLTextField : champ de saisie du mot-clé
-     *   - TLSelect    : filtre par type de contenu (Tous, Posts, Messages, etc.)
-     *   - TLButton    : bouton de recherche
+     * - TLTextField : champ de saisie du mot-clé
+     * - TLSelect : filtre par type de contenu (Tous, Posts, Messages, etc.)
+     * - TLButton : bouton de recherche
      *
      * Fonctionnement :
-     *   1. L'utilisateur saisit un mot-clé et choisit un filtre
-     *   2. La recherche est effectuée dans un thread séparé via SearchService
-     *   3. Les résultats sont affichés sous forme de cartes dans le contentPane
-     *   4. Chaque résultat a un badge de type (POST, MESSAGE, EVENT, GROUP, BLOG)
+     * 1. L'utilisateur saisit un mot-clé et choisit un filtre
+     * 2. La recherche est effectuée dans un thread séparé via SearchService
+     * 3. Les résultats sont affichés sous forme de cartes dans le contentPane
+     * 4. Chaque résultat a un badge de type (POST, MESSAGE, EVENT, GROUP, BLOG)
      *
      * @return HBox contenant la barre de recherche complète
      */
@@ -2707,7 +4468,8 @@ public class CommunityController implements Initializable {
         TLTextField searchField = new TLTextField("", "🔍  Rechercher dans la communauté...");
         HBox.setHgrow(searchField, Priority.ALWAYS);
 
-        // Sélecteur de filtre par DATE (Tout, Aujourd'hui, Cette semaine, Ce mois, Cette année)
+        // Sélecteur de filtre par DATE (Tout, Aujourd'hui, Cette semaine, Ce mois,
+        // Cette année)
         TLSelect<String> dateFilterSelect = new TLSelect<>("Période",
                 "Tout", "Aujourd'hui", "Cette semaine", "Ce mois", "Cette année");
         dateFilterSelect.setValue("Tout");
@@ -2718,19 +4480,20 @@ public class CommunityController implements Initializable {
         sortSelect.setValue("Plus récent");
 
         // ── Action de recherche extraite en Runnable pour pouvoir la déclencher
-        //    depuis le bouton ET depuis les changements de filtres ──
+        // depuis le bouton ET depuis les changements de filtres ──
         Runnable executeSearch = () -> {
             String keyword = searchField.getText();
-            if (keyword == null || keyword.isBlank()) return;
+            if (keyword == null || keyword.isBlank())
+                return;
 
             // Convertir le filtre de date sélectionné en enum DateFilter
             String dateVal = dateFilterSelect.getValue();
             SearchService.DateFilter dateFilter = switch (dateVal != null ? dateVal : "Tout") {
-                case "Aujourd'hui"   -> SearchService.DateFilter.TODAY;
+                case "Aujourd'hui" -> SearchService.DateFilter.TODAY;
                 case "Cette semaine" -> SearchService.DateFilter.THIS_WEEK;
-                case "Ce mois"       -> SearchService.DateFilter.THIS_MONTH;
-                case "Cette année"   -> SearchService.DateFilter.THIS_YEAR;
-                default              -> SearchService.DateFilter.ALL;
+                case "Ce mois" -> SearchService.DateFilter.THIS_MONTH;
+                case "Cette année" -> SearchService.DateFilter.THIS_YEAR;
+                default -> SearchService.DateFilter.ALL;
             };
 
             // Récupérer le tri sélectionné
@@ -2745,11 +4508,14 @@ public class CommunityController implements Initializable {
                     List<SearchService.SearchResult> filtered = searchService.filterByDate(all, dateFilter);
                     // Trier par date : plus récent ou plus ancien
                     filtered.sort((a, b) -> {
-                        if (a.getDate() == null && b.getDate() == null) return 0;
-                        if (a.getDate() == null) return 1;
-                        if (b.getDate() == null) return -1;
+                        if (a.getDate() == null && b.getDate() == null)
+                            return 0;
+                        if (a.getDate() == null)
+                            return 1;
+                        if (b.getDate() == null)
+                            return -1;
                         return sortAscending ? a.getDate().compareTo(b.getDate())
-                                             : b.getDate().compareTo(a.getDate());
+                                : b.getDate().compareTo(a.getDate());
                     });
                     return filtered;
                 }
@@ -2792,7 +4558,8 @@ public class CommunityController implements Initializable {
         searchBtn.setSize(TLButton.ButtonSize.SM);
         searchBtn.setOnAction(e -> executeSearch.run());
 
-        // Re-exécuter la recherche automatiquement quand le filtre date ou le tri change
+        // Re-exécuter la recherche automatiquement quand le filtre date ou le tri
+        // change
         dateFilterSelect.valueProperty().addListener((obs, oldVal, newVal) -> {
             if (searchField.getText() != null && !searchField.getText().isBlank()) {
                 executeSearch.run();
@@ -2826,12 +4593,12 @@ public class CommunityController implements Initializable {
 
         // Badge de type coloré selon le type de résultat
         TLBadge.Variant badgeVariant = switch (result.getType()) {
-            case "POST"    -> TLBadge.Variant.DEFAULT;
+            case "POST" -> TLBadge.Variant.DEFAULT;
             case "MESSAGE" -> TLBadge.Variant.SECONDARY;
-            case "EVENT"   -> TLBadge.Variant.SUCCESS;
-            case "GROUP"   -> TLBadge.Variant.OUTLINE;
-            case "BLOG"    -> TLBadge.Variant.DESTRUCTIVE;
-            default        -> TLBadge.Variant.DEFAULT;
+            case "EVENT" -> TLBadge.Variant.SUCCESS;
+            case "GROUP" -> TLBadge.Variant.OUTLINE;
+            case "BLOG" -> TLBadge.Variant.DESTRUCTIVE;
+            default -> TLBadge.Variant.DEFAULT;
         };
         TLBadge typeBadge = new TLBadge(result.getType(), badgeVariant);
 
@@ -2857,20 +4624,20 @@ public class CommunityController implements Initializable {
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  EMOJI PICKER — Grille d'emojis avec catégories
-    //  (Feature U4 — Sprint 2)
+    // EMOJI PICKER — Grille d'emojis avec catégories
+    // (Feature U4 — Sprint 2)
     // ═══════════════════════════════════════════════════════════
 
     /** Tableau des emojis fréquemment utilisés, organisés en grille */
     private static final String[] EMOJI_LIST = {
-        "😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂",
-        "🙂", "😊", "😇", "🥰", "😍", "🤩", "😘", "😗",
-        "😜", "🤪", "😝", "🤑", "🤗", "🤔", "🤐", "😐",
-        "😏", "😒", "😔", "😢", "😭", "😤", "🤬", "😈",
-        "👍", "👎", "👏", "🙌", "🤝", "💪", "✌️", "🤞",
-        "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "💔",
-        "🔥", "⭐", "🌟", "💯", "✅", "❌", "⚡", "🎯",
-        "📌", "💡", "📢", "🎉", "🎊", "🏆", "🥇", "🚀"
+            "😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂",
+            "🙂", "😊", "😇", "🥰", "😍", "🤩", "😘", "😗",
+            "😜", "🤪", "😝", "🤑", "🤗", "🤔", "🤐", "😐",
+            "😏", "😒", "😔", "😢", "😭", "😤", "🤬", "😈",
+            "👍", "👎", "👏", "🙌", "🤝", "💪", "✌️", "🤞",
+            "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "💔",
+            "🔥", "⭐", "🌟", "💯", "✅", "❌", "⚡", "🎯",
+            "📌", "💡", "📢", "🎉", "🎊", "🏆", "🥇", "🚀"
     };
 
     /**
@@ -2878,10 +4645,10 @@ public class CommunityController implements Initializable {
      * L'emoji sélectionné est inséré à la fin du texte dans le TLTextarea.
      *
      * ARCHITECTURE :
-     *   - Popup JavaFX positionné sous le bouton déclencheur
-     *   - GridPane 8×8 pour afficher 64 emojis
-     *   - Chaque emoji est un Label cliquable
-     *   - Au clic : insérer l'emoji dans le textarea et fermer le popup
+     * - Popup JavaFX positionné sous le bouton déclencheur
+     * - GridPane 8×8 pour afficher 64 emojis
+     * - Chaque emoji est un Label cliquable
+     * - Au clic : insérer l'emoji dans le textarea et fermer le popup
      *
      * @param anchor   le bouton qui a déclenché l'ouverture (pour positionnement)
      * @param textArea le champ de texte dans lequel insérer l'emoji
@@ -2967,8 +4734,8 @@ public class CommunityController implements Initializable {
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  TRADUCTION AVEC CHOIX DE LANGUE — API MyMemory
-    //  (API A1 — Sprint 2)
+    // TRADUCTION AVEC CHOIX DE LANGUE — API MyMemory
+    // (API A1 — Sprint 2)
     // ═══════════════════════════════════════════════════════════
 
     /**
@@ -2976,14 +4743,14 @@ public class CommunityController implements Initializable {
      * avant de lancer la traduction via l'API MyMemory.
      *
      * Options :
-     *   🇫🇷 Français   (fr)
-     *   🇬🇧 English    (en)
-     *   🇸🇦 العربية    (ar)
-     *   ↩  Original  — restaure le texte d'origine
+     * 🇫🇷 Français (fr)
+     * 🇬🇧 English (en)
+     * 🇸🇦 العربية (ar)
+     * ↩ Original — restaure le texte d'origine
      *
-     * @param translateBtn  le bouton "Traduire" (pour positionner le popup)
-     * @param contentLabel  le Label contenant le texte du post
-     * @param originalText  le texte original du post (pour restauration)
+     * @param translateBtn le bouton "Traduire" (pour positionner le popup)
+     * @param contentLabel le Label contenant le texte du post
+     * @param originalText le texte original du post (pour restauration)
      */
     private void showTranslationMenu(TLButton translateBtn, Label contentLabel, String originalText) {
         Popup popup = new Popup();
@@ -2997,7 +4764,8 @@ public class CommunityController implements Initializable {
 
         // Titre du menu
         Label title = new Label("🌐  Traduire en :");
-        title.setStyle("-fx-font-size: 12px; -fx-font-weight: 700; -fx-text-fill: -fx-muted-foreground; -fx-padding: 4 8;");
+        title.setStyle(
+                "-fx-font-size: 12px; -fx-font-weight: 700; -fx-text-fill: -fx-muted-foreground; -fx-padding: 4 8;");
         menu.getChildren().add(title);
 
         // Détecter la langue source actuelle du texte
@@ -3005,9 +4773,9 @@ public class CommunityController implements Initializable {
 
         // ── Options de langue (sans emojis drapeaux — incompatibles Windows) ──
         String[][] languages = {
-            {"Français", "fr"},
-            {"English", "en"},
-            {"العربية", "ar"}
+                { "Français", "fr" },
+                { "English", "en" },
+                { "العربية", "ar" }
         };
 
         for (String[] lang : languages) {
@@ -3055,8 +4823,8 @@ public class CommunityController implements Initializable {
                                 contentLabel.setText(originalText);
                                 translateBtn.setText("🌐  Traduire");
                                 // Rebrancher le menu de choix pour les futures traductions
-                                translateBtn.setOnAction(ev3 ->
-                                        showTranslationMenu(translateBtn, contentLabel, originalText));
+                                translateBtn.setOnAction(
+                                        ev3 -> showTranslationMenu(translateBtn, contentLabel, originalText));
                             });
                             showToast("Traduit : " + sourceLang.toUpperCase() + " → " + langCode.toUpperCase());
                         });
@@ -3091,8 +4859,7 @@ public class CommunityController implements Initializable {
                 popup.hide();
                 contentLabel.setText(originalText);
                 translateBtn.setText("🌐  Traduire");
-                translateBtn.setOnAction(ev2 ->
-                        showTranslationMenu(translateBtn, contentLabel, originalText));
+                translateBtn.setOnAction(ev2 -> showTranslationMenu(translateBtn, contentLabel, originalText));
             });
             menu.getChildren().add(restoreItem);
         }
@@ -3105,8 +4872,8 @@ public class CommunityController implements Initializable {
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  MENTIONS @USER — Autocomplétion et traitement des mentions
-    //  (Feature F7 — Sprint 2)
+    // MENTIONS @USER — Autocomplétion et traitement des mentions
+    // (Feature F7 — Sprint 2)
     // ═══════════════════════════════════════════════════════════
 
     /**
@@ -3115,11 +4882,11 @@ public class CommunityController implements Initializable {
      * apparaît avec les utilisateurs correspondants.
      *
      * FONCTIONNEMENT :
-     *   1. Écouter les changements de texte dans le textarea
-     *   2. Détecter le pattern @xxx (au moins 2 caractères après @)
-     *   3. Chercher les utilisateurs correspondants via MentionService.searchUsers()
-     *   4. Afficher un popup avec la liste des utilisateurs trouvés
-     *   5. Au clic sur un utilisateur, remplacer @xxx par @prenom_nom
+     * 1. Écouter les changements de texte dans le textarea
+     * 2. Détecter le pattern @xxx (au moins 2 caractères après @)
+     * 3. Chercher les utilisateurs correspondants via MentionService.searchUsers()
+     * 4. Afficher un popup avec la liste des utilisateurs trouvés
+     * 5. Au clic sur un utilisateur, remplacer @xxx par @prenom_nom
      *
      * @param textArea le champ de texte à surveiller
      * @param dialog   le dialogue parent (pour le positionnement du popup)
@@ -3137,7 +4904,8 @@ public class CommunityController implements Initializable {
         mentionPopup.getContent().add(mentionList);
 
         // Écouter chaque modification du texte
-        // On utilise Platform.runLater car getCaretPosition() n'est pas encore mis à jour
+        // On utilise Platform.runLater car getCaretPosition() n'est pas encore mis à
+        // jour
         // dans le listener textProperty — le curseur est actualisé après le listener
         innerControl.textProperty().addListener((obs, oldText, newText) -> {
             Platform.runLater(() -> {
@@ -3186,7 +4954,8 @@ public class CommunityController implements Initializable {
                             item.setAlignment(Pos.CENTER_LEFT);
                             item.setPadding(new Insets(6, 10, 6, 10));
                             item.setStyle("-fx-cursor: hand; -fx-background-radius: 4;");
-                            item.setOnMouseEntered(ev -> item.setStyle("-fx-cursor: hand; -fx-background-color: -fx-accent; -fx-background-radius: 4;"));
+                            item.setOnMouseEntered(ev -> item.setStyle(
+                                    "-fx-cursor: hand; -fx-background-color: -fx-accent; -fx-background-radius: 4;"));
                             item.setOnMouseExited(ev -> item.setStyle("-fx-cursor: hand; -fx-background-radius: 4;"));
 
                             StackPane userAvatar = createAvatar(user.getFullName(), 24);
@@ -3198,7 +4967,9 @@ public class CommunityController implements Initializable {
                             item.setOnMouseClicked(ev -> {
                                 String currentText = innerControl.getText();
                                 String before = currentText.substring(0, mentionStart);
-                                String after = currentCaretPos < currentText.length() ? currentText.substring(currentCaretPos) : "";
+                                String after = currentCaretPos < currentText.length()
+                                        ? currentText.substring(currentCaretPos)
+                                        : "";
                                 String replacement = "@" + user.getHandle() + " ";
                                 innerControl.setText(before + replacement + after);
                                 innerControl.positionCaret(before.length() + replacement.length());
@@ -3214,7 +4985,8 @@ public class CommunityController implements Initializable {
                                 // Afficher le popup en passant la Window du dialogue comme owner
                                 // Cela garantit que le popup s'affiche AU-DESSUS du dialogue modal
                                 javafx.stage.Window owner = innerControl.getScene() != null
-                                        ? innerControl.getScene().getWindow() : null;
+                                        ? innerControl.getScene().getWindow()
+                                        : null;
                                 if (owner != null) {
                                     mentionPopup.show(owner, bounds.getMinX() + 20, bounds.getMinY() + 40);
                                 } else {
@@ -3229,8 +5001,10 @@ public class CommunityController implements Initializable {
     }
 
     /**
-     * Configure la détection des mentions @user dans un TLTextField (commentaires, messages).
-     * Même logique que setupMentionDetection() mais adapté pour TextField (une seule ligne).
+     * Configure la détection des mentions @user dans un TLTextField (commentaires,
+     * messages).
+     * Même logique que setupMentionDetection() mais adapté pour TextField (une
+     * seule ligne).
      *
      * @param textField le champ de texte à surveiller
      */
@@ -3286,7 +5060,8 @@ public class CommunityController implements Initializable {
                             item.setAlignment(Pos.CENTER_LEFT);
                             item.setPadding(new Insets(6, 10, 6, 10));
                             item.setStyle("-fx-cursor: hand; -fx-background-radius: 4;");
-                            item.setOnMouseEntered(ev -> item.setStyle("-fx-cursor: hand; -fx-background-color: -fx-accent; -fx-background-radius: 4;"));
+                            item.setOnMouseEntered(ev -> item.setStyle(
+                                    "-fx-cursor: hand; -fx-background-color: -fx-accent; -fx-background-radius: 4;"));
                             item.setOnMouseExited(ev -> item.setStyle("-fx-cursor: hand; -fx-background-radius: 4;"));
 
                             StackPane userAvatar = createAvatar(user.getFullName(), 24);
@@ -3297,7 +5072,9 @@ public class CommunityController implements Initializable {
                             item.setOnMouseClicked(ev -> {
                                 String currentText = innerControl.getText();
                                 String before = currentText.substring(0, mentionStart);
-                                String after = currentCaretPos < currentText.length() ? currentText.substring(currentCaretPos) : "";
+                                String after = currentCaretPos < currentText.length()
+                                        ? currentText.substring(currentCaretPos)
+                                        : "";
                                 String replacement = "@" + user.getHandle() + " ";
                                 innerControl.setText(before + replacement + after);
                                 innerControl.positionCaret(before.length() + replacement.length());
@@ -3310,7 +5087,8 @@ public class CommunityController implements Initializable {
                             var bounds = innerControl.localToScreen(innerControl.getBoundsInLocal());
                             if (bounds != null) {
                                 javafx.stage.Window owner = innerControl.getScene() != null
-                                        ? innerControl.getScene().getWindow() : null;
+                                        ? innerControl.getScene().getWindow()
+                                        : null;
                                 double popupX = bounds.getMinX();
                                 double popupY = bounds.getMinY() - (users.size() * 36 + 16); // Au-dessus du champ
                                 if (owner != null) {
@@ -3327,22 +5105,22 @@ public class CommunityController implements Initializable {
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  ANIMATIONS — Transitions fluides pour l'UX
-    //  (Feature U1 — Sprint 2)
+    // ANIMATIONS — Transitions fluides pour l'UX
+    // (Feature U1 — Sprint 2)
     // ═══════════════════════════════════════════════════════════
 
     /**
      * Anime l'entrée d'une carte avec un effet combiné :
-     *   1. FadeTransition   : opacité de 0 → 1 (apparition progressive)
-     *   2. TranslateTransition : glissement de 30px vers le haut (montée douce)
+     * 1. FadeTransition : opacité de 0 → 1 (apparition progressive)
+     * 2. TranslateTransition : glissement de 30px vers le haut (montée douce)
      *
      * L'animation est décalée par un délai (delay) pour créer un effet cascade
      * quand plusieurs cartes sont chargées ensemble (staggered reveal).
      *
      * POURQUOI CES ANIMATIONS ?
-     *   - Améliore la fluidité perçue de l'interface
-     *   - Donne un feedback visuel que le contenu est en train de charger
-     *   - Crée un effet professionnel similaire aux réseaux sociaux modernes
+     * - Améliore la fluidité perçue de l'interface
+     * - Donne un feedback visuel que le contenu est en train de charger
+     * - Crée un effet professionnel similaire aux réseaux sociaux modernes
      *
      * @param node  le composant à animer (généralement un TLCard)
      * @param delay délai avant le début de l'animation en millisecondes
@@ -3354,14 +5132,14 @@ public class CommunityController implements Initializable {
 
         // Étape 2 : animation de fondu (fade-in)
         FadeTransition fade = new FadeTransition(Duration.millis(400), node);
-        fade.setFromValue(0.0);   // Départ : invisible
-        fade.setToValue(1.0);     // Arrivée : complètement visible
+        fade.setFromValue(0.0); // Départ : invisible
+        fade.setToValue(1.0); // Arrivée : complètement visible
         fade.setDelay(Duration.millis(delay)); // Décalage pour effet cascade
 
         // Étape 3 : animation de glissement vers le haut (slide-up)
         TranslateTransition slide = new TranslateTransition(Duration.millis(400), node);
-        slide.setFromY(30);       // Départ : 30px plus bas
-        slide.setToY(0);          // Arrivée : position normale
+        slide.setFromY(30); // Départ : 30px plus bas
+        slide.setToY(0); // Arrivée : position normale
         slide.setDelay(Duration.millis(delay));
 
         // Lancer les deux animations en parallèle
