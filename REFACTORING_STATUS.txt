@@ -1,0 +1,304 @@
+================================================================================
+JAVAFX REFACTORING STATUS - SYSTEMATIC MIGRATION GUIDE
+================================================================================
+
+COMPLETED:
+----------
+✓ Created new package structure (formation/ and usermanagement/ subpackages)
+✓ Moved Formation entities to model/entity/formation/:
+  - Training.java
+  - TrainingLesson.java
+  - TrainingMaterial.java
+  - TrainingEnrollment.java
+  - LessonProgress.java
+  - Certificate.java
+
+✓ Moved User Management entities to model/entity/usermanagement/:
+  - User.java
+  - Profile.java
+  - BiometricData.java
+
+✓ Created TrainingService in service/formation/ (with updated imports)
+
+================================================================================
+REMAINING TASKS (In Order of Execution)
+================================================================================
+
+PHASE 1: Complete Service Migration
+------------------------------------
+
+FORMATION SERVICES → service/formation/:
+  [ ] TrainingLessonService.java
+  [ ] TrainingEnrollmentService.java
+  [ ] LessonProgressService.java
+  [ ] CertificateService.java
+
+USER MANAGEMENT SERVICES → service/usermanagement/:
+  [ ] AuthService.java (update: import com.skilora.model.entity.usermanagement.User)
+  [ ] UserService.java (update: import com.skilora.model.entity.usermanagement.User)
+  [ ] BiometricService.java (update: import com.skilora.model.entity.usermanagement.BiometricData)
+  [ ] ProfileService.java (update: import com.skilora.model.entity.usermanagement.Profile)
+  [ ] PreferencesService.java
+
+For each service file:
+  1. Change package declaration: package com.skilora.service.formation; OR package com.skilora.service.usermanagement;
+  2. Update entity imports:
+     - com.skilora.model.entity.Training → com.skilora.model.entity.formation.Training
+     - com.skilora.model.entity.User → com.skilora.model.entity.usermanagement.User
+     - com.skilora.model.entity.Profile → com.skilora.model.entity.usermanagement.Profile
+     - com.skilora.model.entity.BiometricData → com.skilora.model.entity.usermanagement.BiometricData
+     - com.skilora.model.entity.Certificate → com.skilora.model.entity.formation.Certificate
+     - com.skilora.model.entity.TrainingLesson → com.skilora.model.entity.formation.TrainingLesson
+     - com.skilora.model.entity.TrainingEnrollment → com.skilora.model.entity.formation.TrainingEnrollment
+     - com.skilora.model.entity.LessonProgress → com.skilora.model.entity.formation.LessonProgress
+  3. Update service imports if they reference other services:
+     - com.skilora.model.service.UserService → com.skilora.service.usermanagement.UserService
+     - com.skilora.model.service.AuthService → com.skilora.service.usermanagement.AuthService
+     - com.skilora.model.service.BiometricService → com.skilora.service.usermanagement.BiometricService
+     - com.skilora.model.service.TrainingService → com.skilora.service.formation.TrainingService
+
+
+PHASE 2: Controller Migration
+-------------------------------
+
+FORMATION CONTROLLERS → controller/formation/:
+  [ ] FormationsController.java
+  [ ] AdminTrainingController.java
+  [ ] TrainingDetailController.java
+  [ ] TrainingFormController.java
+  [ ] TrainingProgressController.java
+  [ ] CertificationsController.java
+
+USER MANAGEMENT CONTROLLERS → controller/usermanagement/:
+  [ ] LoginController.java
+  [ ] RegisterController.java
+  [ ] UsersController.java
+  [ ] UserFormController.java
+  [ ] ForgotPasswordController.java
+  [ ] BiometricAuthController.java
+  [ ] ProfileWizardController.java
+  [ ] SettingsController.java
+
+For each controller file:
+  1. Change package declaration
+  2. Update ALL imports:
+     - Entity imports (as listed in Phase 1)
+     - Service imports (as listed in Phase 1)
+     - Keep framework/, utils/, config/ imports unchanged
+
+
+PHASE 3: FXML File Migration
+------------------------------
+
+FORMATION FXML → resources/com/skilora/formation/fxml/:
+  [ ] FormationsView.fxml
+  [ ] AdminTrainingsView.fxml
+  [ ] TrainingDetailView.fxml
+  [ ] TrainingFormDialog.fxml
+  [ ] TrainingProgressView.fxml
+  [ ] CertificationsView.fxml
+
+USER MANAGEMENT FXML → resources/com/skilora/usermanagement/fxml/:
+  [ ] LoginView.fxml
+  [ ] RegisterView.fxml
+  [ ] UsersView.fxml
+  [ ] UserFormDialog.fxml
+  [ ] ForgotPasswordView.fxml
+  [ ] BiometricAuthDialog.fxml
+  [ ] ProfileWizardView.fxml
+  [ ] SettingsView.fxml
+
+For each FXML file:
+  1. Move file to new location
+  2. Update fx:controller attribute:
+     - fx:controller="com.skilora.controller.FormationsController"
+       → fx:controller="com.skilora.controller.formation.FormationsController"
+     - fx:controller="com.skilora.controller.LoginController"
+       → fx:controller="com.skilora.controller.usermanagement.LoginController"
+  3. Update any resource paths (CSS, images) if they reference relative paths
+
+
+PHASE 4: Update All Import Statements
+---------------------------------------
+
+Files that need import updates (bulk find-and-replace):
+
+1. Main.java
+   - Update controller imports
+   - Update service imports if any
+
+2. All files in config/
+   - Update entity imports if they reference User, Profile, etc.
+
+3. All files in utils/
+   - Update entity imports if they reference moved entities
+
+4. All files in ui/
+   - Update controller imports
+   - Update service imports
+   - Update entity imports
+
+5. All files in framework/
+   - Update entity imports if any
+
+6. Repository files (model/repository/)
+   - Update entity imports
+
+7. Test files (src/test/java/com/skilora/)
+   - Update ALL imports to match new package structure
+
+
+PHASE 5: Code Cleanup
+---------------------
+
+For ALL files:
+  [ ] Remove unused imports
+  [ ] Fix naming conventions:
+      - Constants: UPPER_SNAKE_CASE
+      - Methods: camelCase
+      - Classes: PascalCase
+  [ ] Replace empty catch blocks with proper error handling
+  [ ] Use try-with-resources for AutoCloseable
+  [ ] Add JavaDoc to public classes and methods
+  [ ] Fix formatting (consistent indentation)
+
+
+PHASE 6: Update Resource Paths in Code
+--------------------------------------
+
+Search for FXML loading code and update paths:
+  - "/com/skilora/view/LoginView.fxml"
+    → "/com/skilora/usermanagement/fxml/LoginView.fxml"
+  - "/com/skilora/view/FormationsView.fxml"
+    → "/com/skilora/formation/fxml/FormationsView.fxml"
+
+Files to check:
+  - Main.java
+  - All controller files
+  - Any utility classes that load FXML
+
+
+PHASE 7: Verification
+---------------------
+
+  [ ] Compile project: mvn clean compile
+  [ ] Run tests: mvn test
+  [ ] Verify application starts: mvn javafx:run
+  [ ] Check for broken references
+  [ ] Verify FXML files load correctly
+  [ ] Test login functionality
+  [ ] Test formation/training functionality
+
+
+================================================================================
+BULK FIND-AND-REPLACE OPERATIONS
+================================================================================
+
+Use your IDE's "Find and Replace in Files" feature with these patterns:
+
+1. Entity Imports (Formation):
+   Find: import com.skilora.model.entity.Training;
+   Replace: import com.skilora.model.entity.formation.Training;
+
+   Find: import com.skilora.model.entity.TrainingLesson;
+   Replace: import com.skilora.model.entity.formation.TrainingLesson;
+
+   Find: import com.skilora.model.entity.TrainingEnrollment;
+   Replace: import com.skilora.model.entity.formation.TrainingEnrollment;
+
+   Find: import com.skilora.model.entity.LessonProgress;
+   Replace: import com.skilora.model.entity.formation.LessonProgress;
+
+   Find: import com.skilora.model.entity.Certificate;
+   Replace: import com.skilora.model.entity.formation.Certificate;
+
+   Find: import com.skilora.model.entity.TrainingMaterial;
+   Replace: import com.skilora.model.entity.formation.TrainingMaterial;
+
+2. Entity Imports (User Management):
+   Find: import com.skilora.model.entity.User;
+   Replace: import com.skilora.model.entity.usermanagement.User;
+
+   Find: import com.skilora.model.entity.Profile;
+   Replace: import com.skilora.model.entity.usermanagement.Profile;
+
+   Find: import com.skilora.model.entity.BiometricData;
+   Replace: import com.skilora.model.entity.usermanagement.BiometricData;
+
+3. Service Imports (Formation):
+   Find: import com.skilora.model.service.TrainingService;
+   Replace: import com.skilora.service.formation.TrainingService;
+
+   Find: import com.skilora.model.service.TrainingLessonService;
+   Replace: import com.skilora.service.formation.TrainingLessonService;
+
+   Find: import com.skilora.model.service.TrainingEnrollmentService;
+   Replace: import com.skilora.service.formation.TrainingEnrollmentService;
+
+   Find: import com.skilora.model.service.LessonProgressService;
+   Replace: import com.skilora.service.formation.LessonProgressService;
+
+   Find: import com.skilora.model.service.CertificateService;
+   Replace: import com.skilora.service.formation.CertificateService;
+
+4. Service Imports (User Management):
+   Find: import com.skilora.model.service.AuthService;
+   Replace: import com.skilora.service.usermanagement.AuthService;
+
+   Find: import com.skilora.model.service.UserService;
+   Replace: import com.skilora.service.usermanagement.UserService;
+
+   Find: import com.skilora.model.service.BiometricService;
+   Replace: import com.skilora.service.usermanagement.BiometricService;
+
+   Find: import com.skilora.model.service.ProfileService;
+   Replace: import com.skilora.service.usermanagement.ProfileService;
+
+   Find: import com.skilora.model.service.PreferencesService;
+   Replace: import com.skilora.service.usermanagement.PreferencesService;
+
+5. Controller Imports:
+   Find: import com.skilora.controller.FormationsController;
+   Replace: import com.skilora.controller.formation.FormationsController;
+
+   (Repeat for all formation controllers)
+
+   Find: import com.skilora.controller.LoginController;
+   Replace: import com.skilora.controller.usermanagement.LoginController;
+
+   (Repeat for all usermanagement controllers)
+
+6. FXML Resource Paths:
+   Find: "/com/skilora/view/LoginView.fxml"
+   Replace: "/com/skilora/usermanagement/fxml/LoginView.fxml"
+
+   (Repeat for all FXML files)
+
+
+================================================================================
+CRITICAL NOTES
+================================================================================
+
+1. DO NOT delete old files until new ones are created and tested
+2. Update imports BEFORE moving files to avoid compilation errors
+3. Test after each phase
+4. Keep a backup before starting
+5. FXML fx:controller paths are case-sensitive
+6. Resource paths in Java code must match actual file locations
+7. Some files may reference entities/services indirectly - check all dependencies
+
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+1. Complete Phase 1: Move remaining services
+2. Complete Phase 2: Move controllers
+3. Complete Phase 3: Move FXML files
+4. Run bulk find-and-replace operations
+5. Test compilation
+6. Fix any remaining import errors
+7. Complete code cleanup
+8. Final verification
+
+================================================================================

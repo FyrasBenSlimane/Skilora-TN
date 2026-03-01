@@ -1,0 +1,1297 @@
+================================================================================
+EXPLICATION DÉTAILLÉE - MODULES FORMATION ET CERTIFICATION
+Projet JavaFX - Skilora Tunisia
+================================================================================
+
+TABLE DES MATIÈRES
+------------------
+1. Vue d'ensemble du projet
+2. Architecture générale (MVC)
+3. Structure des fichiers
+4. Structure de la base de données
+5. Module FORMATION - Explication complète
+6. Module CERTIFICATION - Explication complète
+7. Flux de données (UI → Backend → Database)
+8. Concepts techniques utilisés
+9. Questions possibles de l'examinateur
+10. Choix techniques et améliorations possibles
+
+================================================================================
+1. VUE D'ENSEMBLE DU PROJET
+================================================================================
+
+Ce projet est une application JavaFX (framework Java pour interfaces graphiques)
+qui gère un système de formation en ligne avec génération de certificats.
+
+Technologies principales:
+- JavaFX: Framework pour l'interface utilisateur
+- MySQL: Base de données relationnelle
+- Architecture MVC: Modèle-Vue-Contrôleur
+- Pattern Repository: Abstraction de l'accès aux données
+- Pattern Service: Logique métier
+
+Note importante: Bien que vous mentionniez "Qt project", ce projet utilise JavaFX.
+JavaFX utilise des concepts similaires à Qt (événements, bindings) mais avec une
+syntaxe différente. Les explications ci-dessous sont adaptées à JavaFX.
+
+================================================================================
+2. ARCHITECTURE GÉNÉRALE (MVC)
+================================================================================
+
+L'application suit le pattern MVC (Modèle-Vue-Contrôleur):
+
+┌─────────────────────────────────────────────────────────────┐
+│                    COUCHE PRÉSENTATION (UI)                  │
+│  - FXML Files (définition de l'interface)                   │
+│  - Controllers (gestion des événements UI)                  │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    COUCHE SERVICE (Business Logic)          │
+│  - TrainingService                                           │
+│  - CertificateService                                        │
+│  - TrainingEnrollmentService                                 │
+│  - LessonProgressService                                     │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    COUCHE RÉPOSITORY (Data Access)          │
+│  - TrainingRepository                                         │
+│  - TrainingEnrollmentRepository                             │
+│  - (Abstraction de l'accès SQL)                             │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    BASE DE DONNÉES (MySQL)                   │
+│  - Tables: trainings, certificates, training_enrollments, etc.│
+└─────────────────────────────────────────────────────────────┘
+
+Avantages de cette architecture:
+- Séparation des responsabilités
+- Code réutilisable
+- Facile à tester
+- Facile à maintenir
+
+================================================================================
+3. STRUCTURE DES FICHIERS
+================================================================================
+
+FORMATION MODULE:
+-----------------
+📁 src/main/java/com/skilora/controller/formation/
+   ├── FormationsController.java          → Liste des formations (vue utilisateur)
+   ├── AdminTrainingController.java       → Gestion CRUD (vue admin)
+   ├── TrainingFormController.java        → Formulaire création/modification
+   ├── TrainingDetailController.java      → Détails d'une formation
+   ├── TrainingProgressController.java    → Progression de l'utilisateur
+   └── CertificationsController.java      → Liste des certificats
+
+📁 src/main/java/com/skilora/service/formation/
+   ├── TrainingService.java               → Logique métier formations
+   ├── TrainingEnrollmentService.java     → Logique métier inscriptions
+   ├── TrainingLessonService.java         → Logique métier leçons
+   ├── LessonProgressService.java         → Logique métier progression
+   └── CertificateService.java           → Logique métier certificats
+
+📁 src/main/java/com/skilora/model/entity/formation/
+   ├── Training.java                      → Entité Formation
+   ├── TrainingEnrollment.java           → Entité Inscription
+   ├── TrainingLesson.java                → Entité Leçon
+   ├── LessonProgress.java                → Entité Progression
+   └── Certificate.java                 → Entité Certificat
+
+📁 src/main/java/com/skilora/utils/
+   └── PDFGenerator.java                  → Génération PDF/HTML certificats
+
+================================================================================
+4. STRUCTURE DE LA BASE DE DONNÉES
+================================================================================
+
+TABLE: trainings
+-----------------
+Colonnes:
+- id (INT, PRIMARY KEY, AUTO_INCREMENT)
+  → Identifiant unique de la formation
+  
+- title (VARCHAR(255), NOT NULL)
+  → Titre de la formation (ex: "Java Avancé")
+  
+- description (TEXT, NOT NULL)
+  → Description détaillée de la formation
+  
+- cost (DECIMAL(10,2), NULL)
+  → Coût de la formation (NULL = gratuit)
+  
+- duration (INT, NOT NULL)
+  → Durée en heures (ex: 40 heures)
+  
+- lesson_count (INT, NOT NULL)
+  → Nombre de leçons dans la formation
+  
+- level (VARCHAR(20), NOT NULL)
+  → Niveau: BEGINNER, INTERMEDIATE, ADVANCED
+  
+- category (VARCHAR(50), NOT NULL)
+  → Catégorie: DEVELOPMENT, DESIGN, MARKETING, etc.
+  
+- created_at (TIMESTAMP)
+  → Date de création
+  
+- updated_at (TIMESTAMP)
+  → Date de dernière modification
+
+Index:
+- idx_category: Pour recherche rapide par catégorie
+- idx_level: Pour recherche rapide par niveau
+- idx_created_at: Pour tri par date
+
+Relations:
+- Une formation peut avoir plusieurs inscriptions (training_enrollments)
+- Une formation peut avoir plusieurs leçons (training_lessons)
+- Une formation peut avoir plusieurs certificats (certificates)
+
+
+TABLE: training_enrollments
+----------------------------
+Colonnes:
+- id (INT, PRIMARY KEY, AUTO_INCREMENT)
+  → Identifiant unique de l'inscription
+  
+- user_id (INT, NOT NULL, FOREIGN KEY → users.id)
+  → Référence à l'utilisateur inscrit
+  
+- training_id (INT, NOT NULL, FOREIGN KEY → trainings.id)
+  → Référence à la formation
+  
+- enrolled_at (TIMESTAMP)
+  → Date d'inscription
+  
+- last_accessed_at (TIMESTAMP)
+  → Dernière date d'accès à la formation
+  
+- completed (BOOLEAN, DEFAULT FALSE)
+  → Indique si la formation est complétée
+
+Contraintes:
+- UNIQUE(user_id, training_id): Un utilisateur ne peut s'inscrire qu'une fois
+- FOREIGN KEY avec CASCADE: Si formation supprimée, inscriptions supprimées
+
+Relations:
+- Plusieurs inscriptions peuvent appartenir à un utilisateur
+- Plusieurs inscriptions peuvent appartenir à une formation
+
+
+TABLE: certificates
+-------------------
+Colonnes:
+- id (INT, PRIMARY KEY, AUTO_INCREMENT)
+  → Identifiant unique du certificat
+  
+- user_id (INT, NOT NULL, FOREIGN KEY → users.id)
+  → Référence à l'utilisateur qui a obtenu le certificat
+  
+- training_id (INT, NOT NULL, FOREIGN KEY → trainings.id)
+  → Référence à la formation complétée
+  
+- certificate_number (VARCHAR(100), UNIQUE)
+  → Numéro unique du certificat (ex: "SKL-A7B5DEB4")
+  
+- verification_token (VARCHAR(100), UNIQUE)
+  → Token pour vérification en ligne (ex: "456EDFB801764112B77102C9A4CDBD7D")
+  
+- issued_at (TIMESTAMP)
+  → Date d'émission du certificat
+  
+- completed_at (TIMESTAMP)
+  → Date de complétion de la formation
+  
+- pdf_path (VARCHAR(500), NULL)
+  → Chemin vers le fichier PDF/HTML généré
+
+Contraintes:
+- UNIQUE(user_id, training_id): Un utilisateur ne peut avoir qu'un certificat par formation
+- UNIQUE(certificate_number): Chaque numéro est unique
+- UNIQUE(verification_token): Chaque token est unique
+
+Relations:
+- Un certificat appartient à un utilisateur
+- Un certificat appartient à une formation
+- Généré automatiquement quand une formation est complétée
+
+
+TABLE: training_lessons
+------------------------
+Colonnes:
+- id (INT, PRIMARY KEY)
+- training_id (INT, FOREIGN KEY → trainings.id)
+- title (VARCHAR(255))
+- description (TEXT)
+- content (TEXT) → Contenu HTML de la leçon
+- order_index (INT) → Ordre d'affichage
+- duration (INT) → Durée en minutes
+
+
+TABLE: lesson_progress
+-----------------------
+Colonnes:
+- id (INT, PRIMARY KEY)
+- enrollment_id (INT, FOREIGN KEY → training_enrollments.id)
+- lesson_id (INT, FOREIGN KEY → training_lessons.id)
+- progress_percentage (INT) → Pourcentage de complétion (0-100)
+- completed (BOOLEAN) → Leçon complétée ou non
+- completed_at (TIMESTAMP) → Date de complétion
+
+================================================================================
+5. MODULE FORMATION - EXPLICATION COMPLÈTE
+================================================================================
+
+5.1. FormationsController.java
+------------------------------
+ROLE: Affiche la liste des formations disponibles pour les utilisateurs
+
+FONCTIONS PRINCIPALES:
+
+1. initialize(URL location, ResourceBundle resources)
+   → Appelée automatiquement au chargement de la vue
+   → Initialise les services (TrainingService, EnrollmentService, etc.)
+   → Configure les filtres par catégorie
+   → Configure la recherche
+   → Charge les formations
+
+2. setupCategories()
+   → Crée des boutons toggle pour filtrer par catégorie
+   → Ajoute un bouton "Tous" pour afficher toutes les catégories
+   → Utilise un ToggleGroup pour s'assurer qu'un seul bouton est sélectionné
+   → Quand un bouton est cliqué, appelle applyFilters()
+
+3. setupSearch()
+   → Configure un délai de 300ms après la frappe (debounce)
+   → Évite de faire trop de recherches pendant que l'utilisateur tape
+   → Après 300ms d'inactivité, appelle applyFilters()
+
+4. loadFormations()
+   → Crée une Task (tâche asynchrone) pour charger les formations
+   → Utilise un Thread séparé pour ne pas bloquer l'interface
+   → Appelle trainingService.getAllTrainings()
+   → En cas de succès: stocke les formations et applique les filtres
+   → En cas d'erreur: affiche un message d'erreur
+
+5. applyFilters()
+   → Récupère le texte de recherche
+   → Récupère la catégorie sélectionnée
+   → Filtre les formations selon ces critères
+   → Appelle renderFormations() pour afficher les résultats
+
+6. renderFormations(List<Training> trainings)
+   → Vide la grille actuelle
+   → Si aucune formation: affiche un message "Aucune formation"
+   → Sinon: crée une carte (card) pour chaque formation
+   → Met à jour le compteur de formations
+
+7. createFormationCard(Training training)
+   → Crée une carte visuelle pour une formation
+   → Affiche: badges (catégorie, niveau), titre, description, durée, nombre de leçons
+   → Si l'utilisateur est inscrit: affiche la progression
+   → Si complété: affiche un checkmark ✓
+   → Sinon: affiche une barre de progression avec X/Y leçons complétées
+   → Bouton "S'inscrire" ou "Inscrit" selon l'état
+
+8. handleEnroll(Training training, TLButton enrollBtn)
+   → Vérifie si l'utilisateur est connecté
+   → Désactive le bouton pendant l'inscription
+   → Crée un Thread pour l'inscription (opération asynchrone)
+   → Appelle enrollmentService.enrollUser()
+   → En cas de succès: met à jour l'interface, affiche un message
+   → En cas d'erreur: réactive le bouton et affiche l'erreur
+
+FLUX D'EXÉCUTION - AFFICHAGE DES FORMATIONS:
+1. Utilisateur ouvre la page Formations
+2. initialize() est appelée automatiquement
+3. loadFormations() charge les données depuis la base
+4. applyFilters() filtre selon recherche/catégorie
+5. renderFormations() crée les cartes visuelles
+6. L'utilisateur voit les formations affichées
+
+
+5.2. AdminTrainingController.java
+----------------------------------
+ROLE: Gestion CRUD des formations pour les administrateurs
+
+FONCTIONS PRINCIPALES:
+
+1. initializeContext(...)
+   → Reçoit les services et callbacks nécessaires
+   → Configure les boutons (Ajouter, Rechercher, Filtrer)
+   → Configure le tableau (TableView)
+   → Charge les formations
+
+2. setupTable()
+   → Crée les colonnes du tableau:
+     * ID: Identifiant
+     * Titre: Nom de la formation
+     * Catégorie: Badge avec la catégorie
+     * Niveau: BEGINNER, INTERMEDIATE, ADVANCED
+     * Coût: Prix formaté (ex: "50.00 TND" ou "Gratuit")
+     * Durée: Nombre d'heures
+     * Actions: Menu avec Modifier/Supprimer
+   → Configure la pagination (10 formations par page)
+
+3. loadTrainings()
+   → Charge toutes les formations depuis la base
+   → Utilise une Task asynchrone
+   → Crée un FilteredList pour permettre la recherche
+   → Met à jour le tableau avec pagination
+
+4. applyFilters()
+   → Filtre les formations selon:
+     * Texte de recherche (titre ou description)
+     * Catégorie sélectionnée
+   → Met à jour la pagination
+
+5. showFilterMenu()
+   → Affiche un menu déroulant avec les catégories
+   → Permet de filtrer par catégorie spécifique
+
+FLUX D'EXÉCUTION - AJOUT D'UNE FORMATION:
+1. Admin clique sur "Ajouter une Formation"
+2. onShowTrainingForm callback est appelé
+3. Un dialogue s'ouvre avec TrainingFormController
+4. Admin remplit le formulaire
+5. Validation en temps réel (voir TrainingFormController)
+6. Admin clique sur "Enregistrer"
+7. TrainingService.saveTraining() est appelé
+8. La formation est sauvegardée en base
+9. Le tableau est rafraîchi
+
+FLUX D'EXÉCUTION - MODIFICATION D'UNE FORMATION:
+1. Admin clique sur "..." dans la colonne Actions
+2. Sélectionne "Modifier"
+3. onShowTrainingForm est appelé avec la formation existante
+4. Le formulaire est pré-rempli avec les données
+5. Admin modifie les champs
+6. Validation en temps réel
+7. Admin clique sur "Enregistrer"
+8. TrainingService.saveTraining() met à jour en base
+9. Le tableau est rafraîchi
+
+FLUX D'EXÉCUTION - SUPPRESSION D'UNE FORMATION:
+1. Admin clique sur "..." → "Supprimer"
+2. Une confirmation est demandée
+3. Si confirmé: TrainingService.deleteTraining() est appelé
+4. La formation et toutes ses relations sont supprimées (CASCADE)
+5. Le tableau est rafraîchi
+
+
+5.3. TrainingFormController.java
+---------------------------------
+ROLE: Gère le formulaire de création/modification de formation
+
+FONCTIONS PRINCIPALES:
+
+1. initialize()
+   → Remplit les dropdowns (niveau, catégorie)
+   → Configure le textarea de description (6 lignes, 150px)
+   → Configure les validateurs en temps réel
+   → Initialise le compteur de caractères
+
+2. setupValidationListeners()
+   → Ajoute des listeners sur chaque champ:
+     * textProperty(): Détecte les changements de texte
+     * focusedProperty(): Valide quand le champ perd le focus
+   → Pour chaque champ:
+     * titleField: Valide longueur (3-100 caractères)
+     * descriptionField: Valide longueur (20-500 caractères) + compteur
+     * costField: Valide nombre positif (optionnel)
+     * durationField: Valide nombre entier ≥ 1
+     * lessonCountField: Valide nombre entier ≥ 1
+     * levelSelect: Vérifie qu'une valeur est sélectionnée
+     * categorySelect: Vérifie qu'une valeur est sélectionnée
+
+3. validateTitle()
+   → Vérifie que le titre n'est pas vide
+   → Vérifie longueur minimale (3 caractères)
+   → Vérifie longueur maximale (100 caractères)
+   → Affiche erreur si invalide, sinon efface l'erreur
+
+4. validateDescription()
+   → Vérifie que la description n'est pas vide
+   → Vérifie longueur minimale (20 caractères)
+   → Vérifie longueur maximale (500 caractères)
+   → Met à jour le compteur de caractères
+
+5. updateDescriptionCounter()
+   → Calcule: caractères utilisés / 500 maximum
+   → Affiche: "X / 500"
+   → Change la couleur:
+     * Normal: gris
+     * < 50 restants: orange (warning)
+     * Dépassement: rouge (error)
+
+6. setTraining(Training training)
+   → Mode ÉDITION: Remplit tous les champs avec les données existantes
+   → Mode CRÉATION: Réinitialise tous les champs à vide
+
+7. getTraining()
+   → Récupère les valeurs de tous les champs
+   → Crée ou met à jour l'objet Training
+   → Gère les conversions (String → Integer, String → Double)
+   → Retourne l'objet Training prêt à être sauvegardé
+
+8. validate() / isFormValid()
+   → Valide tous les champs
+   → Retourne true si TOUS les champs sont valides
+   → Utilisé pour activer/désactiver le bouton "Enregistrer"
+
+VALIDATION EN TEMPS RÉEL:
+- Dès que l'utilisateur tape, les validateurs s'exécutent
+- Les erreurs s'affichent immédiatement sous chaque champ
+- Le bouton "Enregistrer" est désactivé si le formulaire est invalide
+- Feedback visuel: bordures rouges, messages d'erreur
+
+
+5.4. TrainingDetailController.java
+-----------------------------------
+ROLE: Affiche les détails d'une formation et permet de suivre les leçons
+
+FONCTIONS PRINCIPALES:
+
+1. setTraining(Training training, TrainingEnrollment enrollment)
+   → Reçoit la formation et l'inscription (si l'utilisateur est inscrit)
+   → Attend que le FXML soit initialisé (Platform.runLater)
+   → Appelle loadTrainingData()
+
+2. loadTrainingData()
+   → Affiche les informations de la formation:
+     * Titre, description, durée, coût, catégorie, niveau
+   → Si l'utilisateur n'est PAS inscrit:
+     * Affiche "Accès non autorisé"
+     * Bloque l'accès au contenu
+   → Si l'utilisateur EST inscrit:
+     * Charge les leçons
+     * Affiche la progression
+
+3. loadLessons()
+   → Charge toutes les leçons de la formation depuis la base
+   → Utilise un Thread séparé (opération asynchrone)
+   → Appelle lessonService.getLessonsByTrainingId()
+   → Appelle renderLessons() pour afficher la liste
+   → Sélectionne automatiquement la première leçon
+
+4. renderLessons()
+   → Crée une carte pour chaque leçon
+   → Affiche: numéro d'ordre, titre, durée
+   → Affiche une checkbox si la leçon est complétée
+   → Si complétée: texte en vert avec ✓
+   → Clic sur la carte: charge le contenu de la leçon
+
+5. selectLesson(TrainingLesson lesson)
+   → Affiche le titre et la description de la leçon
+   → Charge le contenu HTML dans un WebView
+   → Met à jour la progression (marque la leçon comme vue)
+   → Met à jour l'affichage de la progression globale
+
+6. updateProgress()
+   → Calcule le pourcentage de complétion:
+     * completedLessons / totalLessons * 100
+   → Affiche: "X/Y leçons complétées (Z%)"
+   → Si 100%: affiche "✓ 100% complété" en vert
+   → Si toutes les leçons sont complétées:
+     * Marque automatiquement la formation comme complétée
+     * Génère automatiquement un certificat
+
+7. handleMarkComplete()
+   → Permet de marquer manuellement la formation comme complétée
+   → Marque toutes les leçons à 100%
+   → Marque l'inscription comme complétée
+   → Génère automatiquement un certificat
+
+FLUX D'EXÉCUTION - SUIVRE UNE FORMATION:
+1. Utilisateur clique sur une formation (depuis FormationsController)
+2. TrainingDetailController.setTraining() est appelé
+3. loadTrainingData() charge les informations
+4. Si inscrit: loadLessons() charge les leçons
+5. renderLessons() affiche la liste des leçons
+6. Utilisateur clique sur une leçon
+7. selectLesson() charge le contenu HTML
+8. Utilisateur lit le contenu
+9. updateProgress() met à jour la progression
+10. Quand toutes les leçons sont complétées:
+    → Formation marquée comme complétée
+    → Certificat généré automatiquement
+
+
+5.5. TrainingProgressController.java
+-------------------------------------
+ROLE: Affiche la progression de l'utilisateur dans toutes ses formations
+
+FONCTIONS PRINCIPALES:
+
+1. loadProgress()
+   → Charge toutes les inscriptions de l'utilisateur
+   → Utilise un Thread séparé
+   → Appelle enrollmentService.getUserEnrollments()
+   → Appelle renderProgress() pour afficher
+
+2. renderProgress(List<TrainingEnrollment> enrollments)
+   → Calcule les statistiques:
+     * Total: nombre d'inscriptions
+     * Complétées: nombre de formations complétées
+     * En cours: nombre de formations en cours
+   → Crée une carte pour chaque inscription
+   → Affiche les statistiques en haut
+
+3. createProgressCard(Training training, TrainingEnrollment enrollment)
+   → Crée une carte pour une formation
+   → Affiche: titre, catégorie
+   → Calcule la progression:
+     * Si complétée: 100%
+     * Sinon: (leçons complétées / total leçons) * 100
+   → Affiche:
+     * Si 100%: "✓ Formation complétée" en vert
+     * Sinon: Barre de progression + "X/Y leçons complétées"
+   → Bouton "Continuer" pour ouvrir la formation
+
+FLUX D'EXÉCUTION - VOIR SA PROGRESSION:
+1. Utilisateur ouvre "Mes Formations"
+2. loadProgress() charge les inscriptions
+3. renderProgress() crée les cartes
+4. Utilisateur voit toutes ses formations avec progression
+5. Clic sur "Continuer" → Ouvre TrainingDetailController
+
+================================================================================
+6. MODULE CERTIFICATION - EXPLICATION COMPLÈTE
+================================================================================
+
+6.1. CertificationsController.java
+-----------------------------------
+ROLE: Affiche et gère les certificats de l'utilisateur
+
+FONCTIONS PRINCIPALES:
+
+1. loadCertificates()
+   → Charge tous les certificats de l'utilisateur
+   → Utilise un Thread séparé (opération asynchrone)
+   → Appelle certificateService.getUserCertificates()
+   → Cette méthode:
+     * Vérifie automatiquement si des formations complétées n'ont pas de certificat
+     * Génère automatiquement les certificats manquants
+     * S'assure que tous les certificats ont un token de vérification
+   → Appelle renderCertificates() pour afficher
+
+2. renderCertificates(List<Certificate> certificates)
+   → Vide le conteneur actuel
+   → Si aucun certificat: affiche un message "Aucun certificat"
+   → Sinon: crée une carte pour chaque certificat
+   → Affiche le compteur de certificats
+
+3. createCertificateCard(Certificate cert, Training training)
+   → Crée une carte visuelle pour un certificat
+   → Affiche:
+     * Titre de la formation
+     * Numéro du certificat (ex: "Certificat #SKL-A7B5DEB4")
+     * Date de complétion
+     * Catégorie de la formation
+   → Boutons:
+     * "📥 Télécharger": Télécharge/ouvre le PDF
+     * "👁 Voir": Ouvre le certificat dans le navigateur
+
+4. handleDownloadCertificate(Certificate cert, Training training)
+   → Vérifie si le PDF existe déjà
+   → Si non: génère le PDF (appelle PDFGenerator.generateCertificate())
+   → Met à jour le chemin PDF dans la base de données
+   → Ouvre le fichier avec le système par défaut
+   → Affiche un message de succès
+
+5. handleViewCertificate(Certificate cert, Training training)
+   → Même logique que handleDownloadCertificate
+   → Ouvre le certificat dans le navigateur
+
+FLUX D'EXÉCUTION - GÉNÉRATION AUTOMATIQUE D'UN CERTIFICAT:
+1. Utilisateur complète une formation (toutes les leçons à 100%)
+2. TrainingDetailController.updateProgress() détecte 100%
+3. enrollmentService.markCompleted() est appelé
+4. Dans markCompleted():
+   → L'inscription est marquée comme complétée
+   → certificateService.createCertificate() est appelé automatiquement
+5. Dans createCertificate():
+   → Génère un numéro unique: "SKL-" + UUID (8 caractères)
+   → Génère un token de vérification: UUID (32 caractères)
+   → Insère le certificat en base de données
+6. Le certificat est maintenant disponible dans CertificationsController
+
+FLUX D'EXÉCUTION - TÉLÉCHARGER UN CERTIFICAT:
+1. Utilisateur clique sur "📥 Télécharger"
+2. handleDownloadCertificate() est appelé
+3. Vérifie si le PDF existe déjà (pdf_path dans la base)
+4. Si non: PDFGenerator.generateCertificate() est appelé
+5. Génération du HTML (voir PDFGenerator)
+6. Le fichier est sauvegardé dans le dossier "certificates/"
+7. Le chemin est mis à jour dans la base (updatePdfPath)
+8. Le fichier est ouvert avec l'application par défaut
+
+
+6.2. CertificateService.java
+------------------------------
+ROLE: Gère la logique métier des certificats
+
+FONCTIONS PRINCIPALES:
+
+1. createCertificate(int userId, int trainingId)
+   → Crée un nouveau certificat pour un utilisateur et une formation
+   → Génère un numéro unique: "SKL-" + 8 caractères aléatoires (ex: "SKL-A7B5DEB4")
+   → Génère un token de vérification: 32 caractères hexadécimaux
+   → Insère en base de données
+   → Retourne l'objet Certificate créé
+   → Gère les erreurs (certificat déjà existant, etc.)
+
+2. getUserCertificates(int userId)
+   → Récupère tous les certificats d'un utilisateur
+   → AVANT de retourner:
+     * Appelle ensureCertificatesForCompletedTrainings()
+       → Vérifie toutes les formations complétées
+       → Génère automatiquement les certificats manquants
+     * Appelle ensureVerificationTokens()
+       → S'assure que tous les certificats ont un token
+   → Retourne la liste complète
+
+3. ensureCertificatesForCompletedTrainings(int userId)
+   → Requête SQL: Trouve toutes les formations complétées sans certificat
+   → Pour chaque formation trouvée:
+     * Vérifie que le certificat n'existe pas déjà (race condition)
+     * Appelle createCertificate() pour générer
+   → Logs détaillés pour le débogage
+
+4. certificateExists(int userId, int trainingId)
+   → Vérifie si un certificat existe déjà
+   → Utilisé pour éviter les doublons
+
+5. updatePdfPath(int certificateId, String pdfPath)
+   → Met à jour le chemin du fichier PDF dans la base
+   → Appelé après génération du PDF
+
+6. getCertificateByUserAndTraining(int userId, int trainingId)
+   → Récupère un certificat spécifique
+   → Utilisé pour vérifier l'existence
+
+PATTERN SINGLETON:
+- getInstance(): Retourne toujours la même instance
+- Synchronized: Thread-safe (plusieurs threads peuvent l'utiliser)
+- Private constructor: Empêche la création directe
+
+
+6.3. PDFGenerator.java
+-----------------------
+ROLE: Génère les fichiers HTML/PDF des certificats
+
+FONCTIONS PRINCIPALES:
+
+1. generateCertificate(Certificate cert, Training training, User user)
+   → Crée le dossier "certificates/" s'il n'existe pas
+   → Génère le contenu HTML (appelle generateCertificateHTML())
+   → Crée un nom de fichier: "Certificate_<UserName>_<TrainingTitle>.html"
+   → Sanitise le nom (enlève caractères invalides)
+   → Écrit le fichier HTML
+   → Retourne le chemin du fichier
+
+2. generateCertificateHTML(Certificate cert, Training training, User user)
+   → Crée un document HTML complet avec:
+     * En-tête: "Certificate of Completion"
+     * Nom de l'utilisateur (grand, en couleur)
+     * Titre de la formation
+     * Détails: catégorie, niveau, durée
+     * Date de complétion
+     * Numéro du certificat
+     * QR Code pour vérification (voir ci-dessous)
+   → Utilise un template HTML avec CSS intégré
+   → Format A4 paysage (landscape)
+   → Design professionnel avec bordures décoratives
+
+3. QR CODE GÉNÉRATION:
+   → Le QR code est généré via une API externe:
+     https://api.qrserver.com/v1/create-qr-code/
+   → URL encodée dans le QR code:
+     https://skilora.tn/verify-certificate/<verification_token>
+   → Exemple:
+     https://skilora.tn/verify-certificate/456EDFB801764112B77102C9A4CDBD7D
+   → Quand quelqu'un scanne le QR code:
+     * Il est redirigé vers le site Skilora
+     * Le site vérifie le token dans la base de données
+     * Affiche les détails du certificat (nom, formation, date)
+
+4. sanitizeFileName(String fileName)
+   → Enlève les caractères invalides pour les noms de fichiers
+   → Remplace par des underscores
+   → Exemple: "Java: Advanced" → "Java_Advanced"
+
+STRUCTURE DU CERTIFICAT HTML:
+- Header: "Certificate of Completion"
+- Content: Nom de l'utilisateur, titre de la formation
+- Details: Catégorie, niveau, durée
+- Footer: Signatures, numéro de certificat
+- QR Code: Image générée via API externe
+
+FLUX D'EXÉCUTION - GÉNÉRATION D'UN CERTIFICAT PDF:
+1. handleDownloadCertificate() est appelé
+2. Vérifie si le PDF existe déjà (pdf_path)
+3. Si non: PDFGenerator.generateCertificate() est appelé
+4. generateCertificateHTML() crée le HTML avec:
+   * Données de l'utilisateur
+   * Données de la formation
+   * Token de vérification
+5. Le HTML est écrit dans "certificates/Certificate_<User>_<Training>.html"
+6. Le chemin est sauvegardé en base (updatePdfPath)
+7. Le fichier est ouvert avec le navigateur/lecteur PDF par défaut
+
+================================================================================
+7. FLUX DE DONNÉES (UI → BACKEND → DATABASE)
+================================================================================
+
+7.1. FLUX - AJOUTER UNE FORMATION
+----------------------------------
+1. UI (AdminTrainingController):
+   → Admin clique sur "Ajouter une Formation"
+   → Un dialogue s'ouvre avec TrainingFormController
+
+2. UI (TrainingFormController):
+   → Admin remplit le formulaire
+   → Validation en temps réel à chaque frappe
+   → Admin clique sur "Enregistrer"
+
+3. Controller → Service:
+   → AdminTrainingController appelle TrainingService.saveTraining(training)
+
+4. Service (TrainingService):
+   → Valide les données (titre, description, etc.)
+   → Appelle repository.save(training)
+
+5. Repository → Database:
+   → Exécute SQL: INSERT INTO trainings (title, description, ...) VALUES (...)
+   → Retourne l'ID généré
+
+6. Database → Repository:
+   → Retourne le Training avec l'ID
+
+7. Repository → Service:
+   → Retourne le Training sauvegardé
+
+8. Service → Controller:
+   → Retourne le Training
+
+9. Controller → UI:
+   → Rafraîchit le tableau
+   → Affiche un message de succès
+
+
+7.2. FLUX - S'INSCRIRE À UNE FORMATION
+---------------------------------------
+1. UI (FormationsController):
+   → Utilisateur clique sur "S'inscrire"
+   → handleEnroll() est appelé
+
+2. Controller → Service:
+   → Appelle enrollmentService.enrollUser(userId, trainingId)
+   → Dans un Thread séparé (pour ne pas bloquer l'UI)
+
+3. Service (TrainingEnrollmentService):
+   → Vérifie si déjà inscrit (existsByUserIdAndTrainingId)
+   → Si oui: lance une exception
+   → Sinon: crée un TrainingEnrollment
+   → Appelle repository.save(enrollment)
+
+4. Repository → Database:
+   → Exécute SQL: INSERT INTO training_enrollments (user_id, training_id, ...)
+   → Contrainte UNIQUE: empêche les doublons
+
+5. Database → Repository:
+   → Retourne l'enrollment avec l'ID
+
+6. Repository → Service:
+   → Retourne l'enrollment
+
+7. Service → Controller:
+   → Retourne l'enrollment
+
+8. Controller → UI:
+   → Met à jour le bouton ("Inscrit", désactivé)
+   → Affiche un message de succès
+   → Rafraîchit la carte pour afficher la progression
+
+
+7.3. FLUX - COMPLÉTER UNE FORMATION
+-------------------------------------
+1. UI (TrainingDetailController):
+   → Utilisateur complète toutes les leçons (100%)
+   → updateProgress() détecte 100%
+
+2. Controller → Service:
+   → Appelle enrollmentService.markCompleted(userId, trainingId)
+
+3. Service (TrainingEnrollmentService):
+   → Récupère l'enrollment
+   → Met completed = TRUE
+   → Sauvegarde en base
+   → Appelle certificateService.createCertificate() AUTOMATIQUEMENT
+
+4. Service (CertificateService):
+   → Génère numéro unique et token
+   → INSERT INTO certificates (user_id, training_id, certificate_number, ...)
+
+5. Database:
+   → Crée le certificat
+
+6. Service → Controller:
+   → Certificat créé
+
+7. Controller → UI:
+   → Affiche "✓ 100% complété"
+   → Le certificat apparaît dans CertificationsController
+
+
+7.4. FLUX - GÉNÉRER UN CERTIFICAT PDF
+--------------------------------------
+1. UI (CertificationsController):
+   → Utilisateur clique sur "📥 Télécharger"
+   → handleDownloadCertificate() est appelé
+
+2. Controller → Service:
+   → Vérifie si pdf_path existe dans la base
+   → Si non: appelle PDFGenerator.generateCertificate()
+
+3. PDFGenerator:
+   → Crée le dossier "certificates/" si nécessaire
+   → Génère le HTML avec toutes les données
+   → Écrit le fichier: "Certificate_<User>_<Training>.html"
+   → Retourne le chemin
+
+4. Controller → Service:
+   → Appelle certificateService.updatePdfPath(certId, pdfPath)
+
+5. Service → Database:
+   → UPDATE certificates SET pdf_path = ? WHERE id = ?
+
+6. Controller → UI:
+   → Ouvre le fichier avec l'application par défaut
+   → Affiche un message de succès
+
+================================================================================
+8. CONCEPTS TECHNIQUES UTILISÉS
+================================================================================
+
+8.1. ARCHITECTURE MVC (MODÈLE-VUE-CONTRÔLEUR)
+---------------------------------------------
+Séparation en 3 couches:
+
+MODÈLE (Model):
+- Entités: Training, Certificate, TrainingEnrollment
+- Représentent les données
+- Pas de logique métier, juste des getters/setters
+
+VUE (View):
+- FXML files: Définition de l'interface
+- Composants visuels: Boutons, tableaux, cartes
+
+CONTRÔLEUR (Controller):
+- FormationsController, AdminTrainingController, etc.
+- Gère les événements UI
+- Appelle les Services (pas directement la base de données)
+
+Avantages:
+- Code organisé et maintenable
+- Facile à tester
+- Réutilisable
+
+
+8.2. PATTERN REPOSITORY
+-----------------------
+Abstraction de l'accès aux données:
+
+Au lieu de:
+  Controller → SQL direct → Database
+
+On a:
+  Controller → Service → Repository → Database
+
+Repository:
+- Interface: TrainingRepository (méthodes: save, findById, findAll, etc.)
+- Implémentation: TrainingRepositoryImpl (contient le SQL)
+
+Avantages:
+- Si on change de base de données (MySQL → PostgreSQL), on change juste le Repository
+- Code plus testable (on peut mocker le Repository)
+- Logique SQL centralisée
+
+
+8.3. PATTERN SERVICE (BUSINESS LOGIC LAYER)
+-------------------------------------------
+Couche de logique métier:
+
+Services:
+- TrainingService: Logique des formations
+- CertificateService: Logique des certificats
+- TrainingEnrollmentService: Logique des inscriptions
+
+Responsabilités:
+- Validation des données
+- Règles métier (ex: générer certificat automatiquement)
+- Appels aux Repositories
+- Gestion des erreurs
+
+Avantages:
+- Logique métier centralisée
+- Réutilisable par plusieurs Controllers
+- Facile à tester
+
+
+8.4. PATTERN SINGLETON
+----------------------
+Une seule instance d'un Service:
+
+Exemple:
+```java
+private static CertificateService instance;
+
+public static CertificateService getInstance() {
+    if (instance == null) {
+        instance = new CertificateService();
+    }
+    return instance;
+}
+```
+
+Pourquoi:
+- Économise la mémoire (une seule instance)
+- Partage l'état entre tous les Controllers
+- Thread-safe avec synchronized
+
+
+8.5. PROGRAMMATION ASYNCHRONE (THREADS)
+---------------------------------------
+Opérations longues dans des Threads séparés:
+
+Exemple:
+```java
+Thread loadThread = new Thread(() -> {
+    List<Certificate> certs = certificateService.getUserCertificates(userId);
+    Platform.runLater(() -> {
+        renderCertificates(certs);
+    });
+}, "LoadCertificatesThread");
+loadThread.setDaemon(true);
+loadThread.start();
+```
+
+Pourquoi:
+- Ne bloque pas l'interface utilisateur
+- L'utilisateur peut continuer à interagir pendant le chargement
+- Platform.runLater(): Met à jour l'UI depuis le Thread JavaFX
+
+
+8.6. JAVA FX - ÉVÉNEMENTS ET BINDINGS
+-------------------------------------
+JavaFX utilise des propriétés observables:
+
+Text Property:
+```java
+searchField.getControl().textProperty().addListener((obs, oldVal, newVal) -> {
+    applyFilters();
+});
+```
+
+Button Action:
+```java
+button.setOnAction(e -> {
+    handleClick();
+});
+```
+
+Pourquoi:
+- Réactif: L'UI se met à jour automatiquement
+- Découplé: Le Controller n'a pas besoin de vérifier manuellement
+
+
+8.7. VALIDATION EN TEMPS RÉEL
+-----------------------------
+Validation pendant que l'utilisateur tape:
+
+1. Listener sur textProperty():
+   → Détecte chaque changement
+
+2. Validation immédiate:
+   → Vérifie les règles (longueur, format, etc.)
+
+3. Feedback visuel:
+   → Bordure rouge si erreur
+   → Message d'erreur sous le champ
+   → Bouton "Enregistrer" désactivé si formulaire invalide
+
+Avantages:
+- L'utilisateur voit les erreurs immédiatement
+- Pas besoin d'attendre le clic sur "Enregistrer"
+- Meilleure expérience utilisateur
+
+
+8.8. GÉNÉRATION DE QR CODE
+--------------------------
+QR Code pour vérification en ligne:
+
+1. Token de vérification:
+   → UUID généré: "456EDFB801764112B77102C9A4CDBD7D"
+   → Stocké dans la base de données
+
+2. URL de vérification:
+   → https://skilora.tn/verify-certificate/<token>
+
+3. Génération du QR Code:
+   → API externe: https://api.qrserver.com/v1/create-qr-code/
+   → Paramètres: size=200x200, data=<URL encodée>
+   → Retourne une image PNG
+
+4. Intégration dans le certificat:
+   → Image HTML: <img src="https://api.qrserver.com/...">
+
+5. Vérification:
+   → Scan du QR code → Redirection vers le site
+   → Site vérifie le token dans la base
+   → Affiche les détails du certificat
+
+Avantages:
+- Vérification rapide et sécurisée
+- Pas besoin de contacter l'utilisateur
+- Preuve d'authenticité
+
+
+8.9. GÉNÉRATION DE PDF/HTML
+---------------------------
+Certificat généré en HTML (convertible en PDF):
+
+1. Template HTML:
+   → Structure complète avec CSS intégré
+   → Design professionnel
+   → Format A4 paysage
+
+2. Données dynamiques:
+   → Nom de l'utilisateur
+   → Titre de la formation
+   → Date de complétion
+   → Numéro de certificat
+   → QR Code
+
+3. Sauvegarde:
+   → Fichier HTML dans "certificates/"
+   → Chemin sauvegardé en base
+
+4. Conversion PDF (optionnelle):
+   → L'utilisateur peut imprimer en PDF depuis le navigateur
+   → Ou utiliser un outil externe (wkhtmltopdf, etc.)
+
+Avantages:
+- Pas besoin de bibliothèque PDF lourde
+- Facile à modifier (HTML/CSS)
+- Compatible avec tous les navigateurs
+
+================================================================================
+9. QUESTIONS POSSIBLES DE L'EXAMINATEUR
+================================================================================
+
+Q1: "Expliquez l'architecture de votre application."
+R: "L'application suit le pattern MVC avec 3 couches:
+    - Controllers: Gèrent l'interface utilisateur et les événements
+    - Services: Contiennent la logique métier
+    - Repositories: Gèrent l'accès aux données
+    Cette séparation permet un code maintenable et testable."
+
+Q2: "Comment fonctionne la génération automatique de certificats?"
+R: "Quand un utilisateur complète une formation (100% des leçons),
+    TrainingEnrollmentService.markCompleted() est appelé. Cette méthode
+    marque l'inscription comme complétée ET appelle automatiquement
+    CertificateService.createCertificate() pour générer le certificat.
+    Le certificat est créé avec un numéro unique et un token de vérification."
+
+Q3: "Comment garantissez-vous qu'un utilisateur ne s'inscrit qu'une fois?"
+R: "La table training_enrollments a une contrainte UNIQUE(user_id, training_id).
+    Si on essaie d'insérer un doublon, MySQL lance une exception.
+    De plus, TrainingEnrollmentService.enrollUser() vérifie d'abord avec
+    existsByUserIdAndTrainingId() avant d'insérer."
+
+Q4: "Pourquoi utilisez-vous des Threads pour certaines opérations?"
+R: "Les opérations de base de données peuvent prendre du temps. Si on les
+    fait dans le Thread principal (JavaFX Application Thread), l'interface
+    se fige. En utilisant des Threads séparés, l'utilisateur peut continuer
+    à interagir pendant le chargement. Platform.runLater() permet de mettre
+    à jour l'UI depuis le Thread JavaFX."
+
+Q5: "Comment fonctionne la validation en temps réel?"
+R: "On attache des listeners sur les propriétés des champs (textProperty).
+    Dès qu'un caractère change, le listener s'exécute et valide le champ.
+    Si invalide, on affiche une erreur visuelle (bordure rouge, message).
+    Le bouton 'Enregistrer' est désactivé si le formulaire est invalide."
+
+Q6: "Expliquez le système de QR Code pour la vérification."
+R: "Chaque certificat a un token de vérification unique (UUID). Ce token
+    est encodé dans une URL: https://skilora.tn/verify-certificate/<token>.
+    Le QR code est généré via une API externe qui encode cette URL.
+    Quand quelqu'un scanne le QR code, il est redirigé vers le site qui
+    vérifie le token dans la base de données et affiche les détails."
+
+Q7: "Comment calculez-vous la progression d'une formation?"
+R: "La progression est basée sur les leçons complétées. On compte le nombre
+    de leçons marquées comme complétées (progress_percentage = 100) et on
+    divise par le total de leçons. Si toutes les leçons sont complétées,
+    la formation est automatiquement marquée comme complétée et un certificat
+    est généré."
+
+Q8: "Que se passe-t-il si on supprime une formation?"
+R: "Les contraintes FOREIGN KEY avec ON DELETE CASCADE garantissent que:
+    - Toutes les inscriptions (training_enrollments) sont supprimées
+    - Toutes les leçons (training_lessons) sont supprimées
+    - Tous les certificats (certificates) sont supprimés
+    Cela évite les données orphelines dans la base."
+
+Q9: "Pourquoi utilisez-vous le pattern Singleton pour les Services?"
+R: "Pour économiser la mémoire et partager l'état. Au lieu de créer une
+    nouvelle instance à chaque fois, on réutilise la même. C'est aussi
+    thread-safe avec synchronized pour éviter les problèmes de concurrence."
+
+Q10: "Comment gérez-vous les erreurs?"
+R: "À chaque niveau:
+    - Repository: Gère les erreurs SQL, les transforme en exceptions
+    - Service: Valide les données, gère les erreurs métier
+    - Controller: Capture les exceptions, affiche des messages à l'utilisateur
+    On utilise aussi des logs (SLF4J) pour le débogage."
+
+================================================================================
+10. CHOIX TECHNIQUES ET AMÉLIORATIONS POSSIBLES
+================================================================================
+
+10.1. CHOIX TECHNIQUES JUSTIFIÉS
+--------------------------------
+
+1. Architecture MVC:
+   ✅ Séparation claire des responsabilités
+   ✅ Facile à maintenir et tester
+   ✅ Réutilisable
+
+2. Pattern Repository:
+   ✅ Abstraction de la base de données
+   ✅ Facile de changer de SGBD
+   ✅ Testable (mocking)
+
+3. Pattern Service:
+   ✅ Logique métier centralisée
+   ✅ Réutilisable par plusieurs Controllers
+   ✅ Validation centralisée
+
+4. Threads pour opérations longues:
+   ✅ Interface non bloquante
+   ✅ Meilleure expérience utilisateur
+
+5. Validation en temps réel:
+   ✅ Feedback immédiat
+   ✅ Moins d'erreurs à la soumission
+
+6. Génération HTML au lieu de PDF direct:
+   ✅ Pas besoin de bibliothèque lourde (iText, etc.)
+   ✅ Facile à modifier (HTML/CSS)
+   ✅ Compatible avec tous les navigateurs
+   ✅ L'utilisateur peut imprimer en PDF s'il veut
+
+7. QR Code via API externe:
+   ✅ Pas besoin de bibliothèque QR Code
+   ✅ Simple et efficace
+   ⚠️ Dépendance externe (si l'API est down, pas de QR code)
+
+
+10.2. AMÉLIORATIONS POSSIBLES
+-----------------------------
+
+1. CACHE:
+   - Problème: Les formations sont rechargées à chaque fois
+   - Solution: Mettre en cache les formations dans le Service
+   - Avantage: Moins de requêtes SQL, plus rapide
+
+2. PAGINATION SERVEUR:
+   - Problème: Toutes les formations sont chargées en mémoire
+   - Solution: Pagination côté serveur (LIMIT/OFFSET)
+   - Avantage: Meilleure performance avec beaucoup de données
+
+3. GÉNÉRATION PDF RÉELLE:
+   - Problème: Actuellement HTML, pas vraiment PDF
+   - Solution: Utiliser iText ou Apache PDFBox
+   - Avantage: Vrai PDF avec protection, signatures, etc.
+
+4. QR CODE LOCAL:
+   - Problème: Dépendance à une API externe
+   - Solution: Utiliser une bibliothèque Java (ZXing)
+   - Avantage: Pas de dépendance externe
+
+5. NOTIFICATIONS:
+   - Problème: L'utilisateur ne sait pas quand un certificat est généré
+   - Solution: Système de notifications (email, in-app)
+   - Avantage: Meilleure communication
+
+6. HISTORIQUE DES MODIFICATIONS:
+   - Problème: Pas de traçabilité des changements
+   - Solution: Table d'audit (qui a modifié quoi, quand)
+   - Avantage: Conformité, débogage
+
+7. VALIDATION CÔTÉ SERVEUR:
+   - Problème: Validation seulement côté client
+   - Solution: Valider aussi dans le Service
+   - Avantage: Sécurité (on ne peut pas bypasser la validation)
+
+8. GESTION DES ERREURS AMÉLIORÉE:
+   - Problème: Messages d'erreur génériques
+   - Solution: Messages spécifiques et traduits
+   - Avantage: Meilleure expérience utilisateur
+
+9. TESTS UNITAIRES:
+   - Problème: Pas de tests visibles
+   - Solution: JUnit pour Services et Repositories
+   - Avantage: Confiance dans le code, détection précoce des bugs
+
+10. DOCUMENTATION API:
+    - Problème: Pas de documentation des Services
+    - Solution: JavaDoc complète
+    - Avantage: Facilite la maintenance
+
+11. TRANSACTIONS:
+    - Problème: Pas de gestion explicite des transactions
+    - Solution: @Transactional ou gestion manuelle
+    - Avantage: Cohérence des données (rollback en cas d'erreur)
+
+12. INDEX OPTIMISATION:
+    - Problème: Requêtes lentes sur grandes tables
+    - Solution: Analyser les requêtes, ajouter des index
+    - Avantage: Performance améliorée
+
+================================================================================
+CONCLUSION
+================================================================================
+
+Ce projet implémente un système complet de gestion de formations avec
+génération automatique de certificats. L'architecture MVC, les patterns
+Repository et Service, ainsi que la programmation asynchrone garantissent
+un code maintenable, testable et performant.
+
+Points forts:
+- Architecture claire et séparée
+- Validation en temps réel
+- Génération automatique de certificats
+- QR Code pour vérification
+- Interface utilisateur réactive
+
+Points d'amélioration:
+- Cache pour les performances
+- Tests unitaires
+- Génération PDF réelle
+- Notifications
+
+Le code est prêt pour une présentation et répond aux exigences d'un projet
+de formation professionnelle.
+
+================================================================================
+FIN DU DOCUMENT
+================================================================================

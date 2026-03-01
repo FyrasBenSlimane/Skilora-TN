@@ -1,0 +1,32 @@
+package com.skilora.framework.components;
+
+import javafx.scene.control.Separator;
+
+/**
+ * TLSeparator - shadcn/ui Separator (CSS-only, theme-adaptive)
+ *
+ * Uses .separator, .separator-horizontal (default) or .separator-vertical.
+ * Reference: https://ui.shadcn.com/docs/components/separator
+ */
+public class TLSeparator extends Separator {
+
+    public enum Orientation {
+        HORIZONTAL,
+        VERTICAL
+    }
+
+    public TLSeparator() {
+        this(Orientation.HORIZONTAL);
+    }
+
+    public TLSeparator(Orientation orientation) {
+        getStyleClass().add("separator");
+        if (orientation == Orientation.VERTICAL) {
+            getStyleClass().add("separator-vertical");
+            setOrientation(javafx.geometry.Orientation.VERTICAL);
+        } else {
+            getStyleClass().add("separator-horizontal");
+            setOrientation(javafx.geometry.Orientation.HORIZONTAL);
+        }
+    }
+}

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+<?import com.skilora.framework.components.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.skilora.controller.InterviewsController"
+      spacing="24"
+      style="-fx-background-color: transparent;">
+    <padding><Insets top="32" right="32" bottom="32" left="32"/></padding>
+
+    <!-- Header -->
+    <HBox spacing="16" alignment="CENTER_LEFT">
+        <VBox spacing="4">
+            <Label text="Entretiens" styleClass="h2"/>
+            <Label fx:id="statsLabel" text="Chargement..." styleClass="text-muted"/>
+        </VBox>
+        <Region HBox.hgrow="ALWAYS"/>
+        <TLButton fx:id="refreshBtn" text="Actualiser" variant="OUTLINE" onAction="#handleRefresh"/>
+    </HBox>
+
+    <!-- Filter Tabs -->
+    <HBox fx:id="filterBox" spacing="8" alignment="CENTER_LEFT"/>
+
+    <!-- Interviews List -->
+    <VBox fx:id="interviewsContainer" spacing="12"/>
+
+    <!-- Empty State -->
+    <VBox fx:id="emptyState" spacing="12" alignment="CENTER" visible="false" managed="false"
+          style="-fx-padding: 48;">
+        <Label text="Aucun entretien planifié" styleClass="h3"/>
+        <Label text="Les candidats en phase d'entretien apparaîtront ici." styleClass="text-muted"/>
+    </VBox>
+</VBox>

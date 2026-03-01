@@ -49,6 +49,9 @@
             <HBox spacing="12" alignment="CENTER_LEFT">
                 <TLButton fx:id="completeBtn" text="Marquer comme complété" variant="PRIMARY" visible="false" managed="false"/>
             </HBox>
+            
+            <!-- Rating Panel (shown only when training is completed) -->
+            <VBox fx:id="ratingContainer" spacing="0" visible="false" managed="false"/>
         </VBox>
     </VBox>
 

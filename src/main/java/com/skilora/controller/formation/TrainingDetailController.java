@@ -47,6 +47,7 @@ public class TrainingDetailController implements Initializable {
     @FXML private Label lessonTitleLabel;
     @FXML private Label lessonDescriptionLabel;
     @FXML private VBox lessonContentArea;
+    @FXML private VBox ratingContainer;
 
     private Training training;
     private TrainingEnrollment enrollment;
@@ -180,6 +181,9 @@ public class TrainingDetailController implements Initializable {
         
         // Setup action buttons
         setupActionButtons();
+        
+        // Show rating panel if training is completed
+        showRatingPanelIfCompleted();
 
         // Check if user is enrolled
         if (enrollment == null) {
@@ -513,6 +517,41 @@ public class TrainingDetailController implements Initializable {
     private void handleViewProgress() {
         if (onViewProgress != null) {
             onViewProgress.run();
+        }
+    }
+    
+    private void showRatingPanelIfCompleted() {
+        if (ratingContainer == null) {
+            logger.debug("ratingContainer is null, cannot show rating panel");
+            return;
+        }
+        
+        // Clear existing content
+        ratingContainer.getChildren().clear();
+        
+        // Only show if user is logged in, enrolled, and training is completed
+        if (currentUser == null || enrollment == null || !enrollment.isCompleted()) {
+            ratingContainer.setVisible(false);
+            ratingContainer.setManaged(false);
+            return;
+        }
+        
+        try {
+            TrainingRatingPanel ratingPanel = new TrainingRatingPanel(
+                currentUser.getId(), 
+                training.getId()
+            );
+            
+            ratingContainer.getChildren().add(ratingPanel);
+            ratingContainer.setVisible(true);
+            ratingContainer.setManaged(true);
+            
+            logger.info("Rating panel displayed for completed training: userId={}, trainingId={}", 
+                currentUser.getId(), training.getId());
+        } catch (Exception e) {
+            logger.error("Error creating rating panel", e);
+            ratingContainer.setVisible(false);
+            ratingContainer.setManaged(false);
         }
     }
 }

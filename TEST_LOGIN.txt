@@ -1,0 +1,68 @@
+===========================================
+QUICK LOGIN TEST GUIDE
+===========================================
+
+PROBLEM: Login shows "Invalid username or password"
+
+SOLUTION 1: Update Admin Password in Database
+-----------------------------------------------
+Run this SQL in phpMyAdmin:
+
+UPDATE users 
+SET password = 'admin123' 
+WHERE username = 'admin';
+
+This sets it to plaintext, which the code supports for legacy accounts.
+
+SOLUTION 2: Generate BCrypt Hash and Update
+-----------------------------------------------
+If you want to use BCrypt (recommended), run the TestLogin.java script first
+to see what hash is currently stored, then update with a proper BCrypt hash.
+
+SOLUTION 3: Run Test Script
+-----------------------------------------------
+Compile and run the test script:
+
+1. In IntelliJ: Right-click TestLogin.java → Run 'TestLogin.main()'
+2. Or from command line:
+   cd src/test/java
+   javac -cp "../../../target/classes:../../../target/dependency/*" com/skilora/TestLogin.java
+   java -cp "../../../target/classes:../../../target/dependency/*:." com.skilora.TestLogin
+
+The script will:
+- Check if users exist
+- Verify password hashes
+- Test login for admin/user/employer
+- Reset lockouts automatically
+
+SOLUTION 4: Check Database Directly
+-----------------------------------------------
+Run this SQL to see what's in the database:
+
+SELECT username, email, 
+       LEFT(password, 20) as password_preview,
+       CASE 
+         WHEN password LIKE '$2a$%' OR password LIKE '$2b$%' THEN 'BCrypt'
+         ELSE 'Plaintext'
+       END as password_type,
+       role, status
+FROM users 
+WHERE username IN ('admin', 'user', 'employer');
+
+===========================================
+EXPECTED RESULTS
+===========================================
+
+For admin/admin123 to work:
+- User must exist with username = 'admin'
+- Password must be either:
+  * Plaintext: 'admin123'
+  * BCrypt hash that matches 'admin123'
+
+Current database shows password hash starts with:
+$2a$10SjViMQKYD9dPZG77zXqRf8O7mO3c5YgE5YJ0rXzSh4Zz...
+
+This is a BCrypt hash. The Java code should verify it correctly.
+If login still fails, the hash might not match 'admin123'.
+
+===========================================

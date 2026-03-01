@@ -23,6 +23,7 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 
@@ -44,6 +45,7 @@ import com.skilora.model.enums.TrainingLevel;
 import com.skilora.service.formation.*;
 import com.skilora.utils.DialogUtils;
 import com.skilora.utils.I18n;
+import com.skilora.framework.components.ChatbotWidget;
 
 /**
  * FormationsController - Training/Courses view for job seekers.
@@ -59,6 +61,7 @@ public class FormationsController implements Initializable {
     @FXML private FlowPane formationsGrid;
     @FXML private VBox emptyState;
     @FXML private TLButton refreshBtn;
+    @FXML private StackPane chatbotContainer;
 
     private TrainingService trainingService;
     private TrainingEnrollmentService enrollmentService;
@@ -143,6 +146,7 @@ public class FormationsController implements Initializable {
         loadTask.setOnSucceeded(e -> {
             allTrainings = loadTask.getValue();
             applyFilters();
+            setupChatbot();
         });
 
         loadTask.setOnFailed(e -> {
@@ -395,6 +399,82 @@ public class FormationsController implements Initializable {
     private void showTrainingDetail(Training training) {
         if (onShowTrainingDetail != null) {
             onShowTrainingDetail.accept(training);
+        }
+    }
+    
+    /**
+     * Setup chatbot widget with formations data
+     */
+    private void setupChatbot() {
+        if (chatbotContainer == null) {
+            logger.warn("Chatbot container not found in FXML");
+            return;
+        }
+        
+        // Clear any existing chatbot
+        chatbotContainer.getChildren().clear();
+        
+        try {
+            // Create chatbot widget with current formations
+            // The chatbot will show a friendly error message if AI service is not configured
+            List<Training> formationsForChatbot = allTrainings != null ? allTrainings : new ArrayList<>();
+            ChatbotWidget chatbot = new ChatbotWidget(formationsForChatbot);
+            
+            // Position at bottom right - StackPane will handle alignment
+            chatbotContainer.setAlignment(javafx.geometry.Pos.BOTTOM_RIGHT);
+            
+            // Ensure container fills parent and is positioned correctly
+            // The container should take full size of parent StackPane to allow proper positioning
+            chatbotContainer.setPrefSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
+            chatbotContainer.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+            
+            // Ensure container is visible and managed, and can receive mouse events
+            chatbotContainer.setVisible(true);
+            chatbotContainer.setManaged(true);
+            chatbotContainer.setMouseTransparent(false);
+            chatbotContainer.setPickOnBounds(false); // Allow clicks to pass through to content below when chatbot is closed
+            
+            // Ensure chatbot widget itself is visible and properly configured
+            chatbot.setVisible(true);
+            chatbot.setManaged(true);
+            chatbot.setMouseTransparent(false);
+            
+            // Add chatbot to container
+            chatbotContainer.getChildren().add(chatbot);
+            
+            // Bring chatbot to front and ensure it's on top
+            Platform.runLater(() -> {
+                if (chatbotContainer != null && chatbotContainer.getParent() != null) {
+                    chatbotContainer.toFront();
+                }
+                if (chatbot != null && chatbot.getParent() != null) {
+                    chatbot.toFront();
+                }
+                // Force visibility check
+                if (chatbot != null) {
+                    chatbot.setVisible(true);
+                    chatbot.setManaged(true);
+                }
+                logger.info("Chatbot brought to front - container visible: {}, managed: {}, parent: {}, chatbot visible: {}, managed: {}", 
+                    chatbotContainer.isVisible(), chatbotContainer.isManaged(), chatbotContainer.getParent() != null,
+                    chatbot != null ? chatbot.isVisible() : false,
+                    chatbot != null ? chatbot.isManaged() : false);
+            });
+            
+            logger.info("Chatbot widget initialized with {} formations, container visible: {}, managed: {}, parent: {}", 
+                formationsForChatbot.size(), chatbotContainer.isVisible(), chatbotContainer.isManaged(), 
+                chatbotContainer.getParent() != null);
+            
+            if (com.skilora.service.ai.AIService.getInstance().isConfigured()) {
+                logger.info("AI service is configured and ready");
+            } else {
+                logger.info("AI service not configured - chatbot will show error messages");
+            }
+        } catch (Exception e) {
+            logger.error("Error setting up chatbot", e);
+            // Even if there's an error, ensure container is visible for debugging
+            chatbotContainer.setVisible(true);
+            chatbotContainer.setManaged(true);
         }
     }
 }

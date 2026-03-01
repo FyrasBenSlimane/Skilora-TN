@@ -28,7 +28,7 @@ public class TrainingRepositoryImpl implements TrainingRepository {
     @Override
     public Optional<Training> findById(int id) {
         String sql = "SELECT id, title, description, cost, duration, lesson_count, level, category, " +
-                     "created_at, updated_at FROM trainings WHERE id = ?";
+                     "director_signature, created_at, updated_at FROM trainings WHERE id = ?";
         
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -50,7 +50,7 @@ public class TrainingRepositoryImpl implements TrainingRepository {
     @Override
     public List<Training> findAll() {
         String sql = "SELECT id, title, description, cost, duration, lesson_count, level, category, " +
-                     "created_at, updated_at FROM trainings ORDER BY created_at DESC";
+                     "director_signature, created_at, updated_at FROM trainings ORDER BY created_at DESC";
         List<Training> trainings = new ArrayList<>();
         
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
@@ -80,8 +80,8 @@ public class TrainingRepositoryImpl implements TrainingRepository {
     private Training insert(Training training) {
         // Don't include created_at and updated_at - let MySQL use DEFAULT values
         // This avoids issues with timestamp defaults and ensures AUTO_INCREMENT works properly
-        String sql = "INSERT INTO trainings (title, description, cost, duration, lesson_count, level, category) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO trainings (title, description, cost, duration, lesson_count, level, category, director_signature) " +
+                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -97,6 +97,7 @@ public class TrainingRepositoryImpl implements TrainingRepository {
             stmt.setInt(5, training.getLessonCount());
             stmt.setString(6, training.getLevel() != null ? training.getLevel().name() : null);
             stmt.setString(7, training.getCategory() != null ? training.getCategory().name() : null);
+            stmt.setString(8, training.getDirectorSignature());
             
             int affectedRows = stmt.executeUpdate();
             if (affectedRows == 0) {
@@ -132,7 +133,7 @@ public class TrainingRepositoryImpl implements TrainingRepository {
     @Override
     public boolean update(Training training) {
         String sql = "UPDATE trainings SET title = ?, description = ?, cost = ?, duration = ?, " +
-                     "lesson_count = ?, level = ?, category = ?, updated_at = ? WHERE id = ?";
+                     "lesson_count = ?, level = ?, category = ?, director_signature = ?, updated_at = ? WHERE id = ?";
         
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -148,8 +149,9 @@ public class TrainingRepositoryImpl implements TrainingRepository {
             stmt.setInt(5, training.getLessonCount());
             stmt.setString(6, training.getLevel() != null ? training.getLevel().name() : null);
             stmt.setString(7, training.getCategory() != null ? training.getCategory().name() : null);
-            stmt.setTimestamp(8, Timestamp.valueOf(LocalDateTime.now()));
-            stmt.setInt(9, training.getId());
+            stmt.setString(8, training.getDirectorSignature());
+            stmt.setTimestamp(9, Timestamp.valueOf(LocalDateTime.now()));
+            stmt.setInt(10, training.getId());
             
             int affectedRows = stmt.executeUpdate();
             return affectedRows > 0;
@@ -199,7 +201,7 @@ public class TrainingRepositoryImpl implements TrainingRepository {
     @Override
     public List<Training> searchByKeyword(String keyword) {
         String sql = "SELECT id, title, description, cost, duration, lesson_count, level, category, " +
-                     "created_at, updated_at FROM trainings " +
+                     "director_signature, created_at, updated_at FROM trainings " +
                      "WHERE title LIKE ? OR description LIKE ? ORDER BY created_at DESC";
         List<Training> trainings = new ArrayList<>();
         
@@ -230,7 +232,7 @@ public class TrainingRepositoryImpl implements TrainingRepository {
     @Override
     public List<Training> findByCategory(TrainingCategory category) {
         String sql = "SELECT id, title, description, cost, duration, lesson_count, level, category, " +
-                     "created_at, updated_at FROM trainings WHERE category = ? ORDER BY created_at DESC";
+                     "director_signature, created_at, updated_at FROM trainings WHERE category = ? ORDER BY created_at DESC";
         List<Training> trainings = new ArrayList<>();
         
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
@@ -253,7 +255,7 @@ public class TrainingRepositoryImpl implements TrainingRepository {
     @Override
     public List<Training> findByCategoryAndKeyword(TrainingCategory category, String keyword) {
         String sql = "SELECT id, title, description, cost, duration, lesson_count, level, category, " +
-                     "created_at, updated_at FROM trainings " +
+                     "director_signature, created_at, updated_at FROM trainings " +
                      "WHERE category = ? AND (title LIKE ? OR description LIKE ?) " +
                      "ORDER BY created_at DESC";
         List<Training> trainings = new ArrayList<>();
@@ -298,6 +300,7 @@ public class TrainingRepositoryImpl implements TrainingRepository {
         }
         training.setDuration(rs.getInt("duration"));
         training.setLessonCount(rs.getInt("lesson_count"));
+        training.setDirectorSignature(rs.getString("director_signature"));
         
         // Parse level enum
         String levelStr = rs.getString("level");

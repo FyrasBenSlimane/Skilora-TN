@@ -322,4 +322,52 @@ public class CertificateService {
         
         return cert;
     }
+
+    /**
+     * Get certificate by certificate number (public ID like "SKL-ABC123").
+     * This is used for public verification via QR codes using certificate ID.
+     */
+    public Certificate getCertificateByNumber(String certificateNumber) {
+        String sql = "SELECT * FROM certificates WHERE certificate_number = ? LIMIT 1";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, certificateNumber);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    logger.info("Certificate found by number: {}", certificateNumber);
+                    return mapResultSetToCertificate(rs);
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Error retrieving certificate by number: {}, error={}", 
+                certificateNumber, e.getMessage(), e);
+        }
+        logger.warn("Certificate not found by number: {}", certificateNumber);
+        return null;
+    }
+
+    /**
+     * Get certificate by verification token for public verification.
+     *
+     * SECURITY: Only the strong {@code verification_token} is used here – we do
+     * not fall back to {@code certificate_number} to avoid making the lookup
+     * easier to guess or brute-force. All public QR codes and verification URLs
+     * must therefore be built from {@code verification_token}.
+     */
+    public Certificate getCertificateByToken(String token) {
+        String sql = "SELECT * FROM certificates WHERE verification_token = ? LIMIT 1";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, token);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSetToCertificate(rs);
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Error retrieving certificate by token: {}, error={}", 
+                token, e.getMessage(), e);
+        }
+        return null;
+    }
 }

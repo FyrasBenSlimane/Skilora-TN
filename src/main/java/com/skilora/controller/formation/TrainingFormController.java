@@ -7,8 +7,22 @@ import com.skilora.model.enums.TrainingLevel;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.paint.Color;
+import javafx.scene.image.WritableImage;
+import javafx.scene.image.Image;
+import javafx.embed.swing.SwingFXUtils;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
+
+import javax.imageio.ImageIO;
+import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.util.Base64;
+import com.skilora.utils.DialogUtils;
 
 /**
  * TrainingFormController
@@ -50,8 +64,40 @@ public class TrainingFormController {
     @FXML
     private Label categoryError;
 
+    // Step navigation UI
+    @FXML
+    private Label stepIndicator;
+    @FXML
+    private StackPane stepContainer;
+    @FXML
+    private VBox step1Content;
+    @FXML
+    private VBox step2Content;
+    @FXML
+    private TLButton nextStepBtn;
+    @FXML
+    private TLButton backStepBtn;
+    @FXML
+    private TLButton finalSaveBtn;
+
+    // Director signature capture
+    @FXML
+    private Canvas signatureCanvas;
+    @FXML
+    private TLButton clearSignatureBtn;
+    @FXML
+    private TLButton saveSignatureBtn;
+
+    private GraphicsContext signatureGc;
+    private double lastX;
+    private double lastY;
+    private String directorSignatureBase64; // PNG base64 without data URL prefix
+
     private Training existingTraining;
     private Runnable onValidationChange;
+    private Runnable onFinalSave; // Callback for final save button
+    
+    private int currentStep = 1; // Track current step (1 or 2)
     
     // Validation constants
     private static final int TITLE_MIN_LENGTH = 3;
@@ -95,10 +141,150 @@ public class TrainingFormController {
         
         // Initialize character counter
         updateDescriptionCounter();
+
+        // Setup signature canvas if present
+        setupSignatureCanvas();
+        
+        // Setup step navigation
+        setupStepNavigation();
     }
     
     public void setOnValidationChange(Runnable callback) {
         this.onValidationChange = callback;
+    }
+    
+    /**
+     * Set callback for final save button (called from MainView)
+     */
+    public void setOnFinalSave(Runnable callback) {
+        this.onFinalSave = callback;
+    }
+    
+    /**
+     * Setup step navigation buttons and handlers
+     */
+    private void setupStepNavigation() {
+        // Initialize to step 1
+        showStep(1);
+        
+        // Set button variants
+        if (nextStepBtn != null) {
+            nextStepBtn.setVariant(TLButton.ButtonVariant.PRIMARY);
+            // Next button: validate and move to step 2
+            nextStepBtn.setOnAction(e -> {
+                // Validate all required fields before moving to step 2
+                if (validateStep1()) {
+                    showStep(2);
+                } else {
+                    // Show error message
+                    com.skilora.utils.DialogUtils.showError("Erreur de validation", 
+                        "Veuillez corriger les erreurs dans le formulaire avant de continuer.");
+                }
+            });
+        }
+        
+        // Back button: return to step 1
+        if (backStepBtn != null) {
+            backStepBtn.setVariant(TLButton.ButtonVariant.OUTLINE);
+            backStepBtn.setOnAction(e -> showStep(1));
+        }
+        
+        // Final save button: save signature then trigger form submission
+        if (finalSaveBtn != null) {
+            finalSaveBtn.setVariant(TLButton.ButtonVariant.PRIMARY);
+            finalSaveBtn.setOnAction(e -> {
+                // Auto-save signature from canvas if not already saved
+                captureSignatureFromCanvas();
+                // Trigger the final save callback (handled by MainView)
+                if (onFinalSave != null) {
+                    onFinalSave.run();
+                }
+            });
+        }
+    }
+    
+    /**
+     * Show the specified step (1 or 2)
+     */
+    private void showStep(int step) {
+        currentStep = step;
+        
+        if (stepIndicator != null) {
+            stepIndicator.setText("Étape " + step + "/2");
+        }
+        
+        if (step1Content != null && step2Content != null) {
+            if (step == 1) {
+                step1Content.setVisible(true);
+                step1Content.setManaged(true);
+                step2Content.setVisible(false);
+                step2Content.setManaged(false);
+            } else {
+                step1Content.setVisible(false);
+                step1Content.setManaged(false);
+                step2Content.setVisible(true);
+                step2Content.setManaged(true);
+                
+                // When moving to step 2, load signature if it exists
+                if (directorSignatureBase64 != null && !directorSignatureBase64.isBlank()) {
+                    loadSignatureToCanvas(directorSignatureBase64);
+                }
+            }
+        }
+    }
+    
+    /**
+     * Validate all fields in step 1 (all required form fields)
+     */
+    private boolean validateStep1() {
+        validateTitle();
+        validateDescription();
+        validateCost();
+        validateDuration();
+        validateLessonCount();
+        validateLevel();
+        validateCategory();
+        
+        return isFormValid();
+    }
+    
+    /**
+     * Capture signature from canvas (auto-save when final save is clicked)
+     */
+    private void captureSignatureFromCanvas() {
+        if (signatureCanvas == null) return;
+        
+        try {
+            WritableImage snapshot = signatureCanvas.snapshot(null, null);
+            java.awt.image.BufferedImage img = SwingFXUtils.fromFXImage(snapshot, null);
+            
+            if (img != null) {
+                // Quick check: sample pixels instead of checking every pixel
+                boolean hasContent = false;
+                int sampleStep = Math.max(1, Math.min(img.getWidth(), img.getHeight()) / 20);
+                
+                for (int y = 0; y < img.getHeight() && !hasContent; y += sampleStep) {
+                    for (int x = 0; x < img.getWidth(); x += sampleStep) {
+                        int rgb = img.getRGB(x, y);
+                        if ((rgb & 0xFFFFFF) != 0xFFFFFF) {
+                            hasContent = true;
+                            break;
+                        }
+                    }
+                }
+                
+                if (hasContent) {
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    ImageIO.write(img, "png", baos);
+                    baos.flush();
+                    byte[] pngBytes = baos.toByteArray();
+                    baos.close();
+                    directorSignatureBase64 = Base64.getEncoder().encodeToString(pngBytes);
+                }
+            }
+        } catch (Exception ex) {
+            System.err.println("Error capturing signature from canvas: " + ex.getMessage());
+        }
     }
     
     private void setupValidationListeners() {
@@ -406,6 +592,9 @@ public class TrainingFormController {
 
     public void setTraining(Training training) {
         this.existingTraining = training;
+        // Always start on step 1
+        showStep(1);
+        
         if (training != null) {
             // Edit mode - populate with existing data
             if (titleField != null) titleField.setText(training.getTitle() != null ? training.getTitle() : "");
@@ -415,6 +604,8 @@ public class TrainingFormController {
             if (lessonCountField != null) lessonCountField.setText(String.valueOf(training.getLessonCount()));
             if (levelSelect != null) levelSelect.setValue(training.getLevel());
             if (categorySelect != null) categorySelect.setValue(training.getCategory());
+            this.directorSignatureBase64 = training.getDirectorSignature();
+            // Signature will be loaded when user navigates to step 2
         } else {
             // Create mode - reset form
             if (titleField != null) titleField.setText("");
@@ -424,6 +615,11 @@ public class TrainingFormController {
             if (lessonCountField != null) lessonCountField.setText("");
             if (levelSelect != null) levelSelect.setValue(TrainingLevel.BEGINNER);
             if (categorySelect != null) categorySelect.setValue(TrainingCategory.DEVELOPMENT);
+            this.directorSignatureBase64 = null;
+            // Clear canvas
+            if (signatureCanvas != null) {
+                clearSignatureCanvas();
+            }
         }
     }
 
@@ -484,8 +680,143 @@ public class TrainingFormController {
         if (categorySelect != null) {
             training.setCategory(categorySelect.getValue());
         }
+
+        // Always capture signature from canvas when saving the form
+        // This ensures the signature is saved even if user didn't click "Enregistrer la signature"
+        // Wrap in try-catch to ensure it never blocks form submission
+        try {
+            if (signatureCanvas != null && (directorSignatureBase64 == null || directorSignatureBase64.isBlank())) {
+                WritableImage snapshot = signatureCanvas.snapshot(null, null);
+                java.awt.image.BufferedImage img = SwingFXUtils.fromFXImage(snapshot, null);
+                
+                if (img != null) {
+                    // Quick check: sample pixels instead of checking every pixel (performance optimization)
+                    boolean hasContent = false;
+                    int sampleStep = Math.max(1, Math.min(img.getWidth(), img.getHeight()) / 20); // Sample every Nth pixel
+                    
+                    for (int y = 0; y < img.getHeight() && !hasContent; y += sampleStep) {
+                        for (int x = 0; x < img.getWidth(); x += sampleStep) {
+                            int rgb = img.getRGB(x, y);
+                            // Check if pixel is not white (0xFFFFFF)
+                            if ((rgb & 0xFFFFFF) != 0xFFFFFF) {
+                                hasContent = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // If canvas has content, save it
+                    if (hasContent) {
+                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                        ImageIO.write(img, "png", baos);
+                        baos.flush();
+                        byte[] pngBytes = baos.toByteArray();
+                        baos.close();
+                        directorSignatureBase64 = Base64.getEncoder().encodeToString(pngBytes);
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            // If signature capture fails for any reason, log but don't block form submission
+            // Keep existing signature or null
+            System.err.println("Error capturing signature from canvas (non-blocking): " + ex.getMessage());
+            ex.printStackTrace();
+        }
+
+        // Persist director signature (may be null)
+        training.setDirectorSignature(directorSignatureBase64);
         
         return training;
+    }
+
+    // ─── Signature Canvas Logic ──────────────────────────────────────────────
+
+    private void setupSignatureCanvas() {
+        if (signatureCanvas == null) {
+            return;
+        }
+
+        signatureGc = signatureCanvas.getGraphicsContext2D();
+        clearSignatureCanvas();
+
+        signatureCanvas.addEventHandler(MouseEvent.MOUSE_PRESSED, e -> {
+            lastX = e.getX();
+            lastY = e.getY();
+        });
+
+        signatureCanvas.addEventHandler(MouseEvent.MOUSE_DRAGGED, e -> {
+            if (signatureGc == null) return;
+            signatureGc.setStroke(Color.BLACK);
+            signatureGc.setLineWidth(2.0);
+            signatureGc.strokeLine(lastX, lastY, e.getX(), e.getY());
+            lastX = e.getX();
+            lastY = e.getY();
+        });
+
+        if (clearSignatureBtn != null) {
+            clearSignatureBtn.setVariant(TLButton.ButtonVariant.OUTLINE);
+            clearSignatureBtn.setOnAction(e -> {
+                clearSignatureCanvas();
+                directorSignatureBase64 = null;
+            });
+        }
+
+        if (saveSignatureBtn != null) {
+            saveSignatureBtn.setVariant(TLButton.ButtonVariant.PRIMARY);
+            saveSignatureBtn.setOnAction(e -> saveSignatureFromCanvas());
+        }
+    }
+
+    private void clearSignatureCanvas() {
+        if (signatureGc != null) {
+            signatureGc.setFill(Color.WHITE);
+            signatureGc.fillRect(0, 0, signatureCanvas.getWidth(), signatureCanvas.getHeight());
+        }
+    }
+
+    private void saveSignatureFromCanvas() {
+        if (signatureCanvas == null) return;
+
+        try {
+            WritableImage snapshot = signatureCanvas.snapshot(null, null);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageIO.write(SwingFXUtils.fromFXImage(snapshot, null), "png", baos);
+            baos.flush();
+            byte[] pngBytes = baos.toByteArray();
+            baos.close();
+
+            directorSignatureBase64 = Base64.getEncoder().encodeToString(pngBytes);
+            
+            // Show success feedback
+            DialogUtils.showSuccess("Signature enregistrée", 
+                "La signature du Directeur a été enregistrée avec succès.");
+        } catch (IOException ex) {
+            DialogUtils.showError("Erreur", 
+                "Impossible d'enregistrer la signature: " + ex.getMessage());
+        }
+    }
+    
+    /**
+     * Load signature image onto canvas from base64 string
+     */
+    private void loadSignatureToCanvas(String base64Signature) {
+        if (signatureCanvas == null || base64Signature == null || base64Signature.isBlank()) {
+            return;
+        }
+        
+        try {
+            byte[] imageBytes = Base64.getDecoder().decode(base64Signature);
+            Image image = new Image(new ByteArrayInputStream(imageBytes));
+            
+            if (signatureGc != null) {
+                // Clear canvas first
+                clearSignatureCanvas();
+                // Draw the loaded image
+                signatureGc.drawImage(image, 0, 0, signatureCanvas.getWidth(), signatureCanvas.getHeight());
+            }
+        } catch (Exception ex) {
+            System.err.println("Error loading signature to canvas: " + ex.getMessage());
+        }
     }
 
     public boolean validate() {

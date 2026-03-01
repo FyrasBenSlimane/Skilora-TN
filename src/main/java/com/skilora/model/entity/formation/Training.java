@@ -21,6 +21,11 @@ public class Training {
     private int lessonCount; // Number of lessons in the training
     private TrainingLevel level;
     private TrainingCategory category;
+    /**
+     * Base64-encoded PNG of the director's electronic signature,
+     * captured from the admin training form. Stored per-formation.
+     */
+    private String directorSignature;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -115,6 +120,14 @@ public class Training {
 
     public void setCategory(TrainingCategory category) {
         this.category = category;
+    }
+
+    public String getDirectorSignature() {
+        return directorSignature;
+    }
+
+    public void setDirectorSignature(String directorSignature) {
+        this.directorSignature = directorSignature;
     }
 
     public void setCreatedAt(LocalDateTime createdAt) {

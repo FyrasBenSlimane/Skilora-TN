@@ -1,0 +1,19 @@
+/* Chatbot Input Field Styles - Dark Theme */
+.chatbot-input {
+    -fx-text-fill: #fafafa;
+    -fx-font-size: 14px;
+}
+
+.chatbot-input .text {
+    -fx-fill: #fafafa;
+}
+
+/* Placeholder text color - Dark Theme */
+.chatbot-input .prompt-text {
+    -fx-fill: #a1a1aa;
+}
+
+/* Alternative selector for prompt text */
+.text-input.chatbot-input .prompt-text {
+    -fx-fill: #a1a1aa;
+}

@@ -1,0 +1,56 @@
+===========================================
+INTELLIJ IDEA MAVEN REPOSITORY FIX
+===========================================
+
+PROBLEM:
+IntelliJ IDEA is passing -Dmaven.repo.local=C:\Users\USERµ\.m2\repository
+which contains a special character (µ) that causes Maven to fail.
+
+SOLUTION - Configure IntelliJ IDEA Maven Settings:
+
+STEP 1: Open IntelliJ IDEA Settings
+   - Press Ctrl+Alt+S (or File → Settings)
+
+STEP 2: Navigate to Maven Settings
+   - Go to: Build, Execution, Deployment → Build Tools → Maven
+
+STEP 3: Update Local Repository Path
+   - Find the "Local repository" field
+   - Change it from: C:\Users\USERµ\.m2\repository
+   - To: C:/m2-repo
+   - Click "Apply"
+
+STEP 4: Verify User Settings File
+   - Ensure "User settings file" points to:
+     C:\Users\USERµ\.m2\settings.xml
+   - (This file has already been created with the correct repository path)
+
+STEP 5: Configure Maven Runner (REQUIRED)
+   - Go to: Build, Execution, Deployment → Build Tools → Maven → Runner
+   - In "VM options" field, add (or replace existing):
+     -Dmaven.repo.local=C:/m2-repo
+   - This will override the command-line parameter
+   - Click "Apply" and "OK"
+
+ALTERNATIVE STEP 5: Use Custom Maven Executable
+   - Go to: Build, Execution, Deployment → Build Tools → Maven
+   - Set "Maven home path" to use a wrapper
+   - Or configure "Maven" to use: mvn-fixed.cmd (in project root)
+   - This uses a wrapper script that fixes the path automatically
+
+STEP 6: Restart IntelliJ IDEA
+   - Close and reopen IntelliJ IDEA to ensure changes take effect
+
+ALTERNATIVE: Use Maven from Command Line
+   If IntelliJ still has issues, you can run Maven directly:
+   
+   mvn org.openjfx:javafx-maven-plugin:0.0.8:run -f pom.xml
+
+===========================================
+FILES CREATED:
+===========================================
+1. C:\Users\USERµ\.m2\settings.xml - Global Maven settings
+2. .mvn/maven.config - Project-specific Maven config
+3. mvn-wrapper.cmd - Maven wrapper script (optional)
+
+===========================================

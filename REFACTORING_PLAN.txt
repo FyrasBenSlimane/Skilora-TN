@@ -1,0 +1,278 @@
+================================================================================
+JAVAFX CODEBASE REFACTORING PLAN
+================================================================================
+
+CURRENT STRUCTURE ANALYSIS:
+---------------------------
+
+Source Files:
+- Main.java (root)
+- config/ (3 files: AppConfig, DatabaseConfig, DatabaseInitializer)
+- controller/ (26 files - mixed formation & usermanagement)
+- model/
+  - entity/ (16 files - mixed)
+  - enums/ (6 files - mixed)
+  - repository/ (6 files - mixed)
+  - service/ (19 files - mixed)
+- ui/ (5 files: MainView, ProfileWizardView, JobCard, HelpDialog, AppFontLoader)
+- utils/ (5 files: PDFGenerator, DialogUtils, I18n, DateUtils, Validators)
+- framework/ (48+ component files, layouts, themes, utils)
+
+Resources:
+- view/ (26 FXML files - mixed)
+- ui/styles/ (3 CSS files)
+- i18n/ (4 properties files)
+- assets/ (videos)
+
+================================================================================
+MIGRATION MAPPING
+================================================================================
+
+1. FORMATION (Training) COMPONENTS:
+-----------------------------------
+
+CONTROLLERS → controller/formation/:
+  ✓ FormationsController.java
+  ✓ AdminTrainingController.java
+  ✓ TrainingDetailController.java
+  ✓ TrainingFormController.java
+  ✓ TrainingProgressController.java
+  ✓ CertificationsController.java
+
+SERVICES → service/formation/:
+  ✓ TrainingService.java
+  ✓ TrainingLessonService.java
+  ✓ TrainingEnrollmentService.java
+  ✓ LessonProgressService.java
+  ✓ CertificateService.java
+
+ENTITIES → model/entity/formation/:
+  ✓ Training.java
+  ✓ TrainingLesson.java
+  ✓ TrainingMaterial.java
+  ✓ TrainingEnrollment.java
+  ✓ LessonProgress.java
+  ✓ Certificate.java
+
+ENUMS → model/enums/ (keep at root, but document):
+  ✓ TrainingLevel.java
+  ✓ TrainingCategory.java
+
+FXML → resources/com/skilora/formation/fxml/:
+  ✓ FormationsView.fxml
+  ✓ AdminTrainingsView.fxml
+  ✓ TrainingDetailView.fxml
+  ✓ TrainingFormDialog.fxml
+  ✓ TrainingProgressView.fxml
+  ✓ CertificationsView.fxml
+
+CSS → resources/com/skilora/formation/css/:
+  (Move formation-specific styles if any exist)
+
+
+2. USER MANAGEMENT COMPONENTS:
+------------------------------
+
+CONTROLLERS → controller/usermanagement/:
+  ✓ LoginController.java
+  ✓ RegisterController.java
+  ✓ UsersController.java
+  ✓ UserFormController.java
+  ✓ ForgotPasswordController.java
+  ✓ BiometricAuthController.java
+  ✓ ProfileWizardController.java
+  ✓ SettingsController.java
+
+SERVICES → service/usermanagement/:
+  ✓ AuthService.java
+  ✓ UserService.java
+  ✓ BiometricService.java
+  ✓ ProfileService.java
+  ✓ PreferencesService.java
+
+ENTITIES → model/entity/usermanagement/:
+  ✓ User.java
+  ✓ Profile.java
+  ✓ BiometricData.java
+
+ENUMS → model/enums/ (keep at root):
+  ✓ Role.java
+
+FXML → resources/com/skilora/usermanagement/fxml/:
+  ✓ LoginView.fxml
+  ✓ RegisterView.fxml
+  ✓ UsersView.fxml
+  ✓ UserFormDialog.fxml
+  ✓ ForgotPasswordView.fxml
+  ✓ BiometricAuthDialog.fxml
+  ✓ ProfileWizardView.fxml
+  ✓ SettingsView.fxml
+
+CSS → resources/com/skilora/usermanagement/css/:
+  (Move usermanagement-specific styles if any exist)
+
+
+3. SHARED/COMMON COMPONENTS:
+----------------------------
+
+KEEP IN ROOT (shared across modules):
+  ✓ Main.java
+  ✓ config/ (AppConfig, DatabaseConfig, DatabaseInitializer)
+  ✓ utils/ (PDFGenerator, DialogUtils, I18n, DateUtils, Validators)
+  ✓ framework/ (all TL* components, layouts, themes)
+  ✓ ui/ (MainView, HelpDialog, AppFontLoader)
+  ✓ model/enums/ (JobStatus, WorkType, ProficiencyLevel - job-related)
+
+MOVE TO shared/:
+  ✓ JobCard.java (if used by multiple modules)
+  ✓ ProfileWizardView.java (if shared, else move to usermanagement/ui/)
+
+MOVE TO utils/:
+  ✓ (Already in utils/)
+
+
+4. JOB-RELATED COMPONENTS (Not in requirements, but exists):
+-------------------------------------------------------------
+
+KEEP AS-IS (not mentioned in requirements):
+  - FeedController, JobDetailsController, PostJobController, etc.
+  - JobService, ApplicationService, MatchingService
+  - JobOpportunity, JobOffer, Application, etc.
+  - Related FXML files
+
+These can be organized later if needed, but not part of current refactoring.
+
+
+5. RESOURCES REORGANIZATION:
+----------------------------
+
+FXML FILES:
+  Formation: Move 6 files to formation/fxml/
+  User Management: Move 8 files to usermanagement/fxml/
+  Keep others in view/ (job-related, dashboard, etc.)
+
+CSS FILES:
+  Keep shared styles in ui/styles/
+  Create formation/css/ and usermanagement/css/ if needed
+
+I18N:
+  Keep in i18n/ (shared)
+
+ASSETS:
+  Keep in assets/ (shared)
+
+
+================================================================================
+CODE CLEANUP TASKS
+================================================================================
+
+1. NAMING CONVENTIONS:
+   - Classes: PascalCase ✓ (mostly correct)
+   - Methods: camelCase ✓ (mostly correct)
+   - Constants: UPPER_SNAKE_CASE (check and fix)
+   - Variables: camelCase ✓ (mostly correct)
+
+2. REMOVE UNUSED:
+   - Unused imports
+   - Unused variables
+   - Dead code
+   - Unused methods
+
+3. FIX CODE QUALITY:
+   - Empty catch blocks → proper error handling
+   - Use try-with-resources for AutoCloseable
+   - Add JavaDoc to all public classes/methods
+   - Fix formatting (consistent indentation)
+
+4. DEPENDENCY DIRECTION:
+   - Controllers → Services → Entities (verify)
+   - No circular dependencies
+   - Services don't depend on controllers
+
+5. FXML UPDATES:
+   - Update fx:controller attributes to new package paths
+   - Update resource paths in FXML files
+   - Update CSS references if moved
+
+6. TEST UPDATES:
+   - Update test imports to new package paths
+   - Ensure all tests are in English
+   - Fix test class names if needed
+
+
+================================================================================
+IMPLEMENTATION ORDER
+================================================================================
+
+PHASE 1: Create New Structure
+  1. Create new package directories
+  2. Create new resource directories
+
+PHASE 2: Move Formation Components
+  1. Move entities
+  2. Move services
+  3. Move controllers
+  4. Move FXML files
+  5. Update imports
+
+PHASE 3: Move User Management Components
+  1. Move entities
+  2. Move services
+  3. Move controllers
+  4. Move FXML files
+  5. Update imports
+
+PHASE 4: Code Cleanup
+  1. Fix naming conventions
+  2. Remove unused code
+  3. Fix empty catch blocks
+  4. Add JavaDoc
+  5. Fix formatting
+
+PHASE 5: Update References
+  1. Update all import statements
+  2. Update FXML fx:controller paths
+  3. Update resource paths
+  4. Update Main.java if needed
+
+PHASE 6: Verification
+  1. Compile project
+  2. Run tests
+  3. Verify application starts
+  4. Check for broken references
+
+
+================================================================================
+RISK ASSESSMENT
+================================================================================
+
+HIGH RISK:
+  - FXML fx:controller paths (must be exact)
+  - Resource paths in code (must match new structure)
+  - Import statements (many files to update)
+
+MEDIUM RISK:
+  - Circular dependencies (verify after move)
+  - Test failures (update test imports)
+
+LOW RISK:
+  - Naming conventions (mostly correct already)
+  - Code cleanup (non-breaking changes)
+
+
+================================================================================
+ESTIMATED FILES TO MODIFY
+================================================================================
+
+Java Files: ~140 files
+  - Move: ~50 files
+  - Update imports: ~90 files
+  - Cleanup: ~140 files
+
+FXML Files: ~26 files
+  - Move: ~14 files
+  - Update paths: ~14 files
+
+Total: ~166 files to modify
+
+================================================================================

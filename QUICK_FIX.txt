@@ -1,0 +1,48 @@
+===========================================
+QUICK FIX FOR MAVEN REPOSITORY ERROR
+===========================================
+
+THE PROBLEM:
+IntelliJ IDEA is passing: -Dmaven.repo.local=C:\Users\USERµ\.m2\repository
+The "µ" character causes Maven to fail.
+
+THE SOLUTION (2 minutes):
+===========================================
+
+1. Open IntelliJ IDEA
+
+2. Press: Ctrl+Alt+S (opens Settings)
+
+3. Navigate to:
+   Build, Execution, Deployment 
+   → Build Tools 
+   → Maven 
+   → Runner
+
+4. In the "VM options" field, ADD this line:
+   -Dmaven.repo.local=C:/m2-repo
+
+   (If there's already text there, add this on a new line)
+
+5. Click "Apply" then "OK"
+
+6. Close and restart IntelliJ IDEA
+
+7. Try running your Maven command again
+
+===========================================
+WHY THIS WORKS:
+===========================================
+The "VM options" field in Maven Runner adds system properties
+that override the command-line parameter IntelliJ passes.
+This forces Maven to use C:/m2-repo instead of the path
+with the special character.
+
+===========================================
+VERIFICATION:
+===========================================
+After restarting, when you run Maven, check the output.
+You should see it using: C:/m2-repo
+instead of: C:\Users\USERµ\.m2\repository
+
+===========================================

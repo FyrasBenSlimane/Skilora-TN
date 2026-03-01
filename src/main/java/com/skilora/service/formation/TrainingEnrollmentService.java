@@ -84,6 +84,14 @@ public class TrainingEnrollmentService {
     }
 
     /**
+     * Check if a training is completed by a user
+     */
+    public boolean isTrainingCompleted(int userId, int trainingId) {
+        Optional<TrainingEnrollment> enrollmentOpt = repository.findByUserIdAndTrainingId(userId, trainingId);
+        return enrollmentOpt.isPresent() && enrollmentOpt.get().isCompleted();
+    }
+
+    /**
      * Mark training as completed and automatically generate certificate
      */
     public void markCompleted(int userId, int trainingId) {

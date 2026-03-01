@@ -1,0 +1,26 @@
+===========================================
+HOW TO RESET ACCOUNT LOCKOUT
+===========================================
+
+The account is locked after 5 failed login attempts for 15 minutes.
+
+QUICK FIX - Run this SQL in phpMyAdmin or MySQL:
+
+DELETE FROM login_attempts WHERE username = 'admin' AND success = FALSE;
+
+Or to clear ALL failed attempts for all users:
+
+DELETE FROM login_attempts WHERE success = FALSE;
+
+===========================================
+ALTERNATIVE: Wait 15 minutes
+===========================================
+The lockout automatically expires after 15 minutes.
+
+===========================================
+CODE METHOD (if you have access)
+===========================================
+You can also call:
+AuthService.getInstance().resetLockout("admin");
+
+===========================================

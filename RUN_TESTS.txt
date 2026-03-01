@@ -1,0 +1,63 @@
+===========================================
+HOW TO RUN LOGIN TESTS
+===========================================
+
+METHOD 1: Via Maven (Recommended)
+-----------------------------------
+Run this command in the project root:
+
+mvn clean compile exec:java -Dexec.mainClass="com.skilora.TestLogin"
+
+Or use the batch script:
+- Windows: run-test-login.bat
+- Linux/Mac: ./run-test-login.sh
+
+METHOD 2: Via IntelliJ IDEA
+-----------------------------------
+1. Right-click TestLogin.java
+2. Select "Run 'TestLogin.main()'"
+
+METHOD 3: Test BCrypt Only
+-----------------------------------
+mvn clean compile exec:java -Dexec.mainClass="com.skilora.TestBCryptPassword"
+
+METHOD 4: Generate BCrypt Hashes
+-----------------------------------
+mvn clean compile exec:java -Dexec.mainClass="com.skilora.GenerateBCryptHash"
+
+This will output SQL UPDATE commands you can run in your database.
+
+===========================================
+AVAILABLE TEST SCRIPTS
+===========================================
+
+1. TestLogin.java
+   - Tests login for admin/user/employer
+   - Checks password verification
+   - Auto-resets lockouts
+   - Shows password hash types
+
+2. TestBCryptPassword.java
+   - Tests BCrypt hashing and verification
+   - Verifies BCrypt library is working
+   - Tests wrong password rejection
+
+3. GenerateBCryptHash.java
+   - Generates BCrypt hashes for passwords
+   - Outputs SQL UPDATE commands
+
+===========================================
+QUICK TEST COMMAND
+===========================================
+
+Windows:
+  run-test-login.bat
+
+Linux/Mac:
+  chmod +x run-test-login.sh
+  ./run-test-login.sh
+
+Or directly:
+  mvn clean compile exec:java -Dexec.mainClass="com.skilora.TestLogin"
+
+===========================================
