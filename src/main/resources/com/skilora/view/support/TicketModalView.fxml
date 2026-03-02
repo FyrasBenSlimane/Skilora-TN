@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.Tooltip?>
+
+<VBox spacing="20" xmlns="http://javafx.com/javafx/21"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.skilora.support.controller.TicketModalController"
+      style="-fx-background-color: -fx-base-surface; -fx-padding: 30; -fx-background-radius: 16; -fx-border-color: -fx-base-border; -fx-border-radius: 16;"
+      prefWidth="520">
+    <children>
+        <!-- Header -->
+        <HBox alignment="CENTER_LEFT">
+            <Label fx:id="titleLabel" text="Create New Ticket" styleClass="section-title"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button text="✕" onAction="#handleClose"
+                    style="-fx-background-color: transparent; -fx-text-fill: -fx-base-text-muted; -fx-font-size: 18px; -fx-cursor: hand;"/>
+        </HBox>
+        <Separator/>
+
+        <!-- Subject -->
+        <VBox spacing="5">
+            <Label text="Subject" styleClass="label"/>
+            <TextField fx:id="subjectField" promptText="Brief ticket subject…"/>
+        </VBox>
+
+        <!-- Description + AI Correct -->
+        <VBox spacing="5">
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <Label text="Description" styleClass="label"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button text="✨ AI Correct" onAction="#handleAICorrect"
+                        style="-fx-background-color: #F5F3FF; -fx-text-fill: #7C3AED; -fx-font-size: 11px; -fx-padding: 3 10;">
+                    <tooltip>
+                        <Tooltip text="Let AI fix grammar and spelling"/>
+                    </tooltip>
+                </Button>
+            </HBox>
+            <TextArea fx:id="descriptionArea" promptText="Describe your issue in detail…"
+                      prefRowCount="5" wrapText="true"/>
+        </VBox>
+
+        <!-- Category + AI Categorize -->
+        <VBox spacing="5">
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <Label text="Category" styleClass="label"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button text="✨ AI Categorize" onAction="#handleAICategorize"
+                        style="-fx-background-color: #F5F3FF; -fx-text-fill: #7C3AED; -fx-font-size: 11px; -fx-padding: 3 10;">
+                    <tooltip>
+                        <Tooltip text="Let AI predict the category"/>
+                    </tooltip>
+                </Button>
+            </HBox>
+            <ComboBox fx:id="categoryCombo" maxWidth="Infinity" promptText="Select category"/>
+        </VBox>
+
+        <!-- Priority -->
+        <VBox spacing="5">
+            <Label text="Priority" styleClass="label"/>
+            <ComboBox fx:id="priorityCombo" maxWidth="Infinity" promptText="Select priority"/>
+        </VBox>
+
+        <Separator/>
+
+        <!-- Actions -->
+        <HBox spacing="10" alignment="CENTER_RIGHT">
+            <Button text="Cancel" onAction="#handleClose" styleClass="btn-secondary"/>
+            <Button text="Save Ticket" onAction="#handleSave" styleClass="btn-primary"/>
+        </HBox>
+    </children>
+</VBox>
