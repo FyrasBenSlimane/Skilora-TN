@@ -17,38 +17,65 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * TranslationService — Service d'intégration de l'API de traduction MyMemory.
+ * TranslationService — Service d'intégration de l'API Groq (Llama 3) pour la
+ * traduction.
  *
  * ╔═══════════════════════════════════════════════════════════════════╗
- * ║  API UTILISÉE : MyMemory Translated (https://mymemory.translated.net) ║
- * ║  Type        : API REST gratuite (pas de clé API requise)       ║
- * ║  Format      : JSON                                              ║
- * ║  Limite      : 5000 caractères par requête, 10 000/jour gratuit ║
+ * ║ API UTILISÉE : Groq Cloud (api.groq.com) ║
+ * ║ Modèle : llama-3.3-70b-versatile ║
+ * ║ Type : API REST (OpenAI Compatible) ║
+ * ║ Format : JSON ║
+ * ║ Limite : Très généreuse en beta ║
  * ╚═══════════════════════════════════════════════════════════════════╝
  *
  * Stratégie de traduction (multi-couche) :
- *   1. Dictionnaire local intégré — résultats instantanés et fiables
- *   2. API MyMemory avec filtre qualité — traduction machine (&mt=1)
- *   3. Traduction en 2 étapes (fr→en→ar) — contourne les paires faibles
- *   4. Validation stricte — rejette les résultats garbage
+ * 1. Dictionnaire local intégré — résultats instantanés et fiables
+ * 2. API Groq (IA) — traduction intelligente et contextuelle
+ * 3. Fallback MyMemory — si Groq est indisponible
+ * 4. Validation stricte — rejette les résultats garbage
  *
- * Langues supportées (pertinentes pour Skilora Tunisie) :
- *   - "fr" → Français
- *   - "en" → Anglais
- *   - "ar" → Arabe
+ * Langues supportées : "fr" (Français), "en" (Anglais), "ar" (Arabe)
  *
- * Pattern : Singleton thread-safe (cohérent avec les autres services)
- *
- * Utilisation dans le contrôleur :
- *   String traduit = TranslationService.getInstance().translate("Hello", "en", "fr");
- *   // Résultat : "Bonjour"
+ * Pattern : Singleton thread-safe
  */
 public class TranslationService {
 
     private static final Logger logger = LoggerFactory.getLogger(TranslationService.class);
 
-    // URL de base de l'API MyMemory (gratuite, sans clé)
-    private static final String API_URL = "https://api.mymemory.translated.net/get";
+    // ── Clé API Groq (chargée depuis .env) ──
+    private static final String GROQ_API_KEY = loadApiKey();
+
+    // ── URL de l'API Groq ──
+    private static final String GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+
+    // URL de secours MyMemory (si Groq échoue)
+    private static final String MYMEMORY_API_URL = "https://api.mymemory.translated.net/get";
+
+    /**
+     * Charge la clé API depuis le fichier .env à la racine du projet.
+     */
+    private static String loadApiKey() {
+        try {
+            java.nio.file.Path envPath = java.nio.file.Paths.get(".env");
+            if (!java.nio.file.Files.exists(envPath)) {
+                envPath = java.nio.file.Paths.get(System.getProperty("user.dir"), ".env");
+            }
+            if (java.nio.file.Files.exists(envPath)) {
+                for (String line : java.nio.file.Files.readAllLines(envPath, java.nio.charset.StandardCharsets.UTF_8)) {
+                    line = line.trim();
+                    if (line.startsWith("GROQ_API_KEY=")) {
+                        String key = line.substring("GROQ_API_KEY=".length()).trim();
+                        LoggerFactory.getLogger(TranslationService.class)
+                                .info("Groq API key loaded for Translation from .env");
+                        return key;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LoggerFactory.getLogger(TranslationService.class).error("Error loading .env file in TranslationService", e);
+        }
+        return "";
+    }
 
     // ── Singleton (instance unique) ──
     private static volatile TranslationService instance;
@@ -70,7 +97,8 @@ public class TranslationService {
      * Dictionnaire local intégré pour les mots/phrases courants.
      * Clé : "texteMinuscule|langSource|langCible"
      * Valeur : traduction fiable
-     * Sert de première couche avant l'appel API (résultats instantanés et garantis).
+     * Sert de première couche avant l'appel API (résultats instantanés et
+     * garantis).
      */
     private static final Map<String, String> LOCAL_DICT = new HashMap<>();
     static {
@@ -178,7 +206,8 @@ public class TranslationService {
     }
 
     /** Constructeur privé (Singleton) */
-    private TranslationService() {}
+    private TranslationService() {
+    }
 
     /**
      * Retourne l'instance unique du TranslationService.
@@ -199,11 +228,11 @@ public class TranslationService {
      * Traduit un texte d'une langue source vers une langue cible.
      *
      * Stratégie multi-couche :
-     *   1. Vérifier le cache LRU
-     *   2. Chercher dans le dictionnaire local intégré
-     *   3. Appeler l'API MyMemory avec filtrage qualité
-     *   4. Si fr→ar échoue, essayer fr→en→ar (traduction en 2 étapes)
-     *   5. En dernier recours, retourner le texte original
+     * 1. Vérifier le cache LRU
+     * 2. Chercher dans le dictionnaire local intégré
+     * 3. Appeler l'API MyMemory avec filtrage qualité
+     * 4. Si fr→ar échoue, essayer fr→en→ar (traduction en 2 étapes)
+     * 5. En dernier recours, retourner le texte original
      *
      * @param text       le texte à traduire (max 5000 caractères)
      * @param sourceLang le code ISO de la langue source (ex: "fr", "en", "ar")
@@ -211,8 +240,10 @@ public class TranslationService {
      * @return le texte traduit, ou le texte original en cas d'erreur
      */
     public String translate(String text, String sourceLang, String targetLang) {
-        // Vérification des paramètres : si texte vide ou même langue → retourner tel quel
-        if (text == null || text.isBlank()) return text;
+        // Vérification des paramètres : si texte vide ou même langue → retourner tel
+        // quel
+        if (text == null || text.isBlank())
+            return text;
 
         // Si la langue source détectée == langue cible, re-détecter plus intelligemment
         // Cela corrige le cas où detectLanguage() se trompe et retourne la même langue
@@ -233,12 +264,12 @@ public class TranslationService {
             // Si toujours la même langue après vérification, tenter via l'API quand même
             if (sourceLang.equals(targetLang)) {
                 // Essayer en forçant les langues alternatives courantes
-                for (String altSource : new String[]{"fr", "en", "ar"}) {
+                for (String altSource : new String[] { "fr", "en", "ar" }) {
                     if (!altSource.equals(targetLang)) {
-                        String apiResult = callMyMemoryAPI(text, altSource, targetLang);
+                        String apiResult = callGroqTranslationAPI(text, altSource, targetLang);
                         if (apiResult != null && isValidTranslation(apiResult, text, targetLang)) {
                             cache.put(text + "|" + altSource + "|" + targetLang, apiResult);
-                            logger.info("Forced translation [{}→{}] : {} → {}", altSource, targetLang,
+                            logger.info("Forced Groq translation [{}→{}] : {} → {}", altSource, targetLang,
                                     text.substring(0, Math.min(30, text.length())),
                                     apiResult.substring(0, Math.min(30, apiResult.length())));
                             return apiResult;
@@ -259,7 +290,8 @@ public class TranslationService {
                 return cached;
             } else {
                 cache.remove(cacheKey); // Purger l'entrée invalide du cache
-                logger.debug("Cache entry invalidated (garbage): {}", cacheKey.substring(0, Math.min(50, cacheKey.length())));
+                logger.debug("Cache entry invalidated (garbage): {}",
+                        cacheKey.substring(0, Math.min(50, cacheKey.length())));
             }
         }
 
@@ -282,46 +314,101 @@ public class TranslationService {
             return dictResult;
         }
 
-        // ── COUCHE 3 : API MyMemory (traduction machine) ──
-        String apiResult = callMyMemoryAPI(text, sourceLang, targetLang);
+        // ── COUCHE 3 : API Groq Llama 3 (traduction intelligente) ──
+        String apiResult = callGroqTranslationAPI(text, sourceLang, targetLang);
         if (apiResult != null && isValidTranslation(apiResult, text, targetLang)) {
             cache.put(cacheKey, apiResult);
-            logger.info("API translation [{}→{}] : {} → {}", sourceLang, targetLang,
+            logger.info("Groq translation [{}→{}] : {} → {}", sourceLang, targetLang,
                     text.substring(0, Math.min(30, text.length())),
                     apiResult.substring(0, Math.min(30, apiResult.length())));
             return apiResult;
         }
 
-        // ── COUCHE 4 : Traduction en 2 étapes via l'anglais (pour fr↔ar) ──
-        // MyMemory est meilleur pour fr→en et en→ar séparément
-        if (!"en".equals(sourceLang) && !"en".equals(targetLang)) {
-            logger.info("Direct translation failed, trying 2-step via English: {}→en→{}", sourceLang, targetLang);
-
-            // Étape A : source → anglais
-            String dictKeyA = text.toLowerCase().trim() + "|" + sourceLang + "|en";
-            String englishText = LOCAL_DICT.containsKey(dictKeyA) ? LOCAL_DICT.get(dictKeyA)
-                    : callMyMemoryAPI(text, sourceLang, "en");
-
-            if (englishText != null && isValidTranslation(englishText, text, "en")) {
-                // Étape B : anglais → cible
-                String dictKeyB = englishText.toLowerCase().trim() + "|en|" + targetLang;
-                String finalResult = LOCAL_DICT.containsKey(dictKeyB) ? LOCAL_DICT.get(dictKeyB)
-                        : callMyMemoryAPI(englishText, "en", targetLang);
-
-                if (finalResult != null && isValidTranslation(finalResult, text, targetLang)) {
-                    cache.put(cacheKey, finalResult);
-                    logger.info("2-step translation [{}→en→{}] : {} → {} → {}", sourceLang, targetLang,
-                            text.substring(0, Math.min(20, text.length())),
-                            englishText.substring(0, Math.min(20, englishText.length())),
-                            finalResult.substring(0, Math.min(20, finalResult.length())));
-                    return finalResult;
-                }
-            }
+        // ── COUCHE 4 : Fallback MyMemory ──
+        logger.info("Groq translation failed, falling back to MyMemory API");
+        String fallbackResult = callMyMemoryAPI(text, sourceLang, targetLang);
+        if (fallbackResult != null && isValidTranslation(fallbackResult, text, targetLang)) {
+            cache.put(cacheKey, fallbackResult);
+            return fallbackResult;
         }
 
         // ── COUCHE 5 : Échec total → retourner le texte original ──
         logger.warn("All translation strategies failed for [{}→{}]: {}", sourceLang, targetLang, text);
         return text;
+    }
+
+    /**
+     * Appelle l'API Groq (Llama 3) pour effectuer la traduction.
+     * Utilise un prompt système spécifique pour garantir que seule la traduction
+     * est retournée.
+     */
+    private String callGroqTranslationAPI(String text, String sourceLang, String targetLang) {
+        if (GROQ_API_KEY == null || GROQ_API_KEY.isEmpty()) {
+            return null;
+        }
+
+        try {
+            String systemPrompt = "You are a professional translator for Skilora Tunisia. "
+                    + "Translate the given text from '" + sourceLang + "' to '" + targetLang + "'. "
+                    + "Return ONLY the translated text. No explanations, no quotes, no extra text.";
+
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("model", "llama-3.3-70b-versatile");
+
+            JSONArray messagesArray = new JSONArray();
+            JSONObject systemMsg = new JSONObject();
+            systemMsg.put("role", "system");
+            systemMsg.put("content", systemPrompt);
+            messagesArray.put(systemMsg);
+
+            JSONObject userMsg = new JSONObject();
+            userMsg.put("role", "user");
+            userMsg.put("content", text);
+            messagesArray.put(userMsg);
+
+            requestBody.put("messages", messagesArray);
+            requestBody.put("temperature", 0.3); // Basse température pour la fidélité
+
+            URL url = new URL(GROQ_API_URL);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Authorization", "Bearer " + GROQ_API_KEY);
+            conn.setDoOutput(true);
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(15000);
+
+            try (java.io.OutputStream os = conn.getOutputStream()) {
+                byte[] input = requestBody.toString().getBytes(StandardCharsets.UTF_8);
+                os.write(input, 0, input.length);
+            }
+
+            int responseCode = conn.getResponseCode();
+            if (responseCode == 200) {
+                StringBuilder response = new StringBuilder();
+                try (BufferedReader br = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = br.readLine()) != null)
+                        response.append(line);
+                }
+
+                JSONObject jsonResponse = new JSONObject(response.toString());
+                JSONArray choices = jsonResponse.optJSONArray("choices");
+                if (choices != null && choices.length() > 0) {
+                    JSONObject choice = choices.getJSONObject(0);
+                    JSONObject messageObj = choice.optJSONObject("message");
+                    if (messageObj != null) {
+                        return messageObj.optString("content", "").trim();
+                    }
+                }
+            } else {
+                logger.error("Groq Translation API error : HTTP {}", responseCode);
+            }
+        } catch (Exception e) {
+            logger.error("Error calling Groq translation API", e);
+        }
+        return null;
     }
 
     /**
@@ -346,7 +433,7 @@ public class TranslationService {
             // Construire l'URL avec &mt=1 pour forcer la traduction machine
             String encodedText = URLEncoder.encode(cleanText, StandardCharsets.UTF_8);
             String langPair = sourceLang + "|" + targetLang;
-            String urlString = API_URL + "?q=" + encodedText + "&langpair=" + langPair + "&mt=1";
+            String urlString = MYMEMORY_API_URL + "?q=" + encodedText + "&langpair=" + langPair + "&mt=1";
 
             logger.debug("MyMemory API call: [{}→{}] '{}'", sourceLang, targetLang, cleanText);
 
@@ -383,8 +470,8 @@ public class TranslationService {
 
             // ── Chercher la meilleure traduction dans "matches" ──
             // Priorité : entrées MT (machine translation) > mémoire de traduction
-            String bestMT = null;       // Meilleure traduction machine
-            String bestTM = null;       // Meilleure mémoire de traduction
+            String bestMT = null; // Meilleure traduction machine
+            String bestTM = null; // Meilleure mémoire de traduction
             double bestMTScore = -1;
             double bestTMScore = -1;
 
@@ -396,21 +483,31 @@ public class TranslationService {
                     double score = m.optDouble("match", 0.0);
                     String createdBy = m.optString("created-by", "");
 
-                    if (trans.isEmpty() || trans.equalsIgnoreCase(cleanText)) continue;
-                    if (trans.toUpperCase().contains("MYMEMORY WARNING")) continue;
-                    if (!isValidTranslation(trans, cleanText, targetLang)) continue;
+                    if (trans.isEmpty() || trans.equalsIgnoreCase(cleanText))
+                        continue;
+                    if (trans.toUpperCase().contains("MYMEMORY WARNING"))
+                        continue;
+                    if (!isValidTranslation(trans, cleanText, targetLang))
+                        continue;
 
                     // Séparer MT (machine) et TM (mémoire de traduction)
                     if (createdBy.contains("MT")) {
-                        if (score > bestMTScore) { bestMTScore = score; bestMT = trans; }
+                        if (score > bestMTScore) {
+                            bestMTScore = score;
+                            bestMT = trans;
+                        }
                     } else {
-                        if (score > bestTMScore) { bestTMScore = score; bestTM = trans; }
+                        if (score > bestTMScore) {
+                            bestTMScore = score;
+                            bestTM = trans;
+                        }
                     }
                 }
             }
 
             // ── Choisir la meilleure traduction ──
-            // Préférer MT si disponible (plus fiable que les mémoires de traduction crowd-sourced)
+            // Préférer MT si disponible (plus fiable que les mémoires de traduction
+            // crowd-sourced)
             if (bestMT != null) {
                 logger.debug("Using MT result: '{}'", bestMT);
                 return bestMT;
@@ -440,13 +537,15 @@ public class TranslationService {
     /**
      * Supprime les emojis et caractères spéciaux non-alphabétiques d'un texte.
      * Conserve les lettres (y compris accentuées), chiffres et espaces.
-     * Utilisé pour normaliser le texte avant détection de langue ou recherche dictionnaire.
+     * Utilisé pour normaliser le texte avant détection de langue ou recherche
+     * dictionnaire.
      *
      * @param text le texte à nettoyer
      * @return le texte sans emojis ni caractères spéciaux
      */
     private String stripEmojisAndSpecialChars(String text) {
-        if (text == null) return "";
+        if (text == null)
+            return "";
         // Garder les lettres (toutes langues), chiffres, espaces, apostrophes et tirets
         return text.replaceAll("[^\\p{L}\\p{N}\\s'-]", "").trim();
     }
@@ -454,21 +553,24 @@ public class TranslationService {
     /**
      * Détecte automatiquement la langue d'un texte.
      * Utilise des heuristiques robustes basées sur :
-     *   - Caractères arabes → "ar"
-     *   - Lettres accentuées françaises (é, è, ê, ç, à, ù, etc.) → "fr"
-     *   - Contractions françaises (j', l', d', c'est, qu', n', s') → "fr"
-     *   - Mots courants français (vocabulaire étendu) → "fr"
-     *   - Par défaut → "fr" (la majorité des utilisateurs Skilora Tunisie parlent français)
+     * - Caractères arabes → "ar"
+     * - Lettres accentuées françaises (é, è, ê, ç, à, ù, etc.) → "fr"
+     * - Contractions françaises (j', l', d', c'est, qu', n', s') → "fr"
+     * - Mots courants français (vocabulaire étendu) → "fr"
+     * - Par défaut → "fr" (la majorité des utilisateurs Skilora Tunisie parlent
+     * français)
      *
      * @param text le texte à analyser
      * @return le code ISO de la langue détectée ("fr", "en", ou "ar")
      */
     public String detectLanguage(String text) {
-        if (text == null || text.isBlank()) return "fr";
+        if (text == null || text.isBlank())
+            return "fr";
 
         // ── Étape 0 : Nettoyer le texte (supprimer emojis et caractères spéciaux) ──
         String cleaned = stripEmojisAndSpecialChars(text);
-        if (cleaned.isBlank()) return "fr";
+        if (cleaned.isBlank())
+            return "fr";
 
         // ── Étape 1 : Détection arabe (caractères Unicode \u0600-\u06FF) ──
         long arabicChars = cleaned.chars().filter(c -> c >= 0x0600 && c <= 0x06FF).count();
@@ -480,17 +582,18 @@ public class TranslationService {
         String lower = cleaned.toLowerCase().trim();
 
         // ── Étape 2 : Détection français — lettres accentuées typiques ──
-        // Les accents français (é, è, ê, ë, à, â, ù, û, ç, ô, î, ï) sont rares en anglais
-        long frenchAccents = lower.chars().filter(c ->
-                c == 'é' || c == 'è' || c == 'ê' || c == 'ë' ||
+        // Les accents français (é, è, ê, ë, à, â, ù, û, ç, ô, î, ï) sont rares en
+        // anglais
+        long frenchAccents = lower.chars().filter(c -> c == 'é' || c == 'è' || c == 'ê' || c == 'ë' ||
                 c == 'à' || c == 'â' || c == 'ù' || c == 'û' ||
-                c == 'ç' || c == 'ô' || c == 'î' || c == 'ï' || c == 'ü'
-        ).count();
-        if (frenchAccents > 0) return "fr";
+                c == 'ç' || c == 'ô' || c == 'î' || c == 'ï' || c == 'ü').count();
+        if (frenchAccents > 0)
+            return "fr";
 
         // ── Étape 3 : Détection français — contractions typiques ──
         // j'adore, l'homme, d'accord, c'est, qu'il, n'est, s'il
-        if (lower.matches(".*\\b[jldcnqs]'\\w+.*")) return "fr";
+        if (lower.matches(".*\\b[jldcnqs]'\\w+.*"))
+            return "fr";
 
         // ── Étape 4 : Détection français — mot isolé (vocabulaire étendu) ──
         Set<String> frenchSingleWords = Set.of(
@@ -506,8 +609,7 @@ public class TranslationService {
                 "prendre", "mettre", "donner", "parler", "partir", "aimer",
                 "voir", "savoir", "pouvoir", "vouloir", "devoir", "falloir",
                 "aujourd", "demain", "hier", "maintenant", "bientôt",
-                "beaucoup", "quelque", "chaque", "autre", "plusieurs"
-        );
+                "beaucoup", "quelque", "chaque", "autre", "plusieurs");
         // Nettoyer et vérifier si c'est un seul mot français
         String singleWord = lower.replaceAll("\\s+", "");
         if (!lower.contains(" ") && frenchSingleWords.contains(singleWord)) {
@@ -515,13 +617,13 @@ public class TranslationService {
         }
 
         // ── Étape 5 : Détection français — mots-outils dans des phrases ──
-        String[] frenchWords = {"le", "la", "les", "de", "du", "des", "un", "une", "est",
+        String[] frenchWords = { "le", "la", "les", "de", "du", "des", "un", "une", "est",
                 "et", "en", "que", "qui", "pour", "dans", "sur", "avec", "pas", "ce",
                 "je", "tu", "il", "elle", "nous", "vous", "ils", "elles", "on",
                 "ne", "se", "au", "aux", "son", "sa", "ses", "mon", "ma", "mes",
                 "ton", "ta", "tes", "notre", "votre", "leur", "leurs",
                 "mais", "ou", "donc", "car", "ni", "très", "plus", "moins",
-                "cette", "ces", "cet", "comme", "tout", "tous", "toute"};
+                "cette", "ces", "cet", "comme", "tout", "tous", "toute" };
         int frenchCount = 0;
         // Découper en mots pour une détection plus fiable
         String[] words = lower.split("[\\s']+");
@@ -532,14 +634,16 @@ public class TranslationService {
             }
         }
         // 1 seul mot-outil français suffit pour un texte court
-        if (frenchCount >= 1 && words.length <= 5) return "fr";
-        if (frenchCount >= 2) return "fr";
+        if (frenchCount >= 1 && words.length <= 5)
+            return "fr";
+        if (frenchCount >= 2)
+            return "fr";
 
         // ── Étape 6 : Détection anglais — mots-outils anglais typiques ──
-        String[] englishWords = {"the", "is", "are", "was", "were", "have", "has", "had",
+        String[] englishWords = { "the", "is", "are", "was", "were", "have", "has", "had",
                 "do", "does", "did", "will", "would", "could", "should", "can",
                 "this", "that", "these", "those", "with", "from", "into",
-                "about", "than", "been", "being", "which", "what", "where", "when"};
+                "about", "than", "been", "being", "which", "what", "where", "when" };
         int englishCount = 0;
         Set<String> englishWordSet = Set.of(englishWords);
         for (String w : words) {
@@ -547,8 +651,10 @@ public class TranslationService {
                 englishCount++;
             }
         }
-        if (englishCount >= 2) return "en";
-        if (englishCount >= 1 && frenchCount == 0) return "en";
+        if (englishCount >= 2)
+            return "en";
+        if (englishCount >= 1 && frenchCount == 0)
+            return "en";
 
         // ── Par défaut : français (contexte Skilora Tunisie) ──
         return "fr";
@@ -557,10 +663,10 @@ public class TranslationService {
     /**
      * Vérifie la qualité d'une traduction retournée par MyMemory.
      * Filtre les résultats "poubelle" (garbage translations) :
-     *   - Traduction identique au texte source
-     *   - Contient des caractères suspects (c/, @, #, http)
-     *   - Traduction anormalement longue par rapport au texte source
-     *   - Traduction vers l'arabe ne contient aucun caractère arabe
+     * - Traduction identique au texte source
+     * - Contient des caractères suspects (c/, @, #, http)
+     * - Traduction anormalement longue par rapport au texte source
+     * - Traduction vers l'arabe ne contient aucun caractère arabe
      *
      * @param translation le texte traduit à valider
      * @param original    le texte original
@@ -568,26 +674,33 @@ public class TranslationService {
      * @return true si la traduction semble valide
      */
     private boolean isValidTranslation(String translation, String original, String targetLang) {
-        if (translation == null || translation.isBlank()) return false;
+        if (translation == null || translation.isBlank())
+            return false;
 
         // Nettoyer les deux textes pour une comparaison juste (sans emojis)
         String cleanTranslation = stripEmojisAndSpecialChars(translation).trim();
         String cleanOriginal = stripEmojisAndSpecialChars(original).trim();
 
         // Ignorer si identique au texte source (comparaison nettoyée)
-        if (cleanTranslation.equalsIgnoreCase(cleanOriginal)) return false;
+        if (cleanTranslation.equalsIgnoreCase(cleanOriginal))
+            return false;
 
-        // Filtrer les traductions contenant des patterns suspects (fragments techniques, URLs)
+        // Filtrer les traductions contenant des patterns suspects (fragments
+        // techniques, URLs)
         if (translation.contains("http") || translation.contains("@")
-                || translation.contains("<") || translation.contains(">")) return false;
+                || translation.contains("<") || translation.contains(">"))
+            return false;
 
-        // Si traduction abnormalement longue (5x+ le texte source) → probablement garbage
-        if (cleanTranslation.length() > cleanOriginal.length() * 5 + 50) return false;
+        // Si traduction abnormalement longue (5x+ le texte source) → probablement
+        // garbage
+        if (cleanTranslation.length() > cleanOriginal.length() * 5 + 50)
+            return false;
 
         // Pour la cible arabe : vérifier qu'il y a bien des caractères arabes
         if ("ar".equals(targetLang)) {
             long arabicChars = translation.chars().filter(c -> c >= 0x0600 && c <= 0x06FF).count();
-            if (arabicChars == 0) return false;
+            if (arabicChars == 0)
+                return false;
         }
         return true;
     }

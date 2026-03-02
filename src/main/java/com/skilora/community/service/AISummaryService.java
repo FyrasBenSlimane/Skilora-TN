@@ -19,17 +19,17 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * AISummaryService — Service d'intégration de l'API Google Gemini pour résumer
+ * AISummaryService — Service d'intégration de l'API Groq (Llama 3) pour résumer
  * les discussions.
  *
  * ╔═══════════════════════════════════════════════════════════════════╗
- * ║ API UTILISÉE : Google Gemini (generativelanguage.googleapis.com)║
- * ║ Modèle : gemini-2.0-flash (gratuit) ║
- * ║ Format : JSON (REST) ║
- * ║ Limite : 15 requêtes/min (tier gratuit) ║
+ * ║ API UTILISÉE : Groq (api.groq.com) ║
+ * ║ Modèle : llama3-8b-8192 (gratuit en beta) ║
+ * ║ Format : JSON (REST - OpenAI Compatible) ║
+ * ║ Limite : Très généreuse en beta ║
  * ╠═══════════════════════════════════════════════════════════════════╣
  * ║ STRATÉGIE : ║
- * ║ 1. Appel Gemini API avec retry (3 tentatives, backoff) ║
+ * ║ 1. Appel Groq API avec retry (3 tentatives, backoff) ║
  * ║ 2. Si API indisponible → résumé local algorithmique ║
  * ╚═══════════════════════════════════════════════════════════════════╝
  *
@@ -39,12 +39,11 @@ public class AISummaryService {
 
     private static final Logger logger = LoggerFactory.getLogger(AISummaryService.class);
 
-    // ── Clé API Google Gemini (chargée depuis .env) ──
-    private static final String GEMINI_API_KEY = loadApiKey();
+    // ── Clé API Groq (chargée depuis .env) ──
+    private static final String GROQ_API_KEY = loadApiKey();
 
-    // ── URL de l'API Gemini ──
-    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key="
-            + GEMINI_API_KEY;
+    // ── URL de l'API Groq ──
+    private static final String GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
     /**
      * Charge la clé API depuis le fichier .env à la racine du projet.
@@ -60,14 +59,14 @@ public class AISummaryService {
             if (Files.exists(envPath)) {
                 for (String line : Files.readAllLines(envPath, StandardCharsets.UTF_8)) {
                     line = line.trim();
-                    if (line.startsWith("GEMINI_API_KEY=")) {
-                        String key = line.substring("GEMINI_API_KEY=".length()).trim();
-                        LoggerFactory.getLogger(AISummaryService.class).info("Gemini API key loaded from .env");
+                    if (line.startsWith("GROQ_API_KEY=")) {
+                        String key = line.substring("GROQ_API_KEY=".length()).trim();
+                        LoggerFactory.getLogger(AISummaryService.class).info("Groq API key loaded from .env");
                         return key;
                     }
                 }
             }
-            LoggerFactory.getLogger(AISummaryService.class).warn(".env file not found or GEMINI_API_KEY missing");
+            LoggerFactory.getLogger(AISummaryService.class).warn(".env file not found or GROQ_API_KEY missing");
         } catch (Exception e) {
             LoggerFactory.getLogger(AISummaryService.class).error("Error loading .env file", e);
         }
@@ -107,23 +106,23 @@ public class AISummaryService {
             return "Aucun message à résumer.";
         }
 
-        // 1. Tenter l'API Gemini avec retry
-        String aiResult = callGeminiWithRetry(messages);
+        // 1. Tenter l'API Groq avec retry
+        String aiResult = callGroqWithRetry(messages);
         if (aiResult != null) {
             return aiResult;
         }
 
         // 2. Fallback : résumé local algorithmique
-        logger.info("Gemini API unavailable, using local summary fallback");
+        logger.info("Groq API unavailable, using local summary fallback");
         return generateLocalSummary(messages);
     }
 
     /**
-     * Appelle l'API Gemini avec retry et backoff exponentiel.
+     * Appelle l'API Groq avec retry et backoff exponentiel.
      * 
      * @return Le résumé ou null si toutes les tentatives échouent
      */
-    private String callGeminiWithRetry(List<String> messages) {
+    private String callGroqWithRetry(List<String> messages) {
         StringBuilder conversationText = new StringBuilder();
         for (String msg : messages) {
             conversationText.append(msg).append("\n");
@@ -138,25 +137,29 @@ public class AISummaryService {
                 + "Résumé :";
 
         JSONObject requestBody = new JSONObject();
-        JSONArray contents = new JSONArray();
-        JSONObject content = new JSONObject();
-        JSONArray parts = new JSONArray();
-        JSONObject part = new JSONObject();
-        part.put("text", prompt);
-        parts.put(part);
-        content.put("parts", parts);
-        contents.put(content);
-        requestBody.put("contents", contents);
+        requestBody.put("model", "llama-3.3-70b-versatile");
+
+        JSONArray messagesArray = new JSONArray();
+        JSONObject message = new JSONObject();
+        message.put("role", "user");
+        message.put("content", prompt);
+        messagesArray.put(message);
+
+        requestBody.put("messages", messagesArray);
+        requestBody.put("temperature", 0.7);
+        requestBody.put("max_tokens", 800);
+
         String body = requestBody.toString();
 
         for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
-                logger.info("Gemini API attempt {}/{}", attempt, MAX_RETRIES);
+                logger.info("Groq API attempt {}/{}", attempt, MAX_RETRIES);
 
-                URL url = new URL(GEMINI_API_URL);
+                URL url = new URL(GROQ_API_URL);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("Authorization", "Bearer " + GROQ_API_KEY);
                 conn.setDoOutput(true);
                 conn.setConnectTimeout(30000); // Augmenté à 30 secondes
                 conn.setReadTimeout(60000); // Augmenté à 60 secondes
@@ -167,7 +170,7 @@ public class AISummaryService {
                 }
 
                 int responseCode = conn.getResponseCode();
-                logger.info("Gemini API response code: {}", responseCode);
+                logger.info("Groq API response code: {}", responseCode);
 
                 if (responseCode == HttpURLConnection.HTTP_OK) {
                     StringBuilder response = new StringBuilder();
@@ -180,15 +183,16 @@ public class AISummaryService {
                     }
 
                     JSONObject jsonResponse = new JSONObject(response.toString());
-                    JSONArray candidates = jsonResponse.getJSONArray("candidates");
-                    if (candidates.length() > 0) {
-                        JSONObject firstCandidate = candidates.getJSONObject(0);
-                        JSONObject contentResp = firstCandidate.getJSONObject("content");
-                        JSONArray partsResp = contentResp.getJSONArray("parts");
-                        if (partsResp.length() > 0) {
-                            String summary = partsResp.getJSONObject(0).getString("text");
-                            logger.info("Summary generated successfully ({} chars)", summary.length());
-                            return summary.trim();
+                    JSONArray choices = jsonResponse.optJSONArray("choices");
+                    if (choices != null && choices.length() > 0) {
+                        JSONObject firstChoice = choices.getJSONObject(0);
+                        JSONObject messageResp = firstChoice.optJSONObject("message");
+                        if (messageResp != null) {
+                            String summary = messageResp.optString("content", "");
+                            if (!summary.isEmpty()) {
+                                logger.info("Summary generated successfully ({} chars)", summary.length());
+                                return summary.trim();
+                            }
                         }
                     }
                     return null; // Empty response, fall to local
@@ -210,7 +214,7 @@ public class AISummaryService {
                             errorResponse.append(line);
                         }
                     }
-                    logger.error("Gemini API error {}: {}", responseCode, errorResponse.toString());
+                    logger.error("Groq API error {}: {}", responseCode, errorResponse.toString());
                     return null; // Fall to local summary
                 }
 
@@ -218,7 +222,7 @@ public class AISummaryService {
                 Thread.currentThread().interrupt();
                 return null;
             } catch (Exception e) {
-                logger.error("Error calling Gemini API (attempt " + attempt + ")", e);
+                logger.error("Error calling Groq API (attempt " + attempt + ")", e);
                 if (attempt == MAX_RETRIES)
                     return null;
             }
