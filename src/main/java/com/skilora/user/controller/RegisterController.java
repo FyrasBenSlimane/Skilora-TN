@@ -311,17 +311,16 @@ public class RegisterController implements Initializable {
         errorLabel.setManaged(true);
     }
 
-    @FXML
-    private void openLogin() {
-        openLoginInternal(null);
-    }
-
     /**
-     * Navigates to the login view after successful registration,
-     * pre-fills the username and shows a success toast.
+     * Opens login view with success toast and pre-filled username after registration.
      */
     private void openLoginWithSuccess(String username) {
         openLoginInternal(username);
+    }
+
+    @FXML
+    private void openLogin() {
+        openLoginInternal(null);
     }
 
     private void openLoginInternal(String prefilledUsername) {
@@ -345,11 +344,15 @@ public class RegisterController implements Initializable {
             TLWindow root = new TLWindow(stage, I18n.get("window.title.login"), loginRoot);
             stage.getScene().setRoot(root);
 
-            // Show success toast after scene root is set
+            // Show success toast after scene is set
             if (prefilledUsername != null) {
-                TLToast.success(stage.getScene(),
-                        I18n.get("register.success"),
-                        I18n.get("register.success.login_prompt"));
+                Platform.runLater(() -> {
+                    if (stage.getScene() != null) {
+                        TLToast.success(stage.getScene(),
+                                I18n.get("register.success"),
+                                I18n.get("register.success.login_prompt"));
+                    }
+                });
             }
         } catch (Exception e) {
             logger.error("Failed to load LoginView: " + e.getMessage(), e);

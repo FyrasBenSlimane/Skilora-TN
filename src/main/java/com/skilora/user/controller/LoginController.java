@@ -79,10 +79,10 @@ public class LoginController implements Initializable {
     }
 
     /**
-     * Pre-fill the username field (e.g. after registration).
+     * Pre-fill the username field (e.g., after successful registration).
      */
     public void setPrefilledUsername(String username) {
-        if (usernameField != null && username != null && !username.isEmpty()) {
+        if (usernameField != null && username != null) {
             usernameField.setText(username);
         }
     }
