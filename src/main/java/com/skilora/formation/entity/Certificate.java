@@ -13,8 +13,12 @@ import java.util.Objects;
 public class Certificate {
     private int id;
     private int enrollmentId;
+    private int userId;
+    private int formationId;
     private String certificateNumber;
+    private String verificationToken;
     private LocalDateTime issuedDate;
+    private LocalDateTime completedAt;
     private String qrCode;
     private String hashValue;
     private String pdfUrl;
@@ -38,6 +42,22 @@ public class Certificate {
 
     public int getEnrollmentId() {
         return enrollmentId;
+    }
+
+    public int getUserId() {
+        return userId;
+    }
+
+    public int getFormationId() {
+        return formationId;
+    }
+
+    public String getVerificationToken() {
+        return verificationToken;
+    }
+
+    public LocalDateTime getCompletedAt() {
+        return completedAt;
     }
 
     public String getCertificateNumber() {
@@ -67,6 +87,32 @@ public class Certificate {
 
     public void setEnrollmentId(int enrollmentId) {
         this.enrollmentId = enrollmentId;
+    }
+
+    public void setUserId(int userId) {
+        this.userId = userId;
+    }
+
+    public void setFormationId(int formationId) {
+        this.formationId = formationId;
+    }
+
+    public void setVerificationToken(String verificationToken) {
+        this.verificationToken = verificationToken;
+    }
+
+    public void setCompletedAt(LocalDateTime completedAt) {
+        this.completedAt = completedAt;
+    }
+
+    /**
+     * Returns a verification URL for this certificate.
+     */
+    public String getVerificationUrl() {
+        if (verificationToken != null) {
+            return "http://localhost:8443/verify/certificate/" + verificationToken;
+        }
+        return "http://localhost:8443/verify/" + id;
     }
 
     public void setCertificateNumber(String certificateNumber) {

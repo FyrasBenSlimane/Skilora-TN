@@ -7,6 +7,7 @@ public class Connection {
     private int id;
     private int userId1;
     private int userId2;
+    private int requesterId; // Tracks who actually sent the connection request
     private ConnectionStatus status;
     private String connectionType;
     private LocalDateTime createdDate;
@@ -33,6 +34,9 @@ public class Connection {
     public int getUserId2() { return userId2; }
     public void setUserId2(int userId2) { this.userId2 = userId2; }
     
+    public int getRequesterId() { return requesterId; }
+    public void setRequesterId(int requesterId) { this.requesterId = requesterId; }
+
     public ConnectionStatus getStatus() { return status; }
     public void setStatus(ConnectionStatus status) { this.status = status; }
     

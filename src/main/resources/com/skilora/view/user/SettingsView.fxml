@@ -7,6 +7,8 @@
 <?import javafx.geometry.Insets?>
 <?import com.skilora.framework.components.TLSwitch?>
 <?import com.skilora.framework.components.TLSeparator?>
+<?import com.skilora.framework.components.TLButton?>
+<?import com.skilora.framework.components.TLSelect?>
 
 <VBox xmlns:fx="http://javafx.com/fxml/1" 
       fx:controller="com.skilora.user.controller.SettingsController"
@@ -16,59 +18,84 @@
         <Insets top="32" right="32" bottom="32" left="32"/>
     </padding>
 
-    <!-- Header -->
     <VBox spacing="8">
-        <Label fx:id="settingsTitleLabel" text="Paramètres" styleClass="h2"/>
-        <Label fx:id="settingsSubtitleLabel" text="Configurez vos préférences d'application" styleClass="text-muted"/>
+        <Label fx:id="settingsTitleLabel" text="" styleClass="h2"/>
+        <Label fx:id="settingsSubtitleLabel" text="" styleClass="text-muted"/>
     </VBox>
 
-    <!-- Appearance Section -->
     <VBox spacing="12">
-        <Label fx:id="appearanceLabel" text="Apparence" styleClass="h3"/>
+        <Label fx:id="appearanceLabel" text="" styleClass="h3"/>
         <TLSeparator/>
-        
         <HBox spacing="12" alignment="CENTER_LEFT">
-            <Label fx:id="darkModeLabel" text="Mode sombre" minWidth="200"/>
+            <Label fx:id="darkModeLabel" text="" minWidth="200"/>
             <TLSwitch fx:id="darkModeCheckbox"/>
         </HBox>
-        
         <HBox spacing="12" alignment="CENTER_LEFT">
-            <Label fx:id="animationsLabel" text="Animations" minWidth="200"/>
+            <Label fx:id="animationsLabel" text="" minWidth="200"/>
             <TLSwitch fx:id="animationsCheckbox"/>
         </HBox>
     </VBox>
 
-    <!-- Notifications Section -->
     <VBox spacing="12">
-        <Label fx:id="notificationsLabel" text="Notifications" styleClass="h3"/>
+        <Label fx:id="notificationsLabel" text="" styleClass="h3"/>
         <TLSeparator/>
-        
         <HBox spacing="12" alignment="CENTER_LEFT">
-            <Label fx:id="enableNotificationsLabel" text="Activer les notifications" minWidth="200"/>
+            <Label fx:id="enableNotificationsLabel" text="" minWidth="200"/>
             <TLSwitch fx:id="notificationsCheckbox"/>
         </HBox>
-        
         <HBox spacing="12" alignment="CENTER_LEFT">
-            <Label fx:id="soundNotificationsLabel" text="Notifications sonores" minWidth="200"/>
+            <Label fx:id="soundNotificationsLabel" text="" minWidth="200"/>
             <TLSwitch fx:id="soundNotificationsCheckbox"/>
         </HBox>
-    </VBox>
-
-    <!-- Language Section -->
-    <VBox spacing="12">
-        <Label fx:id="languageSectionLabel" text="Langue" styleClass="h3"/>
-        <TLSeparator/>
-        
         <HBox spacing="12" alignment="CENTER_LEFT">
-            <Label fx:id="languageLabel" text="Langue de l'interface" minWidth="200"/>
-            <ComboBox fx:id="languageComboBox" minWidth="200"/>
+            <Label fx:id="emailNotificationsLabel" text="" minWidth="200"/>
+            <TLSwitch fx:id="emailNotificationsCheckbox"/>
         </HBox>
     </VBox>
 
-    <!-- Buttons -->
+    <VBox spacing="12">
+        <Label fx:id="languageSectionLabel" text="" styleClass="h3"/>
+        <TLSeparator/>
+        <HBox spacing="12" alignment="CENTER_LEFT">
+            <Label fx:id="languageLabel" text="" minWidth="200"/>
+            <TLSelect fx:id="languageComboBox" minWidth="200"/>
+        </HBox>
+    </VBox>
+
+    <VBox spacing="12">
+        <Label fx:id="securitySectionLabel" text="" styleClass="h3"/>
+        <TLSeparator/>
+        <HBox spacing="12" alignment="CENTER_LEFT">
+            <Label fx:id="changePasswordLabel" text="" minWidth="200"/>
+            <TLButton fx:id="changePasswordBtn" text="" variant="OUTLINE" onAction="#handleChangePassword"/>
+        </HBox>
+    </VBox>
+
+    <VBox spacing="12">
+        <Label fx:id="advancedPrefsLabel" text="" styleClass="h3"/>
+        <TLSeparator/>
+        <HBox spacing="12" alignment="CENTER_LEFT">
+            <Label fx:id="currencyPrefLabel" text="" minWidth="200"/>
+            <TLButton fx:id="currencyBtn" text="" variant="OUTLINE" onAction="#handleCurrencyPreference"/>
+        </HBox>
+        <HBox spacing="12" alignment="CENTER_LEFT">
+            <Label fx:id="trainerUpgradeLabel" text="" minWidth="200"/>
+            <TLButton fx:id="trainerUpgradeBtn" text="" variant="OUTLINE" onAction="#handleRequestTrainerUpgrade"/>
+        </HBox>
+    </VBox>
+
+    <VBox spacing="12">
+        <Label fx:id="dangerZoneLabel" text="" styleClass="h3"/>
+        <TLSeparator/>
+        <HBox spacing="12" alignment="CENTER_LEFT">
+            <Label fx:id="deleteAccountLabel" text="" minWidth="200"/>
+            <TLButton fx:id="deleteAccountBtn" text="" variant="DANGER" onAction="#handleDeleteAccount"/>
+        </HBox>
+    </VBox>
+
     <HBox spacing="12" alignment="CENTER_RIGHT">
-        <Button fx:id="saveBtn" text="Enregistrer" styleClass="btn-primary"/>
-        <Button fx:id="cancelBtn" text="Annuler" styleClass="btn-outline"/>
+        <TLButton fx:id="saveBtn" text="" variant="PRIMARY"/>
+        <TLButton fx:id="cancelBtn" text="" variant="OUTLINE"/>
     </HBox>
 
 </VBox>

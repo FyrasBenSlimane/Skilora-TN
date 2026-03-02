@@ -1,6 +1,8 @@
 package com.skilora.recruitment.service;
 
 import com.google.gson.Gson;
+import com.google.gson.FieldNamingPolicy;
+import com.google.gson.GsonBuilder;
 import com.skilora.config.DatabaseConfig;
 import com.skilora.recruitment.entity.JobOffer;
 import com.skilora.recruitment.entity.JobOpportunity;
@@ -72,6 +74,17 @@ public class JobService {
      * Creates a new job offer in the database.
      */
     public int createJobOffer(JobOffer jobOffer) throws SQLException {
+        if (jobOffer == null) throw new IllegalArgumentException("Job offer must not be null");
+        if (jobOffer.getEmployerId() <= 0) throw new IllegalArgumentException("Invalid employer/company ID");
+        if (jobOffer.getTitle() == null || jobOffer.getTitle().isBlank())
+            throw new IllegalArgumentException("Job title is required");
+        if (jobOffer.getTitle().length() > 255)
+            throw new IllegalArgumentException("Title too long (max 255)");
+        if (jobOffer.getSalaryMin() < 0 || jobOffer.getSalaryMax() < 0)
+            throw new IllegalArgumentException("Salary cannot be negative");
+        if (jobOffer.getSalaryMin() > jobOffer.getSalaryMax() && jobOffer.getSalaryMax() > 0)
+            throw new IllegalArgumentException("Min salary cannot exceed max salary");
+
         String sql = "INSERT INTO job_offers (company_id, title, description, requirements, location, " +
                 "min_salary, max_salary, currency, work_type, status, posted_date, deadline) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -170,7 +183,7 @@ public class JobService {
      */
     public List<JobOffer> findAllJobOffers() throws SQLException {
         List<JobOffer> jobOffers = new ArrayList<>();
-        String sql = "SELECT * FROM job_offers ORDER BY posted_date DESC";
+        String sql = "SELECT * FROM job_offers ORDER BY posted_date DESC LIMIT 500";
 
         try (Connection connection = DatabaseConfig.getInstance().getConnection();
                 Statement stmt = connection.createStatement();
@@ -188,7 +201,7 @@ public class JobService {
      */
     public List<JobOffer> findJobOffersByStatus(JobStatus status) throws SQLException {
         List<JobOffer> jobOffers = new ArrayList<>();
-        String sql = "SELECT * FROM job_offers WHERE status = ? ORDER BY posted_date DESC";
+        String sql = "SELECT * FROM job_offers WHERE status = ? ORDER BY posted_date DESC LIMIT 500";
 
         try (Connection connection = DatabaseConfig.getInstance().getConnection();
                 PreparedStatement stmt = connection.prepareStatement(sql)) {
@@ -225,6 +238,55 @@ public class JobService {
                 }
             }
         }
+        return jobOffers;
+    }
+
+    /**
+     * Finds all job offers visible to candidates (OPEN and ACTIVE only, excludes CLOSED).
+     * Used by candidate-facing views to ensure closed offers are not displayed.
+     */
+    public List<JobOffer> findVisibleJobOffers() throws SQLException {
+        List<JobOffer> jobOffers = new ArrayList<>();
+        String sql = "SELECT * FROM job_offers WHERE status IN (?, ?) ORDER BY posted_date DESC";
+
+        try (Connection connection = DatabaseConfig.getInstance().getConnection();
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, JobStatus.ACTIVE.name());
+            stmt.setString(2, JobStatus.OPEN.name());
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    jobOffers.add(mapResultSetToJobOffer(rs));
+                }
+            }
+        }
+        return jobOffers;
+    }
+
+    /**
+     * Finds all job offers including CLOSED ones (for candidates to see all offers).
+     * Candidates can see all offers but cannot apply to CLOSED.
+     */
+    public List<JobOffer> findAllJobOffersForCandidates() throws SQLException {
+        List<JobOffer> jobOffers = new ArrayList<>();
+        String sql = "SELECT jo.*, c.name AS company_name FROM job_offers jo " +
+                "LEFT JOIN companies c ON jo.company_id = c.id " +
+                "ORDER BY jo.posted_date DESC";
+
+        try (Connection connection = DatabaseConfig.getInstance().getConnection();
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    JobOffer offer = mapResultSetToJobOffer(rs);
+                    String companyName = rs.getString("company_name");
+                    if (companyName != null) {
+                        offer.setCompanyName(companyName);
+                    }
+                    jobOffers.add(offer);
+                }
+            }
+        }
+        logger.info("JobService - findAllJobOffersForCandidates returned {} offers", jobOffers.size());
         return jobOffers;
     }
 
@@ -311,7 +373,11 @@ public class JobService {
             if (!Files.exists(Paths.get(FEED_PATH)))
                 return;
 
-            Gson gson = new Gson();
+            // job_feed.json is generated by Python crawler using lower_case_with_underscores
+            // (posted_date, raw_id, apply_url, ...). Configure Gson accordingly.
+            Gson gson = new GsonBuilder()
+                    .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
+                    .create();
             Reader reader = Files.newBufferedReader(Paths.get(FEED_PATH));
             JobFeedResponse response = gson.fromJson(reader, JobFeedResponse.class);
             reader.close();
@@ -334,10 +400,19 @@ public class JobService {
      * Note: The callback handling of Platform.runLater() is done by Controller.
      */
     public void refreshFeed(Runnable onComplete) {
+        refreshFeed(false, onComplete);
+    }
+
+    /**
+     * Refresh job feed with optional URL validation (slower but cleaner data).
+     */
+    public void refreshFeed(boolean validateLinks, Runnable onComplete) {
         AppThreadPool.execute(() -> {
             try {
                 // 1. Run Crawler
-                ProcessBuilder pb = new ProcessBuilder(findPythonCommand(), "python/job_feed_crawler.py");
+                ProcessBuilder pb = validateLinks
+                        ? new ProcessBuilder(findPythonCommand(), "python/job_feed_crawler.py", "--validate-links")
+                        : new ProcessBuilder(findPythonCommand(), "python/job_feed_crawler.py");
                 pb.inheritIO();
                 Process p = pb.start();
                 p.waitFor();
@@ -438,11 +513,15 @@ public class JobService {
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
                 PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
 
-            checkStmt.setString(1, job.getTitle());
+            String title = truncate(job != null ? job.getTitle() : null, 255);
+            String description = job != null ? job.getDescription() : null;
+            String location = job != null ? job.getLocation() : null;
+
+            checkStmt.setString(1, title);
             checkStmt.setInt(2, systemCompanyId);
-            String descSig = (job.getDescription() != null && job.getDescription().length() > 50)
-                    ? job.getDescription().substring(0, 50) + "%"
-                    : (job.getDescription() + "%");
+            String descSig = (description != null && description.length() > 50)
+                    ? description.substring(0, 50) + "%"
+                    : ((description != null ? description : "") + "%");
             checkStmt.setString(3, descSig);
 
             try (ResultSet rs = checkStmt.executeQuery()) {
@@ -455,27 +534,66 @@ public class JobService {
                     "(company_id, title, description, location, posted_date, status, work_type) " +
                     "VALUES (?, ?, ?, ?, ?, 'OPEN', ?)";
 
-            try (PreparedStatement insertStmt = conn.prepareStatement(insertSql)) {
-                insertStmt.setInt(1, systemCompanyId);
-                insertStmt.setString(2, job.getTitle());
-                insertStmt.setString(3, job.getDescription());
-                insertStmt.setString(4, job.getLocation());
-                insertStmt.setTimestamp(5, new Timestamp(System.currentTimeMillis()));
-
-                String type = "ONSITE";
-                String titleLower = job.getTitle() != null ? job.getTitle().toLowerCase() : "";
-                String locationLower = job.getLocation() != null ? job.getLocation().toLowerCase() : "";
-                if (titleLower.contains("remote") || locationLower.contains("remote")) {
-                    type = "REMOTE";
+            String workType = inferWorkType(title, location);
+            try {
+                insertExternalJob(conn, insertSql, systemCompanyId, title, description, location, workType);
+            } catch (SQLException first) {
+                // If the DB schema is older (title VARCHAR(100)), retry with a safe 100-char title.
+                if (isDataTruncation(first) && title != null && title.length() > 100) {
+                    String fallbackTitle = truncate(title, 100);
+                    insertExternalJob(conn, insertSql, systemCompanyId, fallbackTitle, description, location, workType);
+                } else {
+                    throw first;
                 }
-                insertStmt.setString(6, type);
-
-                insertStmt.executeUpdate();
             }
 
         } catch (SQLException e) {
             logger.error("Failed to save job: {}", job.getTitle(), e);
         }
+    }
+
+    private static void insertExternalJob(
+            Connection conn,
+            String insertSql,
+            int companyId,
+            String title,
+            String description,
+            String location,
+            String workType
+    ) throws SQLException {
+        try (PreparedStatement insertStmt = conn.prepareStatement(insertSql)) {
+            insertStmt.setInt(1, companyId);
+            insertStmt.setString(2, title);
+            insertStmt.setString(3, description);
+            insertStmt.setString(4, location);
+            insertStmt.setTimestamp(5, new Timestamp(System.currentTimeMillis()));
+            insertStmt.setString(6, workType);
+            insertStmt.executeUpdate();
+        }
+    }
+
+    private static String inferWorkType(String title, String location) {
+        String type = "ONSITE";
+        String titleLower = title != null ? title.toLowerCase() : "";
+        String locationLower = location != null ? location.toLowerCase() : "";
+        if (titleLower.contains("remote") || locationLower.contains("remote")) {
+            type = "REMOTE";
+        }
+        return type;
+    }
+
+    private static boolean isDataTruncation(SQLException e) {
+        if (e == null) return false;
+        if (e instanceof java.sql.DataTruncation) return true;
+        String msg = e.getMessage();
+        return msg != null && msg.toLowerCase().contains("data too long for column");
+    }
+
+    private static String truncate(String s, int maxLen) {
+        if (s == null) return null;
+        String t = s.trim();
+        if (maxLen <= 0) return "";
+        return t.length() <= maxLen ? t : t.substring(0, maxLen);
     }
 
     private void persistJobs(List<JobOpportunity> jobs) {

@@ -9,6 +9,9 @@ public class TicketMessage {
     private int senderId;
     private String message;
     private boolean isInternal;
+    private String attachmentsJson;
+    private String audioPath;
+    private boolean isAudio;
     private LocalDateTime createdDate;
     
     // Transient fields
@@ -39,6 +42,15 @@ public class TicketMessage {
     
     public boolean isInternal() { return isInternal; }
     public void setInternal(boolean internal) { isInternal = internal; }
+    
+    public String getAttachmentsJson() { return attachmentsJson; }
+    public void setAttachmentsJson(String attachmentsJson) { this.attachmentsJson = attachmentsJson; }
+    
+    public String getAudioPath() { return audioPath; }
+    public void setAudioPath(String audioPath) { this.audioPath = audioPath; }
+    
+    public boolean isAudio() { return isAudio; }
+    public void setAudio(boolean audio) { isAudio = audio; }
     
     public LocalDateTime getCreatedDate() { return createdDate; }
     public void setCreatedDate(LocalDateTime createdDate) { this.createdDate = createdDate; }

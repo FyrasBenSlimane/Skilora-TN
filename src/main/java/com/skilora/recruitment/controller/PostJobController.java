@@ -64,9 +64,11 @@ public class PostJobController implements Initializable {
     private Runnable onCancel;
     private User currentUser;
     private volatile int companyId = -1;
+    private JobOffer offerToEdit; // non-null when editing an existing offer
     
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        applyI18n();
         saveBtn.setGraphic(SvgIcons.icon(SvgIcons.SAVE, 14));
         prevBtn.setGraphic(SvgIcons.icon(SvgIcons.ARROW_LEFT, 14));
         nextBtn.setGraphic(SvgIcons.icon(SvgIcons.ARROW_RIGHT, 14));
@@ -74,6 +76,14 @@ public class PostJobController implements Initializable {
         publishBtn.setGraphic(SvgIcons.icon(SvgIcons.SEND, 14));
         createStepViews();
         showStep(1);
+    }
+
+    private void applyI18n() {
+        saveBtn.setText(I18n.get("postjob.save_draft"));
+        cancelBtn.setText(I18n.get("common.cancel"));
+        prevBtn.setText(I18n.get("postjob.previous"));
+        nextBtn.setText(I18n.get("common.next"));
+        publishBtn.setText(I18n.get("postjob.publish"));
     }
     
     /**
@@ -95,6 +105,60 @@ public class PostJobController implements Initializable {
     
     public void setOnCancel(Runnable onCancel) {
         this.onCancel = onCancel;
+    }
+
+    /**
+     * Load an existing job offer for editing.
+     * Populates all form fields with the offer's data.
+     */
+    public void loadJobOfferForEdit(JobOffer offer) {
+        if (offer == null) return;
+        this.offerToEdit = offer;
+
+        if (publishBtn != null) publishBtn.setText(I18n.get("postjob.update", "Mettre à jour"));
+
+        // Step 1 fields
+        if (offer.getTitle() != null) jobTitleField.setText(offer.getTitle());
+        if (offer.getDescription() != null) jobDescriptionField.setText(offer.getDescription());
+        if (offer.getLocation() != null) locationField.setText(offer.getLocation());
+
+        if (offer.getWorkType() != null) {
+            String wt = offer.getWorkType().toUpperCase();
+            String display = switch (wt) {
+                case "FULL_TIME", "FULL-TIME" -> "Full-time";
+                case "PART_TIME", "PART-TIME" -> "Part-time";
+                case "CONTRACT" -> "Contract";
+                case "FREELANCE" -> "Freelance";
+                case "INTERNSHIP" -> "Internship";
+                default -> {
+                    String[] words = wt.toLowerCase().replace("_", "-").split("-");
+                    StringBuilder sb = new StringBuilder();
+                    for (int i = 0; i < words.length; i++) {
+                        if (i > 0) sb.append("-");
+                        if (!words[i].isEmpty()) sb.append(Character.toUpperCase(words[i].charAt(0))).append(words[i].substring(1));
+                    }
+                    yield sb.toString();
+                }
+            };
+            jobTypeSelect.setValue(display);
+        }
+
+        if (offer.getSalaryMin() > 0 || offer.getSalaryMax() > 0) {
+            if (offer.getSalaryMin() > 0 && offer.getSalaryMax() > 0)
+                salaryField.setText(String.format("%.0f-%.0f", offer.getSalaryMin(), offer.getSalaryMax()));
+            else if (offer.getSalaryMin() > 0)
+                salaryField.setText(String.format("%.0f", offer.getSalaryMin()));
+            else
+                salaryField.setText(String.format("%.0f", offer.getSalaryMax()));
+        }
+
+        // Step 2 - Skills
+        skillsList.getChildren().clear();
+        if (offer.getRequiredSkills() != null) {
+            for (String skill : offer.getRequiredSkills()) addSkillBadge(skill);
+        }
+
+        if (offer.getEmployerId() > 0) this.companyId = offer.getEmployerId();
     }
     
     private void createStepViews() {
@@ -196,7 +260,7 @@ public class PostJobController implements Initializable {
         
         TLButton removeBtn = new TLButton("×");
         removeBtn.setVariant(TLButton.ButtonVariant.GHOST);
-        removeBtn.setStyle("-fx-min-width: 24; -fx-min-height: 24; -fx-padding: 0;");
+        removeBtn.getStyleClass().add("icon-btn-sm");
         removeBtn.setOnAction(e -> skillsList.getChildren().remove(skillRow));
         
         skillRow.getChildren().addAll(badge, removeBtn);
@@ -251,7 +315,6 @@ public class PostJobController implements Initializable {
         
         TLCard previewCard = new TLCard();
         VBox previewContent = new VBox(16);
-        previewContent.setPadding(new Insets(24));
         
         Label title = new Label(jobTitleField.getText().isEmpty() ? I18n.get("postjob.no_title") : jobTitleField.getText());
         title.getStyleClass().add("h2");
@@ -286,9 +349,68 @@ public class PostJobController implements Initializable {
     
     @FXML
     private void handleNext() {
+        if (currentStep == 1 && !validateStep1()) return;
+        if (currentStep == 2 && !validateStep2()) return;
         if (currentStep < 3) {
             showStep(currentStep + 1);
         }
+    }
+
+    private boolean validateStep2() {
+        List<String> skills = getSkillsFromList();
+        if (skills.isEmpty()) {
+            if (skillInput != null) skillInput.setError(I18n.get("postjob.skills_required", "Au moins une compétence est requise"));
+            return false;
+        }
+        if (skillInput != null) skillInput.clearValidation();
+        return true;
+    }
+
+    private List<String> getSkillsFromList() {
+        List<String> skills = new ArrayList<>();
+        for (javafx.scene.Node node : skillsList.getChildren()) {
+            if (node instanceof HBox row) {
+                for (javafx.scene.Node child : row.getChildren()) {
+                    if (child instanceof TLBadge badge) {
+                        // TLBadge stores text in its internal Label
+                        String text = badge.toString();
+                        try { text = ((javafx.scene.control.Label) badge.getChildren().get(0)).getText(); } catch (Exception ignored) {}
+                        if (text != null && !text.trim().isEmpty()) skills.add(text.trim());
+                    }
+                }
+            }
+        }
+        return skills;
+    }
+
+    private boolean validateStep1() {
+        boolean valid = true;
+        if (jobTitleField != null) {
+            if (jobTitleField.getText() == null || jobTitleField.getText().trim().isEmpty()) {
+                jobTitleField.setError(I18n.get("postjob.error.title_required"));
+                valid = false;
+            } else {
+                jobTitleField.clearValidation();
+            }
+        }
+        if (jobDescriptionField != null) {
+            String desc = jobDescriptionField.getText();
+            if (desc == null || desc.trim().length() < 20) {
+                jobDescriptionField.setError(I18n.get("postjob.error.description_short"));
+                valid = false;
+            } else {
+                jobDescriptionField.clearValidation();
+            }
+        }
+        if (locationField != null) {
+            if (locationField.getText() == null || locationField.getText().trim().isEmpty()) {
+                locationField.setError(I18n.get("postjob.error.location_required"));
+                valid = false;
+            } else {
+                locationField.clearValidation();
+            }
+        }
+        return valid;
     }
     
     @FXML
@@ -300,15 +422,16 @@ public class PostJobController implements Initializable {
     
     @FXML
     private void handlePublish() {
-        String title = jobTitleField.getText().trim();
-        if (title.isEmpty()) {
-            publishBtn.setGraphic(SvgIcons.icon(SvgIcons.ALERT_TRIANGLE, 14, "-fx-destructive"));
-            publishBtn.setText(I18n.get("postjob.title_required"));
+        if (!validateStep1() || !validateStep2()) {
+            showStep(!validateStep1() ? 1 : 2);
             return;
         }
 
+        String title = jobTitleField.getText().trim();
+        final boolean isEditMode = offerToEdit != null && offerToEdit.getId() > 0;
+
         publishBtn.setDisable(true);
-        publishBtn.setText(I18n.get("postjob.publishing"));
+        publishBtn.setText(isEditMode ? I18n.get("postjob.updating", "Mise à jour...") : I18n.get("postjob.publishing"));
 
         AppThreadPool.execute(() -> {
             try {
@@ -324,12 +447,18 @@ public class PostJobController implements Initializable {
                 }
 
                 // Build JobOffer from form data
-                JobOffer offer = new JobOffer();
+                JobOffer offer;
+                if (isEditMode) {
+                    offer = offerToEdit;
+                } else {
+                    offer = new JobOffer();
+                    offer.setStatus(JobStatus.OPEN);
+                }
                 offer.setEmployerId(resolvedCompanyId);
                 offer.setTitle(title);
                 offer.setDescription(jobDescriptionField.getText());
                 offer.setLocation(locationField.getText());
-                offer.setStatus(JobStatus.OPEN);
+                if (!isEditMode) offer.setStatus(JobStatus.OPEN);
 
                 // Parse salary range (e.g. "3000-5000")
                 String salaryText = salaryField.getText().replaceAll("[^0-9\\-]", "");
@@ -368,12 +497,20 @@ public class PostJobController implements Initializable {
                 }
                 offer.setRequiredSkills(skills);
 
-                int id = JobService.getInstance().createJobOffer(offer);
+                boolean success;
+                if (isEditMode) {
+                    success = JobService.getInstance().updateJobOffer(offer);
+                } else {
+                    int id = JobService.getInstance().createJobOffer(offer);
+                    success = id > 0;
+                }
 
                 javafx.application.Platform.runLater(() -> {
-                    if (id > 0) {
+                    if (success) {
                         publishBtn.setGraphic(SvgIcons.icon(SvgIcons.CHECK, 14));
-                        publishBtn.setText(I18n.get("postjob.published"));
+                        publishBtn.setText(isEditMode
+                                ? I18n.get("postjob.updated", "Mis à jour")
+                                : I18n.get("postjob.published"));
                         // Return to dashboard after delay
                         AppThreadPool.execute(() -> {
                             try { Thread.sleep(1500); } catch (InterruptedException ignored) {
@@ -384,12 +521,14 @@ public class PostJobController implements Initializable {
                             });
                         });
                     } else {
-                        publishBtn.setText(I18n.get("postjob.publish_error"));
+                        publishBtn.setText(isEditMode
+                                ? I18n.get("postjob.update_error", "Erreur de mise à jour")
+                                : I18n.get("postjob.publish_error"));
                         publishBtn.setDisable(false);
                     }
                 });
             } catch (Exception e) {
-                logger.error("Failed to publish job", e);
+                logger.error("Failed to " + (isEditMode ? "update" : "publish") + " job", e);
                 javafx.application.Platform.runLater(() -> {
                     publishBtn.setText(I18n.get("postjob.publish_failed"));
                     publishBtn.setDisable(false);
@@ -401,8 +540,89 @@ public class PostJobController implements Initializable {
     @FXML
     private void handleSaveDraft() {
         logger.debug("Saving draft...");
-        saveBtn.setGraphic(SvgIcons.icon(SvgIcons.CHECK, 14));
-        saveBtn.setText(I18n.get("postjob.saved"));
+
+        saveBtn.setDisable(true);
+        saveBtn.setText(I18n.get("postjob.saving"));
+
+        AppThreadPool.execute(() -> {
+            try {
+                // Ensure companyId is resolved
+                int resolvedCompanyId = companyId;
+                if (resolvedCompanyId <= 0 && currentUser != null) {
+                    resolvedCompanyId = JobService.getInstance().getOrCreateEmployerCompanyId(
+                            currentUser.getId(), currentUser.getFullName());
+                    companyId = resolvedCompanyId;
+                }
+                if (resolvedCompanyId <= 0) {
+                    resolvedCompanyId = JobService.getInstance().getOrCreateSystemCompanyId();
+                }
+
+                // Build JobOffer from form data
+                JobOffer draft = new JobOffer();
+                draft.setEmployerId(resolvedCompanyId);
+                draft.setTitle(jobTitleField.getText().trim().isEmpty()
+                        ? I18n.get("postjob.untitled_draft") : jobTitleField.getText().trim());
+                draft.setDescription(jobDescriptionField.getText());
+                draft.setLocation(locationField.getText());
+                draft.setStatus(JobStatus.DRAFT);
+
+                // Parse salary range
+                String salaryText = salaryField.getText().replaceAll("[^0-9\\-]", "");
+                if (salaryText.contains("-")) {
+                    String[] parts = salaryText.split("-");
+                    try {
+                        draft.setSalaryMin(Double.parseDouble(parts[0].trim()));
+                        draft.setSalaryMax(Double.parseDouble(parts[1].trim()));
+                    } catch (NumberFormatException e) {
+                        logger.debug("Could not parse salary range: {}", salaryText);
+                    }
+                }
+
+                // Map contract type
+                String contractType = jobTypeSelect.getValue();
+                if (contractType != null) {
+                    draft.setWorkType(contractType.toUpperCase().replace("-", "_"));
+                }
+
+                draft.setCurrency("TND");
+
+                // Collect skills
+                List<String> skills = new ArrayList<>();
+                for (javafx.scene.Node node : skillsList.getChildren()) {
+                    if (node instanceof javafx.scene.layout.HBox row) {
+                        for (javafx.scene.Node child : row.getChildren()) {
+                            if (child instanceof TLBadge badge) {
+                                if (!badge.getChildren().isEmpty()
+                                        && badge.getChildren().get(0) instanceof javafx.scene.control.Label lbl) {
+                                    skills.add(lbl.getText());
+                                }
+                            }
+                        }
+                    }
+                }
+                draft.setRequiredSkills(skills);
+
+                int id = JobService.getInstance().createJobOffer(draft);
+
+                javafx.application.Platform.runLater(() -> {
+                    if (id > 0) {
+                        saveBtn.setGraphic(SvgIcons.icon(SvgIcons.CHECK, 14));
+                        saveBtn.setText(I18n.get("postjob.saved"));
+                    } else {
+                        saveBtn.setGraphic(SvgIcons.icon(SvgIcons.ALERT_TRIANGLE, 14, "-fx-destructive"));
+                        saveBtn.setText(I18n.get("postjob.save_error"));
+                    }
+                    saveBtn.setDisable(false);
+                });
+            } catch (Exception e) {
+                logger.error("Failed to save draft", e);
+                javafx.application.Platform.runLater(() -> {
+                    saveBtn.setGraphic(SvgIcons.icon(SvgIcons.ALERT_TRIANGLE, 14, "-fx-destructive"));
+                    saveBtn.setText(I18n.get("postjob.save_error"));
+                    saveBtn.setDisable(false);
+                });
+            }
+        });
     }
     
     @FXML

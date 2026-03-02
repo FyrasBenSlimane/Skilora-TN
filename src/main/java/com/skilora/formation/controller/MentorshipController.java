@@ -38,6 +38,7 @@ public class MentorshipController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        requestBtn.setText(I18n.get("mentorship.request"));
     }
 
     public void initializeContext(User user) {
@@ -80,7 +81,6 @@ public class MentorshipController implements Initializable {
         dialog.setDescription(I18n.get("mentorship.request.description"));
         
         VBox content = new VBox(12);
-        content.setPadding(new Insets(16));
 
         TLSelect<String> mentorSelect = new TLSelect<>(I18n.get("mentorship.select_mentor"));
         Map<String, Integer> nameToIdMap = new LinkedHashMap<>();
@@ -128,6 +128,9 @@ public class MentorshipController implements Initializable {
                     I18n.get("error.validation.required", I18n.get("mentorship.goals")));
                 return;
             }
+            // Disable submit to prevent double-click
+            submitBtn.setDisable(true);
+            submitBtn.setText(I18n.get("common.submitting"));
             int mentorId = nameToIdMap.get(selectedMentor);
             requestMentorship(mentorId, topic.trim(), goals.trim());
             dialog.close();
@@ -275,7 +278,6 @@ public class MentorshipController implements Initializable {
     private TLCard createMenteeCard(Mentorship mentorship) {
         TLCard card = new TLCard();
         VBox content = new VBox(8);
-        content.setPadding(new Insets(16));
         
         Label topic = new Label(mentorship.getTopic());
         topic.getStyleClass().add("h4");
@@ -295,7 +297,6 @@ public class MentorshipController implements Initializable {
     private TLCard createMentorPendingCard(Mentorship mentorship) {
         TLCard card = new TLCard();
         VBox content = new VBox(8);
-        content.setPadding(new Insets(16));
 
         Label topic = new Label(mentorship.getTopic());
         topic.getStyleClass().add("h4");
@@ -316,11 +317,18 @@ public class MentorshipController implements Initializable {
 
         TLButton acceptBtn = new TLButton(I18n.get("mentorship.accept"));
         acceptBtn.setVariant(TLButton.ButtonVariant.PRIMARY);
-        acceptBtn.setOnAction(e -> acceptMentorship(mentorship.getId()));
+        acceptBtn.setOnAction(e -> {
+            acceptBtn.setDisable(true);
+            acceptBtn.setText(I18n.get("common.accepting"));
+            acceptMentorship(mentorship.getId());
+        });
 
         TLButton cancelBtn = new TLButton(I18n.get("mentorship.decline"));
         cancelBtn.setVariant(TLButton.ButtonVariant.DANGER);
-        cancelBtn.setOnAction(e -> cancelMentorship(mentorship.getId()));
+        cancelBtn.setOnAction(e -> {
+            cancelBtn.setDisable(true);
+            cancelMentorship(mentorship.getId());
+        });
 
         actions.getChildren().addAll(acceptBtn, cancelBtn);
         content.getChildren().addAll(topic, mentee, goals, badge, actions);
@@ -331,7 +339,6 @@ public class MentorshipController implements Initializable {
     private TLCard createMentorCard(Mentorship mentorship) {
         TLCard card = new TLCard();
         VBox content = new VBox(8);
-        content.setPadding(new Insets(16));
 
         Label topic = new Label(mentorship.getTopic());
         topic.getStyleClass().add("h4");
@@ -410,7 +417,6 @@ public class MentorshipController implements Initializable {
         dialog.setDescription(I18n.get("mentorship.complete.description"));
 
         VBox content = new VBox(12);
-        content.setPadding(new Insets(16));
 
         Label ratingLabel = new Label(I18n.get("mentorship.rating"));
         TLSelect<String> ratingSelect = new TLSelect<>(I18n.get("mentorship.rating"));

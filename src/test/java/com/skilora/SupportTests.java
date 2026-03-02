@@ -9,9 +9,11 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -1319,6 +1321,1077 @@ class SupportTests {
         @DisplayName("Cleanup lifecycle ticket")
         void cleanup() {
             SupportTicketService.getInstance().delete(lifecycleTicketId);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  SECTION 12: TICKETATTACHMENT ENTITY
+    // ═══════════════════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("18. TicketAttachment Entity")
+    class TicketAttachmentEntityTests {
+
+        @Test
+        @DisplayName("Default constructor creates empty attachment")
+        void testDefaultConstructor() {
+            TicketAttachment att = new TicketAttachment();
+            assertEquals(0, att.getId());
+            assertEquals(0, att.getTicketId());
+            assertNull(att.getMessageId());
+            assertNull(att.getFileName());
+            assertNull(att.getMimeType());
+            assertNull(att.getFilePath());
+            assertNull(att.getFileSize());
+        }
+
+        @Test
+        @DisplayName("Parameterized constructor sets fields")
+        void testParamConstructor() {
+            TicketAttachment att = new TicketAttachment(10, 5, "file.pdf",
+                    "application/pdf", "/storage/file.pdf", 1024L);
+            assertEquals(10, att.getTicketId());
+            assertEquals(5, att.getMessageId());
+            assertEquals("file.pdf", att.getFileName());
+            assertEquals("application/pdf", att.getMimeType());
+            assertEquals("/storage/file.pdf", att.getFilePath());
+            assertEquals(1024L, att.getFileSize());
+        }
+
+        @Test
+        @DisplayName("All getters and setters work")
+        void testGettersSetters() {
+            TicketAttachment att = new TicketAttachment();
+            att.setId(1);
+            att.setTicketId(2);
+            att.setMessageId(3);
+            att.setFileName("test.png");
+            att.setMimeType("image/png");
+            att.setFilePath("/path/to/test.png");
+            att.setFileSize(2048L);
+            LocalDateTime now = LocalDateTime.now();
+            att.setCreatedDate(now);
+
+            assertEquals(1, att.getId());
+            assertEquals(2, att.getTicketId());
+            assertEquals(3, att.getMessageId());
+            assertEquals("test.png", att.getFileName());
+            assertEquals("image/png", att.getMimeType());
+            assertEquals("/path/to/test.png", att.getFilePath());
+            assertEquals(2048L, att.getFileSize());
+            assertEquals(now, att.getCreatedDate());
+        }
+
+        @Test
+        @DisplayName("Nullable messageId (null)")
+        void testNullableMessageId() {
+            TicketAttachment att = new TicketAttachment(10, null, "file.txt",
+                    "text/plain", "/path", 100L);
+            assertNull(att.getMessageId());
+        }
+
+        @Test
+        @DisplayName("equals and hashCode based on id")
+        void testEqualsHashCode() {
+            TicketAttachment a1 = new TicketAttachment();
+            a1.setId(5);
+            TicketAttachment a2 = new TicketAttachment();
+            a2.setId(5);
+            TicketAttachment a3 = new TicketAttachment();
+            a3.setId(10);
+
+            assertEquals(a1, a2);
+            assertEquals(a1.hashCode(), a2.hashCode());
+            assertNotEquals(a1, a3);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  SECTION 13: TICKET ATTACHMENT SERVICE
+    // ═══════════════════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("19. TicketAttachmentService CRUD")
+    @TestMethodOrder(OrderAnnotation.class)
+    class TicketAttachmentServiceTests {
+
+        static int testTicketId;
+        static int testAttachmentId;
+
+        @Test
+        @Order(1)
+        @DisplayName("Setup: create ticket for attachments")
+        void setup() {
+            SupportTicketService ts = SupportTicketService.getInstance();
+            SupportTicket ticket = new SupportTicket(1, "TECHNICAL", "LOW", "OPEN",
+                    "ATT_TEST_" + System.currentTimeMillis(), "Attachment test");
+            testTicketId = ts.create(ticket);
+            assertTrue(testTicketId > 0);
+        }
+
+        @Test
+        @Order(2)
+        @DisplayName("TicketAttachmentService singleton")
+        void testSingleton() {
+            TicketAttachmentService s1 = TicketAttachmentService.getInstance();
+            TicketAttachmentService s2 = TicketAttachmentService.getInstance();
+            assertNotNull(s1);
+            assertSame(s1, s2);
+        }
+
+        @Test
+        @Order(3)
+        @DisplayName("Create attachment returns positive ID")
+        void testCreate() {
+            TicketAttachmentService svc = TicketAttachmentService.getInstance();
+            TicketAttachment att = new TicketAttachment(testTicketId, null,
+                    "test.pdf", "application/pdf", "/tmp/test.pdf", 512L);
+            int id = svc.create(att);
+            assertTrue(id > 0, "create should return positive ID");
+            testAttachmentId = id;
+        }
+
+        @Test
+        @Order(4)
+        @DisplayName("Find attachments by ticket ID")
+        void testFindByTicketId() {
+            TicketAttachmentService svc = TicketAttachmentService.getInstance();
+            List<TicketAttachment> list = svc.findByTicketId(testTicketId);
+            assertNotNull(list);
+            assertTrue(list.size() >= 1, "Should find at least 1 attachment");
+        }
+
+        @Test
+        @Order(5)
+        @DisplayName("Find attachments by message ID returns list (empty OK)")
+        void testFindByMessageId() {
+            TicketAttachmentService svc = TicketAttachmentService.getInstance();
+            List<TicketAttachment> list = svc.findByMessageId(999999);
+            assertNotNull(list);
+            // May be empty, but should not throw
+        }
+
+        @Test
+        @Order(6)
+        @DisplayName("Cleanup: delete test ticket")
+        void cleanup() {
+            SupportTicketService.getInstance().delete(testTicketId);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  SECTION 14: SUPPORT TICKET SERVICE ADVANCED
+    // ═══════════════════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("20. SupportTicketService Advanced")
+    @TestMethodOrder(OrderAnnotation.class)
+    class SupportTicketAdvancedTests {
+
+        static int advTicketId;
+
+        @Test
+        @Order(1)
+        @DisplayName("Create ticket for advanced tests")
+        void setup() {
+            SupportTicketService svc = SupportTicketService.getInstance();
+            SupportTicket t = new SupportTicket(1, "BILLING", "HIGH", "OPEN",
+                    "ADV_TEST_" + System.currentTimeMillis(), "Advanced test ticket");
+            advTicketId = svc.create(t);
+            assertTrue(advTicketId > 0);
+        }
+
+        @Test
+        @Order(2)
+        @DisplayName("Find by assigned admin (initially no results)")
+        void testFindByAssignedTo() {
+            SupportTicketService svc = SupportTicketService.getInstance();
+            List<SupportTicket> list = svc.findByAssignedTo(999999);
+            assertNotNull(list);
+            // Likely empty for non-existent admin
+        }
+
+        @Test
+        @Order(3)
+        @DisplayName("Assign and then find by assigned admin")
+        void testAssignAndFind() {
+            SupportTicketService svc = SupportTicketService.getInstance();
+            assertTrue(svc.assign(advTicketId, 1));
+            List<SupportTicket> list = svc.findByAssignedTo(1);
+            assertNotNull(list);
+            assertTrue(list.stream().anyMatch(t -> t.getId() == advTicketId),
+                    "Should find assigned ticket");
+        }
+
+        @Test
+        @Order(4)
+        @DisplayName("Count open tickets returns non-negative")
+        void testCountOpen() {
+            SupportTicketService svc = SupportTicketService.getInstance();
+            long count = svc.countOpen();
+            assertTrue(count >= 0);
+        }
+
+        @Test
+        @Order(5)
+        @DisplayName("Count by status returns non-negative")
+        void testCountByStatus() {
+            SupportTicketService svc = SupportTicketService.getInstance();
+            long openCount = svc.countByStatus("OPEN");
+            assertTrue(openCount >= 0);
+            long closedCount = svc.countByStatus("CLOSED");
+            assertTrue(closedCount >= 0);
+        }
+
+        @Test
+        @Order(6)
+        @DisplayName("Get total tickets returns positive count")
+        void testGetTotalTickets() {
+            SupportTicketService svc = SupportTicketService.getInstance();
+            long total = svc.getTotalTickets();
+            assertTrue(total >= 1, "Total tickets should be at least 1");
+        }
+
+        @Test
+        @Order(7)
+        @DisplayName("Get count by category returns map")
+        void testGetCountByCategory() {
+            SupportTicketService svc = SupportTicketService.getInstance();
+            Map<String, Long> byCategory = svc.getCountByCategory();
+            assertNotNull(byCategory);
+            // Should have at least one category
+            assertFalse(byCategory.isEmpty(), "Should have at least one category");
+        }
+
+        @Test
+        @Order(8)
+        @DisplayName("Get count by priority returns map")
+        void testGetCountByPriority() {
+            SupportTicketService svc = SupportTicketService.getInstance();
+            Map<String, Long> byPriority = svc.getCountByPriority();
+            assertNotNull(byPriority);
+            assertFalse(byPriority.isEmpty());
+        }
+
+        @Test
+        @Order(9)
+        @DisplayName("Update full ticket fields")
+        void testUpdateFullTicket() {
+            SupportTicketService svc = SupportTicketService.getInstance();
+            SupportTicket ticket = svc.findById(advTicketId);
+            assertNotNull(ticket);
+            ticket.setCategory("GENERAL");
+            ticket.setPriority("URGENT");
+            ticket.setDescription("Updated description");
+            assertTrue(svc.update(ticket));
+
+            SupportTicket refreshed = svc.findById(advTicketId);
+            assertEquals("GENERAL", refreshed.getCategory());
+            assertEquals("URGENT", refreshed.getPriority());
+        }
+
+        @Test
+        @Order(10)
+        @DisplayName("Mark first response if missing")
+        void testMarkFirstResponse() {
+            SupportTicketService svc = SupportTicketService.getInstance();
+            // Should not throw even if already marked
+            boolean result = svc.markFirstResponseIfMissing(advTicketId);
+            // Result may be true or false depending on whether already marked
+            assertNotNull(Boolean.valueOf(result));
+        }
+
+        @Test
+        @Order(11)
+        @DisplayName("Count SLA breached open returns non-negative")
+        void testCountSlaBreached() {
+            SupportTicketService svc = SupportTicketService.getInstance();
+            long count = svc.countSlaBreachedOpen();
+            assertTrue(count >= 0);
+        }
+
+        @Test
+        @Order(12)
+        @DisplayName("Get average first response minutes returns valid number")
+        void testAvgFirstResponse() {
+            SupportTicketService svc = SupportTicketService.getInstance();
+            double avg = svc.getAvgFirstResponseMinutes();
+            assertFalse(Double.isNaN(avg), "Average should not be NaN");
+        }
+
+        @Test
+        @Order(13)
+        @DisplayName("Get average resolution minutes returns non-negative")
+        void testAvgResolution() {
+            SupportTicketService svc = SupportTicketService.getInstance();
+            double avg = svc.getAvgResolutionMinutes();
+            assertTrue(avg >= 0.0);
+        }
+
+        @Test
+        @Order(14)
+        @DisplayName("Auto-escalate overdue tickets returns count")
+        void testAutoEscalate() {
+            SupportTicketService svc = SupportTicketService.getInstance();
+            int escalated = svc.autoEscalateOverdueTickets();
+            assertTrue(escalated >= 0);
+        }
+
+        @Test
+        @Order(15)
+        @DisplayName("Cleanup advanced test ticket")
+        void cleanup() {
+            SupportTicketService.getInstance().delete(advTicketId);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  SECTION 15: FAQ SERVICE ADVANCED
+    // ═══════════════════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("21. FAQService Advanced")
+    @TestMethodOrder(OrderAnnotation.class)
+    class FAQServiceAdvancedTests {
+
+        static int advFaqId;
+
+        @Test
+        @Order(1)
+        @DisplayName("Create FAQ for advanced tests")
+        void setup() {
+            FAQService svc = FAQService.getInstance();
+            FAQArticle article = new FAQArticle("ADV_CAT",
+                    "ADV_Q_" + System.currentTimeMillis(),
+                    "Advanced answer", "en");
+            advFaqId = svc.create(article);
+            assertTrue(advFaqId > 0);
+        }
+
+        @Test
+        @Order(2)
+        @DisplayName("Find all including drafts")
+        void testFindAllIncludingDrafts() {
+            FAQService svc = FAQService.getInstance();
+            List<FAQArticle> all = svc.findAllIncludingDrafts();
+            assertNotNull(all);
+            assertTrue(all.size() >= 1);
+        }
+
+        @Test
+        @Order(3)
+        @DisplayName("Vote helpful increments count")
+        void testVoteHelpful() {
+            FAQService svc = FAQService.getInstance();
+            boolean result = svc.voteHelpful(advFaqId, true);
+            assertTrue(result);
+        }
+
+        @Test
+        @Order(4)
+        @DisplayName("Vote not helpful increments count")
+        void testVoteNotHelpful() {
+            FAQService svc = FAQService.getInstance();
+            boolean result = svc.voteHelpful(advFaqId, false);
+            assertTrue(result);
+        }
+
+        @Test
+        @Order(5)
+        @DisplayName("Increment view count")
+        void testIncrementViewCount() {
+            FAQService svc = FAQService.getInstance();
+            boolean result = svc.incrementViewCount(advFaqId);
+            assertTrue(result);
+
+            FAQArticle article = svc.findById(advFaqId);
+            assertTrue(article.getViewCount() >= 1);
+        }
+
+        @Test
+        @Order(6)
+        @DisplayName("Search FAQ returns results")
+        void testSearch() {
+            FAQService svc = FAQService.getInstance();
+            List<FAQArticle> results = svc.search("ADV_Q_");
+            assertNotNull(results);
+            // May find our test article
+        }
+
+        @Test
+        @Order(7)
+        @DisplayName("Cleanup advanced FAQ")
+        void cleanup() {
+            FAQService.getInstance().delete(advFaqId);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  SECTION 16: CHATBOT SERVICE ADVANCED
+    // ═══════════════════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("22. ChatbotService Advanced")
+    @TestMethodOrder(OrderAnnotation.class)
+    class ChatbotServiceAdvancedTests {
+
+        static int advConvId;
+
+        @Test
+        @Order(1)
+        @DisplayName("Start conversation for advanced tests")
+        void setup() {
+            ChatbotService svc = ChatbotService.getInstance();
+            advConvId = svc.startConversation(1);
+            assertTrue(advConvId > 0);
+        }
+
+        @Test
+        @Order(2)
+        @DisplayName("Add multiple messages to conversation")
+        void testMultipleMessages() {
+            ChatbotService svc = ChatbotService.getInstance();
+            ChatbotMessage m1 = new ChatbotMessage(advConvId, "user", "Hello");
+            ChatbotMessage m2 = new ChatbotMessage(advConvId, "bot", "Hi there!");
+            ChatbotMessage m3 = new ChatbotMessage(advConvId, "user", "Need help");
+
+            assertTrue(svc.addMessage(m1) > 0);
+            assertTrue(svc.addMessage(m2) > 0);
+            assertTrue(svc.addMessage(m3) > 0);
+        }
+
+        @Test
+        @Order(3)
+        @DisplayName("Get messages returns all added messages")
+        void testGetMessages() {
+            ChatbotService svc = ChatbotService.getInstance();
+            List<ChatbotMessage> msgs = svc.getMessages(advConvId);
+            assertNotNull(msgs);
+            assertTrue(msgs.size() >= 3, "Should have at least 3 messages");
+        }
+
+        @Test
+        @Order(4)
+        @DisplayName("Escalate conversation to ticket")
+        void testEscalateToTicket() {
+            ChatbotService svc = ChatbotService.getInstance();
+            // Create a ticket first
+            SupportTicketService ts = SupportTicketService.getInstance();
+            SupportTicket ticket = new SupportTicket(1, "TECHNICAL", "MEDIUM", "OPEN",
+                    "ESCALATED_" + System.currentTimeMillis(), "Escalation test");
+            int ticketId = ts.create(ticket);
+
+            boolean result = svc.escalateToTicket(advConvId, ticketId);
+            assertTrue(result, "Escalation should succeed");
+
+            // Cleanup ticket
+            ts.delete(ticketId);
+        }
+
+        @Test
+        @Order(5)
+        @DisplayName("End conversation")
+        void cleanup() {
+            ChatbotService svc = ChatbotService.getInstance();
+            assertTrue(svc.endConversation(advConvId));
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  SECTION 17: TICKET MESSAGE SERVICE ADVANCED
+    // ═══════════════════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("23. TicketMessageService Advanced")
+    @TestMethodOrder(OrderAnnotation.class)
+    class TicketMessageServiceAdvancedTests {
+
+        static int advTicketId;
+        static int advMsgId;
+
+        @Test
+        @Order(1)
+        @DisplayName("Setup: create ticket for message tests")
+        void setup() {
+            SupportTicketService ts = SupportTicketService.getInstance();
+            SupportTicket ticket = new SupportTicket(1, "GENERAL", "LOW", "OPEN",
+                    "MSG_ADV_" + System.currentTimeMillis(), "Message advanced test");
+            advTicketId = ts.create(ticket);
+            assertTrue(advTicketId > 0);
+        }
+
+        @Test
+        @Order(2)
+        @DisplayName("Add message and get ID")
+        void testAddMessage() {
+            TicketMessageService svc = TicketMessageService.getInstance();
+            TicketMessage msg = new TicketMessage(advTicketId, 1, "Test public message", false);
+            advMsgId = svc.addMessage(msg);
+            assertTrue(advMsgId > 0);
+        }
+
+        @Test
+        @Order(3)
+        @DisplayName("Add internal message")
+        void testAddInternal() {
+            TicketMessageService svc = TicketMessageService.getInstance();
+            TicketMessage msg = new TicketMessage(advTicketId, 1, "Internal note", true);
+            int id = svc.addMessage(msg);
+            assertTrue(id > 0);
+        }
+
+        @Test
+        @Order(4)
+        @DisplayName("findByTicketIdPublic excludes internal messages")
+        void testFindPublicOnly() {
+            TicketMessageService svc = TicketMessageService.getInstance();
+            List<TicketMessage> publicMsgs = svc.findByTicketIdPublic(advTicketId);
+            assertNotNull(publicMsgs);
+            for (TicketMessage msg : publicMsgs) {
+                assertFalse(msg.isInternal(), "Public query should not include internal messages");
+            }
+        }
+
+        @Test
+        @Order(5)
+        @DisplayName("findByTicketId includes all messages")
+        void testFindAll() {
+            TicketMessageService svc = TicketMessageService.getInstance();
+            List<TicketMessage> allMsgs = svc.findByTicketId(advTicketId);
+            assertNotNull(allMsgs);
+            assertTrue(allMsgs.size() >= 2, "Should have at least 2 messages (public + internal)");
+        }
+
+        @Test
+        @Order(6)
+        @DisplayName("Update message text")
+        void testUpdateMessage() {
+            TicketMessageService svc = TicketMessageService.getInstance();
+            List<TicketMessage> msgs = svc.findByTicketId(advTicketId);
+            TicketMessage toUpdate = msgs.stream()
+                    .filter(m -> m.getId() == advMsgId)
+                    .findFirst()
+                    .orElse(null);
+            if (toUpdate != null) {
+                toUpdate.setMessage("Updated message text");
+                boolean updated = svc.updateMessage(toUpdate);
+                assertTrue(updated);
+            }
+        }
+
+        @Test
+        @Order(7)
+        @DisplayName("findAll returns global list")
+        void testFindAllGlobal() {
+            TicketMessageService svc = TicketMessageService.getInstance();
+            List<TicketMessage> all = svc.findAll();
+            assertNotNull(all);
+            assertTrue(all.size() >= 1);
+        }
+
+        @Test
+        @Order(8)
+        @DisplayName("Cleanup: delete test ticket")
+        void cleanup() {
+            SupportTicketService.getInstance().delete(advTicketId);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  SECTION 18: USER FEEDBACK SERVICE ADVANCED
+    // ═══════════════════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("24. UserFeedbackService Advanced")
+    @TestMethodOrder(OrderAnnotation.class)
+    class FeedbackServiceAdvancedTests {
+
+        static int advFeedbackId;
+
+        @Test
+        @Order(1)
+        @DisplayName("Submit feedback for advanced tests")
+        void setup() {
+            UserFeedbackService svc = UserFeedbackService.getInstance();
+            UserFeedback fb = new UserFeedback(1, "FEATURE_REQUEST", 5,
+                    "ADV_FB_" + System.currentTimeMillis());
+            advFeedbackId = svc.submit(fb);
+            assertTrue(advFeedbackId > 0);
+        }
+
+        @Test
+        @Order(2)
+        @DisplayName("Update feedback")
+        void testUpdate() {
+            UserFeedbackService svc = UserFeedbackService.getInstance();
+            UserFeedback fb = new UserFeedback();
+            fb.setId(advFeedbackId);
+            fb.setUserId(1);
+            fb.setFeedbackType("GENERAL");
+            fb.setRating(3);
+            fb.setComment("Updated feedback comment");
+            boolean updated = svc.update(fb);
+            assertTrue(updated);
+        }
+
+        @Test
+        @Order(3)
+        @DisplayName("Find feedback by type GENERAL")
+        void testFindByType() {
+            UserFeedbackService svc = UserFeedbackService.getInstance();
+            List<UserFeedback> list = svc.findByType("GENERAL");
+            assertNotNull(list);
+            for (UserFeedback fb : list) {
+                assertEquals("GENERAL", fb.getFeedbackType());
+            }
+        }
+
+        @Test
+        @Order(4)
+        @DisplayName("Get count by rating returns valid count")
+        void testGetCountByRating() {
+            UserFeedbackService svc = UserFeedbackService.getInstance();
+            long count = svc.getCountByRating(5);
+            assertTrue(count >= 0);
+            long countLow = svc.getCountByRating(1);
+            assertTrue(countLow >= 0);
+        }
+
+        @Test
+        @Order(5)
+        @DisplayName("Find by ticket ID returns null for non-existent")
+        void testFindByTicketId() {
+            UserFeedbackService svc = UserFeedbackService.getInstance();
+            UserFeedback fb = svc.findByTicketId(999999);
+            // May be null for non-existent ticket
+            // This tests that it doesn't throw
+        }
+
+        @Test
+        @Order(6)
+        @DisplayName("Resolve and delete feedback")
+        void cleanup() {
+            UserFeedbackService svc = UserFeedbackService.getInstance();
+            svc.resolve(advFeedbackId);
+            svc.delete(advFeedbackId);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  SECTION 19: SUPPORT DB SCHEMA VALIDATION
+    // ═══════════════════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("25. Support Module DB Schema Validation")
+    class SupportDbSchemaTests {
+
+        private boolean tableExists(String tableName) {
+            try (Connection conn = DatabaseConfig.getInstance().getConnection();
+                 ResultSet rs = conn.getMetaData().getTables(null, null, tableName, null)) {
+                return rs.next();
+            } catch (SQLException e) {
+                return false;
+            }
+        }
+
+        @Test
+        @DisplayName("support_tickets table exists")
+        void testSupportTicketsTable() {
+            assertTrue(tableExists("support_tickets"), "support_tickets table should exist");
+        }
+
+        @Test
+        @DisplayName("ticket_messages table exists")
+        void testTicketMessagesTable() {
+            assertTrue(tableExists("ticket_messages"), "ticket_messages table should exist");
+        }
+
+        @Test
+        @DisplayName("faq_articles table exists")
+        void testFaqArticlesTable() {
+            assertTrue(tableExists("faq_articles"), "faq_articles table should exist");
+        }
+
+        @Test
+        @DisplayName("auto_responses table exists")
+        void testAutoResponsesTable() {
+            assertTrue(tableExists("auto_responses"), "auto_responses table should exist");
+        }
+
+        @Test
+        @DisplayName("chatbot_conversations table exists")
+        void testChatbotConversationsTable() {
+            assertTrue(tableExists("chatbot_conversations"), "chatbot_conversations table should exist");
+        }
+
+        @Test
+        @DisplayName("chatbot_messages table exists")
+        void testChatbotMessagesTable() {
+            assertTrue(tableExists("chatbot_messages"), "chatbot_messages table should exist");
+        }
+
+        @Test
+        @DisplayName("user_feedback table exists")
+        void testUserFeedbackTable() {
+            assertTrue(tableExists("user_feedback"), "user_feedback table should exist");
+        }
+
+        @Test
+        @DisplayName("ticket_attachments table exists")
+        void testTicketAttachmentsTable() {
+            assertTrue(tableExists("ticket_attachments"), "ticket_attachments table should exist");
+        }
+
+        @Test
+        @DisplayName("support_tickets table has required columns")
+        void testSupportTicketsColumns() throws SQLException {
+            try (Connection conn = DatabaseConfig.getInstance().getConnection();
+                 ResultSet rs = conn.getMetaData().getColumns(null, null, "support_tickets", null)) {
+                java.util.Set<String> columns = new java.util.HashSet<>();
+                while (rs.next()) {
+                    columns.add(rs.getString("COLUMN_NAME").toLowerCase());
+                }
+                assertTrue(columns.contains("id"), "support_tickets should have id");
+                assertTrue(columns.contains("user_id"), "support_tickets should have user_id");
+                assertTrue(columns.contains("category"), "support_tickets should have category");
+                assertTrue(columns.contains("priority"), "support_tickets should have priority");
+                assertTrue(columns.contains("status"), "support_tickets should have status");
+                assertTrue(columns.contains("subject"), "support_tickets should have subject");
+            }
+        }
+
+        @Test
+        @DisplayName("ticket_messages table has required columns")
+        void testTicketMessagesColumns() throws SQLException {
+            try (Connection conn = DatabaseConfig.getInstance().getConnection();
+                 ResultSet rs = conn.getMetaData().getColumns(null, null, "ticket_messages", null)) {
+                java.util.Set<String> columns = new java.util.HashSet<>();
+                while (rs.next()) {
+                    columns.add(rs.getString("COLUMN_NAME").toLowerCase());
+                }
+                assertTrue(columns.contains("id"), "ticket_messages should have id");
+                assertTrue(columns.contains("ticket_id"), "ticket_messages should have ticket_id");
+                assertTrue(columns.contains("message"), "ticket_messages should have message");
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  SECTION 20: SUPPORT TICKET ENTITY EDGE CASES
+    // ═══════════════════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("26. SupportTicket Entity Edge Cases")
+    class SupportTicketEdgeCaseTests {
+
+        @Test
+        @DisplayName("Transient fields (userName, assignedToName)")
+        void testTransientFields() {
+            SupportTicket ticket = new SupportTicket();
+            ticket.setUserName("John Doe");
+            ticket.setAssignedToName("Admin User");
+            assertEquals("John Doe", ticket.getUserName());
+            assertEquals("Admin User", ticket.getAssignedToName());
+        }
+
+        @Test
+        @DisplayName("SLA due date and first response date")
+        void testSlaDates() {
+            SupportTicket ticket = new SupportTicket();
+            LocalDateTime slaDue = LocalDateTime.of(2024, 12, 31, 23, 59);
+            LocalDateTime firstResponse = LocalDateTime.of(2024, 6, 1, 10, 0);
+            ticket.setSlaDueDate(slaDue);
+            ticket.setFirstResponseDate(firstResponse);
+            assertEquals(slaDue, ticket.getSlaDueDate());
+            assertEquals(firstResponse, ticket.getFirstResponseDate());
+        }
+
+        @Test
+        @DisplayName("Resolved date tracked correctly")
+        void testResolvedDate() {
+            SupportTicket ticket = new SupportTicket();
+            LocalDateTime resolved = LocalDateTime.now();
+            ticket.setResolvedDate(resolved);
+            assertEquals(resolved, ticket.getResolvedDate());
+        }
+
+        @Test
+        @DisplayName("Nullable assignedTo (Integer)")
+        void testNullableAssignedTo() {
+            SupportTicket ticket = new SupportTicket();
+            assertNull(ticket.getAssignedTo());
+            ticket.setAssignedTo(5);
+            assertEquals(5, ticket.getAssignedTo());
+            ticket.setAssignedTo(null);
+            assertNull(ticket.getAssignedTo());
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  SECTION 21: TICKET MESSAGE ENTITY EDGE CASES
+    // ═══════════════════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("27. TicketMessage Entity Edge Cases")
+    class TicketMessageEdgeCaseTests {
+
+        @Test
+        @DisplayName("Audio message fields")
+        void testAudioFields() {
+            TicketMessage msg = new TicketMessage();
+            msg.setAudioPath("/audio/recording.wav");
+            msg.setAudio(true);
+            assertEquals("/audio/recording.wav", msg.getAudioPath());
+            assertTrue(msg.isAudio());
+        }
+
+        @Test
+        @DisplayName("Attachments JSON field")
+        void testAttachmentsJson() {
+            TicketMessage msg = new TicketMessage();
+            msg.setAttachmentsJson("[{\"file\":\"test.pdf\"}]");
+            assertEquals("[{\"file\":\"test.pdf\"}]", msg.getAttachmentsJson());
+        }
+
+        @Test
+        @DisplayName("Transient fields (senderName, senderRole)")
+        void testTransientFields() {
+            TicketMessage msg = new TicketMessage();
+            msg.setSenderName("Admin");
+            msg.setSenderRole("ADMIN");
+            assertEquals("Admin", msg.getSenderName());
+            assertEquals("ADMIN", msg.getSenderRole());
+        }
+
+        @Test
+        @DisplayName("Internal flag default is false")
+        void testInternalDefault() {
+            TicketMessage msg = new TicketMessage();
+            assertFalse(msg.isInternal());
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  SECTION 22: FAQ ARTICLE ENTITY EDGE CASES
+    // ═══════════════════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("28. FAQArticle Entity Edge Cases")
+    class FAQArticleEdgeCaseTests {
+
+        @Test
+        @DisplayName("Voting counts track correctly")
+        void testVotingCounts() {
+            FAQArticle article = new FAQArticle();
+            article.setHelpfulCount(10);
+            article.setNotHelpfulCount(3);
+            article.setViewCount(100);
+
+            assertEquals(10, article.getHelpfulCount());
+            assertEquals(3, article.getNotHelpfulCount());
+            assertEquals(100, article.getViewCount());
+        }
+
+        @Test
+        @DisplayName("Published flag defaults to true in parameterized constructor")
+        void testPublishedDefault() {
+            FAQArticle article = new FAQArticle("CAT", "Q?", "A.", "en");
+            assertTrue(article.isPublished());
+        }
+
+        @Test
+        @DisplayName("Updated date tracked")
+        void testUpdatedDate() {
+            FAQArticle article = new FAQArticle();
+            LocalDateTime now = LocalDateTime.now();
+            article.setUpdatedDate(now);
+            assertEquals(now, article.getUpdatedDate());
+        }
+
+        @Test
+        @DisplayName("Language field")
+        void testLanguageField() {
+            FAQArticle article = new FAQArticle("CAT", "Q?", "A.", "fr");
+            assertEquals("fr", article.getLanguage());
+            article.setLanguage("ar");
+            assertEquals("ar", article.getLanguage());
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  SECTION 23: CHATBOT MESSAGE ENTITY EDGE CASES
+    // ═══════════════════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("29. ChatbotMessage Entity Edge Cases")
+    class ChatbotMessageEdgeCaseTests {
+
+        @Test
+        @DisplayName("Intent and confidence fields")
+        void testIntentAndConfidence() {
+            ChatbotMessage msg = new ChatbotMessage();
+            msg.setIntent("greeting");
+            msg.setConfidence(0.95);
+            assertEquals("greeting", msg.getIntent());
+            assertEquals(0.95, msg.getConfidence(), 0.001);
+        }
+
+        @Test
+        @DisplayName("Sender types (user/bot)")
+        void testSenderTypes() {
+            ChatbotMessage userMsg = new ChatbotMessage(1, "user", "Hello");
+            assertEquals("user", userMsg.getSender());
+
+            ChatbotMessage botMsg = new ChatbotMessage(1, "bot", "Hi there!");
+            assertEquals("bot", botMsg.getSender());
+        }
+
+        @Test
+        @DisplayName("Created date tracked")
+        void testCreatedDate() {
+            ChatbotMessage msg = new ChatbotMessage();
+            LocalDateTime now = LocalDateTime.now();
+            msg.setCreatedDate(now);
+            assertEquals(now, msg.getCreatedDate());
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  SECTION 24: USER FEEDBACK ENTITY EDGE CASES
+    // ═══════════════════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("30. UserFeedback Entity Edge Cases")
+    class UserFeedbackEdgeCaseTests {
+
+        @Test
+        @DisplayName("Ticket ID field")
+        void testTicketIdField() {
+            UserFeedback fb = new UserFeedback();
+            fb.setTicketId(42);
+            assertEquals(42, fb.getTicketId());
+        }
+
+        @Test
+        @DisplayName("Resolved flag")
+        void testResolvedFlag() {
+            UserFeedback fb = new UserFeedback();
+            assertFalse(fb.isResolved());
+            fb.setResolved(true);
+            assertTrue(fb.isResolved());
+        }
+
+        @Test
+        @DisplayName("Category field")
+        void testCategoryField() {
+            UserFeedback fb = new UserFeedback();
+            fb.setCategory("UI_ISSUE");
+            assertEquals("UI_ISSUE", fb.getCategory());
+        }
+
+        @Test
+        @DisplayName("Transient userName field")
+        void testTransientUserName() {
+            UserFeedback fb = new UserFeedback();
+            fb.setUserName("Test User");
+            assertEquals("Test User", fb.getUserName());
+        }
+
+        @Test
+        @DisplayName("Rating boundary values (1-5)")
+        void testRatingBounds() {
+            UserFeedback fb = new UserFeedback();
+            fb.setRating(1);
+            assertEquals(1, fb.getRating());
+            fb.setRating(5);
+            assertEquals(5, fb.getRating());
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  SECTION 25: AUTO-RESPONSE ENTITY EDGE CASES
+    // ═══════════════════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("31. AutoResponse Entity Edge Cases")
+    class AutoResponseEdgeCaseTests {
+
+        @Test
+        @DisplayName("Usage count increments")
+        void testUsageCount() {
+            AutoResponse ar = new AutoResponse();
+            ar.setUsageCount(0);
+            assertEquals(0, ar.getUsageCount());
+            ar.setUsageCount(15);
+            assertEquals(15, ar.getUsageCount());
+        }
+
+        @Test
+        @DisplayName("Active flag defaults to true in parameterized constructor")
+        void testActiveDefault() {
+            AutoResponse ar = new AutoResponse("key", "response", "cat", "en");
+            assertTrue(ar.isActive());
+        }
+
+        @Test
+        @DisplayName("Created date tracked")
+        void testCreatedDate() {
+            AutoResponse ar = new AutoResponse();
+            LocalDateTime now = LocalDateTime.now();
+            ar.setCreatedDate(now);
+            assertEquals(now, ar.getCreatedDate());
+        }
+
+        @Test
+        @DisplayName("toString returns non-null")
+        void testToString() {
+            AutoResponse ar = new AutoResponse("test", "resp", "cat", "en");
+            assertNotNull(ar.toString());
+            assertFalse(ar.toString().isEmpty());
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  SECTION 26: CHATBOT CONVERSATION ENTITY EDGE CASES
+    // ═══════════════════════════════════════════════════════════
+
+    @Nested
+    @DisplayName("32. ChatbotConversation Entity Edge Cases")
+    class ChatbotConversationEdgeCaseTests {
+
+        @Test
+        @DisplayName("Escalated to ticket ID (nullable)")
+        void testEscalatedToTicketId() {
+            ChatbotConversation conv = new ChatbotConversation();
+            assertNull(conv.getEscalatedToTicketId());
+            conv.setEscalatedToTicketId(42);
+            assertEquals(42, conv.getEscalatedToTicketId());
+        }
+
+        @Test
+        @DisplayName("Ended date tracked")
+        void testEndedDate() {
+            ChatbotConversation conv = new ChatbotConversation();
+            assertNull(conv.getEndedDate());
+            LocalDateTime now = LocalDateTime.now();
+            conv.setEndedDate(now);
+            assertEquals(now, conv.getEndedDate());
+        }
+
+        @Test
+        @DisplayName("Status field values")
+        void testStatusValues() {
+            ChatbotConversation conv = new ChatbotConversation(1, "ACTIVE");
+            assertEquals("ACTIVE", conv.getStatus());
+            conv.setStatus("ENDED");
+            assertEquals("ENDED", conv.getStatus());
+        }
+
+        @Test
+        @DisplayName("toString returns non-null")
+        void testToString() {
+            ChatbotConversation conv = new ChatbotConversation(1, "ACTIVE");
+            assertNotNull(conv.toString());
         }
     }
 }

@@ -21,6 +21,8 @@ public class ErrorController {
     @FXML private TLButton supportBtn;
     @FXML private VBox detailsBox;
     @FXML private Label technicalDetails;
+    @FXML private Label needHelpLabel;
+    @FXML private Label techDetailsLabel;
     
     private Runnable onGoHome;
     private Runnable onGoBack;
@@ -70,7 +72,12 @@ public class ErrorController {
                     I18n.get("errorpage.generic.desc"));
             }
         }
+        homeBtn.setText(I18n.get("errorpage.back_home"));
         homeBtn.setGraphic(SvgIcons.icon(SvgIcons.ARROW_LEFT, 14));
+        backBtn.setText(I18n.get("errorpage.go_back"));
+        supportBtn.setText(I18n.get("errorpage.contact_support"));
+        if (needHelpLabel != null) needHelpLabel.setText(I18n.get("errorpage.need_help"));
+        if (techDetailsLabel != null) techDetailsLabel.setText(I18n.get("errorpage.technical_details"));
         
         if (details != null && !details.isEmpty()) {
             technicalDetails.setText(details);

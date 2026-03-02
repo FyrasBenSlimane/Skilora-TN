@@ -18,11 +18,13 @@ public class BankAccount {
     private String rib;
     private String currency;
     private boolean isPrimary;
+    private boolean isVerified;
     private LocalDateTime createdDate;
 
     public BankAccount() {
         this.currency = "TND";
         this.isPrimary = false;
+        this.isVerified = false;
     }
 
     public BankAccount(int userId, String bankName, String accountHolder) {
@@ -58,6 +60,9 @@ public class BankAccount {
 
     public boolean isPrimary() { return isPrimary; }
     public void setPrimary(boolean primary) { isPrimary = primary; }
+
+    public boolean isVerified() { return isVerified; }
+    public void setVerified(boolean verified) { isVerified = verified; }
 
     public LocalDateTime getCreatedDate() { return createdDate; }
     public void setCreatedDate(LocalDateTime createdDate) { this.createdDate = createdDate; }

@@ -2,11 +2,13 @@ package com.skilora.support.controller;
 
 import com.skilora.framework.components.*;
 import com.skilora.user.entity.*;
+import com.skilora.user.service.UserService;
 import com.skilora.support.entity.*;
 import com.skilora.support.service.*;
 import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.DialogUtils;
 import com.skilora.utils.I18n;
+import com.skilora.utils.SvgIcons;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
@@ -15,13 +17,28 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.stage.FileChooser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.Desktop;
+import java.io.File;
+import java.io.IOException;
 import java.net.URL;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import com.lowagie.text.Document;
+import com.lowagie.text.DocumentException;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.pdf.PdfWriter;
 
 /**
  * SupportAdminController — Admin view for managing support tickets,
@@ -41,9 +58,15 @@ public class SupportAdminController implements Initializable {
 
     private final SupportTicketService ticketService = SupportTicketService.getInstance();
     private final TicketMessageService messageService = TicketMessageService.getInstance();
+    private final TicketAttachmentService attachmentService = TicketAttachmentService.getInstance();
     private final FAQService faqService = FAQService.getInstance();
     private final AutoResponseService autoResponseService = AutoResponseService.getInstance();
     private final UserFeedbackService feedbackService = UserFeedbackService.getInstance();
+    private final UserService userService = UserService.getInstance();
+    private final GeminiAIService geminiService = GeminiAIService.getInstance();
+    private final AudioRecorderService audioRecorder = AudioRecorderService.getInstance();
+    private final DeepgramSTTService deepgramService = DeepgramSTTService.getInstance();
+    private String adminTicketFilter = null; // null=ALL, "MY"=assigned to me, status string
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -54,6 +77,13 @@ public class SupportAdminController implements Initializable {
 
     public void setCurrentUser(User user) {
         this.currentUser = user;
+        if (user == null || user.getRole() != com.skilora.user.enums.Role.ADMIN) {
+            if (contentPane != null && contentPane.getScene() != null) {
+                TLToast.error(contentPane.getScene(), I18n.get("errorpage.access_denied"),
+                        I18n.get("errorpage.access_denied.desc"));
+            }
+            return;
+        }
         showTicketsTab();
     }
 
@@ -79,12 +109,52 @@ public class SupportAdminController implements Initializable {
         tabBox.getChildren().add(tabs);
     }
 
+    private void enterTicketDetailMode() {
+        if (tabBox != null) {
+            tabBox.setVisible(false);
+            tabBox.setManaged(false);
+        }
+    }
+
+    private void exitTicketDetailMode() {
+        if (tabBox != null) {
+            tabBox.setVisible(true);
+            tabBox.setManaged(true);
+        }
+    }
+
     // ==================== Tickets Tab ====================
 
     private void showTicketsTab() {
+        exitTicketDetailMode();
         contentPane.getChildren().clear();
 
-        // Filter bar
+        // Trigger auto-escalation in background
+        AppThreadPool.execute(new Task<Integer>() {
+            @Override protected Integer call() { return ticketService.autoEscalateOverdueTickets(); }
+        });
+
+        // Quick filter chips row (My Tickets / All / by status)
+        HBox chipRow = new HBox(8);
+        chipRow.setAlignment(Pos.CENTER_LEFT);
+        chipRow.setPadding(new Insets(0, 0, 4, 0));
+
+        String[] quickFilters = {"ALL", "MY", "OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"};
+        String[] chipLabels = {I18n.get("support.admin.filter.all"), I18n.get("support.admin.filter.my_tickets"),
+                "OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"};
+        for (int i = 0; i < quickFilters.length; i++) {
+            final String filterVal = quickFilters[i];
+            TLButton chip = new TLButton(chipLabels[i],
+                    isActiveChip(filterVal) ? TLButton.ButtonVariant.PRIMARY : TLButton.ButtonVariant.OUTLINE);
+            chip.setOnAction(e -> {
+                adminTicketFilter = "ALL".equals(filterVal) ? null : filterVal;
+                showTicketsTab();
+            });
+            chipRow.getChildren().add(chip);
+        }
+        contentPane.getChildren().add(chipRow);
+
+        // Filter bar (status + priority dropdowns)
         HBox filterBar = new HBox(12);
         filterBar.setAlignment(Pos.CENTER_LEFT);
         filterBar.setPadding(new Insets(0, 0, 8, 0));
@@ -107,7 +177,45 @@ public class SupportAdminController implements Initializable {
         filterBar.getChildren().addAll(statusFilter, priorityFilter, filterBtn);
         contentPane.getChildren().add(filterBar);
 
-        loadAllTickets();
+        loadFilteredTickets();
+    }
+
+    private boolean isActiveChip(String filterVal) {
+        if (adminTicketFilter == null) return "ALL".equals(filterVal);
+        return adminTicketFilter.equals(filterVal);
+    }
+
+    private void loadFilteredTickets() {
+        if ("MY".equals(adminTicketFilter) && currentUser != null) {
+            loadMyTickets();
+        } else if (adminTicketFilter != null && !"ALL".equals(adminTicketFilter)) {
+            loadTicketsByStatus(adminTicketFilter);
+        } else {
+            loadAllTickets();
+        }
+    }
+
+    private void loadMyTickets() {
+        VBox ticketArea = getOrCreateTicketArea();
+        ticketArea.getChildren().clear();
+        ticketArea.getChildren().add(createLoadingIndicator());
+
+        int adminId = currentUser.getId();
+        Task<List<SupportTicket>> task = new Task<>() {
+            @Override
+            protected List<SupportTicket> call() {
+                return ticketService.findByAssignedTo(adminId);
+            }
+        };
+        task.setOnSucceeded(e -> {
+            List<SupportTicket> tickets = task.getValue();
+            Platform.runLater(() -> displayTickets(tickets, ticketArea));
+        });
+        task.setOnFailed(e -> {
+            logger.error("Failed to load my tickets", task.getException());
+            TLToast.error(contentPane.getScene(), I18n.get("common.error"), I18n.get("error.failed_load_tickets"));
+        });
+        AppThreadPool.execute(task);
     }
 
     private void applyTicketFilters(String status, String priority) {
@@ -251,11 +359,10 @@ public class SupportAdminController implements Initializable {
             card.getStyleClass().add("card-interactive");
 
             VBox content = new VBox(8);
-            content.setPadding(new Insets(16));
 
             // Subject header with status + priority badges
             Label subjectLabel = new Label(ticket.getSubject() != null ? ticket.getSubject() : "-");
-            subjectLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+            subjectLabel.getStyleClass().addAll("text-base", "font-bold");
 
             TLBadge statusBadge = new TLBadge(
                     ticket.getStatus() != null ? ticket.getStatus() : "OPEN",
@@ -275,7 +382,7 @@ public class SupportAdminController implements Initializable {
             if (!desc.isEmpty()) {
                 Label descLabel = new Label(desc.length() > 100 ? desc.substring(0, 100) + "..." : desc);
                 descLabel.setWrapText(true);
-                descLabel.setStyle("-fx-text-fill: -fx-muted-foreground;");
+                descLabel.getStyleClass().add("text-muted");
                 content.getChildren().add(descLabel);
             }
 
@@ -285,17 +392,40 @@ public class SupportAdminController implements Initializable {
             
             Label userLabel = new Label(I18n.get("support.admin.ticket.user") + ": " + 
                 (ticket.getUserName() != null ? ticket.getUserName() : "#" + ticket.getUserId()));
-            userLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: -fx-muted-foreground;");
+            userLabel.getStyleClass().addAll("text-xs", "text-muted");
             
             Label assignLabel = new Label(I18n.get("support.admin.ticket.assigned") + ": " +
                 (ticket.getAssignedToName() != null ? ticket.getAssignedToName() : I18n.get("support.admin.ticket.unassigned")));
-            assignLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: -fx-muted-foreground;");
+            assignLabel.getStyleClass().addAll("text-xs", "text-muted");
             
             Label dateLabel = new Label(ticket.getCreatedDate() != null
                     ? ticket.getCreatedDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) : "-");
-            dateLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: -fx-muted-foreground;");
+            dateLabel.getStyleClass().addAll("text-xs", "text-muted");
 
             infoRow.getChildren().addAll(userLabel, assignLabel, dateLabel);
+
+            // SLA countdown
+            if (ticket.getSlaDueDate() != null) {
+                long minutesLeft = ChronoUnit.MINUTES.between(LocalDateTime.now(), ticket.getSlaDueDate());
+                Label slaLabel;
+                if (minutesLeft < 0) {
+                    long overdueMins = Math.abs(minutesLeft);
+                    slaLabel = new Label("SLA breached (" + (overdueMins / 60) + "h overdue)");
+                    slaLabel.setStyle("-fx-text-fill: #ef4444; -fx-font-weight: bold;");
+                } else if (minutesLeft < 120) {
+                    slaLabel = new Label("SLA: " + minutesLeft + "min left");
+                    slaLabel.setStyle("-fx-text-fill: #ef4444;");
+                } else if (minutesLeft < 360) {
+                    slaLabel = new Label("SLA: " + (minutesLeft / 60) + "h left");
+                    slaLabel.setStyle("-fx-text-fill: #f59e0b;");
+                } else {
+                    slaLabel = new Label("SLA: " + (minutesLeft / 60) + "h left");
+                    slaLabel.getStyleClass().addAll("text-xs", "text-muted");
+                }
+                slaLabel.getStyleClass().add("text-xs");
+                infoRow.getChildren().add(slaLabel);
+            }
+
             content.getChildren().add(infoRow);
 
             card.setContent(content);
@@ -307,7 +437,7 @@ public class SupportAdminController implements Initializable {
 
         ScrollPane scrollPane = new ScrollPane(ticketList);
         scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-background-color: transparent;");
+        scrollPane.getStyleClass().add("bg-transparent");
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
         container.getChildren().add(scrollPane);
     }
@@ -329,33 +459,39 @@ public class SupportAdminController implements Initializable {
                 return;
             }
 
-            Task<List<TicketMessage>> msgTask = new Task<>() {
+            Task<TicketThreadData> threadTask = new Task<>() {
                 @Override
-                protected List<TicketMessage> call() {
-                    return messageService.findByTicketId(ticketId);
+                protected TicketThreadData call() {
+                    List<TicketMessage> messages = messageService.findByTicketId(ticketId);
+                    Map<Integer, List<TicketAttachment>> byMessage = new HashMap<>();
+                    List<TicketAttachment> atts = attachmentService.findByTicketId(ticketId);
+                    for (TicketAttachment a : atts) {
+                        if (a.getMessageId() == null) continue;
+                        byMessage.computeIfAbsent(a.getMessageId(), k -> new ArrayList<>()).add(a);
+                    }
+                    return new TicketThreadData(messages, byMessage);
                 }
             };
 
-            msgTask.setOnSucceeded(ev -> {
-                List<TicketMessage> messages = msgTask.getValue();
-                Platform.runLater(() -> showTicketDetailView(ticket, messages));
-            });
+            threadTask.setOnSucceeded(ev -> Platform.runLater(() ->
+                    showTicketDetailView(ticket, threadTask.getValue().messages, threadTask.getValue().attachmentsByMessage)));
 
-            AppThreadPool.execute(msgTask);
+            AppThreadPool.execute(threadTask);
         });
 
         AppThreadPool.execute(ticketTask);
     }
 
-    private void showTicketDetailView(SupportTicket ticket, List<TicketMessage> messages) {
+    private void showTicketDetailView(SupportTicket ticket, List<TicketMessage> messages, Map<Integer, List<TicketAttachment>> attachmentsByMessage) {
+        enterTicketDetailMode();
         contentPane.getChildren().clear();
 
         VBox detailView = new VBox(16);
         detailView.setPadding(new Insets(0));
 
         // Back button
-        TLButton backBtn = new TLButton("\u2190 " + I18n.get("common.back"));
-        backBtn.setVariant("SECONDARY");
+        TLButton backBtn = new TLButton("", TLButton.ButtonVariant.GHOST);
+        backBtn.setGraphic(SvgIcons.icon(SvgIcons.ARROW_LEFT, 16));
         backBtn.setOnAction(e -> showTicketsTab());
 
         // Header
@@ -363,7 +499,7 @@ public class SupportAdminController implements Initializable {
         headerRow.setAlignment(Pos.CENTER_LEFT);
 
         Label subjectLabel = new Label(ticket.getSubject());
-        subjectLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+        subjectLabel.getStyleClass().addAll("text-xl", "font-bold");
 
         TLBadge statusBadge = new TLBadge(
                 ticket.getStatus() != null ? ticket.getStatus() : "OPEN",
@@ -381,13 +517,35 @@ public class SupportAdminController implements Initializable {
         HBox actionBox = new HBox(8);
         actionBox.setAlignment(Pos.CENTER_RIGHT);
 
-        // Assign to me
+        // Assign to me (quick)
         if (ticket.getAssignedTo() == null || 
             (currentUser != null && ticket.getAssignedTo() != currentUser.getId())) {
             TLButton assignBtn = new TLButton(I18n.get("support.admin.ticket.assign_me"), TLButton.ButtonVariant.OUTLINE);
             assignBtn.setOnAction(e -> assignTicket(ticket.getId(), currentUser != null ? currentUser.getId() : 0));
             actionBox.getChildren().add(assignBtn);
         }
+
+        // Assign to another admin dropdown
+        TLSelect<String> assignSelect = new TLSelect<>(I18n.get("support.admin.ticket.assign_to"));
+        assignSelect.setPrefWidth(200);
+        List<User> admins = userService.findByRole("ADMIN");
+        Map<String, Integer> adminNameToId = new java.util.LinkedHashMap<>();
+        for (User admin : admins) {
+            String display = admin.getFullName();
+            adminNameToId.put(display, admin.getId());
+            assignSelect.getItems().add(display);
+        }
+        if (ticket.getAssignedToName() != null) {
+            assignSelect.setValue(ticket.getAssignedToName());
+        }
+        TLButton assignOtherBtn = new TLButton(I18n.get("support.admin.ticket.assign_action"), TLButton.ButtonVariant.OUTLINE);
+        assignOtherBtn.setOnAction(e -> {
+            String selected = assignSelect.getValue();
+            if (selected != null && adminNameToId.containsKey(selected)) {
+                assignTicket(ticket.getId(), adminNameToId.get(selected));
+            }
+        });
+        actionBox.getChildren().addAll(assignSelect, assignOtherBtn);
 
         // Status transitions
         String status = ticket.getStatus() != null ? ticket.getStatus() : "OPEN";
@@ -423,12 +581,17 @@ public class SupportAdminController implements Initializable {
         deleteBtn.setOnAction(e -> deleteTicket(ticket.getId()));
         actionBox.getChildren().add(deleteBtn);
 
+        // PDF export button (branch integration)
+        TLButton pdfBtn = new TLButton("📄 PDF", TLButton.ButtonVariant.OUTLINE);
+        pdfBtn.setTooltip(new Tooltip("Export ticket to PDF"));
+        pdfBtn.setOnAction(e -> exportTicketToPdf(ticket, messages));
+        actionBox.getChildren().add(pdfBtn);
+
         headerRow.getChildren().add(actionBox);
 
         // Ticket info card
         TLCard infoCard = new TLCard();
         VBox infoContent = new VBox(8);
-        infoContent.setPadding(new Insets(16));
 
         infoContent.getChildren().add(createDetailRow(I18n.get("support.admin.ticket.user"),
                 ticket.getUserName() != null ? ticket.getUserName() : "#" + ticket.getUserId()));
@@ -439,38 +602,47 @@ public class SupportAdminController implements Initializable {
         infoContent.getChildren().add(createDetailRow(I18n.get("support.admin.ticket.date"),
                 ticket.getCreatedDate() != null
                         ? ticket.getCreatedDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) : "-"));
+        if (ticket.getSlaDueDate() != null) {
+            infoContent.getChildren().add(createDetailRow(I18n.get("ticket.sla_due"),
+                    ticket.getSlaDueDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))));
+        }
+        if (ticket.getFirstResponseDate() != null) {
+            infoContent.getChildren().add(createDetailRow(I18n.get("ticket.first_response"),
+                    ticket.getFirstResponseDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))));
+        }
 
         // Full description
         Label descTitle = new Label(I18n.get("ticket.description"));
-        descTitle.setStyle("-fx-font-weight: bold; -fx-padding: 8 0 4 0;");
+        descTitle.getStyleClass().addAll("font-bold", "pt-8");
         Label descBody = new Label(ticket.getDescription() != null ? ticket.getDescription() : "-");
         descBody.setWrapText(true);
-        descBody.setStyle("-fx-text-fill: -fx-muted-foreground;");
+        descBody.getStyleClass().add("text-muted");
 
         infoContent.getChildren().addAll(descTitle, descBody);
         infoCard.setContent(infoContent);
 
         // Conversation section
         Label convTitle = new Label(I18n.get("ticket.conversation"));
-        convTitle.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 8 0 0 0;");
+        convTitle.getStyleClass().addAll("text-base", "font-bold", "pt-8");
 
         VBox messagesBox = new VBox(8);
         messagesBox.setPadding(new Insets(8, 0, 8, 0));
 
         if (messages.isEmpty()) {
             Label noMsg = new Label(I18n.get("ticket.no_messages"));
-            noMsg.setStyle("-fx-text-fill: -fx-muted-foreground;");
+            noMsg.getStyleClass().add("text-muted");
             messagesBox.getChildren().add(noMsg);
         } else {
             for (TicketMessage msg : messages) {
-                messagesBox.getChildren().add(createMessageBubble(msg));
+                messagesBox.getChildren().add(createMessageBubble(msg,
+                        attachmentsByMessage != null ? attachmentsByMessage.get(msg.getId()) : null));
             }
         }
 
         ScrollPane msgScroll = new ScrollPane(messagesBox);
         msgScroll.setFitToWidth(true);
         msgScroll.setPrefHeight(250);
-        msgScroll.setStyle("-fx-background-color: transparent;");
+        msgScroll.getStyleClass().add("bg-transparent");
 
         // Reply box (admin can always reply unless CLOSED)
         VBox replySection = new VBox(8);
@@ -479,30 +651,120 @@ public class SupportAdminController implements Initializable {
             replyArea.getControl().setPrefRowCount(6);
             replyArea.getControl().setPrefHeight(140);
             replyArea.getControl().setMinHeight(120);
-            replyArea.getControl().setStyle("-fx-background-color: -fx-background; -fx-text-fill: -fx-foreground; -fx-border-color: -fx-input; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 10 14;");
+            replyArea.getControl().getStyleClass().add("reply-textarea");
 
             // Internal note toggle
             TLSwitch internalSwitch = new TLSwitch();
             Label internalLabel = new Label(I18n.get("support.admin.reply.internal"));
-            internalLabel.setStyle("-fx-text-fill: -fx-muted-foreground; -fx-font-size: 13px;");
+            internalLabel.getStyleClass().addAll("text-muted", "text-sm");
             HBox internalToggle = new HBox(8, internalSwitch, internalLabel);
             internalToggle.setAlignment(Pos.CENTER_LEFT);
+
+            List<File> pendingAttachments = new ArrayList<>();
+            HBox chipsRow = new HBox(6);
+            chipsRow.setAlignment(Pos.CENTER_LEFT);
+            chipsRow.setVisible(false);
+            chipsRow.setManaged(false);
+
+            TLButton attachBtn = new TLButton("", TLButton.ButtonVariant.OUTLINE);
+            attachBtn.setGraphic(com.skilora.utils.SvgIcons.icon(com.skilora.utils.SvgIcons.FILE_TEXT, 16));
+            attachBtn.setTooltip(new Tooltip(I18n.get("ticket.attach")));
+            attachBtn.setOnAction(e -> {
+                if (contentPane == null || contentPane.getScene() == null) return;
+                FileChooser chooser = new FileChooser();
+                chooser.setTitle(I18n.get("ticket.attach"));
+                List<File> files = chooser.showOpenMultipleDialog(contentPane.getScene().getWindow());
+                if (files == null || files.isEmpty()) return;
+                pendingAttachments.addAll(files);
+                rebuildAttachmentChips(chipsRow, pendingAttachments);
+            });
 
             TLButton sendBtn = new TLButton(I18n.get("ticket.send_reply"), TLButton.ButtonVariant.PRIMARY);
             sendBtn.setOnAction(e -> {
                 String text = replyArea.getText() != null ? replyArea.getText().trim() : "";
-                if (!text.isEmpty()) {
-                    sendAdminReply(ticket.getId(), text, internalSwitch.isSelected());
+                if (!text.isEmpty() || !pendingAttachments.isEmpty()) {
+                    sendAdminReply(ticket.getId(), text, internalSwitch.isSelected(), pendingAttachments);
                 }
             });
 
-            HBox replyActions = new HBox(12, internalToggle, sendBtn);
+            // AI Suggestion button (branch integration: GeminiAIService)
+            TLButton aiSuggestBtn = new TLButton("✨ AI Suggest", TLButton.ButtonVariant.OUTLINE);
+            aiSuggestBtn.setTooltip(new Tooltip("Let AI suggest a reply"));
+            aiSuggestBtn.setOnAction(e -> {
+                aiSuggestBtn.setDisable(true);
+                Task<String> aiTask = new Task<>() {
+                    @Override protected String call() {
+                        return geminiService.suggestReply(
+                            ticket.getSubject() != null ? ticket.getSubject() : "",
+                            ticket.getDescription() != null ? ticket.getDescription() : "");
+                    }
+                };
+                aiTask.setOnSucceeded(ev -> Platform.runLater(() -> {
+                    String suggestion = aiTask.getValue();
+                    if (suggestion != null && !suggestion.isBlank()) {
+                        replyArea.setText(suggestion);
+                    }
+                    aiSuggestBtn.setDisable(false);
+                }));
+                aiTask.setOnFailed(ev -> Platform.runLater(() -> {
+                    logger.error("AI suggestion failed", aiTask.getException());
+                    aiSuggestBtn.setDisable(false);
+                }));
+                AppThreadPool.execute(aiTask);
+            });
+
+            // Voice input button (branch integration: AudioRecorder + Deepgram STT)
+            TLButton voiceBtn = new TLButton("🎤", TLButton.ButtonVariant.OUTLINE);
+            voiceBtn.setTooltip(new Tooltip("Speech-to-text"));
+            AtomicBoolean isRecording = new AtomicBoolean(false);
+            voiceBtn.setOnAction(e -> {
+                if (!isRecording.get()) {
+                    try {
+                        audioRecorder.start();
+                        isRecording.set(true);
+                        voiceBtn.setText("⏹");
+                        voiceBtn.setStyle("-fx-background-color: #EF4444; -fx-text-fill: white;");
+                    } catch (Exception ex) {
+                        logger.error("Failed to start recording", ex);
+                    }
+                } else {
+                    try {
+                        byte[] audioData = audioRecorder.stop();
+                        isRecording.set(false);
+                        voiceBtn.setText("🎤");
+                        voiceBtn.setStyle("");
+                        if (audioData != null && audioData.length > 0) {
+                            voiceBtn.setDisable(true);
+                            Task<String> sttTask = new Task<>() {
+                                @Override protected String call() { return deepgramService.transcribe(audioData); }
+                            };
+                            sttTask.setOnSucceeded(ev -> Platform.runLater(() -> {
+                                String transcript = sttTask.getValue();
+                                if (transcript != null && !transcript.isBlank()) {
+                                    String current = replyArea.getText() != null ? replyArea.getText() : "";
+                                    replyArea.setText(current.isEmpty() ? transcript : current + " " + transcript);
+                                }
+                                voiceBtn.setDisable(false);
+                            }));
+                            sttTask.setOnFailed(ev -> Platform.runLater(() -> voiceBtn.setDisable(false)));
+                            AppThreadPool.execute(sttTask);
+                        }
+                    } catch (Exception ex) {
+                        logger.error("Failed to stop recording", ex);
+                        isRecording.set(false);
+                        voiceBtn.setText("🎤");
+                        voiceBtn.setStyle("");
+                    }
+                }
+            });
+
+            HBox replyActions = new HBox(12, internalToggle, aiSuggestBtn, voiceBtn, attachBtn, sendBtn);
             replyActions.setAlignment(Pos.CENTER_RIGHT);
 
-            replySection.getChildren().addAll(replyArea, replyActions);
+            replySection.getChildren().addAll(replyArea, chipsRow, replyActions);
         } else {
             Label closedLabel = new Label(I18n.get("ticket.closed_notice"));
-            closedLabel.setStyle("-fx-text-fill: -fx-muted-foreground; -fx-font-style: italic;");
+            closedLabel.getStyleClass().addAll("text-muted", "italic");
             replySection.getChildren().add(closedLabel);
         }
 
@@ -510,12 +772,12 @@ public class SupportAdminController implements Initializable {
 
         ScrollPane outerScroll = new ScrollPane(detailView);
         outerScroll.setFitToWidth(true);
-        outerScroll.setStyle("-fx-background-color: transparent;");
+        outerScroll.getStyleClass().add("bg-transparent");
         VBox.setVgrow(outerScroll, Priority.ALWAYS);
         contentPane.getChildren().add(outerScroll);
     }
 
-    private VBox createMessageBubble(TicketMessage msg) {
+    private VBox createMessageBubble(TicketMessage msg, List<TicketAttachment> attachments) {
         VBox bubble = new VBox(4);
         boolean isAdmin = currentUser != null && msg.getSenderId() == currentUser.getId();
 
@@ -530,38 +792,83 @@ public class SupportAdminController implements Initializable {
             senderInfo += " [" + I18n.get("support.admin.reply.internal_label") + "]";
         }
         Label senderLabel = new Label(senderInfo);
-        senderLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-muted-foreground;");
+        senderLabel.getStyleClass().addAll("text-2xs", "text-muted");
 
         Label msgLabel = new Label(msg.getMessage());
         msgLabel.setWrapText(true);
         msgLabel.setMaxWidth(500);
 
-        String bgColor;
+        String bubbleClass;
         if (msg.isInternal()) {
-            bgColor = "-fx-background-color: -fx-secondary; -fx-text-fill: -fx-muted-foreground; -fx-padding: 10 14; -fx-background-radius: 12; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 12; -fx-font-style: italic;";
+            bubbleClass = "chat-bubble-internal";
         } else if (isAdmin) {
-            bgColor = "-fx-background-color: -fx-primary; -fx-text-fill: -fx-primary-foreground; -fx-padding: 10 14; -fx-background-radius: 12;";
+            bubbleClass = "chat-bubble-mine";
         } else {
-            bgColor = "-fx-background-color: -fx-muted; -fx-text-fill: -fx-foreground; -fx-padding: 10 14; -fx-background-radius: 12;";
+            bubbleClass = "chat-bubble-other";
         }
-        msgLabel.setStyle(bgColor);
+        msgLabel.getStyleClass().add(bubbleClass);
 
         Label timeLabel = new Label(msg.getCreatedDate() != null
                 ? msg.getCreatedDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) : "");
-        timeLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: -fx-muted-foreground;");
+        timeLabel.getStyleClass().addAll("text-3xs", "text-muted");
 
-        bubble.getChildren().addAll(senderLabel, msgLabel, timeLabel);
+        VBox attachmentsBox = createAttachmentsBox(attachments);
+        if (attachmentsBox != null) {
+            bubble.getChildren().addAll(senderLabel, msgLabel, attachmentsBox, timeLabel);
+        } else {
+            bubble.getChildren().addAll(senderLabel, msgLabel, timeLabel);
+        }
         return bubble;
     }
 
-    private void sendAdminReply(int ticketId, String text, boolean isInternal) {
+    private VBox createAttachmentsBox(List<TicketAttachment> attachments) {
+        if (attachments == null || attachments.isEmpty()) return null;
+        VBox box = new VBox(4);
+        for (TicketAttachment a : attachments) {
+            Hyperlink link = new Hyperlink(a.getFileName() != null ? a.getFileName() : "");
+            link.getStyleClass().add("attachment-link");
+            link.setGraphic(com.skilora.utils.SvgIcons.icon(com.skilora.utils.SvgIcons.FILE_TEXT, 14));
+            link.setOnAction(e -> openAttachment(a));
+            box.getChildren().add(link);
+        }
+        return box;
+    }
+
+    private void openAttachment(TicketAttachment a) {
+        if (a == null || a.getFilePath() == null) return;
+        try {
+            if (!Desktop.isDesktopSupported()) return;
+            Desktop.getDesktop().open(new File(a.getFilePath()));
+        } catch (Exception ex) {
+            logger.debug("Failed to open attachment {}", a.getFilePath(), ex);
+        }
+    }
+
+    private void sendAdminReply(int ticketId, String text, boolean isInternal, List<File> attachments) {
         if (currentUser == null) return;
 
+        List<File> files = attachments != null ? new ArrayList<>(attachments) : List.of();
         Task<Integer> task = new Task<>() {
             @Override
             protected Integer call() {
                 TicketMessage msg = new TicketMessage(ticketId, currentUser.getId(), text, isInternal);
-                return messageService.addMessage(msg);
+                int messageId = messageService.addMessage(msg);
+                if (messageId > 0 && !isInternal) {
+                    ticketService.markFirstResponseIfMissing(ticketId);
+                }
+                if (messageId > 0 && !files.isEmpty()) {
+                    for (File f : files) {
+                        try {
+                            var stored = AttachmentStorage.store(f, ticketId);
+                            TicketAttachment att = new TicketAttachment(ticketId, messageId,
+                                    stored.getOriginalName(), stored.getMimeType(), stored.getStoredPath(), stored.getSize());
+                            attachmentService.create(att);
+                        } catch (IOException ex) {
+                            logger.debug("Failed to store attachment {}", f, ex);
+                        }
+                    }
+                }
+                return messageId;
             }
         };
 
@@ -627,6 +934,7 @@ public class SupportAdminController implements Initializable {
                 I18n.get("support.admin.delete.confirm.message")
         ).ifPresent(result -> {
             if (result == ButtonType.OK) {
+                contentPane.setDisable(true);
                 Task<Boolean> task = new Task<>() {
                     @Override
                     protected Boolean call() {
@@ -634,9 +942,11 @@ public class SupportAdminController implements Initializable {
                     }
                 };
                 task.setOnSucceeded(e -> Platform.runLater(() -> {
+                    contentPane.setDisable(false);
                     TLToast.success(contentPane.getScene(), I18n.get("message.success"), I18n.get("ticket.deleted"));
                     showTicketsTab();
                 }));
+                task.setOnFailed(e -> Platform.runLater(() -> contentPane.setDisable(false)));
                 AppThreadPool.execute(task);
             }
         });
@@ -687,15 +997,14 @@ public class SupportAdminController implements Initializable {
         for (FAQArticle article : articles) {
             TLCard card = new TLCard();
             VBox content = new VBox(8);
-            content.setPadding(new Insets(16));
 
             Label questionLabel = new Label(article.getQuestion() != null ? article.getQuestion() : "-");
-            questionLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+            questionLabel.getStyleClass().addAll("text-sm", "font-bold");
             questionLabel.setWrapText(true);
 
             Label answerLabel = new Label(article.getAnswer() != null ? article.getAnswer() : "-");
             answerLabel.setWrapText(true);
-            answerLabel.setStyle("-fx-text-fill: -fx-muted-foreground;");
+            answerLabel.getStyleClass().add("text-muted");
 
             content.getChildren().addAll(questionLabel, answerLabel);
 
@@ -705,6 +1014,8 @@ public class SupportAdminController implements Initializable {
                     String.valueOf(article.getViewCount())));
             content.getChildren().add(createDetailRow(I18n.get("support.admin.faq.helpful"),
                     String.valueOf(article.getHelpfulCount())));
+            content.getChildren().add(createDetailRow(I18n.get("support.admin.faq.not_helpful"),
+                    String.valueOf(article.getNotHelpfulCount())));
 
             HBox actions = new HBox(8);
             actions.setAlignment(Pos.CENTER_RIGHT);
@@ -725,7 +1036,7 @@ public class SupportAdminController implements Initializable {
 
         ScrollPane scrollPane = new ScrollPane(faqList);
         scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-background-color: transparent;");
+        scrollPane.getStyleClass().add("bg-transparent");
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
         contentPane.getChildren().add(scrollPane);
     }
@@ -737,7 +1048,6 @@ public class SupportAdminController implements Initializable {
                 : I18n.get("support.admin.faq.edit"));
 
         VBox form = new VBox(12);
-        form.setPadding(new Insets(16));
         form.setPrefWidth(500);
 
         TLTextField categoryField = new TLTextField(I18n.get("support.admin.faq.category"), "");
@@ -762,6 +1072,23 @@ public class SupportAdminController implements Initializable {
         dialog.addButton(ButtonType.CANCEL);
         dialog.addButton(ButtonType.OK);
         dialog.getDialogPane().setPrefWidth(560);
+
+        dialog.getDialogPane().lookupButton(ButtonType.OK).addEventFilter(
+            javafx.event.ActionEvent.ACTION, event -> {
+                boolean valid = true;
+                String q = questionField.getText() != null ? questionField.getText().trim() : "";
+                String a = answerField.getText() != null ? answerField.getText().trim() : "";
+                if (q.isEmpty()) {
+                    questionField.setError(I18n.get("error.validation.required", I18n.get("support.admin.faq.question")));
+                    valid = false;
+                } else { questionField.clearValidation(); }
+                if (a.isEmpty()) {
+                    answerField.setError(I18n.get("error.validation.required", I18n.get("support.admin.faq.answer")));
+                    valid = false;
+                } else { answerField.clearValidation(); }
+                if (!valid) event.consume();
+            }
+        );
 
         dialog.showAndWait().ifPresent(result -> {
             if (result == ButtonType.OK) {
@@ -846,10 +1173,9 @@ public class SupportAdminController implements Initializable {
         for (AutoResponse ar : responses) {
             TLCard card = new TLCard();
             VBox content = new VBox(8);
-            content.setPadding(new Insets(16));
 
             Label keywordLabel = new Label(ar.getTriggerKeyword() != null ? ar.getTriggerKeyword() : "-");
-            keywordLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+            keywordLabel.getStyleClass().addAll("text-sm", "font-bold");
 
             TLBadge activeBadge = new TLBadge(
                     ar.isActive() ? I18n.get("common.active") : I18n.get("common.inactive"),
@@ -861,7 +1187,7 @@ public class SupportAdminController implements Initializable {
 
             Label responseLabel = new Label(ar.getResponseText() != null ? ar.getResponseText() : "-");
             responseLabel.setWrapText(true);
-            responseLabel.setStyle("-fx-text-fill: -fx-muted-foreground;");
+            responseLabel.getStyleClass().add("text-muted");
             content.getChildren().add(responseLabel);
 
             content.getChildren().add(createDetailRow(I18n.get("support.admin.auto.category"),
@@ -893,7 +1219,7 @@ public class SupportAdminController implements Initializable {
 
         ScrollPane scrollPane = new ScrollPane(responseList);
         scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-background-color: transparent;");
+        scrollPane.getStyleClass().add("bg-transparent");
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
         contentPane.getChildren().add(scrollPane);
     }
@@ -905,7 +1231,6 @@ public class SupportAdminController implements Initializable {
                 : I18n.get("support.admin.auto.edit"));
 
         VBox form = new VBox(12);
-        form.setPadding(new Insets(16));
         form.setPrefWidth(480);
 
         TLTextField keywordField = new TLTextField(I18n.get("support.admin.auto.keyword"), "");
@@ -930,6 +1255,23 @@ public class SupportAdminController implements Initializable {
         dialog.addButton(ButtonType.CANCEL);
         dialog.addButton(ButtonType.OK);
         dialog.getDialogPane().setPrefWidth(540);
+
+        dialog.getDialogPane().lookupButton(ButtonType.OK).addEventFilter(
+            javafx.event.ActionEvent.ACTION, event -> {
+                boolean valid = true;
+                String kw = keywordField.getText() != null ? keywordField.getText().trim() : "";
+                String resp = responseField.getText() != null ? responseField.getText().trim() : "";
+                if (kw.isEmpty()) {
+                    keywordField.setError(I18n.get("error.validation.required", I18n.get("support.admin.auto.keyword")));
+                    valid = false;
+                } else { keywordField.clearValidation(); }
+                if (resp.isEmpty()) {
+                    responseField.setError(I18n.get("error.validation.required", I18n.get("support.admin.auto.response")));
+                    valid = false;
+                } else { responseField.clearValidation(); }
+                if (!valid) event.consume();
+            }
+        );
 
         dialog.showAndWait().ifPresent(result -> {
             if (result == ButtonType.OK) {
@@ -1019,11 +1361,10 @@ public class SupportAdminController implements Initializable {
         for (UserFeedback fb : feedbackList) {
             TLCard card = new TLCard();
             VBox content = new VBox(8);
-            content.setPadding(new Insets(16));
 
             Label userLabel = new Label(fb.getUserName() != null
                     ? fb.getUserName() : I18n.get("support.admin.feedback.user") + " #" + fb.getUserId());
-            userLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+            userLabel.getStyleClass().addAll("text-sm", "font-bold");
 
             TLBadge typeBadge = new TLBadge(
                     fb.getFeedbackType() != null ? fb.getFeedbackType() : "-",
@@ -1040,7 +1381,7 @@ public class SupportAdminController implements Initializable {
             if (fb.getComment() != null && !fb.getComment().isEmpty()) {
                 Label commentLabel = new Label(fb.getComment());
                 commentLabel.setWrapText(true);
-                commentLabel.setStyle("-fx-text-fill: -fx-muted-foreground;");
+                commentLabel.getStyleClass().add("text-muted");
                 content.getChildren().add(commentLabel);
             }
 
@@ -1072,7 +1413,7 @@ public class SupportAdminController implements Initializable {
 
         ScrollPane scrollPane = new ScrollPane(feedbackContainer);
         scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-background-color: transparent;");
+        scrollPane.getStyleClass().add("bg-transparent");
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
         contentPane.getChildren().add(scrollPane);
     }
@@ -1114,8 +1455,11 @@ public class SupportAdminController implements Initializable {
                 long openCount = ticketService.countOpen();
                 long resolvedCount = ticketService.countByStatus("RESOLVED");
                 long closedCount = ticketService.countByStatus("CLOSED");
+                long slaBreached = ticketService.countSlaBreachedOpen();
+                double avgFirstResponseMins = ticketService.getAvgFirstResponseMinutes();
+                double avgResolutionMins = ticketService.getAvgResolutionMinutes();
                 double avgRating = feedbackService.getAverageRating();
-                return new StatsData(openCount, resolvedCount, closedCount, avgRating);
+                return new StatsData(openCount, resolvedCount, closedCount, slaBreached, avgFirstResponseMins, avgResolutionMins, avgRating);
             }
         };
 
@@ -1139,7 +1483,7 @@ public class SupportAdminController implements Initializable {
         contentPane.getChildren().clear();
 
         Label headerLabel = new Label(I18n.get("support.admin.stats.title"));
-        headerLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
+        headerLabel.getStyleClass().addAll("text-lg", "font-bold");
         contentPane.getChildren().add(headerLabel);
 
         FlowPane statsGrid = new FlowPane(16, 16);
@@ -1148,9 +1492,110 @@ public class SupportAdminController implements Initializable {
         statsGrid.getChildren().add(createStatCard(I18n.get("support.admin.stats.open_tickets"), String.valueOf(stats.openCount)));
         statsGrid.getChildren().add(createStatCard(I18n.get("support.admin.stats.resolved_tickets"), String.valueOf(stats.resolvedCount)));
         statsGrid.getChildren().add(createStatCard(I18n.get("support.admin.stats.closed_tickets"), String.valueOf(stats.closedCount)));
+        statsGrid.getChildren().add(createStatCard(I18n.get("support.admin.stats.sla_breached"), String.valueOf(stats.slaBreached)));
+        statsGrid.getChildren().add(createStatCard(I18n.get("support.admin.stats.avg_first_response"), formatMinutes(stats.avgFirstResponseMins)));
+        statsGrid.getChildren().add(createStatCard(I18n.get("support.admin.stats.avg_resolution"), formatMinutes(stats.avgResolutionMins)));
         statsGrid.getChildren().add(createStatCard(I18n.get("support.admin.stats.avg_rating"), String.format("%.1f / 5", stats.avgRating)));
 
         contentPane.getChildren().add(statsGrid);
+    }
+
+    private String formatMinutes(double minutes) {
+        if (minutes <= 0) return "-";
+        if (minutes < 60) return String.format("%.0f min", minutes);
+        double hours = minutes / 60.0;
+        return String.format("%.1f h", hours);
+    }
+
+    private void rebuildAttachmentChips(HBox chipsRow, List<File> attachments) {
+        if (chipsRow == null) return;
+        chipsRow.getChildren().clear();
+        if (attachments == null || attachments.isEmpty()) {
+            chipsRow.setVisible(false);
+            chipsRow.setManaged(false);
+            return;
+        }
+        chipsRow.setVisible(true);
+        chipsRow.setManaged(true);
+
+        for (File f : new ArrayList<>(attachments)) {
+            HBox chip = new HBox(6);
+            chip.setAlignment(Pos.CENTER_LEFT);
+            chip.getStyleClass().add("attachment-chip");
+
+            Label name = new Label(f.getName());
+            name.getStyleClass().addAll("text-2xs", "text-muted");
+
+            TLButton remove = new TLButton("", TLButton.ButtonVariant.GHOST);
+            remove.setGraphic(com.skilora.utils.SvgIcons.icon(com.skilora.utils.SvgIcons.X_CIRCLE, 14));
+            remove.setTooltip(new Tooltip("Remove"));
+            remove.setOnAction(e -> {
+                attachments.remove(f);
+                rebuildAttachmentChips(chipsRow, attachments);
+            });
+
+            chip.getChildren().addAll(name, remove);
+            chipsRow.getChildren().add(chip);
+        }
+    }
+
+    // ==================== PDF Export (Branch Integration) ====================
+
+    private void exportTicketToPdf(SupportTicket ticket, List<TicketMessage> messages) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Export Ticket as PDF");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF Files", "*.pdf"));
+        fileChooser.setInitialFileName("ticket_" + ticket.getId() + ".pdf");
+        File file = fileChooser.showSaveDialog(contentPane.getScene().getWindow());
+        if (file == null) return;
+
+        Task<Void> task = new Task<>() {
+            @Override
+            protected Void call() throws DocumentException, IOException {
+                Document document = new Document();
+                PdfWriter.getInstance(document, new java.io.FileOutputStream(file));
+                document.open();
+
+                document.add(new Paragraph("Ticket #" + ticket.getId()));
+                document.add(new Paragraph("Subject: " + (ticket.getSubject() != null ? ticket.getSubject() : "-")));
+                document.add(new Paragraph("Status: " + (ticket.getStatus() != null ? ticket.getStatus() : "-")));
+                document.add(new Paragraph("Priority: " + (ticket.getPriority() != null ? ticket.getPriority() : "-")));
+                document.add(new Paragraph("Category: " + (ticket.getCategory() != null ? ticket.getCategory() : "-")));
+                document.add(new Paragraph("User: " + (ticket.getUserName() != null ? ticket.getUserName() : "#" + ticket.getUserId())));
+                document.add(new Paragraph("Assigned To: " + (ticket.getAssignedToName() != null ? ticket.getAssignedToName() : "Unassigned")));
+                document.add(new Paragraph("Created: " + (ticket.getCreatedDate() != null
+                        ? ticket.getCreatedDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) : "-")));
+                document.add(new Paragraph(" "));
+                document.add(new Paragraph("Description:"));
+                document.add(new Paragraph(ticket.getDescription() != null ? ticket.getDescription() : "-"));
+                document.add(new Paragraph(" "));
+                document.add(new Paragraph("--- Conversation ---"));
+                document.add(new Paragraph(" "));
+
+                if (messages != null) {
+                    for (TicketMessage msg : messages) {
+                        String sender = msg.getSenderName() != null ? msg.getSenderName() : "#" + msg.getSenderId();
+                        String time = msg.getCreatedDate() != null
+                                ? msg.getCreatedDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) : "";
+                        String prefix = msg.isInternal() ? "[INTERNAL] " : "";
+                        document.add(new Paragraph(prefix + sender + " (" + time + "):"));
+                        document.add(new Paragraph(msg.getMessage() != null ? msg.getMessage() : ""));
+                        document.add(new Paragraph(" "));
+                    }
+                }
+
+                document.close();
+                return null;
+            }
+        };
+
+        task.setOnSucceeded(e -> Platform.runLater(() ->
+            TLToast.success(contentPane.getScene(), I18n.get("message.success"), "PDF exported: " + file.getName())));
+        task.setOnFailed(e -> {
+            logger.error("Failed to export PDF", task.getException());
+            Platform.runLater(() -> DialogUtils.showError(I18n.get("message.error"), "PDF export failed"));
+        });
+        AppThreadPool.execute(task);
     }
 
     // ==================== Helper Methods ====================
@@ -1159,7 +1604,7 @@ public class SupportAdminController implements Initializable {
         HBox row = new HBox(8);
         row.setAlignment(Pos.CENTER_LEFT);
         Label labelNode = new Label(label + ":");
-        labelNode.setStyle("-fx-font-weight: bold; -fx-text-fill: -fx-muted-foreground;");
+        labelNode.getStyleClass().addAll("font-bold", "text-muted");
         labelNode.setMinWidth(Region.USE_PREF_SIZE);
         Label valueNode = new Label(value != null ? value : "-");
         valueNode.setWrapText(true);
@@ -1167,14 +1612,8 @@ public class SupportAdminController implements Initializable {
         return row;
     }
 
-    private VBox createEmptyState(String message) {
-        VBox emptyState = new VBox(12);
-        emptyState.setAlignment(Pos.CENTER);
-        emptyState.setPadding(new Insets(48));
-        Label label = new Label(message);
-        label.setStyle("-fx-font-size: 14px; -fx-text-fill: -fx-muted-foreground;");
-        emptyState.getChildren().add(label);
-        return emptyState;
+    private TLEmptyState createEmptyState(String message) {
+        return new TLEmptyState(SvgIcons.SEARCH, message, "");
     }
 
     private StackPane createLoadingIndicator() {
@@ -1185,11 +1624,10 @@ public class SupportAdminController implements Initializable {
         TLCard card = new TLCard();
         card.setPrefWidth(220);
         VBox content = new VBox(8);
-        content.setPadding(new Insets(16));
         Label titleLbl = new Label(title);
-        titleLbl.setStyle("-fx-font-size: 12px; -fx-text-fill: -fx-muted-foreground;");
+        titleLbl.getStyleClass().addAll("text-xs", "text-muted");
         Label valueLbl = new Label(value);
-        valueLbl.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;");
+        valueLbl.getStyleClass().addAll("text-2xl", "font-bold");
         content.getChildren().addAll(titleLbl, valueLbl);
         card.setContent(content);
         return card;
@@ -1217,5 +1655,14 @@ public class SupportAdminController implements Initializable {
         };
     }
 
-    private record StatsData(long openCount, long resolvedCount, long closedCount, double avgRating) {}
+    private record TicketThreadData(List<TicketMessage> messages, Map<Integer, List<TicketAttachment>> attachmentsByMessage) {}
+
+    private record StatsData(
+            long openCount,
+            long resolvedCount,
+            long closedCount,
+            long slaBreached,
+            double avgFirstResponseMins,
+            double avgResolutionMins,
+            double avgRating) {}
 }

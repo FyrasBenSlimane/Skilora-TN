@@ -12,9 +12,19 @@ import com.skilora.user.controller.LoginController;
 import com.skilora.user.controller.UserFormController;
 import com.skilora.user.controller.SettingsController;
 import com.skilora.formation.controller.FormationsController;
+import com.skilora.formation.controller.CertificationsController;
+import com.skilora.recruitment.controller.ActiveOffersController;
 import com.skilora.user.ui.ProfileWizardView;
+import com.skilora.user.ui.PublicProfileView;
+import com.skilora.community.service.NotificationService;
+import com.skilora.security.AuditLogService;
 import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.I18n;
+import com.skilora.utils.SvgIcons;
+import com.skilora.user.enums.Capability;
+import com.skilora.user.enums.Role;
+import com.skilora.user.service.PermissionService;
+import com.skilora.user.service.AuthService;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +45,9 @@ import javafx.geometry.Side;
 import javafx.geometry.Insets;
 import javafx.concurrent.Task;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
+
 /**
  * MainView - Component showcase + dashboard. All TL components in a scrollable
  * area.
@@ -52,9 +65,12 @@ public class MainView extends TLAppLayout {
     // TopBar items – stored as fields for in-place i18n refresh
     private Label appTitleLabel;
     private Button themeToggleBtn;
+    private StackPane notifBellPane;
+    private Label notifBadge;
 
     // Cached Views for Performance
-    private VBox cachedFeedView;
+    private Node cachedFeedView;
+    private com.skilora.recruitment.controller.FeedController cachedFeedController;
     private TLScrollArea cachedProfileScroll;
     private Node cachedDashboardView;
     private Node cachedSettingsView;
@@ -72,9 +88,17 @@ public class MainView extends TLAppLayout {
     private Node cachedSupportAdminView;
     private Node cachedCommunityView;
     private Node cachedFinanceView;
+    private Node cachedCertificationsView;
 
     // Support notification dot
     private Circle supportNotificationDot;
+
+    // Active nav button tracking
+    private TLButton activeNavButton;
+
+    // Navigation history for "Go Back" support
+    private final Deque<Runnable> navigationHistory = new ArrayDeque<>();
+    private Runnable currentViewAction;
 
     public MainView(User user) {
         super();
@@ -133,6 +157,24 @@ public class MainView extends TLAppLayout {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
+        // Notification bell with badge
+        Button notifBtn = new Button();
+        notifBtn.setGraphic(SvgIcons.icon(SvgIcons.BELL, 16));
+        notifBtn.setTooltip(new Tooltip("Notifications"));
+        notifBtn.getStyleClass().addAll("topbar-icon-btn");
+        notifBtn.setOnAction(e -> showNotificationsView());
+
+        notifBadge = new Label();
+        notifBadge.getStyleClass().add("notif-badge");
+        notifBadge.setVisible(false);
+        notifBadge.setMouseTransparent(true);
+
+        notifBellPane = new StackPane(notifBtn, notifBadge);
+        notifBellPane.setMaxSize(34, 34);
+        notifBellPane.setMinSize(34, 34);
+        StackPane.setAlignment(notifBadge, Pos.TOP_RIGHT);
+        StackPane.setMargin(notifBadge, new Insets(-2, -2, 0, 0));
+
         themeToggleBtn = new Button();
         themeToggleBtn.getStyleClass().add("theme-toggle");
         updateThemeToggleIcon(themeToggleBtn, isDarkMode());
@@ -141,10 +183,30 @@ public class MainView extends TLAppLayout {
             updateThemeToggleIcon(themeToggleBtn, isDarkMode());
         });
 
-        // Set initial text
         refreshTopBarLabels();
+        refreshNotificationBadge();
 
-        getTopBar().getChildren().addAll(appTitleLabel, spacer, themeToggleBtn);
+        HBox rightGroup = new HBox(8);
+        rightGroup.setAlignment(Pos.CENTER_RIGHT);
+        rightGroup.getStyleClass().add("topbar-actions");
+        rightGroup.getChildren().addAll(notifBellPane, themeToggleBtn);
+
+        getTopBar().getChildren().addAll(appTitleLabel, spacer, rightGroup);
+    }
+
+    private void refreshNotificationBadge() {
+        if (currentUser == null) return;
+        AppThreadPool.execute(() -> {
+            int count = NotificationService.getInstance().getUnreadCount(currentUser.getId());
+            javafx.application.Platform.runLater(() -> {
+                if (count > 0) {
+                    notifBadge.setText(count > 99 ? "99+" : String.valueOf(count));
+                    notifBadge.setVisible(true);
+                } else {
+                    notifBadge.setVisible(false);
+                }
+            });
+        });
     }
 
     /**
@@ -158,6 +220,9 @@ public class MainView extends TLAppLayout {
                 break;
             case EMPLOYER:
                 roleTitle = I18n.get("app.employer");
+                break;
+            case TRAINER:
+                roleTitle = I18n.get("app.trainer");
                 break;
             default:
                 roleTitle = I18n.get("app.talent");
@@ -176,14 +241,15 @@ public class MainView extends TLAppLayout {
         Button toggleSidebarBtn = new Button();
         toggleSidebarBtn.getStyleClass().addAll("btn-ghost", "sidebar-toggle-btn");
         SVGPath toggleIcon = new SVGPath();
-        toggleIcon.setContent("M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z");
+        toggleIcon.setContent(SvgIcons.MENU);
         toggleIcon.getStyleClass().add("svg-path");
         StackPane iconWrap = new StackPane(toggleIcon);
         iconWrap.setMinSize(24, 24);
         iconWrap.setPrefSize(24, 24);
         iconWrap.setMaxSize(24, 24);
-        iconWrap.setStyle("-fx-alignment: center;");
+        iconWrap.getStyleClass().add("items-center");
         toggleSidebarBtn.setGraphic(iconWrap);
+        toggleSidebarBtn.setTooltip(new Tooltip("Toggle sidebar"));
         toggleSidebarBtn.setMinSize(36, 36);
         toggleSidebarBtn.setPrefSize(36, 36);
 
@@ -209,88 +275,71 @@ public class MainView extends TLAppLayout {
             case ADMIN:
                 navMenu.getChildren().addAll(
                         createNavButton(I18n.get("nav.dashboard"),
-                                "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z", this::showDashboard),
+                                SvgIcons.LAYOUT_DASHBOARD, this::showDashboard),
                         createNavButton(I18n.get("nav.users"),
-                                com.skilora.utils.SvgIcons.USERS,
-                                this::showUsersView),
+                                SvgIcons.USERS, this::showUsersView),
                         createNavButton(I18n.get("nav.active_offers"),
-                                com.skilora.utils.SvgIcons.BRIEFCASE,
-                                this::showActiveOffersView),
+                                SvgIcons.BRIEFCASE, this::showActiveOffersView),
                         createNavButton(I18n.get("nav.reports"),
-                                com.skilora.utils.SvgIcons.ALERT_TRIANGLE,
-                                this::showReportsView),
-                        createNavButton(I18n.get("nav.notifications"),
-                                com.skilora.utils.SvgIcons.BELL,
-                                this::showNotificationsView),
-                        createSupportNavButton(),
+                                SvgIcons.ALERT_TRIANGLE, this::showReportsView),
                         createNavButton(I18n.get("nav.community"),
-                                com.skilora.utils.SvgIcons.USERS,
-                                this::showCommunityView),
+                                SvgIcons.USERS, this::showCommunityView),
                         createNavButton(I18n.get("nav.formations"),
-                                com.skilora.utils.SvgIcons.GRADUATION_CAP,
-                                this::showFormationsView),
-                        createNavButton(I18n.get("nav.interviews"),
-                                com.skilora.utils.SvgIcons.VIDEO,
-                                this::showInterviewsView),
+                                SvgIcons.GRADUATION_CAP, this::showFormationAdminView),
                         createNavButton(I18n.get("nav.finance"),
-                                com.skilora.utils.SvgIcons.DOLLAR_SIGN,
-                                this::showFinanceView),
-                        createNavButton(I18n.get("nav.settings"),
-                                "M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z",
-                                this::showSettingsView));
+                                SvgIcons.DOLLAR_SIGN, this::showFinanceView),
+                        createSupportNavButton());
                 break;
             case EMPLOYER:
                 navMenu.getChildren().addAll(
                         createNavButton(I18n.get("nav.dashboard"),
-                                "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
-                                this::showDashboard),
-                        createNavButton(I18n.get("nav.post_job"), "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
-                                this::showPostJobView),
+                                SvgIcons.LAYOUT_DASHBOARD, this::showDashboard),
+                        createNavButton(I18n.get("nav.post_job"),
+                                SvgIcons.PLUS, this::showPostJobView),
                         createNavButton(I18n.get("nav.my_offers"),
-                                "M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z",
-                                this::showMyOffersView),
+                                SvgIcons.BRIEFCASE, this::showMyOffersView),
                         createNavButton(I18n.get("nav.inbox"),
-                                "M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z",
-                                this::showApplicationInboxView),
-                        createNavButton(I18n.get("nav.notifications"),
-                                "M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z",
-                                this::showNotificationsView),
-                        createSupportNavButton(),
+                                SvgIcons.USER, this::showApplicationInboxView),
                         createNavButton(I18n.get("nav.interviews"),
-                                "M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z",
-                                this::showInterviewsView),
+                                SvgIcons.VIDEO, this::showInterviewsView),
+                        createNavButton(I18n.get("nav.community"),
+                                SvgIcons.USERS, this::showCommunityView),
                         createNavButton(I18n.get("nav.finance"),
-                                "M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6",
-                                this::showFinanceView));
+                                SvgIcons.DOLLAR_SIGN, this::showFinanceView),
+                        createSupportNavButton());
+                break;
+            case TRAINER:
+                navMenu.getChildren().addAll(
+                        createNavButton(I18n.get("nav.dashboard"),
+                                SvgIcons.LAYOUT_DASHBOARD, this::showDashboard),
+                        createNavButton(I18n.get("nav.formations"),
+                                SvgIcons.GRADUATION_CAP, this::showFormationAdminView),
+                        createNavButton(I18n.get("nav.mentorship"),
+                                SvgIcons.HEART, this::showMentorshipView),
+                        createNavButton(I18n.get("nav.community"),
+                                SvgIcons.USERS, this::showCommunityView),
+                        createNavButton(I18n.get("nav.finance"),
+                                SvgIcons.DOLLAR_SIGN, this::showFinanceView),
+                        createSupportNavButton());
                 break;
             case USER:
             default:
                 navMenu.getChildren().addAll(
                         createNavButton(I18n.get("nav.dashboard"),
-                                "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
-                                this::showDashboard),
+                                SvgIcons.LAYOUT_DASHBOARD, this::showDashboard),
                         createNavButton(I18n.get("nav.feed"),
-                                "M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z",
-                                this::showFeedView),
+                                SvgIcons.NEWSPAPER, this::showFeedView),
                         createNavButton(I18n.get("nav.applications"),
-                                "M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 2 2h12c1.1 0 2-.89 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z",
-                                this::showApplicationsView),
-                        createNavButton(I18n.get("nav.notifications"),
-                                "M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z",
-                                this::showNotificationsView),
-                        createSupportNavButton(),
-                        createNavButton(I18n.get("nav.profile"),
-                                "M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z",
-                                this::showProfileView),
+                                SvgIcons.FILE_TEXT, this::showApplicationsView),
                         createNavButton(I18n.get("nav.community"),
-                                "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 1-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
-                                this::showCommunityView),
+                                SvgIcons.USERS, this::showCommunityView),
                         createNavButton(I18n.get("nav.formations"),
-                                "M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z",
-                                this::showFormationsView),
+                                SvgIcons.GRADUATION_CAP, this::showFormationsView),
+                        createNavButton(I18n.get("nav.certifications"),
+                                SvgIcons.CHECK_CIRCLE, this::showCertificationsView),
                         createNavButton(I18n.get("nav.finance"),
-                                "M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6",
-                                this::showFinanceView));
+                                SvgIcons.DOLLAR_SIGN, this::showFinanceView),
+                        createSupportNavButton());
                 break;
         }
 
@@ -377,13 +426,9 @@ public class MainView extends TLAppLayout {
 
     private static void updateThemeToggleIcon(Button btn, boolean darkMode) {
         // Sun icon for dark mode (click to go light), moon icon for light mode (click to go dark)
-        String sunPath = "M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58a.996.996 0 0 0-1.41 0 .996.996 0 0 0 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37a.996.996 0 0 0-1.41 0 .996.996 0 0 0 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0a.996.996 0 0 0 0-1.41l-1.06-1.06zm1.06-10.96a.996.996 0 0 0 0-1.41.996.996 0 0 0-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36a.996.996 0 0 0 0-1.41.996.996 0 0 0-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z";
-        String moonPath = "M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z";
-
         SVGPath icon = new SVGPath();
-        icon.setContent(darkMode ? sunPath : moonPath);
+        icon.setContent(darkMode ? SvgIcons.SUN : SvgIcons.MOON);
         icon.getStyleClass().add("svg-path");
-        icon.setStyle("-fx-fill: -fx-foreground;");
 
         StackPane iconWrap = new StackPane(icon);
         iconWrap.setMinSize(20, 20);
@@ -442,18 +487,32 @@ public class MainView extends TLAppLayout {
         btn.setGraphic(icon);
 
         if (action != null) {
-            btn.setOnAction(e -> action.run());
+            btn.setOnAction(e -> {
+                setActiveNavButton(btn);
+                action.run();
+            });
         }
         return btn;
     }
 
+    /** Highlights the given nav button and clears the previous one. */
+    private void setActiveNavButton(TLButton btn) {
+        if (activeNavButton != null) {
+            activeNavButton.getStyleClass().remove("nav-active");
+        }
+        activeNavButton = btn;
+        if (btn != null && !btn.getStyleClass().contains("nav-active")) {
+            btn.getStyleClass().add("nav-active");
+        }
+    }
+
     private javafx.scene.Node createSupportNavButton() {
         TLButton btn = createNavButton(I18n.get("nav.support"),
-                "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",
+                SvgIcons.MESSAGE_SQUARE,
                 this::showSupportView);
 
         supportNotificationDot = new Circle(4);
-        supportNotificationDot.setStyle("-fx-fill: -fx-red;");
+        supportNotificationDot.getStyleClass().add("icon-red");
         supportNotificationDot.setVisible(false);
         supportNotificationDot.setManaged(false);
 
@@ -501,6 +560,7 @@ public class MainView extends TLAppLayout {
     }
 
     private void showDashboard() {
+        pushNavigation(this::showDashboard);
         if (cachedDashboardView == null) {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/community/DashboardView.fxml"));
@@ -515,6 +575,13 @@ public class MainView extends TLAppLayout {
                         this::showFeedView,
                         this::showUsersView,
                         this::showReportsView
+                    );
+                    controller.setNavigationCallbacks(
+                        this::showPostJobView,
+                        this::showApplicationInboxView,
+                        this::showFormationsView,
+                        this::showFormationAdminView,
+                        this::showFinanceView
                     );
                 }
                 
@@ -537,6 +604,35 @@ public class MainView extends TLAppLayout {
 
 
     private void handleLogout() {
+        // Clear cached views to prevent memory leaks
+        cachedFeedView = null;
+        cachedFeedController = null;
+        cachedProfileScroll = null;
+        cachedDashboardView = null;
+        cachedSettingsView = null;
+        cachedUsersView = null;
+        cachedApplicationsView = null;
+        cachedNotificationsView = null;
+        cachedPostJobView = null;
+        cachedApplicationInboxView = null;
+        cachedMyOffersView = null;
+        cachedActiveOffersView = null;
+        cachedFormationsView = null;
+        cachedReportsView = null;
+        cachedInterviewsView = null;
+        cachedSupportView = null;
+        cachedSupportAdminView = null;
+        cachedCommunityView = null;
+        cachedFinanceView = null;
+        cachedCertificationsView = null;
+
+        // Clear navigation history to prevent stale state on re-login
+        navigationHistory.clear();
+
+        AuthService.getInstance().logout();
+
+        // Camera is NOT pre-warmed — it only activates when user clicks Face ID
+
         Stage stage = (Stage) this.getScene().getWindow();
 
         try {
@@ -563,9 +659,11 @@ public class MainView extends TLAppLayout {
 
 
     private void showProfileView() {
+        pushNavigation(this::showProfileView);
         if (cachedProfileScroll == null) {
             ProfileWizardView profileView = new ProfileWizardView(currentUser);
             profileView.setOnProfileUpdated(this::updateSidebarAvatar); // Hook up callback
+            profileView.setOnViewPublicProfile(this::showPublicProfileView);
 
             // Wrap in scroll area
             cachedProfileScroll = new TLScrollArea(profileView);
@@ -577,7 +675,17 @@ public class MainView extends TLAppLayout {
         switchContent(cachedProfileScroll);
     }
 
+    private void showPublicProfileView() {
+        pushNavigation(this::showPublicProfileView);
+        PublicProfileView publicProfile = new PublicProfileView(currentUser);
+        switchContent(publicProfile);
+    }
+
     private void showUsersView() {
+        pushNavigation(this::showUsersView);
+        if (!requireCapability("Users", Capability.MANAGE_USERS)) {
+            return;
+        }
         // Always recreate users view to refresh data
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/user/UsersView.fxml"));
@@ -588,6 +696,7 @@ public class MainView extends TLAppLayout {
             if (controller != null) {
                 controller.initializeContext(
                     userService,
+                    currentUser,
                     this::showUserForm,
                     this::showUsersView,
                     user -> getInitialsFromDisplayName(
@@ -596,7 +705,12 @@ public class MainView extends TLAppLayout {
                 );
             }
             
-            cachedUsersView = usersContent;
+            TLScrollArea scrollArea = new TLScrollArea(usersContent);
+            scrollArea.setFitToWidth(true);
+            scrollArea.setFitToHeight(true);
+            scrollArea.getStyleClass().add("transparent-bg");
+
+            cachedUsersView = scrollArea;
             switchContent(cachedUsersView);
             
         } catch (Exception e) {
@@ -630,20 +744,42 @@ public class MainView extends TLAppLayout {
 
             ButtonType saveBtnType = new ButtonType(I18n.get("common.save"), ButtonBar.ButtonData.OK_DONE);
             ButtonType cancelBtnType = new ButtonType(I18n.get("common.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
-            dialog.getDialogPane().getButtonTypes().addAll(saveBtnType, cancelBtnType);
+            dialog.addButton(saveBtnType);
+            dialog.addButton(cancelBtnType);
+
+            // Prevent dialog from closing when validation fails
+            dialog.getDialogPane().lookupButton(saveBtnType).addEventFilter(
+                javafx.event.ActionEvent.ACTION, event -> {
+                    if (!controller.validate()) {
+                        event.consume(); // Keep dialog open
+                    }
+                }
+            );
 
             dialog.setResultConverter(btnType -> {
                 if (btnType == saveBtnType) {
-                    if (controller.validate()) {
-                        return controller.getUser();
-                    }
-                    return null;
+                    return controller.getUser();
                 }
                 return null;
             });
 
             dialog.showAndWait().ifPresent(user -> {
+                boolean isUpdate = user.getId() != 0;
+                // Defense-in-depth: prevent admin from modifying their own account
+                if (isUpdate && currentUser != null && user.getId() == currentUser.getId()
+                        && currentUser.getRole() == com.skilora.user.enums.Role.ADMIN) {
+                    logger.warn("Blocked admin self-edit attempt for user id {}", user.getId());
+                    return;
+                }
                 userService.saveUser(user);
+                AuditLogService.getInstance().log(
+                        currentUser != null ? currentUser.getId() : null,
+                        "user",
+                        isUpdate ? "user_update" : "user_create",
+                        "User",
+                        user.getId() != 0 ? String.valueOf(user.getId()) : null,
+                        "username=" + user.getUsername() + ", email=" + user.getEmail() + ", role=" + user.getRole()
+                );
                 showUsersView();
             });
             
@@ -653,26 +789,37 @@ public class MainView extends TLAppLayout {
     }
 
     private void showFeedView() {
+        pushNavigation(this::showFeedView);
         if (cachedFeedView == null) {
             try {
                 javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
                         getClass().getResource("/com/skilora/view/recruitment/FeedView.fxml"));
-                cachedFeedView = loader.load();
+                VBox feedContent = loader.load();
                 
                 // Set callback to navigate to job details
-                com.skilora.recruitment.controller.FeedController controller = loader.getController();
-                if (controller != null) {
-                    controller.setOnJobClick(this::showJobDetails);
+                cachedFeedController = loader.getController();
+                if (cachedFeedController != null) {
+                    cachedFeedController.setOnJobClick(this::showJobDetails);
+                    cachedFeedController.setCurrentUser(currentUser);
                 }
+
+                TLScrollArea scrollArea = new TLScrollArea(feedContent);
+                scrollArea.setFitToWidth(true);
+                scrollArea.setFitToHeight(true);
+                scrollArea.getStyleClass().add("transparent-bg");
+
+                cachedFeedView = scrollArea;
             } catch (Exception e) {
                 logger.error("Failed to load FeedView", e);
                 return;
             }
         }
+        if (cachedFeedController != null) cachedFeedController.setCurrentUser(currentUser);
         switchContent(cachedFeedView);
     }
 
     private void showSettingsView() {
+        pushNavigation(this::showSettingsView);
         // Always recreate to pick up current i18n state
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/user/SettingsView.fxml"));
@@ -687,6 +834,7 @@ public class MainView extends TLAppLayout {
                     cachedDashboardView = null;
                     cachedSettingsView = null;
                     cachedFeedView = null;
+                    cachedFeedController = null;
                     cachedProfileScroll = null;
                     cachedUsersView = null;
                     cachedApplicationsView = null;
@@ -702,6 +850,7 @@ public class MainView extends TLAppLayout {
                     cachedSupportView = null;
                     cachedSupportAdminView = null;
                     cachedFinanceView = null;
+                    cachedCertificationsView = null;
 
                     // Update topbar labels in-place (no duplication)
                     refreshTopBarLabels();
@@ -721,7 +870,12 @@ public class MainView extends TLAppLayout {
                 );
             }
 
-            cachedSettingsView = settingsContent;
+            TLScrollArea scrollArea = new TLScrollArea(settingsContent);
+            scrollArea.setFitToWidth(true);
+            scrollArea.setFitToHeight(false);
+            scrollArea.getStyleClass().add("transparent-bg");
+
+            cachedSettingsView = scrollArea;
 
         } catch (Exception e) {
             logger.error("Failed to load SettingsView", e);
@@ -731,6 +885,7 @@ public class MainView extends TLAppLayout {
     }
 
     private void showApplicationsView() {
+        pushNavigation(this::showApplicationsView);
         if (cachedApplicationsView == null) {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/recruitment/ApplicationsView.fxml"));
@@ -757,6 +912,8 @@ public class MainView extends TLAppLayout {
     }
 
     private void showApplicationInboxView() {
+        pushNavigation(this::showApplicationInboxView);
+        if (!requireCapability("ApplicationInbox", Capability.VIEW_APPLICATION_INBOX)) return;
         if (cachedApplicationInboxView == null) {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/recruitment/ApplicationInboxView.fxml"));
@@ -789,6 +946,7 @@ public class MainView extends TLAppLayout {
             
             com.skilora.recruitment.controller.JobDetailsController controller = loader.getController();
             if (controller != null) {
+                controller.setCurrentUser(currentUser);
                 controller.setJob(job);
                 controller.setCallbacks(
                     this::showFeedView,
@@ -802,7 +960,7 @@ public class MainView extends TLAppLayout {
             TLScrollArea scrollArea = new TLScrollArea(jobDetailsContent);
             scrollArea.setFitToWidth(true);
             scrollArea.setFitToHeight(true);
-            scrollArea.setStyle("-fx-background-color: transparent;");
+            scrollArea.getStyleClass().add("bg-transparent");
             
             switchContent(scrollArea);
             
@@ -870,11 +1028,80 @@ public class MainView extends TLAppLayout {
         fadeOut.play();
     }
 
+    /**
+     * Push current view to navigation history before navigating away.
+     * Call this at the start of each show*View() method.
+     */
+    private void pushNavigation(Runnable viewAction) {
+        if (currentViewAction != null) {
+            navigationHistory.push(currentViewAction);
+            // Keep history bounded to last 20 entries
+            while (navigationHistory.size() > 20) {
+                navigationHistory.removeLast();
+            }
+        }
+        currentViewAction = viewAction;
+    }
+
+    /**
+     * Navigate back to the previous view, or dashboard if no history.
+     */
+    public void navigateBack() {
+        if (!navigationHistory.isEmpty()) {
+            Runnable prev = navigationHistory.pop();
+            currentViewAction = prev;
+            prev.run();
+        } else {
+            showDashboard();
+        }
+    }
+
+    @SuppressWarnings("unused")
+    private boolean requireRole(String viewName, Role... allowed) {
+        if (currentUser == null) {
+            showError(com.skilora.community.controller.ErrorController.ErrorType.UNAUTHORIZED,
+                    I18n.get("errorpage.access_denied"),
+                    I18n.get("errorpage.access_denied.desc") + (viewName != null ? ("\n" + viewName) : ""));
+            return false;
+        }
+        if (allowed != null) {
+            for (Role r : allowed) {
+                if (currentUser.getRole() == r) return true;
+            }
+        }
+        showError(com.skilora.community.controller.ErrorController.ErrorType.UNAUTHORIZED,
+                I18n.get("errorpage.access_denied"),
+                I18n.get("errorpage.access_denied.desc") + (viewName != null ? ("\n" + viewName) : ""));
+        return false;
+    }
+
+    private boolean requireCapability(String viewName, Capability capability) {
+        if (currentUser == null) {
+            showError(com.skilora.community.controller.ErrorController.ErrorType.UNAUTHORIZED,
+                    I18n.get("errorpage.access_denied"),
+                    I18n.get("errorpage.access_denied.desc") + (viewName != null ? ("\n" + viewName) : ""));
+            return false;
+        }
+        if (PermissionService.getInstance().can(currentUser.getRole(), capability)) {
+            return true;
+        }
+        showError(com.skilora.community.controller.ErrorController.ErrorType.UNAUTHORIZED,
+                I18n.get("errorpage.access_denied"),
+                I18n.get("errorpage.access_denied.desc") + (viewName != null ? ("\n" + viewName) : ""));
+        return false;
+    }
+
     private void showNotificationsView() {
+        pushNavigation(this::showNotificationsView);
         if (cachedNotificationsView == null) {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/community/NotificationsView.fxml"));
                 VBox notificationsContent = loader.load();
+                
+                com.skilora.community.controller.NotificationsController controller = loader.getController();
+                if (controller != null) {
+                    controller.setCurrentUser(currentUser);
+                }
                 
                 TLScrollArea scrollArea = new TLScrollArea(notificationsContent);
                 scrollArea.setFitToWidth(true);
@@ -889,9 +1116,12 @@ public class MainView extends TLAppLayout {
             }
         }
         switchContent(cachedNotificationsView);
+        refreshNotificationBadge();
     }
 
     private void showPostJobView() {
+        pushNavigation(this::showPostJobView);
+        if (!requireCapability("PostJob", Capability.POST_PROJECT)) return;
         if (cachedPostJobView == null) {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/recruitment/PostJobView.fxml"));
@@ -928,10 +1158,7 @@ public class MainView extends TLAppLayout {
                 controller.setError(type, message, details);
                 controller.setCallbacks(
                     this::showDashboard,  // Go home
-                    () -> {               // Go back
-                        // TODO: Implement navigation history
-                        showDashboard();
-                    },
+                    this::navigateBack,   // Go back (uses navigation history)
                     () -> {               // Support
                         logger.debug("Opening support dialog");
                         HelpDialog.show(getScene().getWindow());
@@ -947,6 +1174,8 @@ public class MainView extends TLAppLayout {
     }
 
     private void showMyOffersView() {
+        pushNavigation(this::showMyOffersView);
+        if (!requireCapability("MyOffers", Capability.MANAGE_OWN_OFFERS)) return;
         // Always recreate to refresh data
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/recruitment/MyOffersView.fxml"));
@@ -972,15 +1201,29 @@ public class MainView extends TLAppLayout {
     }
 
     private void showActiveOffersView() {
+        pushNavigation(this::showActiveOffersView);
+        if (!requireCapability("ActiveOffers", Capability.VIEW_ACTIVE_OFFERS)) {
+            return;
+        }
         // Always recreate to refresh data
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/recruitment/ActiveOffersView.fxml"));
             VBox activeOffersContent = loader.load();
+            ActiveOffersController controller = loader.getController();
 
             TLScrollArea scrollArea = new TLScrollArea(activeOffersContent);
             scrollArea.setFitToWidth(true);
             scrollArea.setFitToHeight(true);
             scrollArea.getStyleClass().add("transparent-bg");
+            scrollArea.setCache(true);
+            scrollArea.setCacheHint(javafx.scene.CacheHint.SPEED);
+
+            // Infinite scroll — auto-load next page when near bottom
+            scrollArea.vvalueProperty().addListener((obs, oldVal, newVal) -> {
+                if (newVal.doubleValue() > 0.75) {
+                    controller.loadNextPageIfAvailable();
+                }
+            });
 
             cachedActiveOffersView = scrollArea;
             switchContent(cachedActiveOffersView);
@@ -991,10 +1234,11 @@ public class MainView extends TLAppLayout {
     }
 
     private void showFormationsView() {
+        pushNavigation(this::showFormationsView);
         if (cachedFormationsView == null) {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/formation/FormationsView.fxml"));
-                VBox formationsContent = loader.load();
+                StackPane formationsContent = loader.load();
                 
                 // Pass current user to the controller
                 FormationsController controller = loader.getController();
@@ -1017,7 +1261,91 @@ public class MainView extends TLAppLayout {
         switchContent(cachedFormationsView);
     }
 
+    private javafx.scene.Node cachedFormationAdminView;
+
+    private void showFormationAdminView() {
+        pushNavigation(this::showFormationAdminView);
+        if (!requireCapability("FormationAdmin", Capability.ADMIN_FORMATIONS)) {
+            return;
+        }
+        if (cachedFormationAdminView == null) {
+            try {
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/formation/FormationAdminView.fxml"));
+                VBox adminContent = loader.load();
+
+                com.skilora.formation.controller.FormationAdminController controller = loader.getController();
+                if (controller != null && currentUser != null) {
+                    controller.setCurrentUser(currentUser);
+                }
+
+                TLScrollArea scrollArea = new TLScrollArea(adminContent);
+                scrollArea.setFitToWidth(true);
+                scrollArea.setFitToHeight(true);
+                scrollArea.getStyleClass().add("transparent-bg");
+
+                cachedFormationAdminView = scrollArea;
+            } catch (Exception e) {
+                logger.error("Failed to load FormationAdminView", e);
+                return;
+            }
+        }
+        switchContent(cachedFormationAdminView);
+    }
+
+    private void showCertificationsView() {
+        pushNavigation(this::showCertificationsView);
+        if (cachedCertificationsView == null) {
+            try {
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/formation/CertificationsView.fxml"));
+                VBox certContent = loader.load();
+
+                CertificationsController controller = loader.getController();
+                if (controller != null && currentUser != null) {
+                    controller.setCurrentUser(currentUser);
+                }
+
+                TLScrollArea scrollArea = new TLScrollArea(certContent);
+                scrollArea.setFitToWidth(true);
+                scrollArea.setFitToHeight(true);
+                scrollArea.getStyleClass().add("transparent-bg");
+
+                cachedCertificationsView = scrollArea;
+            } catch (Exception e) {
+                logger.error("Failed to load CertificationsView", e);
+                return;
+            }
+        }
+        switchContent(cachedCertificationsView);
+    }
+
+    private Node cachedMentorshipView;
+
+    private void showMentorshipView() {
+        pushNavigation(this::showMentorshipView);
+        if (!requireCapability("Mentorship", Capability.VIEW_MENTORSHIP)) {
+            return;
+        }
+        if (cachedMentorshipView == null) {
+            try {
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/formation/MentorshipView.fxml"));
+                Node mentorshipContent = loader.load();
+
+                com.skilora.formation.controller.MentorshipController controller = loader.getController();
+                if (controller != null && currentUser != null) {
+                    controller.initializeContext(currentUser);
+                }
+
+                cachedMentorshipView = mentorshipContent;
+            } catch (Exception e) {
+                logger.error("Failed to load MentorshipView", e);
+                return;
+            }
+        }
+        switchContent(cachedMentorshipView);
+    }
+
     private void showSupportView() {
+        pushNavigation(this::showSupportView);
         // Clear notification dot when support is opened
         if (supportNotificationDot != null) {
             supportNotificationDot.setVisible(false);
@@ -1078,6 +1406,7 @@ public class MainView extends TLAppLayout {
     }
 
     private void showCommunityView() {
+        pushNavigation(this::showCommunityView);
         if (cachedCommunityView == null) {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/community/CommunityView.fxml"));
@@ -1086,6 +1415,8 @@ public class MainView extends TLAppLayout {
                 if (controller != null && currentUser != null) {
                     controller.initializeContext(currentUser);
                 }
+
+                // CommunityView.fxml root is ScrollPane — don't wrap in TLScrollArea to avoid double-scroll
                 cachedCommunityView = communityContent;
             } catch (Exception e) {
                 logger.error("Failed to load CommunityView", e);
@@ -1095,6 +1426,10 @@ public class MainView extends TLAppLayout {
     }
 
     private void showReportsView() {
+        pushNavigation(this::showReportsView);
+        if (!requireCapability("Reports", Capability.VIEW_REPORTS)) {
+            return;
+        }
         // Always recreate to refresh data
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/community/ReportsView.fxml"));
@@ -1114,6 +1449,7 @@ public class MainView extends TLAppLayout {
     }
 
     private void showFinanceView() {
+        pushNavigation(this::showFinanceView);
         if (cachedFinanceView == null) {
             try {
                 // Admin/Employer see FinanceAdminView, others see FinanceView
@@ -1151,6 +1487,8 @@ public class MainView extends TLAppLayout {
     }
 
     private void showInterviewsView() {
+        pushNavigation(this::showInterviewsView);
+        if (!requireCapability("Interviews", Capability.MANAGE_INTERVIEWS)) return;
         // Always recreate to refresh data
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/recruitment/InterviewsView.fxml"));

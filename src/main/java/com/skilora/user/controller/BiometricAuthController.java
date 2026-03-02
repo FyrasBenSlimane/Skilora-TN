@@ -18,8 +18,8 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import com.skilora.framework.components.TLButton;
 import com.skilora.framework.components.TLProgress;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
@@ -61,13 +61,16 @@ public class BiometricAuthController implements Initializable {
 
     @FXML private BorderPane rootPane;
     @FXML private HBox headerPane;
+    @FXML private javafx.scene.layout.StackPane frameContainer;
     @FXML private Label titleLabel;
-    @FXML private Button closeBtn;
+    @FXML private TLButton closeBtn;
     @FXML private ImageView previewView;
     @FXML private SVGPath viewfinder;
     @FXML private Label statusLabel;
     @FXML private TLProgress confidenceBar;
     @FXML private Label confidenceLabel;
+    @FXML private Label instructionLabel;
+    @FXML private com.skilora.framework.components.TLButton cancelButton;
 
     private Stage dialogStage;
     private String username;
@@ -86,9 +89,11 @@ public class BiometricAuthController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        if (instructionLabel != null) instructionLabel.setText(I18n.get("biometric.instruction"));
+        if (statusLabel != null) statusLabel.setText(I18n.get("biometric.status.initializing_camera"));
+        if (cancelButton != null) cancelButton.setText(I18n.get("common.cancel"));
         setupDragHandlers();
         setupViewfinderAnimation();
-        // Initialize optional UI elements
         if (confidenceBar != null) {
             confidenceBar.setProgress(0);
             confidenceBar.setVisible(false);
@@ -124,7 +129,10 @@ public class BiometricAuthController implements Initializable {
             controller.titleLabel.setText(username != null ? I18n.get("biometric.title.verification") : I18n.get("biometric.title.identification"));
 
             Scene scene = new Scene(root);
-            scene.setFill(null);
+            scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
+            if (!root.getStyleClass().contains("root")) {
+                root.getStyleClass().add("root");
+            }
             if (owner != null && owner.getScene() != null) {
                 scene.getStylesheets().addAll(owner.getScene().getStylesheets());
                 if (owner.getScene().getRoot().getStyleClass().contains("light")) {
@@ -164,7 +172,10 @@ public class BiometricAuthController implements Initializable {
             controller.titleLabel.setText(I18n.get("biometric.title.registration"));
 
             Scene scene = new Scene(root);
-            scene.setFill(null);
+            scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
+            if (!root.getStyleClass().contains("root")) {
+                root.getStyleClass().add("root");
+            }
             if (owner != null && owner.getScene() != null) {
                 scene.getStylesheets().addAll(owner.getScene().getStylesheets());
                 if (owner.getScene().getRoot().getStyleClass().contains("light")) {
@@ -294,7 +305,8 @@ public class BiometricAuthController implements Initializable {
                         // Registration successful
                         Platform.runLater(() -> {
                             statusLabel.setText(I18n.get("biometric.status.registration_success"));
-                            statusLabel.setStyle("-fx-text-fill: -fx-success; -fx-font-weight: bold;");
+                            statusLabel.getStyleClass().removeAll("text-warning", "text-destructive");
+                            statusLabel.getStyleClass().addAll("text-success", "font-bold");
                             animateViewfinderSuccess();
                             updateConfidence(1.0);
                         });
@@ -313,7 +325,8 @@ public class BiometricAuthController implements Initializable {
                         String matchedUser = result.optString("matched_username", I18n.get("biometric.another_account"));
                         Platform.runLater(() -> {
                             statusLabel.setText(I18n.get("biometric.status.duplicate_face", matchedUser));
-                            statusLabel.setStyle("-fx-text-fill: -fx-warning; -fx-font-weight: bold;");
+                            statusLabel.getStyleClass().removeAll("text-success", "text-destructive");
+                            statusLabel.getStyleClass().addAll("text-warning", "font-bold");
                             animateViewfinderError();
                         });
 
@@ -340,7 +353,8 @@ public class BiometricAuthController implements Initializable {
         if (isRunning.get()) {
             Platform.runLater(() -> {
                 statusLabel.setText(I18n.get("biometric.status.timeout"));
-                statusLabel.setStyle("-fx-text-fill: -fx-destructive; -fx-font-weight: bold;");
+                statusLabel.getStyleClass().removeAll("text-success", "text-warning");
+                statusLabel.getStyleClass().addAll("text-destructive", "font-bold");
             });
             sleepQuiet(2000);
             Platform.runLater(() -> {
@@ -408,7 +422,8 @@ public class BiometricAuthController implements Initializable {
                             String finalUser = lastMatchedUser;
                             Platform.runLater(() -> {
                                 statusLabel.setText(I18n.get("biometric.status.welcome", finalUser));
-                                statusLabel.setStyle("-fx-text-fill: -fx-success; -fx-font-weight: bold;");
+                                statusLabel.getStyleClass().removeAll("text-warning", "text-destructive");
+                                statusLabel.getStyleClass().addAll("text-success", "font-bold");
                                 animateViewfinderSuccess();
                                 updateConfidence(1.0);
                             });
@@ -441,7 +456,8 @@ public class BiometricAuthController implements Initializable {
         if (isRunning.get()) {
             Platform.runLater(() -> {
                 statusLabel.setText(I18n.get("biometric.status.verification_failed"));
-                statusLabel.setStyle("-fx-text-fill: -fx-destructive; -fx-font-weight: bold;");
+                statusLabel.getStyleClass().removeAll("text-success", "text-warning");
+                statusLabel.getStyleClass().addAll("text-destructive", "font-bold");
                 animateViewfinderError();
             });
             sleepQuiet(2000);
@@ -466,11 +482,14 @@ public class BiometricAuthController implements Initializable {
             confidenceBar.setProgress(value);
             // Color the bar based on confidence level
             if (value >= 0.7) {
-                confidenceBar.setStyle("-fx-accent: -fx-success;");
+                confidenceBar.getStyleClass().removeAll("accent-warning", "accent-muted");
+                if (!confidenceBar.getStyleClass().contains("accent-success")) confidenceBar.getStyleClass().add("accent-success");
             } else if (value >= 0.4) {
-                confidenceBar.setStyle("-fx-accent: -fx-warning;");
+                confidenceBar.getStyleClass().removeAll("accent-success", "accent-muted");
+                if (!confidenceBar.getStyleClass().contains("accent-warning")) confidenceBar.getStyleClass().add("accent-warning");
             } else {
-                confidenceBar.setStyle("-fx-accent: -fx-muted-foreground;");
+                confidenceBar.getStyleClass().removeAll("accent-success", "accent-warning");
+                if (!confidenceBar.getStyleClass().contains("accent-muted")) confidenceBar.getStyleClass().add("accent-muted");
             }
         }
         if (confidenceLabel != null) {
@@ -481,19 +500,22 @@ public class BiometricAuthController implements Initializable {
 
     private void animateViewfinderSuccess() {
         if (viewfinder != null) {
-            viewfinder.setStyle("-fx-stroke: -fx-green; -fx-stroke-width: 4;");
+            viewfinder.getStyleClass().removeAll("viewfinder-error", "viewfinder-scanning");
+            if (!viewfinder.getStyleClass().contains("viewfinder-success")) viewfinder.getStyleClass().add("viewfinder-success");
         }
     }
 
     private void animateViewfinderError() {
         if (viewfinder != null) {
-            viewfinder.setStyle("-fx-stroke: -fx-red; -fx-stroke-width: 4;");
+            viewfinder.getStyleClass().removeAll("viewfinder-success", "viewfinder-scanning");
+            if (!viewfinder.getStyleClass().contains("viewfinder-error")) viewfinder.getStyleClass().add("viewfinder-error");
         }
     }
 
     private void animateViewfinderScanning() {
         if (viewfinder != null) {
-            viewfinder.setStyle("-fx-stroke: -fx-blue; -fx-stroke-width: 3;");
+            viewfinder.getStyleClass().removeAll("viewfinder-success", "viewfinder-error");
+            if (!viewfinder.getStyleClass().contains("viewfinder-scanning")) viewfinder.getStyleClass().add("viewfinder-scanning");
         }
     }
 

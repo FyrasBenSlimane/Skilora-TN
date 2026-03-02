@@ -25,7 +25,10 @@ public class Formation {
     private boolean isFree;
     private int createdBy;
     private LocalDateTime createdDate;
+    private LocalDateTime updatedDate;
     private String status;
+    private int lessonCount;
+    private String directorSignature; // base64-encoded PNG of director's signature
 
     // Default constructor
     public Formation() {
@@ -103,6 +106,18 @@ public class Formation {
         return status;
     }
 
+    public int getLessonCount() {
+        return lessonCount;
+    }
+
+    public String getDirectorSignature() {
+        return directorSignature;
+    }
+
+    public LocalDateTime getUpdatedDate() {
+        return updatedDate;
+    }
+
     // Setters
     public void setId(int id) {
         this.id = id;
@@ -160,6 +175,35 @@ public class Formation {
         this.status = status;
     }
 
+    public void setLessonCount(int lessonCount) {
+        this.lessonCount = lessonCount;
+    }
+
+    public void setDirectorSignature(String directorSignature) {
+        this.directorSignature = directorSignature;
+    }
+
+    public void setUpdatedDate(LocalDateTime updatedDate) {
+        this.updatedDate = updatedDate;
+    }
+
+    // Utility methods from branch
+    public String getFormattedCost() {
+        if (isFree || cost <= 0) return "Gratuit";
+        return String.format("%.2f %s", cost, currency != null ? currency : "TND");
+    }
+
+    public String getFormattedDuration() {
+        if (durationHours <= 0) return "N/A";
+        if (durationHours < 1) return (durationHours * 60) + " min";
+        return durationHours + "h";
+    }
+
+    public String getFormattedLessonCount() {
+        if (lessonCount <= 0) return "Aucune leçon";
+        return lessonCount + (lessonCount > 1 ? " leçons" : " leçon");
+    }
+
     @Override
     public String toString() {
         return "Formation{" +
@@ -168,6 +212,7 @@ public class Formation {
                 ", category='" + category + '\'' +
                 ", durationHours=" + durationHours +
                 ", cost=" + cost +
+                ", lessonCount=" + lessonCount +
                 ", level=" + level +
                 ", status='" + status + '\'' +
                 '}';

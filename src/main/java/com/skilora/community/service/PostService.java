@@ -77,12 +77,36 @@ public class PostService {
         return null;
     }
 
+    /**
+     * Retrieve all posts, ordered by most recent first.
+     */
+    public List<Post> findAll() {
+        List<Post> posts = new ArrayList<>();
+        String sql = """
+            SELECT p.*, u.full_name as author_name, u.photo_url as author_photo
+            FROM posts p
+            JOIN users u ON p.author_id = u.id
+            ORDER BY p.created_date DESC
+            """;
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                posts.add(mapPost(rs));
+            }
+        } catch (SQLException e) {
+            logger.error("Error fetching all posts: {}", e.getMessage(), e);
+        }
+        return posts;
+    }
+
     public List<Post> getFeed(int userId, int page, int pageSize) {
         List<Post> feed = new ArrayList<>();
         int offset = (page - 1) * pageSize;
         
         String sql = """
-            SELECT p.*, u.full_name as author_name, u.photo_url as author_photo
+            SELECT p.*, u.full_name as author_name, u.photo_url as author_photo,
+                   (SELECT 1 FROM post_likes pl WHERE pl.post_id = p.id AND pl.user_id = ?) as liked_by_user
             FROM posts p
             JOIN users u ON p.author_id = u.id
             WHERE p.is_published = TRUE
@@ -100,13 +124,14 @@ public class PostService {
             stmt.setInt(1, userId);
             stmt.setInt(2, userId);
             stmt.setInt(3, userId);
-            stmt.setInt(4, pageSize);
-            stmt.setInt(5, offset);
+            stmt.setInt(4, userId);
+            stmt.setInt(5, pageSize);
+            stmt.setInt(6, offset);
             
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 Post post = mapPost(rs);
-                post.setLikedByCurrentUser(isLikedBy(post.getId(), userId));
+                post.setLikedByCurrentUser(rs.getObject("liked_by_user") != null);
                 feed.add(post);
             }
         } catch (SQLException e) {
@@ -167,35 +192,44 @@ public class PostService {
 
     public boolean toggleLike(int postId, int userId) {
         try (Connection conn = DatabaseConfig.getInstance().getConnection()) {
-            // Check if already liked
-            String checkSql = "SELECT 1 FROM post_likes WHERE post_id = ? AND user_id = ?";
-            try (PreparedStatement stmt = conn.prepareStatement(checkSql)) {
-                stmt.setInt(1, postId);
-                stmt.setInt(2, userId);
-                ResultSet rs = stmt.executeQuery();
-                
-                if (rs.next()) {
-                    // Unlike
-                    String deleteSql = "DELETE FROM post_likes WHERE post_id = ? AND user_id = ?";
-                    try (PreparedStatement deleteStmt = conn.prepareStatement(deleteSql)) {
-                        deleteStmt.setInt(1, postId);
-                        deleteStmt.setInt(2, userId);
-                        deleteStmt.executeUpdate();
+            conn.setAutoCommit(false);
+            try {
+                // Check if already liked
+                String checkSql = "SELECT 1 FROM post_likes WHERE post_id = ? AND user_id = ?";
+                try (PreparedStatement stmt = conn.prepareStatement(checkSql)) {
+                    stmt.setInt(1, postId);
+                    stmt.setInt(2, userId);
+                    ResultSet rs = stmt.executeQuery();
+                    
+                    if (rs.next()) {
+                        // Unlike
+                        String deleteSql = "DELETE FROM post_likes WHERE post_id = ? AND user_id = ?";
+                        try (PreparedStatement deleteStmt = conn.prepareStatement(deleteSql)) {
+                            deleteStmt.setInt(1, postId);
+                            deleteStmt.setInt(2, userId);
+                            deleteStmt.executeUpdate();
+                        }
+                        // Decrement count
+                        updateLikeCount(conn, postId, -1);
+                    } else {
+                        // Like
+                        String insertSql = "INSERT INTO post_likes (post_id, user_id, created_date) VALUES (?, ?, NOW())";
+                        try (PreparedStatement insertStmt = conn.prepareStatement(insertSql)) {
+                            insertStmt.setInt(1, postId);
+                            insertStmt.setInt(2, userId);
+                            insertStmt.executeUpdate();
+                        }
+                        // Increment count
+                        updateLikeCount(conn, postId, 1);
                     }
-                    // Decrement count
-                    updateLikeCount(conn, postId, -1);
-                } else {
-                    // Like
-                    String insertSql = "INSERT INTO post_likes (post_id, user_id, created_date) VALUES (?, ?, NOW())";
-                    try (PreparedStatement insertStmt = conn.prepareStatement(insertSql)) {
-                        insertStmt.setInt(1, postId);
-                        insertStmt.setInt(2, userId);
-                        insertStmt.executeUpdate();
-                    }
-                    // Increment count
-                    updateLikeCount(conn, postId, 1);
                 }
+                conn.commit();
                 return true;
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
             }
         } catch (SQLException e) {
             logger.error("Error toggling like: {}", e.getMessage(), e);
@@ -273,6 +307,44 @@ public class PostService {
             logger.error("Error fetching comments: {}", e.getMessage(), e);
         }
         return comments;
+    }
+
+    /**
+     * Delete a comment and decrement the post's comment count.
+     */
+    public boolean deleteComment(int commentId, int postId) {
+        String sql = "DELETE FROM post_comments WHERE id = ?";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, commentId);
+            if (stmt.executeUpdate() > 0) {
+                String updateSql = "UPDATE posts SET comments_count = GREATEST(comments_count - 1, 0) WHERE id = ?";
+                try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
+                    updateStmt.setInt(1, postId);
+                    updateStmt.executeUpdate();
+                }
+                return true;
+            }
+        } catch (SQLException e) {
+            logger.error("Error deleting comment: {}", e.getMessage(), e);
+        }
+        return false;
+    }
+
+    /**
+     * Update the content of an existing comment.
+     */
+    public boolean updateComment(int commentId, String newContent) {
+        String sql = "UPDATE post_comments SET content = ? WHERE id = ?";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, newContent);
+            stmt.setInt(2, commentId);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            logger.error("Error updating comment: {}", e.getMessage(), e);
+        }
+        return false;
     }
 
     private Post mapPost(ResultSet rs) throws SQLException {

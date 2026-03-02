@@ -12,9 +12,13 @@ import java.util.List;
  */
 public class TLAccordion extends VBox {
 
+    private static final String STYLESHEET =
+            TLAccordion.class.getResource("/com/skilora/framework/styles/tl-accordion.css").toExternalForm();
+
     private final List<TitledPane> panes = new ArrayList<>();
 
     public TLAccordion() {
+        getStylesheets().add(STYLESHEET);
         getStyleClass().add("accordion");
         setSpacing(-1);
     }

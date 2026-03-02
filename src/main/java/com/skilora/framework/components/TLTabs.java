@@ -2,7 +2,7 @@ package com.skilora.framework.components;
 
 import javafx.scene.Node;
 import javafx.scene.control.Label;
-import javafx.scene.layout.HBox;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
@@ -26,17 +26,23 @@ import java.util.function.Consumer;
  */
 public class TLTabs extends VBox {
 
-    private final HBox tabsList;
+    private static final String STYLESHEET =
+            TLTabs.class.getResource("/com/skilora/framework/styles/tl-tabs.css").toExternalForm();
+
+    private final FlowPane tabsList;
     private final StackPane contentContainer;
     private final Map<String, TabEntry> tabs = new LinkedHashMap<>();
     private String activeTabId;
     private Consumer<String> onTabChanged;
 
     public TLTabs() {
+        getStylesheets().add(STYLESHEET);
         getStyleClass().add("tabs");
 
-        tabsList = new HBox();
+        tabsList = new FlowPane();
         tabsList.getStyleClass().add("tabs-list");
+        tabsList.setHgap(4);
+        tabsList.setVgap(4);
 
         contentContainer = new StackPane();
         contentContainer.getStyleClass().add("tabs-content-container");

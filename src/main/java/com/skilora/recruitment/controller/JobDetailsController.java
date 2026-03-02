@@ -3,13 +3,20 @@ package com.skilora.recruitment.controller;
 import com.skilora.framework.components.TLBadge;
 import com.skilora.framework.components.TLButton;
 import com.skilora.recruitment.entity.JobOpportunity;
+import com.skilora.recruitment.entity.SavedJob;
+import com.skilora.recruitment.service.RecruitmentIntelligenceService;
+import com.skilora.recruitment.service.SavedJobService;
+import com.skilora.user.entity.User;
 import com.skilora.utils.I18n;
 import com.skilora.utils.SvgIcons;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.HBox;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -18,6 +25,8 @@ import java.time.temporal.ChronoUnit;
  * JobDetailsController - Displays detailed information about a job opportunity
  */
 public class JobDetailsController {
+
+    private static final Logger logger = LoggerFactory.getLogger(JobDetailsController.class);
 
     @FXML private TLButton backBtn;
     @FXML private TLButton applyBtn;
@@ -33,19 +42,48 @@ public class JobDetailsController {
     @FXML private Label salaryRange;
     @FXML private Label applicantCount;
     @FXML private Label viewCount;
+    @FXML private Label matchScoreLabel;
+    @FXML private Label candidateScoreLabel;
+    @FXML private Label recommendationLabel;
     
     @FXML private FlowPane skillsContainer;
     @FXML private VBox benefitsList;
+    @FXML private Label descriptionHeader;
+    @FXML private Label skillsHeader;
+    @FXML private Label salaryHeader;
+    @FXML private Label benefitsHeader;
+    @FXML private Label statsHeader;
+    @FXML private Label applicantCountLabel;
+    @FXML private Label viewCountLabel;
     
     private JobOpportunity currentJob;
     private Runnable onBack;
     private Runnable onApply;
     private boolean jobSaved = false;
+    private Integer currentUserId;
+    private User currentUserObj;
+    private final SavedJobService savedJobService = SavedJobService.getInstance();
+    private final RecruitmentIntelligenceService intelligenceService = RecruitmentIntelligenceService.getInstance();
+
+    public void setCurrentUser(User user) {
+        this.currentUserId = user != null ? user.getId() : null;
+        this.currentUserObj = user;
+        syncSavedState();
+    }
     
     public void setJob(JobOpportunity job) {
         this.currentJob = job;
+        backBtn.setText(I18n.get("jobdetails.back"));
         backBtn.setGraphic(SvgIcons.icon(SvgIcons.ARROW_LEFT, 14));
-        saveBtn.setGraphic(SvgIcons.icon(SvgIcons.BOOKMARK, 14));
+        applyBtn.setText(I18n.get("feed.open_listing"));
+        syncSavedState();
+        if (descriptionHeader != null) descriptionHeader.setText(I18n.get("jobdetails.description"));
+        if (skillsHeader != null) skillsHeader.setText(I18n.get("jobdetails.skills"));
+        if (salaryHeader != null) salaryHeader.setText(I18n.get("jobdetails.salary_section"));
+        if (benefitsHeader != null) benefitsHeader.setText(I18n.get("jobdetails.benefits"));
+        if (statsHeader != null) statsHeader.setText(I18n.get("jobdetails.statistics"));
+        if (applicantCountLabel != null) applicantCountLabel.setText(I18n.get("jobdetails.applications"));
+        if (viewCountLabel != null) viewCountLabel.setText(I18n.get("jobdetails.views"));
         populateJobDetails();
     }
     
@@ -116,6 +154,51 @@ public class JobDetailsController {
         // Stats - show as unavailable since external jobs don't have real tracking
         applicantCount.setText("—");
         viewCount.setText("—");
+
+        // Check if job is closed
+        boolean isOfferClosed = currentJob.getStatus() != null && "CLOSED".equals(currentJob.getStatus());
+        if (isOfferClosed && applyBtn != null) {
+            applyBtn.setDisable(true);
+            applyBtn.setText("Ferm\u00e9e");
+            applyBtn.setVariant(TLButton.ButtonVariant.DANGER);
+            applyBtn.setOpacity(1.0);
+        }
+
+        // Load AI insights asynchronously
+        loadAiInsights();
+    }
+
+    /**
+     * Load AI-based matching insights for the current user against this job.
+     */
+    private void loadAiInsights() {
+        if (matchScoreLabel == null || candidateScoreLabel == null || recommendationLabel == null) return;
+        matchScoreLabel.setText("Match: -");
+        candidateScoreLabel.setText("Score candidat: -");
+        recommendationLabel.setText("Recommandations: -");
+
+        if (currentJob == null || currentJob.getId() <= 0 || currentUserObj == null) return;
+
+        Thread t = new Thread(() -> {
+            try {
+                var profile = com.skilora.user.service.ProfileService.getInstance()
+                        .findProfileByUserId(currentUserObj.getId());
+                if (profile == null) return;
+
+                int match = intelligenceService.calculateCompatibility(profile.getId(), currentJob.getId()).join();
+                int candidateScore = intelligenceService.scoreCandidate(profile.getId()).join();
+
+                Platform.runLater(() -> {
+                    matchScoreLabel.setText("Match: " + match + "%");
+                    candidateScoreLabel.setText("Score candidat: " + candidateScore + "/100");
+                });
+            } catch (Exception e) {
+                logger.debug("AI insights unavailable: {}", e.getMessage());
+                Platform.runLater(() -> recommendationLabel.setText("Recommandations: service IA indisponible."));
+            }
+        }, "JobDetailsAiInsights");
+        t.setDaemon(true);
+        t.start();
     }
     
     private void extractAndDisplaySkills() {
@@ -211,16 +294,19 @@ public class JobDetailsController {
     @FXML
     private void handleApply() {
         applyBtn.setGraphic(SvgIcons.icon(SvgIcons.CHECK, 14));
-        applyBtn.setText(I18n.get("jobdetails.applied"));
+        applyBtn.setText(I18n.get("feed.opened"));
         applyBtn.setDisable(true);
         
         // Open the job URL in the default browser
-        if (currentJob != null && currentJob.getUrl() != null && !currentJob.getUrl().isBlank()) {
+        String targetUrl = currentJob != null && currentJob.getApplyUrl() != null && !currentJob.getApplyUrl().isBlank()
+                ? currentJob.getApplyUrl()
+                : (currentJob != null ? currentJob.getUrl() : null);
+        if (targetUrl != null && !targetUrl.isBlank()) {
             try {
-                java.awt.Desktop.getDesktop().browse(new java.net.URI(currentJob.getUrl()));
+                java.awt.Desktop.getDesktop().browse(new java.net.URI(targetUrl));
             } catch (Exception ex) {
                 // Fallback: just log
-                System.err.println("Failed to open URL: " + currentJob.getUrl());
+                System.err.println("Failed to open URL: " + targetUrl);
             }
         }
         
@@ -232,8 +318,43 @@ public class JobDetailsController {
     @FXML
     private void handleSave() {
         jobSaved = !jobSaved;
+        persistSavedState();
+        updateSaveButtonUi();
+    }
+
+    private void syncSavedState() {
+        if (saveBtn == null) return;
+        String url = currentJob != null ? currentJob.getUrl() : null;
+        if (currentUserId != null && currentUserId > 0 && url != null && !url.isBlank()) {
+            jobSaved = savedJobService.isSaved(currentUserId, url);
+        } else {
+            jobSaved = false;
+        }
+        updateSaveButtonUi();
+    }
+
+    private void persistSavedState() {
+        String url = currentJob != null ? currentJob.getUrl() : null;
+        if (currentUserId == null || currentUserId <= 0 || url == null || url.isBlank()) return;
+
         if (jobSaved) {
-            saveBtn.setGraphic(SvgIcons.filledIcon(SvgIcons.HEART, 14, "-fx-red"));
+            SavedJob s = new SavedJob();
+            s.setUserId(currentUserId);
+            s.setJobUrl(url);
+            s.setJobTitle(currentJob.getTitle());
+            s.setCompanyName(currentJob.getSource());
+            s.setLocation(currentJob.getLocation());
+            s.setSource(currentJob.getSource());
+            savedJobService.save(s);
+        } else {
+            savedJobService.unsave(currentUserId, url);
+        }
+    }
+
+    private void updateSaveButtonUi() {
+        if (saveBtn == null) return;
+        if (jobSaved) {
+            saveBtn.setGraphic(SvgIcons.filledIcon(SvgIcons.BOOKMARK, 14, "-fx-primary"));
             saveBtn.setText(I18n.get("jobdetails.saved"));
         } else {
             saveBtn.setGraphic(SvgIcons.icon(SvgIcons.BOOKMARK, 14));

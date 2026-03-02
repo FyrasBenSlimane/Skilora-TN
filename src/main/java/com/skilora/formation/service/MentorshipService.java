@@ -35,7 +35,7 @@ public class MentorshipService {
      */
     public List<int[]> findAvailableMentorIds(int excludeUserId) {
         List<int[]> mentors = new ArrayList<>();
-        String sql = "SELECT id, CONCAT(first_name, ' ', last_name) AS full_name FROM users WHERE id != ? AND is_active = 1 ORDER BY first_name, last_name";
+        String sql = "SELECT id, full_name FROM users WHERE id != ? AND is_active = 1 ORDER BY full_name";
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, excludeUserId);
@@ -55,7 +55,7 @@ public class MentorshipService {
      */
     public java.util.LinkedHashMap<Integer, String> findAvailableMentors(int excludeUserId) {
         java.util.LinkedHashMap<Integer, String> mentors = new java.util.LinkedHashMap<>();
-        String sql = "SELECT id, CONCAT(first_name, ' ', last_name) AS full_name FROM users WHERE id != ? AND is_active = 1 ORDER BY first_name, last_name";
+        String sql = "SELECT id, full_name FROM users WHERE id != ? AND is_active = 1 ORDER BY full_name";
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, excludeUserId);

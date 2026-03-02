@@ -25,11 +25,11 @@ MIN_FACE_SIZE         = 60     # Minimum face width in pixels (at original scale
 
 # ── Database configuration ───────────────────────────────────────────────────
 DB_CONFIG = {
-    "host": "localhost",
-    "user": "root",
-    "password": "",
-    "database": "skilora",
-    "port": 3306
+    "host": os.environ.get("SKILORA_DB_HOST", "localhost"),
+    "user": os.environ.get("SKILORA_DB_USER", "root"),
+    "password": os.environ.get("SKILORA_DB_PASSWORD", ""),
+    "database": os.environ.get("SKILORA_DB_NAME", "skilora"),
+    "port": int(os.environ.get("SKILORA_DB_PORT", "3306"))
 }
 
 class NumpyEncoder(json.JSONEncoder):

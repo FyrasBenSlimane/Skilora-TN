@@ -15,7 +15,6 @@ import javafx.animation.*;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -59,7 +58,7 @@ public class ForgotPasswordController {
     @FXML private TLPasswordField confirmPasswordField;
     @FXML private Label errorLabel, successLabel;
     @FXML private HBox loadingBox;
-    @FXML private ProgressIndicator loadingSpinner;
+    @FXML private com.skilora.framework.components.TLSpinner loadingSpinner;
     @FXML private Label loadingLabel;
 
     // ===== FXML - Actions =====
@@ -80,17 +79,17 @@ public class ForgotPasswordController {
     private int remainingSeconds;
 
     // Style constants for step indicator (use theme tokens)
-    private static final String STEP_ACTIVE_BG = "-fx-background-color: -fx-primary; -fx-background-radius: 16;";
-    private static final String STEP_ACTIVE_TEXT = "-fx-font-size: 13px; -fx-font-weight: 700; -fx-text-fill: -fx-primary-foreground;";
-    private static final String STEP_ACTIVE_LABEL = "-fx-font-size: 11px; -fx-text-fill: -fx-primary;";
-    private static final String STEP_DONE_BG = "-fx-background-color: -fx-green; -fx-background-radius: 16;";
-    private static final String STEP_DONE_TEXT = "-fx-font-size: 13px; -fx-font-weight: 700; -fx-text-fill: -fx-green-foreground;";
-    private static final String STEP_DONE_LABEL = "-fx-font-size: 11px; -fx-text-fill: -fx-green;";
-    private static final String STEP_INACTIVE_BG = "-fx-background-color: -fx-muted; -fx-background-radius: 16;";
-    private static final String STEP_INACTIVE_TEXT = "-fx-font-size: 13px; -fx-font-weight: 700; -fx-text-fill: -fx-muted-foreground;";
-    private static final String STEP_INACTIVE_LABEL = "-fx-font-size: 11px; -fx-text-fill: -fx-muted-foreground;";
-    private static final String CONNECTOR_DONE = "-fx-background-color: -fx-green; -fx-background-radius: 1;";
-    private static final String CONNECTOR_PENDING = "-fx-background-color: -fx-muted; -fx-background-radius: 1;";
+    private static final String STEP_ACTIVE_BG = "step-circle-active";
+    private static final String STEP_ACTIVE_TEXT = "step-num-active";
+    private static final String STEP_ACTIVE_LABEL = "step-label-active";
+    private static final String STEP_DONE_BG = "step-circle-done";
+    private static final String STEP_DONE_TEXT = "step-num-done";
+    private static final String STEP_DONE_LABEL = "step-label-done";
+    private static final String STEP_INACTIVE_BG = "step-circle-inactive";
+    private static final String STEP_INACTIVE_TEXT = "step-num-inactive";
+    private static final String STEP_INACTIVE_LABEL = "step-label-inactive";
+    private static final String CONNECTOR_DONE = "connector-done";
+    private static final String CONNECTOR_PENDING = "connector-pending";
 
     private final OtpService otpService = OtpService.getInstance();
 
@@ -157,31 +156,40 @@ public class ForgotPasswordController {
                 setStepStyle(step1Circle, step1Label, step1Text, "1", STEP_ACTIVE_BG, STEP_ACTIVE_TEXT, STEP_ACTIVE_LABEL);
                 setStepStyle(step2Circle, step2Label, step2Text, "2", STEP_INACTIVE_BG, STEP_INACTIVE_TEXT, STEP_INACTIVE_LABEL);
                 setStepStyle(step3Circle, step3Label, step3Text, "3", STEP_INACTIVE_BG, STEP_INACTIVE_TEXT, STEP_INACTIVE_LABEL);
-                if (connector1 != null) connector1.setStyle(CONNECTOR_PENDING);
-                if (connector2 != null) connector2.setStyle(CONNECTOR_PENDING);
+                setConnectorStyle(connector1, CONNECTOR_PENDING);
+                setConnectorStyle(connector2, CONNECTOR_PENDING);
             }
             case OTP -> {
                 setStepStyle(step1Circle, step1Label, step1Text, "\u2713", STEP_DONE_BG, STEP_DONE_TEXT, STEP_DONE_LABEL);
                 setStepStyle(step2Circle, step2Label, step2Text, "2", STEP_ACTIVE_BG, STEP_ACTIVE_TEXT, STEP_ACTIVE_LABEL);
                 setStepStyle(step3Circle, step3Label, step3Text, "3", STEP_INACTIVE_BG, STEP_INACTIVE_TEXT, STEP_INACTIVE_LABEL);
-                if (connector1 != null) connector1.setStyle(CONNECTOR_DONE);
-                if (connector2 != null) connector2.setStyle(CONNECTOR_PENDING);
+                setConnectorStyle(connector1, CONNECTOR_DONE);
+                setConnectorStyle(connector2, CONNECTOR_PENDING);
             }
             case NEW_PASSWORD -> {
                 setStepStyle(step1Circle, step1Label, step1Text, "\u2713", STEP_DONE_BG, STEP_DONE_TEXT, STEP_DONE_LABEL);
                 setStepStyle(step2Circle, step2Label, step2Text, "\u2713", STEP_DONE_BG, STEP_DONE_TEXT, STEP_DONE_LABEL);
                 setStepStyle(step3Circle, step3Label, step3Text, "3", STEP_ACTIVE_BG, STEP_ACTIVE_TEXT, STEP_ACTIVE_LABEL);
-                if (connector1 != null) connector1.setStyle(CONNECTOR_DONE);
-                if (connector2 != null) connector2.setStyle(CONNECTOR_DONE);
+                setConnectorStyle(connector1, CONNECTOR_DONE);
+                setConnectorStyle(connector2, CONNECTOR_DONE);
             }
         }
     }
 
+    private static final String[] ALL_CIRCLE_CLASSES = {STEP_ACTIVE_BG, STEP_DONE_BG, STEP_INACTIVE_BG};
+    private static final String[] ALL_NUM_CLASSES = {STEP_ACTIVE_TEXT, STEP_DONE_TEXT, STEP_INACTIVE_TEXT};
+    private static final String[] ALL_LABEL_CLASSES = {STEP_ACTIVE_LABEL, STEP_DONE_LABEL, STEP_INACTIVE_LABEL};
+    private static final String[] ALL_CONNECTOR_CLASSES = {CONNECTOR_DONE, CONNECTOR_PENDING};
+
     private void setStepStyle(StackPane circle, Label numLabel, Label textLabel,
                                String text, String circleBg, String numStyle, String textStyle) {
-        if (circle != null) circle.setStyle(circleBg);
-        if (numLabel != null) { numLabel.setText(text); numLabel.setStyle(numStyle); }
-        if (textLabel != null) textLabel.setStyle(textStyle);
+        if (circle != null) { circle.getStyleClass().removeAll(ALL_CIRCLE_CLASSES); circle.getStyleClass().add(circleBg); }
+        if (numLabel != null) { numLabel.setText(text); numLabel.getStyleClass().removeAll(ALL_NUM_CLASSES); numLabel.getStyleClass().add(numStyle); }
+        if (textLabel != null) { textLabel.getStyleClass().removeAll(ALL_LABEL_CLASSES); textLabel.getStyleClass().add(textStyle); }
+    }
+
+    private void setConnectorStyle(Region connector, String cls) {
+        if (connector != null) { connector.getStyleClass().removeAll(ALL_CONNECTOR_CLASSES); connector.getStyleClass().add(cls); }
     }
 
     // ==================== MAIN ACTION HANDLER ====================
@@ -215,38 +223,37 @@ public class ForgotPasswordController {
         showLoading(I18n.get("forgot.sending"));
         sendBtn.setDisable(true);
 
+        // Always store the email to prevent account enumeration
+        targetEmail = email;
+
         AppThreadPool.execute(() -> {
             try {
                 Optional<User> userOpt = UserService.getInstance().findByEmail(email);
-                if (userOpt.isEmpty()) {
-                    Platform.runLater(() -> {
-                        hideLoading();
-                        showSuccess(I18n.get("forgot.sent_if_exists"));
-                        sendBtn.setDisable(false);
-                    });
-                    return;
-                }
 
-                targetEmail = email;
-                targetUserId = userOpt.get().getId();
+                // Only send OTP if user actually exists (but don't reveal this to the UI)
+                if (userOpt.isPresent()) {
+                    targetUserId = userOpt.get().getId();
+                    String otp = otpService.generate();
+                    otpService.store(targetUserId, otp);
 
-                String otp = otpService.generate();
-                otpService.store(targetUserId, otp);
-
-                EmailService.getInstance().sendOtpEmail(email, otp).thenAccept(success -> {
-                    Platform.runLater(() -> {
-                        hideLoading();
-                        if (success) {
-                            showSuccess(I18n.get("forgot.code_sent"));
-                            // Brief delay before transitioning to let user see the success message
-                            PauseTransition pause = new PauseTransition(Duration.millis(600));
-                            pause.setOnFinished(e -> transitionToStep(Step.OTP));
-                            pause.play();
-                        } else {
-                            showError(I18n.get("forgot.send_error"));
-                            sendBtn.setDisable(false);
+                    EmailService.getInstance().sendOtpEmail(email, otp).thenAccept(success -> {
+                        if (!success) {
+                            logger.warn("Failed to send OTP email to {}", email);
                         }
                     });
+                } else {
+                    // Reset targetUserId so OTP verification will fail gracefully
+                    targetUserId = 0;
+                }
+
+                // Always show the same response and transition to OTP step
+                // regardless of whether the email exists, to prevent account enumeration
+                Platform.runLater(() -> {
+                    hideLoading();
+                    showSuccess(I18n.get("forgot.sent_if_exists"));
+                    PauseTransition pause = new PauseTransition(Duration.millis(600));
+                    pause.setOnFinished(e -> transitionToStep(Step.OTP));
+                    pause.play();
                 });
             } catch (Exception e) {
                 logger.error("Error during password reset", e);
@@ -432,7 +439,6 @@ public class ForgotPasswordController {
                 emailField.setPromptText(I18n.get("forgot.ui.email_placeholder"));
                 emailField.setDisable(false);
                 fieldLabel.setText(I18n.get("forgot.ui.email_label"));
-                fieldLabel.setStyle("");
 
                 otpContainer.setVisible(false);
                 otpContainer.setManaged(false);
@@ -566,12 +572,13 @@ public class ForgotPasswordController {
         String timeStr = String.format("%d:%02d", min, sec);
         Platform.runLater(() -> {
             if (otpFieldLabel != null && currentStep == Step.OTP) {
-                String timerColor;
-                if (remainingSeconds > 60) timerColor = "-fx-green";
-                else if (remainingSeconds > 30) timerColor = "-fx-amber";
-                else timerColor = "-fx-red";
+                String timerClass;
+                if (remainingSeconds > 60) timerClass = "timer-safe";
+                else if (remainingSeconds > 30) timerClass = "timer-warning";
+                else timerClass = "timer-danger";
                 otpFieldLabel.setText(I18n.get("forgot.code_timer").replace("{0}", timeStr));
-                otpFieldLabel.setStyle("-fx-font-size: 12px; -fx-font-weight: 600; -fx-text-fill: " + timerColor + "; -fx-alignment: center;");
+                otpFieldLabel.getStyleClass().removeAll("timer-safe", "timer-warning", "timer-danger");
+                otpFieldLabel.getStyleClass().add(timerClass);
             }
         });
     }
@@ -588,6 +595,24 @@ public class ForgotPasswordController {
         }
         hideMessages();
         showLoading(I18n.get("forgot.resending"));
+
+        // If user doesn't exist (targetUserId == 0), simulate resend without actually sending
+        // to avoid leaking account existence via resend behavior
+        if (targetUserId == 0) {
+            PauseTransition fakeDelay = new PauseTransition(Duration.millis(800));
+            fakeDelay.setOnFinished(e -> {
+                hideLoading();
+                showSuccess(I18n.get("forgot.code_resent"));
+                sendBtn.setDisable(false);
+                if (otpInput != null) {
+                    otpInput.clear();
+                    otpInput.focusFirst();
+                }
+                startOtpCountdown();
+            });
+            fakeDelay.play();
+            return;
+        }
 
         String otp = otpService.generate();
         otpService.store(targetUserId, otp);

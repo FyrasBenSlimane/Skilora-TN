@@ -65,7 +65,8 @@ public class HireOfferService {
             SELECT h.*, u.full_name AS candidate_name, j.title AS job_title, c.name AS company_name
             FROM hire_offers h
             JOIN applications a ON h.application_id = a.id
-            JOIN users u ON a.candidate_profile_id = u.id
+            JOIN profiles p ON a.candidate_profile_id = p.id
+            JOIN users u ON p.user_id = u.id
             JOIN job_offers j ON a.job_offer_id = j.id
             LEFT JOIN companies c ON j.company_id = c.id
             WHERE h.id = ?
@@ -85,21 +86,22 @@ public class HireOfferService {
         return findByQuery("WHERE h.application_id = ?", applicationId);
     }
 
-    public List<HireOffer> findByEmployer(int employerId) {
+    public List<HireOffer> findByEmployer(int employerUserId) {
         String sql = """
             SELECT h.*, u.full_name AS candidate_name, j.title AS job_title, c.name AS company_name
             FROM hire_offers h
             JOIN applications a ON h.application_id = a.id
-            JOIN users u ON a.candidate_profile_id = u.id
+            JOIN profiles p ON a.candidate_profile_id = p.id
+            JOIN users u ON p.user_id = u.id
             JOIN job_offers j ON a.job_offer_id = j.id
-            LEFT JOIN companies c ON j.company_id = c.id
-            WHERE j.employer_id = ?
+            JOIN companies c ON j.company_id = c.id
+            WHERE c.owner_id = ?
             ORDER BY h.created_date DESC
             """;
         List<HireOffer> list = new ArrayList<>();
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, employerId);
+            stmt.setInt(1, employerUserId);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) list.add(mapHireOffer(rs));
         } catch (SQLException e) {
@@ -113,16 +115,18 @@ public class HireOfferService {
             SELECT h.*, u.full_name AS candidate_name, j.title AS job_title, c.name AS company_name
             FROM hire_offers h
             JOIN applications a ON h.application_id = a.id
-            JOIN users u ON a.candidate_profile_id = u.id
+            JOIN profiles p ON a.candidate_profile_id = p.id
+            JOIN users u ON p.user_id = u.id
             JOIN job_offers j ON a.job_offer_id = j.id
             LEFT JOIN companies c ON j.company_id = c.id
-            WHERE a.candidate_profile_id = ? AND h.status = '" + HireOfferStatus.PENDING.name() + "'
+            WHERE p.user_id = ? AND h.status = ?
             ORDER BY h.created_date DESC
             """;
         List<HireOffer> list = new ArrayList<>();
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, userId);
+            stmt.setString(2, HireOfferStatus.PENDING.name());
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) list.add(mapHireOffer(rs));
         } catch (SQLException e) {
@@ -132,11 +136,12 @@ public class HireOfferService {
     }
 
     public boolean respond(int id, String status) {
-        String sql = "UPDATE hire_offers SET status = ?, responded_date = NOW() WHERE id = ? AND status = '" + HireOfferStatus.PENDING.name() + "'";
+        String sql = "UPDATE hire_offers SET status = ?, responded_date = NOW() WHERE id = ? AND status = ?";
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, status);
             stmt.setInt(2, id);
+            stmt.setString(3, HireOfferStatus.PENDING.name());
             boolean updated = stmt.executeUpdate() > 0;
             if (updated) logger.info("Hire offer {} responded: {}", id, status);
             return updated;
@@ -173,7 +178,8 @@ public class HireOfferService {
             SELECT h.*, u.full_name AS candidate_name, j.title AS job_title, c.name AS company_name
             FROM hire_offers h
             JOIN applications a ON h.application_id = a.id
-            JOIN users u ON a.candidate_profile_id = u.id
+            JOIN profiles p ON a.candidate_profile_id = p.id
+            JOIN users u ON p.user_id = u.id
             JOIN job_offers j ON a.job_offer_id = j.id
             LEFT JOIN companies c ON j.company_id = c.id
             """ + whereClause + " ORDER BY h.created_date DESC";

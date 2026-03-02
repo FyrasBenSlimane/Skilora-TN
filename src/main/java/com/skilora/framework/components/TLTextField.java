@@ -91,4 +91,50 @@ public class TLTextField extends VBox {
     public TextField getControl() {
         return input;
     }
+
+    /**
+     * Set inline validation state: shows error text and red border.
+     * Pass null or empty to clear the error.
+     */
+    public void setError(String errorMessage) {
+        getStyleClass().removeAll("field-valid", "field-invalid");
+        if (errorMessage != null && !errorMessage.isEmpty()) {
+            getStyleClass().add("field-invalid");
+            helperNode.setText(errorMessage);
+            helperNode.getStyleClass().removeAll("field-success-text", "field-error-text");
+            helperNode.getStyleClass().add("field-error-text");
+            helperNode.setVisible(true);
+            helperNode.setManaged(true);
+        } else {
+            helperNode.setVisible(false);
+            helperNode.setManaged(false);
+        }
+    }
+
+    /**
+     * Set inline success state: shows success text and green border.
+     * Pass null or empty to clear.
+     */
+    public void setSuccess(String successMessage) {
+        getStyleClass().removeAll("field-valid", "field-invalid");
+        if (successMessage != null && !successMessage.isEmpty()) {
+            getStyleClass().add("field-valid");
+            helperNode.setText(successMessage);
+            helperNode.getStyleClass().removeAll("field-success-text", "field-error-text");
+            helperNode.getStyleClass().add("field-success-text");
+            helperNode.setVisible(true);
+            helperNode.setManaged(true);
+        } else {
+            helperNode.setVisible(false);
+            helperNode.setManaged(false);
+        }
+    }
+
+    /** Clear validation state back to neutral. */
+    public void clearValidation() {
+        getStyleClass().removeAll("field-valid", "field-invalid");
+        helperNode.getStyleClass().removeAll("field-success-text", "field-error-text");
+        helperNode.setVisible(false);
+        helperNode.setManaged(false);
+    }
 }

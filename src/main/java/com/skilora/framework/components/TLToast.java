@@ -27,6 +27,11 @@ import javafx.util.Duration;
  */
 public class TLToast extends VBox {
 
+    private static final String STYLESHEET =
+            TLToast.class.getResource("/com/skilora/framework/styles/tl-toast.css").toExternalForm();
+    private static final String STYLESHEET_DEP_0 =
+            TLToast.class.getResource("/com/skilora/framework/styles/tl-alert.css").toExternalForm();
+
     private static final Duration DEFAULT_DURATION = Duration.seconds(4);
     private static final double TOAST_WIDTH = 360;
 
@@ -35,6 +40,8 @@ public class TLToast extends VBox {
     }
 
     private TLToast(String title, String description, Variant variant) {
+        getStylesheets().add(STYLESHEET);
+        getStylesheets().add(STYLESHEET_DEP_0);
         getStyleClass().add("toast");
         if (variant != Variant.DEFAULT) {
             getStyleClass().add("toast-" + variant.name().toLowerCase());

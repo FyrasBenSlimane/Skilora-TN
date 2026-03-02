@@ -22,6 +22,9 @@ import javafx.util.Duration;
  */
 public class TLSwitch extends StackPane {
 
+    private static final String STYLESHEET =
+            TLSwitch.class.getResource("/com/skilora/framework/styles/tl-switch.css").toExternalForm();
+
     private final BooleanProperty selected = new SimpleBooleanProperty(false);
     private final Rectangle track;
     private final Circle thumb;
@@ -34,6 +37,7 @@ public class TLSwitch extends StackPane {
     }
 
     public TLSwitch(boolean initialState) {
+        getStylesheets().add(STYLESHEET);
         getStyleClass().add("switch");
         setCursor(Cursor.HAND);
 

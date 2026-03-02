@@ -107,7 +107,7 @@ public class UserService {
     public Optional<User> findById(int id) {
         String query = "SELECT * FROM users WHERE id = ?";
         try (Connection connection = DatabaseConfig.getInstance().getConnection();
-                PreparedStatement stmt = connection.prepareStatement(query)) {
+             PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setInt(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -139,9 +139,41 @@ public class UserService {
     }
 
     /**
+     * Find all users with a specific role (e.g., "ADMIN", "EMPLOYER").
+     */
+    public List<User> findByRole(String role) {
+        List<User> users = new ArrayList<>();
+        String query = "SELECT * FROM users WHERE role = ?";
+        try (Connection connection = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, role);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    users.add(mapResultSetToUser(rs));
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Failed to find users by role: {}", role, e);
+        }
+        return users;
+    }
+
+    /**
      * Create a new user (password will be hashed before storing)
      */
     public void create(User user) {
+        if (user == null) throw new IllegalArgumentException("User must not be null");
+        if (user.getUsername() == null || user.getUsername().isBlank())
+            throw new IllegalArgumentException("Username is required");
+        if (user.getUsername().length() > 50)
+            throw new IllegalArgumentException("Username too long (max 50)");
+        if (user.getEmail() == null || !user.getEmail().matches("^[\\w.-]+@[\\w.-]+\\.[a-zA-Z]{2,}$"))
+            throw new IllegalArgumentException("Valid email is required");
+        if (user.getPassword() == null || user.getPassword().length() < 8)
+            throw new IllegalArgumentException("Password must be at least 8 characters");
+        if (user.getRole() == null)
+            throw new IllegalArgumentException("Role is required");
+
         String query = "INSERT INTO users (username, email, password, role, full_name, photo_url, is_verified, is_active) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection connection = DatabaseConfig.getInstance().getConnection();
@@ -164,9 +196,26 @@ public class UserService {
                 }
             }
         } catch (SQLException e) {
-            logger.error("Failed to create user: {}", user.getUsername(), e);
+            if (isConstraintViolation(e)) {
+                // Expected in normal app flow (duplicate username/email). Avoid noisy stack traces.
+                logger.info("User create rejected (constraint violation): username={}", user.getUsername());
+            } else {
+                logger.error("Failed to create user: {}", user.getUsername(), e);
+            }
             throw new RuntimeException(I18n.get("error.user.create_failed"), e);
         }
+    }
+
+    private static boolean isConstraintViolation(SQLException e) {
+        if (e == null) return false;
+        // SQLState class 23xxx = integrity constraint violation (portable)
+        String state = e.getSQLState();
+        if (state != null && state.startsWith("23")) return true;
+        // Driver-specific type (common with MySQL)
+        if (e instanceof SQLIntegrityConstraintViolationException) return true;
+        // Fallback on message signature
+        String msg = e.getMessage();
+        return msg != null && msg.toLowerCase().contains("duplicate entry");
     }
 
     /**
@@ -235,11 +284,6 @@ public class UserService {
     public List<User> getAllUsers() {
         return findAll();
     }
-
-    public Optional<User> getUserById(int id) {
-        return findById(id);
-    }
-
     public void saveUser(User user) {
         if (user.getId() != 0) {
             update(user);

@@ -7,12 +7,15 @@ import javafx.scene.control.TableView;
  */
 public class TLTable<T> extends TableView<T> {
 
+    private static final String STYLESHEET =
+            TLTable.class.getResource("/com/skilora/framework/styles/tl-table.css").toExternalForm();
+
     public TLTable() {
+        getStylesheets().add(STYLESHEET);
         getStyleClass().add("table-view");
 
-        // PERFORMANCE: Enable caching for GPU-accelerated rendering
-        setCache(true);
-        setCacheHint(javafx.scene.CacheHint.SPEED);
+        // NOTE: Bitmap caching (setCache/setCacheHint) removed — it corrupts
+        //       rendering on virtualized controls like TableView.
 
         // PERFORMANCE: Enable fixed cell size for virtualization optimization
         // TableView already virtualizes rows, but this hint improves performance

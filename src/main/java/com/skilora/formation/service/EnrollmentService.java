@@ -92,31 +92,6 @@ public class EnrollmentService {
     }
 
     /**
-     * Find an enrollment by ID.
-     */
-    public Enrollment findById(int id) {
-        String sql = "SELECT e.*, f.title as formation_title, u.full_name as user_name " +
-                "FROM enrollments e " +
-                "JOIN formations f ON e.formation_id = f.id " +
-                "JOIN users u ON e.user_id = u.id " +
-                "WHERE e.id = ?";
-
-        try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
-            stmt.setInt(1, id);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return mapResultSet(rs);
-                }
-            }
-        } catch (SQLException e) {
-            logger.error("Error finding enrollment by ID {}: {}", id, e.getMessage(), e);
-        }
-        return null;
-    }
-
-    /**
      * Find enrollments by user ID.
      */
     public List<Enrollment> findByUserId(int userId) {
@@ -144,69 +119,6 @@ public class EnrollmentService {
     }
 
     /**
-     * Find enrollments by formation ID.
-     */
-    public List<Enrollment> findByFormationId(int formationId) {
-        String sql = "SELECT e.*, f.title as formation_title, u.full_name as user_name " +
-                "FROM enrollments e " +
-                "JOIN formations f ON e.formation_id = f.id " +
-                "JOIN users u ON e.user_id = u.id " +
-                "WHERE e.formation_id = ? ORDER BY e.enrolled_date DESC";
-        List<Enrollment> enrollments = new ArrayList<>();
-
-        try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
-            stmt.setInt(1, formationId);
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    enrollments.add(mapResultSet(rs));
-                }
-            }
-            logger.debug("Retrieved {} enrollments for formation ID: {}", enrollments.size(), formationId);
-        } catch (SQLException e) {
-            logger.error("Error finding enrollments by formation ID {}: {}", formationId, e.getMessage(), e);
-        }
-        return enrollments;
-    }
-
-    /**
-     * Update enrollment progress.
-     * Automatically sets status to COMPLETED if progress >= 100.
-     */
-    public boolean updateProgress(int enrollmentId, double progress) {
-        String sql;
-        if (progress >= 100.0) {
-            sql = "UPDATE enrollments SET progress = ?, status = ?, completed_date = ? WHERE id = ?";
-        } else {
-            sql = "UPDATE enrollments SET progress = ? WHERE id = ?";
-        }
-
-        try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
-            stmt.setDouble(1, progress);
-            
-            if (progress >= 100.0) {
-                stmt.setString(2, EnrollmentStatus.COMPLETED.name());
-                stmt.setTimestamp(3, Timestamp.valueOf(LocalDateTime.now()));
-                stmt.setInt(4, enrollmentId);
-            } else {
-                stmt.setInt(2, enrollmentId);
-            }
-
-            int rows = stmt.executeUpdate();
-            if (rows > 0) {
-                logger.info("Enrollment ID {} progress updated to {}%", enrollmentId, progress);
-                return true;
-            }
-        } catch (SQLException e) {
-            logger.error("Error updating enrollment progress: {}", e.getMessage(), e);
-        }
-        return false;
-    }
-
-    /**
      * Update enrollment status.
      */
     public boolean updateStatus(int enrollmentId, EnrollmentStatus status) {
@@ -230,22 +142,78 @@ public class EnrollmentService {
     }
 
     /**
-     * Unenroll (delete enrollment).
+     * Find enrollment by ID.
      */
-    public boolean unenroll(int enrollmentId) {
-        String sql = "DELETE FROM enrollments WHERE id = ?";
-
+    public Enrollment findById(int id) {
+        String sql = "SELECT e.*, f.title as formation_title, u.full_name as user_name " +
+                "FROM enrollments e JOIN formations f ON e.formation_id = f.id " +
+                "JOIN users u ON e.user_id = u.id WHERE e.id = ?";
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
-            stmt.setInt(1, enrollmentId);
-            int rows = stmt.executeUpdate();
-            if (rows > 0) {
-                logger.info("Enrollment ID {} deleted successfully", enrollmentId);
-                return true;
+            stmt.setInt(1, id);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) return mapResultSet(rs);
             }
         } catch (SQLException e) {
-            logger.error("Error deleting enrollment ID {}: {}", enrollmentId, e.getMessage(), e);
+            logger.error("Error finding enrollment {}: {}", id, e.getMessage(), e);
+        }
+        return null;
+    }
+
+    /**
+     * Find all enrollments for a formation.
+     */
+    public List<Enrollment> findByFormation(int formationId) {
+        String sql = "SELECT e.*, f.title as formation_title, u.full_name as user_name " +
+                "FROM enrollments e JOIN formations f ON e.formation_id = f.id " +
+                "JOIN users u ON e.user_id = u.id WHERE e.formation_id = ? ORDER BY e.enrolled_date DESC";
+        List<Enrollment> enrollments = new ArrayList<>();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, formationId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) enrollments.add(mapResultSet(rs));
+            }
+        } catch (SQLException e) {
+            logger.error("Error finding enrollments for formation {}: {}", formationId, e.getMessage(), e);
+        }
+        return enrollments;
+    }
+
+    /**
+     * Update enrollment progress (0-100).
+     */
+    public boolean updateProgress(int enrollmentId, double progress) {
+        progress = Math.max(0, Math.min(100, progress));
+        String sql = "UPDATE enrollments SET progress = ? WHERE id = ?";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setDouble(1, progress);
+            stmt.setInt(2, enrollmentId);
+            boolean updated = stmt.executeUpdate() > 0;
+            if (updated) logger.info("Enrollment {} progress updated to {}%", enrollmentId, progress);
+            return updated;
+        } catch (SQLException e) {
+            logger.error("Error updating progress: {}", e.getMessage(), e);
+        }
+        return false;
+    }
+
+    /**
+     * Complete an enrollment: set status=COMPLETED, progress=100, completed_date=NOW.
+     */
+    public boolean completeEnrollment(int enrollmentId) {
+        String sql = "UPDATE enrollments SET status = ?, progress = 100.00, completed_date = ? WHERE id = ?";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, EnrollmentStatus.COMPLETED.name());
+            stmt.setTimestamp(2, Timestamp.valueOf(LocalDateTime.now()));
+            stmt.setInt(3, enrollmentId);
+            boolean updated = stmt.executeUpdate() > 0;
+            if (updated) logger.info("Enrollment {} completed", enrollmentId);
+            return updated;
+        } catch (SQLException e) {
+            logger.error("Error completing enrollment: {}", e.getMessage(), e);
         }
         return false;
     }
@@ -269,6 +237,69 @@ public class EnrollmentService {
             logger.error("Error counting enrollments: {}", e.getMessage(), e);
         }
         return 0;
+    }
+
+    /**
+     * Check if a formation is completed by a user.
+     */
+    public boolean isFormationCompleted(int userId, int formationId) {
+        String sql = "SELECT 1 FROM enrollments WHERE user_id = ? AND formation_id = ? AND (status = 'COMPLETED' OR completed = TRUE) LIMIT 1";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, userId);
+            stmt.setInt(2, formationId);
+            return stmt.executeQuery().next();
+        } catch (SQLException e) {
+            logger.error("Error checking formation completion: userId={}, formationId={}", userId, formationId, e);
+        }
+        return false;
+    }
+
+    /**
+     * Mark formation as completed for a user and automatically generate certificate.
+     */
+    public void markCompleted(int userId, int formationId) {
+        logger.info("Marking formation as completed: user={}, formation={}", userId, formationId);
+        String sql = "UPDATE enrollments SET status = 'COMPLETED', progress = 100.00, completed = TRUE, " +
+                "completed_date = ? WHERE user_id = ? AND formation_id = ?";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setTimestamp(1, Timestamp.valueOf(LocalDateTime.now()));
+            stmt.setInt(2, userId);
+            stmt.setInt(3, formationId);
+            int rows = stmt.executeUpdate();
+            if (rows > 0) {
+                logger.info("Formation marked as completed: user={}, formation={}", userId, formationId);
+                // Automatically generate certificate if it doesn't exist
+                try {
+                    CertificateService certService = CertificateService.getInstance();
+                    if (!certService.certificateExists(userId, formationId)) {
+                        logger.info("Auto-generating certificate: user={}, formation={}", userId, formationId);
+                        certService.createCertificate(userId, formationId);
+                    }
+                } catch (Exception e) {
+                    logger.error("Error auto-generating certificate: user={}, formation={}", userId, formationId, e);
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Error marking formation completed: user={}, formation={}", userId, formationId, e);
+        }
+    }
+
+    /**
+     * Update the last accessed timestamp for an enrollment.
+     */
+    public void updateLastAccessed(int userId, int formationId) {
+        String sql = "UPDATE enrollments SET last_accessed_at = ? WHERE user_id = ? AND formation_id = ?";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setTimestamp(1, Timestamp.valueOf(LocalDateTime.now()));
+            stmt.setInt(2, userId);
+            stmt.setInt(3, formationId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            logger.error("Error updating last accessed: userId={}, formationId={}", userId, formationId, e);
+        }
     }
 
     /**

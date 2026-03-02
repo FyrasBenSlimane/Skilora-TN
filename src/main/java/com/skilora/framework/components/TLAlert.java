@@ -23,6 +23,9 @@ import javafx.scene.layout.VBox;
  */
 public class TLAlert extends HBox {
 
+    private static final String STYLESHEET =
+            TLAlert.class.getResource("/com/skilora/framework/styles/tl-alert.css").toExternalForm();
+
     public enum Variant {
         DEFAULT, DESTRUCTIVE, SUCCESS, WARNING, INFO
     }
@@ -40,6 +43,7 @@ public class TLAlert extends HBox {
     }
 
     public TLAlert(Variant variant, Node icon, String title, String description) {
+        getStylesheets().add(STYLESHEET);
         getStyleClass().add("alert");
         currentVariant = variant;
         if (variant != Variant.DEFAULT) {

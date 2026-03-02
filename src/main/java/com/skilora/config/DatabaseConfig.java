@@ -2,6 +2,8 @@ package com.skilora.config;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -19,20 +21,14 @@ public class DatabaseConfig {
     private static final String DEFAULT_USER = "root";
     private static final String DEFAULT_PASSWORD = "";
 
+    private static final Logger logger = LoggerFactory.getLogger(DatabaseConfig.class);
+
     private HikariDataSource dataSource;
 
     private DatabaseConfig() {
-        String url = System.getenv("SKILORA_DB_URL");
-        if (url == null || url.isBlank())
-            url = DEFAULT_URL;
-
-        String user = System.getenv("SKILORA_DB_USER");
-        if (user == null || user.isBlank())
-            user = DEFAULT_USER;
-
-        String password = System.getenv("SKILORA_DB_PASSWORD");
-        if (password == null)
-            password = DEFAULT_PASSWORD;
+        String url = EnvConfig.get("SKILORA_DB_URL", DEFAULT_URL);
+        String user = EnvConfig.get("SKILORA_DB_USER", DEFAULT_USER);
+        String password = EnvConfig.get("SKILORA_DB_PASSWORD", DEFAULT_PASSWORD);
 
         // Increase MySQL max_allowed_packet for Base64-encoded profile photos
         // Must be done BEFORE creating the pool so all connections inherit the new value
@@ -53,12 +49,21 @@ public class DatabaseConfig {
         config.setMinimumIdle(2);
         config.setIdleTimeout(30000);
         config.setConnectionTimeout(3000); // 3s fast fail
+        // Don't crash app startup if DB is temporarily down (lazy acquire connections).
+        config.setInitializationFailTimeout(-1);
         config.addDataSourceProperty("cachePrepStmts", "true");
         config.addDataSourceProperty("prepStmtCacheSize", "250");
         config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
         config.addDataSourceProperty("useServerPrepStmts", "true");
 
-        this.dataSource = new HikariDataSource(config);
+        try {
+            this.dataSource = new HikariDataSource(config);
+        } catch (RuntimeException e) {
+            // Hikari can throw PoolInitializationException (runtime) on fail-fast configurations.
+            // With initializationFailTimeout=-1 this should be rare, but keep the app resilient.
+            logger.error("Failed to initialize DB pool (url={} user={}): {}", url, user, e.getMessage(), e);
+            throw e;
+        }
     }
 
     public static synchronized DatabaseConfig getInstance() {

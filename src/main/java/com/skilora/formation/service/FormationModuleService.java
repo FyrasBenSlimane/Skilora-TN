@@ -33,17 +33,18 @@ public class FormationModuleService {
         if (module.getFormationId() <= 0) throw new IllegalArgumentException("Valid formation ID is required");
         String sql = """
             INSERT INTO formation_modules (formation_id, title, description,
-                content_url, duration_minutes, order_index)
-            VALUES (?, ?, ?, ?, ?, ?)
+                content, content_url, duration_minutes, order_index)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """;
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             stmt.setInt(1, module.getFormationId());
             stmt.setString(2, module.getTitle());
             stmt.setString(3, module.getDescription());
-            stmt.setString(4, module.getContentUrl());
-            stmt.setInt(5, module.getDurationMinutes());
-            stmt.setInt(6, module.getOrderIndex());
+            stmt.setString(4, module.getContent());
+            stmt.setString(5, module.getContentUrl());
+            stmt.setInt(6, module.getDurationMinutes());
+            stmt.setInt(7, module.getOrderIndex());
             stmt.executeUpdate();
             ResultSet rs = stmt.getGeneratedKeys();
             if (rs.next()) {
@@ -86,7 +87,7 @@ public class FormationModuleService {
 
     public boolean update(FormationModule module) {
         String sql = """
-            UPDATE formation_modules SET title = ?, description = ?, content_url = ?,
+            UPDATE formation_modules SET title = ?, description = ?, content = ?, content_url = ?,
                 duration_minutes = ?, order_index = ?
             WHERE id = ?
             """;
@@ -94,10 +95,11 @@ public class FormationModuleService {
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, module.getTitle());
             stmt.setString(2, module.getDescription());
-            stmt.setString(3, module.getContentUrl());
-            stmt.setInt(4, module.getDurationMinutes());
-            stmt.setInt(5, module.getOrderIndex());
-            stmt.setInt(6, module.getId());
+            stmt.setString(3, module.getContent());
+            stmt.setString(4, module.getContentUrl());
+            stmt.setInt(5, module.getDurationMinutes());
+            stmt.setInt(6, module.getOrderIndex());
+            stmt.setInt(7, module.getId());
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
             logger.error("Error updating module: {}", e.getMessage(), e);
@@ -179,6 +181,7 @@ public class FormationModuleService {
         m.setFormationId(rs.getInt("formation_id"));
         m.setTitle(rs.getString("title"));
         m.setDescription(rs.getString("description"));
+        m.setContent(rs.getString("content"));
         m.setContentUrl(rs.getString("content_url"));
         m.setDurationMinutes(rs.getInt("duration_minutes"));
         m.setOrderIndex(rs.getInt("order_index"));

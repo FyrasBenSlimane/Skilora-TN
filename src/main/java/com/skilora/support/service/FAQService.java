@@ -52,24 +52,6 @@ public class FAQService {
         }
         return -1;
     }
-
-    public FAQArticle findById(int id) {
-        String sql = "SELECT * FROM faq_articles WHERE id = ?";
-        try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
-            stmt.setInt(1, id);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return mapResultSet(rs);
-                }
-            }
-        } catch (SQLException e) {
-            logger.error("Failed to find FAQ article by id: {}", id, e);
-        }
-        return null;
-    }
-
     public List<FAQArticle> findAll() {
         String sql = "SELECT * FROM faq_articles WHERE is_published = TRUE ORDER BY created_date DESC";
         List<FAQArticle> articles = new ArrayList<>();
@@ -124,31 +106,46 @@ public class FAQService {
         return articles;
     }
 
+    public FAQArticle findById(int id) {
+        String sql = "SELECT * FROM faq_articles WHERE id = ? LIMIT 1";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, id);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) return mapResultSet(rs);
+            }
+        } catch (SQLException e) {
+            logger.error("Failed to find FAQ article by id {}", id, e);
+        }
+        return null;
+    }
+
     public List<FAQArticle> search(String query) {
+        String q = query != null ? query.trim() : "";
+        if (q.isEmpty()) return findAll();
+
         String sql = """
-            SELECT * FROM faq_articles 
-            WHERE is_published = TRUE 
-            AND (question LIKE ? OR answer LIKE ?)
+            SELECT * FROM faq_articles
+            WHERE is_published = TRUE
+              AND (question LIKE ? OR answer LIKE ?)
             ORDER BY created_date DESC
             """;
         List<FAQArticle> articles = new ArrayList<>();
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
-            String searchPattern = "%" + query + "%";
-            stmt.setString(1, searchPattern);
-            stmt.setString(2, searchPattern);
+            String like = "%" + q + "%";
+            stmt.setString(1, like);
+            stmt.setString(2, like);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     articles.add(mapResultSet(rs));
                 }
             }
         } catch (SQLException e) {
-            logger.error("Failed to search FAQ articles", e);
+            logger.error("Failed to search FAQ articles for query {}", query, e);
         }
         return articles;
     }
-
     public boolean update(FAQArticle article) {
         String sql = """
             UPDATE faq_articles 
@@ -185,6 +182,31 @@ public class FAQService {
         return false;
     }
 
+    public boolean voteHelpful(int articleId, boolean helpful) {
+        String column = helpful ? "helpful_count" : "not_helpful_count";
+        String sql = "UPDATE faq_articles SET " + column + " = " + column + " + 1 WHERE id = ?";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, articleId);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            logger.error("Failed to vote helpful={} for FAQ {}", helpful, articleId, e);
+        }
+        return false;
+    }
+
+    public boolean incrementViewCount(int articleId) {
+        String sql = "UPDATE faq_articles SET view_count = view_count + 1 WHERE id = ?";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, articleId);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            logger.error("Failed to increment view_count for FAQ {}", articleId, e);
+        }
+        return false;
+    }
+
     private FAQArticle mapResultSet(ResultSet rs) throws SQLException {
         FAQArticle article = new FAQArticle();
         article.setId(rs.getInt("id"));
@@ -193,6 +215,12 @@ public class FAQService {
         article.setAnswer(rs.getString("answer"));
         article.setLanguage(rs.getString("language"));
         article.setHelpfulCount(rs.getInt("helpful_count"));
+        try {
+            article.setNotHelpfulCount(rs.getInt("not_helpful_count"));
+        } catch (SQLException e) {
+            // Backward compatibility for older schemas
+            article.setNotHelpfulCount(0);
+        }
         article.setViewCount(rs.getInt("view_count"));
         article.setPublished(rs.getBoolean("is_published"));
         

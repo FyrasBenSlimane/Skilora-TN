@@ -1,6 +1,5 @@
 package com.skilora.user.service;
 
-import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.concurrent.CompletableFuture;
@@ -74,6 +73,7 @@ public class FastCameraManager {
     
     /**
      * Get pre-warmed camera (INSTANT if ready!)
+     * Does NOT auto-re-prewarm — camera is only needed during login flow.
      */
     public CameraDevice getPrewarmedCamera() {
         if (isReady.get() && prewarmedCamera != null) {
@@ -81,17 +81,6 @@ public class FastCameraManager {
             CameraDevice camera = prewarmedCamera;
             prewarmedCamera = null;
             isReady.set(false);
-            
-            // Start pre-warming next camera in background
-            Platform.runLater(() -> {
-                try {
-                    Thread.sleep(500);
-                    resetAndPrewarm();
-                } catch (Exception e) {
-                    // Ignore
-                }
-            });
-            
             return camera;
         }
         return null;
@@ -153,6 +142,25 @@ public class FastCameraManager {
             } catch (Exception e) {
                 logger.error("Error closing camera: {}", e.getMessage(), e);
             }
+        }
+    }
+
+    /**
+     * Fully shut down the camera — release any pre-warmed device.
+     * Call this after successful login so the camera is not held open
+     * while the user is logged in (it's only needed on the login screen).
+     */
+    public void shutdown() {
+        logger.debug("Shutting down camera manager");
+        isPrewarming.set(false);
+        isReady.set(false);
+        if (prewarmedCamera != null) {
+            try {
+                prewarmedCamera.close();
+            } catch (Exception e) {
+                logger.debug("Error closing pre-warmed camera: {}", e.getMessage());
+            }
+            prewarmedCamera = null;
         }
     }
 }

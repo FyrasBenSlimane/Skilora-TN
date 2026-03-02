@@ -67,7 +67,8 @@ public class InterviewService {
             SELECT i.*, u.full_name AS candidate_name, j.title AS job_title, c.name AS company_name
             FROM interviews i
             JOIN applications a ON i.application_id = a.id
-            JOIN users u ON a.candidate_profile_id = u.id
+            JOIN profiles p ON a.candidate_profile_id = p.id
+            JOIN users u ON p.user_id = u.id
             JOIN job_offers j ON a.job_offer_id = j.id
             LEFT JOIN companies c ON j.company_id = c.id
             WHERE i.id = ?
@@ -92,11 +93,12 @@ public class InterviewService {
             SELECT i.*, u.full_name AS candidate_name, j.title AS job_title, c.name AS company_name
             FROM interviews i
             JOIN applications a ON i.application_id = a.id
-            JOIN users u ON a.candidate_profile_id = u.id
+            JOIN profiles p ON a.candidate_profile_id = p.id
+            JOIN users u ON p.user_id = u.id
             JOIN job_offers j ON a.job_offer_id = j.id
             LEFT JOIN companies c ON j.company_id = c.id
-            WHERE (a.candidate_profile_id = ? OR j.employer_id = ?)
-              AND i.status = '" + InterviewStatus.SCHEDULED.name() + "'
+            WHERE (p.user_id = ? OR c.owner_id = ?)
+              AND i.status = ?
               AND i.scheduled_date > NOW()
             ORDER BY i.scheduled_date ASC
             """;
@@ -105,6 +107,7 @@ public class InterviewService {
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, userId);
             stmt.setInt(2, userId);
+            stmt.setString(3, InterviewStatus.SCHEDULED.name());
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) list.add(mapInterview(rs));
         } catch (SQLException e) {
@@ -113,21 +116,22 @@ public class InterviewService {
         return list;
     }
 
-    public List<Interview> findByEmployer(int employerId) {
+    public List<Interview> findByEmployer(int employerUserId) {
         String sql = """
             SELECT i.*, u.full_name AS candidate_name, j.title AS job_title, c.name AS company_name
             FROM interviews i
             JOIN applications a ON i.application_id = a.id
-            JOIN users u ON a.candidate_profile_id = u.id
+            JOIN profiles p ON a.candidate_profile_id = p.id
+            JOIN users u ON p.user_id = u.id
             JOIN job_offers j ON a.job_offer_id = j.id
-            LEFT JOIN companies c ON j.company_id = c.id
-            WHERE j.employer_id = ?
+            JOIN companies c ON j.company_id = c.id
+            WHERE c.owner_id = ?
             ORDER BY i.scheduled_date DESC
             """;
         List<Interview> list = new ArrayList<>();
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, employerId);
+            stmt.setInt(1, employerUserId);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) list.add(mapInterview(rs));
         } catch (SQLException e) {
@@ -150,12 +154,13 @@ public class InterviewService {
     }
 
     public boolean complete(int id, String feedback, int rating) {
-        String sql = "UPDATE interviews SET status = '" + InterviewStatus.COMPLETED.name() + "', feedback = ?, rating = ? WHERE id = ?";
+        String sql = "UPDATE interviews SET status = ?, feedback = ?, rating = ? WHERE id = ?";
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, feedback);
-            stmt.setInt(2, rating);
-            stmt.setInt(3, id);
+            stmt.setString(1, InterviewStatus.COMPLETED.name());
+            stmt.setString(2, feedback);
+            stmt.setInt(3, rating);
+            stmt.setInt(4, id);
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
             logger.error("Error completing interview: {}", e.getMessage(), e);
@@ -168,11 +173,12 @@ public class InterviewService {
     }
 
     public boolean reschedule(int id, java.time.LocalDateTime newDate) {
-        String sql = "UPDATE interviews SET scheduled_date = ?, status = '" + InterviewStatus.SCHEDULED.name() + "' WHERE id = ?";
+        String sql = "UPDATE interviews SET scheduled_date = ?, status = ? WHERE id = ?";
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setTimestamp(1, Timestamp.valueOf(newDate));
-            stmt.setInt(2, id);
+            stmt.setString(2, InterviewStatus.SCHEDULED.name());
+            stmt.setInt(3, id);
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
             logger.error("Error rescheduling interview: {}", e.getMessage(), e);
@@ -199,7 +205,8 @@ public class InterviewService {
             SELECT i.*, u.full_name AS candidate_name, j.title AS job_title, c.name AS company_name
             FROM interviews i
             JOIN applications a ON i.application_id = a.id
-            JOIN users u ON a.candidate_profile_id = u.id
+            JOIN profiles p ON a.candidate_profile_id = p.id
+            JOIN users u ON p.user_id = u.id
             JOIN job_offers j ON a.job_offer_id = j.id
             LEFT JOIN companies c ON j.company_id = c.id
             """ + whereClause + " ORDER BY i.scheduled_date DESC";

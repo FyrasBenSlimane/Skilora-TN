@@ -18,11 +18,15 @@ import javafx.scene.layout.HBox;
  */
 public class TLOtpInput extends HBox {
 
+    private static final String STYLESHEET =
+            TLOtpInput.class.getResource("/com/skilora/framework/styles/tl-otp-input.css").toExternalForm();
+
     private static final int DIGIT_COUNT = 6;
     private final TextField[] digitFields = new TextField[DIGIT_COUNT];
     private Runnable onComplete;
 
     public TLOtpInput() {
+        getStylesheets().add(STYLESHEET);
         setSpacing(8);
         setAlignment(Pos.CENTER);
 
@@ -37,30 +41,14 @@ public class TLOtpInput extends HBox {
             tf.setMaxHeight(48);
             tf.setAlignment(Pos.CENTER);
             tf.getStyleClass().add("otp-digit");
-            tf.setStyle(
-                "-fx-font-size: 20px; -fx-font-weight: 700; -fx-background-color: transparent; " +
-                "-fx-border-color: -fx-input; -fx-border-width: 2; -fx-border-radius: 8; " +
-                "-fx-background-radius: 8; -fx-text-fill: -fx-foreground; " +
-                "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 1, 0, 0, 1);"
-            );
 
-            // Focus styling
+            // Focus styling via CSS class toggle
             tf.focusedProperty().addListener((obs, wasFocused, isFocused) -> {
                 if (isFocused) {
-                    tf.setStyle(
-                        "-fx-font-size: 20px; -fx-font-weight: 700; -fx-background-color: transparent; " +
-                        "-fx-border-color: -fx-ring; -fx-border-width: 2; -fx-border-radius: 8; " +
-                        "-fx-background-radius: 8; -fx-text-fill: -fx-foreground; " +
-                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 3, 0, 0, 0);"
-                    );
+                    tf.getStyleClass().add("otp-digit-focused");
                     tf.selectAll();
                 } else {
-                    tf.setStyle(
-                        "-fx-font-size: 20px; -fx-font-weight: 700; -fx-background-color: transparent; " +
-                        "-fx-border-color: -fx-input; -fx-border-width: 2; -fx-border-radius: 8; " +
-                        "-fx-background-radius: 8; -fx-text-fill: -fx-foreground; " +
-                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 1, 0, 0, 1);"
-                    );
+                    tf.getStyleClass().remove("otp-digit-focused");
                 }
             });
 

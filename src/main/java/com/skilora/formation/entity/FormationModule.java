@@ -1,5 +1,6 @@
 package com.skilora.formation.entity;
 
+import java.time.LocalDateTime;
 import java.util.Objects;
 
 /**
@@ -15,13 +16,18 @@ public class FormationModule {
     private String title;
     private String description;
     private String contentUrl;
+    private String content; // HTML content for the lesson
     private int durationMinutes;
     private int orderIndex;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
     // Default constructor
     public FormationModule() {
         this.durationMinutes = 0;
         this.orderIndex = 0;
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
     }
 
     // Constructor with basic fields
@@ -61,6 +67,18 @@ public class FormationModule {
         return orderIndex;
     }
 
+    public String getContent() {
+        return content;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
     // Setters
     public void setId(int id) {
         this.id = id;
@@ -88,6 +106,29 @@ public class FormationModule {
 
     public void setOrderIndex(int orderIndex) {
         this.orderIndex = orderIndex;
+    }
+
+    public void setContent(String content) {
+        this.content = content;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    /**
+     * Returns a human-readable formatted duration string.
+     */
+    public String getFormattedDuration() {
+        if (durationMinutes <= 0) return "N/A";
+        if (durationMinutes < 60) return durationMinutes + " min";
+        int hours = durationMinutes / 60;
+        int mins = durationMinutes % 60;
+        return mins > 0 ? hours + "h" + String.format("%02d", mins) : hours + "h";
     }
 
     @Override

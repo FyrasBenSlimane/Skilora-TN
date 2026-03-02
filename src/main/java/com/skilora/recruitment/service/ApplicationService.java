@@ -35,29 +35,58 @@ public class ApplicationService {
      * @return the generated application ID, or -1 on failure
      */
     public int apply(int jobOfferId, int candidateProfileId, String coverLetter) throws SQLException {
-        // Check if already applied
-        if (hasApplied(jobOfferId, candidateProfileId)) {
-            return -1; // Already applied
-        }
+        return apply(jobOfferId, candidateProfileId, coverLetter, null);
+    }
 
-        String sql = "INSERT INTO applications (job_offer_id, candidate_profile_id, status, applied_date, cover_letter) " +
-                "VALUES (?, ?, ?, ?, ?)";
-
-        try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            stmt.setInt(1, jobOfferId);
-            stmt.setInt(2, candidateProfileId);
-            stmt.setString(3, Status.PENDING.name());
-            stmt.setTimestamp(4, Timestamp.valueOf(LocalDateTime.now()));
-            stmt.setString(5, coverLetter);
-
-            int rows = stmt.executeUpdate();
-            if (rows > 0) {
-                try (ResultSet keys = stmt.getGeneratedKeys()) {
-                    if (keys.next()) {
-                        return keys.getInt(1);
+    /**
+     * Submit a new application for a job offer with optional custom CV URL.
+     *
+     * @return the generated application ID, or -1 on failure
+     */
+    public int apply(int jobOfferId, int candidateProfileId, String coverLetter, String cvUrl) throws SQLException {
+        try (Connection conn = DatabaseConfig.getInstance().getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                // Check if already applied (within same transaction to prevent TOCTOU race)
+                String checkSql = "SELECT 1 FROM applications WHERE job_offer_id = ? AND candidate_profile_id = ?";
+                try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
+                    checkStmt.setInt(1, jobOfferId);
+                    checkStmt.setInt(2, candidateProfileId);
+                    try (ResultSet rs = checkStmt.executeQuery()) {
+                        if (rs.next()) {
+                            conn.rollback();
+                            return -1; // Already applied
+                        }
                     }
                 }
+
+                String sql = "INSERT INTO applications (job_offer_id, candidate_profile_id, status, applied_date, cover_letter, custom_cv_url) " +
+                        "VALUES (?, ?, ?, ?, ?, ?)";
+                try (PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                    stmt.setInt(1, jobOfferId);
+                    stmt.setInt(2, candidateProfileId);
+                    stmt.setString(3, Status.PENDING.name());
+                    stmt.setTimestamp(4, Timestamp.valueOf(LocalDateTime.now()));
+                    stmt.setString(5, coverLetter);
+                    stmt.setString(6, cvUrl);
+
+                    int rows = stmt.executeUpdate();
+                    if (rows > 0) {
+                        try (ResultSet keys = stmt.getGeneratedKeys()) {
+                            if (keys.next()) {
+                                int id = keys.getInt(1);
+                                conn.commit();
+                                return id;
+                            }
+                        }
+                    }
+                }
+                conn.rollback();
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
             }
         }
         return -1;
@@ -181,6 +210,15 @@ public class ApplicationService {
             stmt.setInt(2, applicationId);
             return stmt.executeUpdate() > 0;
         }
+    }
+
+    /**
+     * Get a single application by ID with full details.
+     * Convenience wrapper around getById().
+     */
+    public Application getApplicationById(int applicationId) throws SQLException {
+        Optional<Application> opt = getById(applicationId);
+        return opt.orElse(null);
     }
 
     /**

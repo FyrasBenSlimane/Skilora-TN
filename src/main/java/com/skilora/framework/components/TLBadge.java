@@ -10,6 +10,9 @@ import javafx.scene.layout.StackPane;
  */
 public class TLBadge extends StackPane {
 
+    private static final String STYLESHEET =
+            TLBadge.class.getResource("/com/skilora/framework/styles/tl-badge.css").toExternalForm();
+
     public enum Variant {
         DEFAULT, SECONDARY, OUTLINE, DESTRUCTIVE, SUCCESS
     }
@@ -18,6 +21,7 @@ public class TLBadge extends StackPane {
     private Variant currentVariant;
 
     public TLBadge(String text, Variant variant) {
+        getStylesheets().add(STYLESHEET);
         getStyleClass().add("badge");
         this.currentVariant = variant;
         if (variant != Variant.DEFAULT) {

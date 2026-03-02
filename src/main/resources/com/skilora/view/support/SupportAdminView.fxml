@@ -6,7 +6,7 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox spacing="24" style="-fx-background-color: transparent;"
+<VBox spacing="24" styleClass="transparent-bg"
       xmlns="http://javafx.com/javafx"
       xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.skilora.support.controller.SupportAdminController">
@@ -18,7 +18,7 @@
     <!-- Header -->
     <HBox spacing="16" alignment="CENTER_LEFT">
         <VBox spacing="4">
-            <Label fx:id="titleLabel" text="Administration Support" styleClass="h2"/>
+            <Label fx:id="titleLabel" text="" styleClass="h2"/>
             <Label fx:id="subtitleLabel" styleClass="text-muted"/>
         </VBox>
         <Region HBox.hgrow="ALWAYS"/>

@@ -13,6 +13,9 @@ import javafx.scene.shape.Circle;
  */
 public class TLAvatar extends StackPane {
 
+    private static final String STYLESHEET =
+            TLAvatar.class.getResource("/com/skilora/framework/styles/tl-avatar.css").toExternalForm();
+
     public enum Size {
         SM, DEFAULT, LG, XL
     }
@@ -30,6 +33,7 @@ public class TLAvatar extends StackPane {
     }
 
     public TLAvatar(Image image, String fallbackInitials) {
+        getStylesheets().add(STYLESHEET);
         getStyleClass().add("avatar");
         getStyleClass().add("avatar-sm");
         setPrefSize(40, 40);
@@ -91,5 +95,26 @@ public class TLAvatar extends StackPane {
             case XL -> "avatar-xl";
             default -> "avatar-sm";
         });
+        double dim = switch (size) {
+            case SM -> 40;
+            case LG -> 96;
+            case XL -> 128;
+            default -> 48;
+        };
+        setPrefSize(dim, dim);
+        setMinSize(dim, dim);
+        setMaxSize(dim, dim);
+    }
+
+    /** String setter for FXML compatibility: size="SM|DEFAULT|LG|XL" */
+    public void setSize(String sizeStr) {
+        if (sizeStr == null || sizeStr.isBlank()) return;
+        setSize(Size.valueOf(sizeStr.toUpperCase()));
+    }
+
+    public Size getSize() {
+        if (getStyleClass().contains("avatar-xl")) return Size.XL;
+        if (getStyleClass().contains("avatar-lg")) return Size.LG;
+        return Size.SM;
     }
 }

@@ -6,8 +6,8 @@ package com.skilora.user.enums;
  */
 public enum Role {
     ADMIN("Administrator"),
-    USER("Job Seeker"),
-    EMPLOYER("Employer"),
+    USER("Freelancer"),
+    EMPLOYER("Client"),
     TRAINER("Trainer");
 
     private final String displayName;

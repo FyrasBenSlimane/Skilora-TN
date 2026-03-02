@@ -231,8 +231,8 @@ class SkiloraTests {
             @DisplayName("All roles have display names")
             void testRoleDisplayNames() {
                 assertEquals("Administrator", Role.ADMIN.getDisplayName());
-                assertEquals("Job Seeker", Role.USER.getDisplayName());
-                assertEquals("Employer", Role.EMPLOYER.getDisplayName());
+                assertEquals("Freelancer", Role.USER.getDisplayName());
+                assertEquals("Client", Role.EMPLOYER.getDisplayName());
                 assertEquals("Trainer", Role.TRAINER.getDisplayName());
             }
 

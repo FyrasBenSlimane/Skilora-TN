@@ -184,6 +184,46 @@ public class UserFeedbackService {
         return 0.0;
     }
 
+    /**
+     * Find feedback associated with a specific ticket.
+     * Ported from branch ServiceFeedback.getFeedbackByTicketId().
+     */
+    public UserFeedback findByTicketId(int ticketId) {
+        String sql = "SELECT * FROM user_feedback WHERE ticket_id = ? ORDER BY created_date DESC LIMIT 1";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setInt(1, ticketId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSet(rs);
+                }
+            }
+        } catch (SQLException e) {
+            logger.debug("Could not find feedback by ticket_id — column may not exist: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Count feedbacks with a specific rating value.
+     * Ported from branch ServiceFeedback.getCountByRating().
+     */
+    public long getCountByRating(int rating) {
+        String sql = "SELECT COUNT(*) FROM user_feedback WHERE rating = ?";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setInt(1, rating);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) return rs.getLong(1);
+            }
+        } catch (SQLException e) {
+            logger.error("Failed to count feedback by rating {}", rating, e);
+        }
+        return 0;
+    }
+
     private UserFeedback mapResultSet(ResultSet rs) throws SQLException {
         UserFeedback fb = new UserFeedback();
         fb.setId(rs.getInt("id"));

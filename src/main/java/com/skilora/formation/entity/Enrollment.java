@@ -19,6 +19,10 @@ public class Enrollment {
     private double progress;
     private LocalDateTime enrolledDate;
     private LocalDateTime completedDate;
+    private LocalDateTime lastAccessedAt;
+    private boolean completed;
+    private double completionPercentage;
+    private int certificateId;
 
     // Transient fields from JOINs
     private String formationTitle;
@@ -67,6 +71,22 @@ public class Enrollment {
         return completedDate;
     }
 
+    public LocalDateTime getLastAccessedAt() {
+        return lastAccessedAt;
+    }
+
+    public boolean isCompleted() {
+        return completed;
+    }
+
+    public double getCompletionPercentage() {
+        return completionPercentage;
+    }
+
+    public int getCertificateId() {
+        return certificateId;
+    }
+
     public String getFormationTitle() {
         return formationTitle;
     }
@@ -102,6 +122,22 @@ public class Enrollment {
 
     public void setCompletedDate(LocalDateTime completedDate) {
         this.completedDate = completedDate;
+    }
+
+    public void setLastAccessedAt(LocalDateTime lastAccessedAt) {
+        this.lastAccessedAt = lastAccessedAt;
+    }
+
+    public void setCompleted(boolean completed) {
+        this.completed = completed;
+    }
+
+    public void setCompletionPercentage(double completionPercentage) {
+        this.completionPercentage = completionPercentage;
+    }
+
+    public void setCertificateId(int certificateId) {
+        this.certificateId = certificateId;
     }
 
     public void setFormationTitle(String formationTitle) {

@@ -10,6 +10,7 @@ public class FAQArticle {
     private String answer;
     private String language;
     private int helpfulCount;
+    private int notHelpfulCount;
     private int viewCount;
     private boolean isPublished;
     private LocalDateTime createdDate;
@@ -43,6 +44,9 @@ public class FAQArticle {
     
     public int getHelpfulCount() { return helpfulCount; }
     public void setHelpfulCount(int helpfulCount) { this.helpfulCount = helpfulCount; }
+
+    public int getNotHelpfulCount() { return notHelpfulCount; }
+    public void setNotHelpfulCount(int notHelpfulCount) { this.notHelpfulCount = notHelpfulCount; }
     
     public int getViewCount() { return viewCount; }
     public void setViewCount(int viewCount) { this.viewCount = viewCount; }

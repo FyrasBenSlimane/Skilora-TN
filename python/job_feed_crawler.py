@@ -7,6 +7,7 @@ Dependencies: auto-installed if missing (Windows / Linux / macOS / VPS).
 """
 
 import argparse
+import html
 import os
 import json
 import re
@@ -62,6 +63,7 @@ class JobEntry:
     description: str
     location: str
     posted_date: str
+    apply_url: str = ""
     raw_id: str = ""
 
 
@@ -77,6 +79,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "rss": {"enabled": True, "feeds": [["Remote OK (RSS)", "https://remoteok.com/remote-jobs.rss"], ["We Work Remotely", "https://weworkremotely.com/categories/remote-programming-jobs.rss"]], "max_per_feed": 30},
     "timeout": 8,
     "max_total_per_source": 0,
+    "validate_links": False,
+    "validate_max": 0,  # 0 = validate all
+    "validate_concurrency": 24,
+    "validate_timeout": 6,
 }
 
 
@@ -178,8 +184,10 @@ def _parse_aneti_body(body: bytes, max_jobs: int, timeout: int) -> list[JobEntry
     for tr in tbody.find_all("tr", class_="emp"):
         bureau = annee = numoffre = None
         ref_a = tr.find("a", href=re.compile(r"page=990.*bureau="))
+        href = ""
         if ref_a and ref_a.get("href"):
-            parsed = urlparse(ref_a.get("href", ""))
+            href = (ref_a.get("href", "") or "").strip()
+            parsed = urlparse(href)
             qs = parse_qs(parsed.query)
             bureau = (qs.get("bureau") or [""])[0]
             annee = (qs.get("annee") or [""])[0]
@@ -199,7 +207,13 @@ def _parse_aneti_body(body: bytes, max_jobs: int, timeout: int) -> list[JobEntry
             title = (ref_a.get_text() or "").strip()[:200]
         if not title:
             continue
-        job_url = f"{ANETI_BASE}/global.php?page=990&bureau={bureau}&annee={annee}&numoffre={numoffre}"
+        # Prefer the exact href from the listing (includes cpt/fin params),
+        # falling back to a reconstructed URL if needed.
+        if href and "global.php" in href:
+            job_url = href if href.startswith("http") else f"{ANETI_BASE}/{href.lstrip('/')}"
+        else:
+            job_url = f"{ANETI_BASE}/global.php?page=990&bureau={bureau}&annee={annee}&numoffre={numoffre}"
+
         loc = "Tunisia"
         td_service = tr.find("td", class_="service")
         if td_service:
@@ -216,7 +230,34 @@ def _parse_aneti_body(body: bytes, max_jobs: int, timeout: int) -> list[JobEntry
                     posted = f"{year}-{month}-{day}"
                 except Exception:
                     pass
-        jobs.append(JobEntry(source="ANETI", title=title, url=job_url, description="", location=loc, posted_date=posted, raw_id=f"{bureau}/{annee}/{numoffre}"))
+        # The listing row includes useful fields (diploma, domain, ...). Embed a compact summary
+        # so ANETI jobs have non-empty details even if the detail page requires JS.
+        diploma = domain = ""
+        try:
+            td_cells = tr.find_all("td")
+            if len(td_cells) > 6:
+                diploma = " ".join((td_cells[6].get_text() or "").split())[:140]
+            if len(td_cells) > 7:
+                domain = " ".join((td_cells[7].get_text() or "").split())[:140]
+        except Exception:
+            pass
+        summary_parts = []
+        if diploma:
+            summary_parts.append(f"Diplôme: {diploma}")
+        if domain:
+            summary_parts.append(f"Domaine: {domain}")
+        summary = " • ".join(summary_parts)
+
+        jobs.append(JobEntry(
+            source="ANETI",
+            title=title,
+            url=job_url,
+            apply_url=job_url,
+            description=summary,
+            location=loc,
+            posted_date=posted,
+            raw_id=f"{bureau}/{annee}/{numoffre}",
+        ))
         if max_jobs and len(jobs) >= max_jobs:
             break
     return jobs
@@ -234,10 +275,57 @@ def _parse_reddit_body(body: bytes, sub: str) -> list[JobEntry]:
             if not title or not _is_job_post(sub, title, d.get("link_flair_text")):
                 continue
             link = "https://www.reddit.com" + (d.get("permalink") or "")
-            selftext = (d.get("selftext") or "")[:500]
+            raw_selftext = (d.get("selftext") or "")
+            selftext = raw_selftext[:500]
             created = d.get("created_utc")
             posted = datetime.fromtimestamp(created, tz=timezone.utc).strftime("%Y-%m-%d") if created else datetime.now(timezone.utc).strftime("%Y-%m-%d")
-            jobs.append(JobEntry(source=f"Reddit r/{sub}", title=title[:200], url=link, description=selftext, location="", posted_date=posted, raw_id=d.get("id", "")))
+            # Prefer a real external job link when the post contains one.
+            apply_url = ""
+            try:
+                overridden = (d.get("url_overridden_by_dest") or d.get("url") or "").strip()
+                if overridden and "reddit.com" not in overridden:
+                    apply_url = overridden
+                if not apply_url:
+                    candidates = [
+                        html.unescape(u).strip().strip(").,]")
+                        for u in re.findall(r"https?://\S+", raw_selftext)
+                    ]
+                    candidates = [u for u in candidates if u and "reddit.com" not in u]
+                    if candidates:
+                        def score(u: str) -> int:
+                            try:
+                                p = urlparse(u)
+                                has_path = bool(p.path and p.path != "/")
+                            except Exception:
+                                has_path = "/" in u[8:]
+                            s = 0
+                            if has_path:
+                                s += 10
+                            lu = u.lower()
+                            if "job" in lu:
+                                s += 5
+                            if "apply" in lu or "careers" in lu:
+                                s += 3
+                            return s
+
+                        apply_url = max(candidates, key=score)
+            except Exception:
+                apply_url = ""
+
+            # Normalize HTML entities (e.g., &amp;)
+            if apply_url:
+                apply_url = html.unescape(apply_url).strip()
+
+            jobs.append(JobEntry(
+                source=f"Reddit r/{sub}",
+                title=title[:200],
+                url=link,
+                apply_url=apply_url,
+                description=selftext,
+                location="",
+                posted_date=posted,
+                raw_id=d.get("id", ""),
+            ))
     except Exception as e:
         print(f"[Reddit r/{sub}] Error: {e}")
     return jobs
@@ -269,10 +357,119 @@ def _parse_rss_body(body: bytes, name: str, max_per_feed: int) -> list[JobEntry]
             else:
                 posted = datetime.now(timezone.utc).strftime("%Y-%m-%d")
             location = next((str(e[k])[:100] for k in ("location", "geo_city", "city") if e.get(k)), "")
-            jobs.append(JobEntry(source=name, title=title[:200], url=link, description=desc, location=location, posted_date=posted, raw_id=e.get("id", link)))
+            jobs.append(JobEntry(
+                source=name,
+                title=title[:200],
+                url=link,
+                apply_url=link,
+                description=desc,
+                location=location,
+                posted_date=posted,
+                raw_id=e.get("id", link),
+            ))
     except Exception as e:
         print(f"[RSS {name}] Error: {e}")
     return jobs
+
+
+# ---------- URL validation ----------
+
+_DENY_URL_SUBSTRINGS = [
+    "emploi.nat.tn/blackhole",
+]
+
+
+def _is_denied_url(url: str) -> bool:
+    u = (url or "").lower()
+    return any(s in u for s in _DENY_URL_SUBSTRINGS)
+
+
+async def _validate_one(session: "aiohttp.ClientSession", url: str, timeout: int) -> tuple[bool, str, int]:
+    """
+    Validate a URL without downloading full content.
+    Returns: (ok, final_url, status)
+    """
+    if not url or _is_denied_url(url):
+        return (False, url or "", 0)
+    try:
+        # HEAD first (cheap); some sites block HEAD, so fall back to GET.
+        async with session.request("HEAD", url, allow_redirects=True, timeout=aiohttp.ClientTimeout(total=timeout)) as r:
+            status = int(r.status)
+            final_url = str(r.url)
+            if status in (401, 403, 429):
+                return (True, final_url, status)  # soft-valid (blocked/rate-limited)
+            if 200 <= status < 400:
+                return (True, final_url, status)
+            if status in (405, 501):
+                raise RuntimeError("HEAD not allowed")
+            return (False, final_url, status)
+    except Exception:
+        try:
+            async with session.get(url, allow_redirects=True, timeout=aiohttp.ClientTimeout(total=timeout)) as r:
+                status = int(r.status)
+                final_url = str(r.url)
+                # Read a tiny chunk then stop
+                try:
+                    await r.content.read(256)
+                except Exception:
+                    pass
+                if status in (401, 403, 429):
+                    return (True, final_url, status)
+                if 200 <= status < 400:
+                    return (True, final_url, status)
+                return (False, final_url, status)
+        except Exception:
+            return (False, url, 0)
+
+
+async def _validate_jobs_async(jobs: list[JobEntry], cfg: dict[str, Any]) -> list[JobEntry]:
+    timeout = int(cfg.get("validate_timeout") or 6)
+    limit = int(cfg.get("validate_max") or 0)
+    concurrency = int(cfg.get("validate_concurrency") or 24)
+
+    # Validate apply_url if present, else url.
+    targets: list[tuple[int, str]] = []
+    for idx, j in enumerate(jobs):
+        target = (j.apply_url or j.url or "").strip()
+        target = html.unescape(target).strip()
+        if not target:
+            continue
+        if _is_denied_url(target):
+            continue
+        targets.append((idx, target))
+
+    if limit > 0:
+        targets = targets[:limit]
+
+    if not targets:
+        return jobs
+
+    headers = {"User-Agent": USER_AGENT, "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"}
+
+    sem = asyncio.Semaphore(concurrency)
+
+    connector = aiohttp.TCPConnector(limit=concurrency, limit_per_host=max(2, concurrency // 6))
+    async with aiohttp.ClientSession(headers=headers, connector=connector) as session:
+        async def worker(i: int, u: str) -> tuple[int, bool, str, int]:
+            async with sem:
+                ok, final_url, status = await _validate_one(session, u, timeout)
+                return (i, ok, final_url, status)
+
+        results = await asyncio.gather(*(worker(i, u) for i, u in targets))
+
+    bad_idx: set[int] = set()
+    for i, ok, final_url, _status in results:
+        if ok:
+            if 0 <= i < len(jobs):
+                # Update apply_url to final (post-redirect) URL when possible
+                if jobs[i].apply_url:
+                    jobs[i].apply_url = final_url
+        else:
+            bad_idx.add(i)
+
+    if not bad_idx:
+        return jobs
+    return [j for i, j in enumerate(jobs) if i not in bad_idx]
 
 
 async def _blazing_crawl_async(config: dict[str, Any]) -> tuple[list[JobEntry], list[JobEntry], list[JobEntry]]:
@@ -319,11 +516,17 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Job feed crawler (ANETI, Reddit, RSS) – blazing concurrent I/O")
     parser.add_argument("--config", "-c", type=Path, default=None, help="Config JSON path")
     parser.add_argument("--max", "-m", type=int, default=0, help="Cap total jobs per source (0 = no cap)")
+    parser.add_argument("--validate-links", action="store_true", help="Validate URLs (drop broken listings)")
+    parser.add_argument("--validate-max", type=int, default=None, help="Max URLs to validate (0 = all)")
     args = parser.parse_args()
 
     config = load_config(args.config)
     if args.max > 0:
         config["max_total_per_source"] = args.max
+    if args.validate_links:
+        config["validate_links"] = True
+    if args.validate_max is not None:
+        config["validate_max"] = int(args.validate_max)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     max_per_source = int(config.get("max_total_per_source") or 0)
@@ -344,6 +547,15 @@ def main() -> None:
         if j.url not in seen:
             seen.add(j.url)
             unique.append(j)
+
+    if config.get("validate_links"):
+        try:
+            before = len(unique)
+            unique = asyncio.run(_validate_jobs_async(unique, config))
+            after = len(unique)
+            print(f"Validated links: kept {after}/{before}")
+        except Exception as e:
+            print(f"[validate] Error: {e}")
 
     out = {
         "updated": datetime.now(timezone.utc).isoformat(),

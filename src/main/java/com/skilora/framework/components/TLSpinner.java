@@ -21,6 +21,9 @@ import javafx.util.Duration;
  */
 public class TLSpinner extends StackPane {
 
+    private static final String STYLESHEET =
+            TLSpinner.class.getResource("/com/skilora/framework/styles/tl-spinner.css").toExternalForm();
+
     public enum Size {
         SM(16, 2), DEFAULT(24, 2.5), LG(48, 3);
 
@@ -40,13 +43,13 @@ public class TLSpinner extends StackPane {
     }
 
     public TLSpinner(Size size) {
+        getStylesheets().add(STYLESHEET);
         getStyleClass().add("spinner");
 
         double radius = size.diameter / 2;
         Arc arc = new Arc(0, 0, radius, radius, 0, 270);
         arc.getStyleClass().add("spinner-arc");
         arc.setFill(null);
-        arc.setStyle("-fx-stroke: -fx-muted-foreground;");
         arc.setStrokeWidth(size.strokeWidth);
         arc.setStrokeLineCap(StrokeLineCap.ROUND);
         arc.setStrokeType(StrokeType.CENTERED);

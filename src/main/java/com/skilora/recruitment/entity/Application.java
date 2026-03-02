@@ -43,6 +43,8 @@ public class Application {
     private String companyName;
     private String candidateName;
     private String jobLocation;
+    private int matchPercentage;
+    private int candidateScore;
 
     public Application() {
         this.status = Status.PENDING;
@@ -80,6 +82,12 @@ public class Application {
     public void setCompanyName(String companyName) { this.companyName = companyName; }
     public void setCandidateName(String candidateName) { this.candidateName = candidateName; }
     public void setJobLocation(String jobLocation) { this.jobLocation = jobLocation; }
+
+    public int getMatchPercentage() { return matchPercentage; }
+    public void setMatchPercentage(int matchPercentage) { this.matchPercentage = matchPercentage; }
+
+    public int getCandidateScore() { return candidateScore; }
+    public void setCandidateScore(int candidateScore) { this.candidateScore = candidateScore; }
 
     @Override
     public String toString() {

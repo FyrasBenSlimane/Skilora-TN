@@ -17,12 +17,16 @@ import javafx.scene.control.Separator;
  */
 public class TLSeparator extends Separator {
 
+    private static final String STYLESHEET =
+            TLSeparator.class.getResource("/com/skilora/framework/styles/tl-separator.css").toExternalForm();
+
     public TLSeparator() {
         this(Orientation.HORIZONTAL);
     }
 
     public TLSeparator(Orientation orientation) {
         super(orientation);
+        getStylesheets().add(STYLESHEET);
         getStyleClass().add("separator");
     }
 }

@@ -3,12 +3,18 @@ package com.skilora.recruitment.controller;
 import com.skilora.framework.components.TLBadge;
 import com.skilora.framework.components.TLButton;
 import com.skilora.framework.components.TLDropdownMenu;
+import com.skilora.framework.components.TLLoadingState;
 import com.skilora.framework.components.TLSelect;
 import com.skilora.framework.components.TLTable;
+import com.skilora.framework.components.TLToast;
 import com.skilora.recruitment.entity.Application;
 import com.skilora.recruitment.entity.Application.Status;
+import com.skilora.recruitment.entity.JobOffer;
+import com.skilora.recruitment.entity.MatchingScore;
 import com.skilora.user.entity.User;
 import com.skilora.recruitment.service.ApplicationService;
+import com.skilora.recruitment.service.JobService;
+import com.skilora.recruitment.service.MatchingService;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +35,7 @@ import java.net.URL;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.ResourceBundle;
+import java.util.stream.Collectors;
 
 import javafx.scene.control.ButtonType;
 
@@ -56,6 +63,8 @@ public class ApplicationInboxController implements Initializable {
     @FXML private TableColumn<ApplicationRow, String> candidateCol;
     @FXML private TableColumn<ApplicationRow, String> jobCol;
     @FXML private TableColumn<ApplicationRow, String> dateCol;
+    @FXML private TableColumn<ApplicationRow, String> matchCol;
+    @FXML private TableColumn<ApplicationRow, String> scoreCol;
     @FXML private TableColumn<ApplicationRow, String> statusCol;
     @FXML private TableColumn<ApplicationRow, Void> actionsCol;
     
@@ -67,17 +76,43 @@ public class ApplicationInboxController implements Initializable {
     private User currentUser;
     private ObservableList<ApplicationRow> allApplications;
     private final ApplicationService applicationService = ApplicationService.getInstance();
+    private final JobService jobService = JobService.getInstance();
+    private final MatchingService matchingService = MatchingService.getInstance();
     private int currentPage = 0;
     private final int itemsPerPage = 10;
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        applyI18n();
         setupTable();
         filterBtn.setGraphic(SvgIcons.icon(SvgIcons.SEARCH, 14));
         refreshBtn.setGraphic(SvgIcons.icon(SvgIcons.REFRESH, 14));
         prevBtn.setGraphic(SvgIcons.icon(SvgIcons.ARROW_LEFT, 14));
         nextBtn.setGraphic(SvgIcons.icon(SvgIcons.ARROW_RIGHT, 14));
+
+        statusSelect.getItems().setAll(
+            I18n.get("inbox.filter.all_statuses"),
+            "PENDING", "REVIEW", "INTERVIEW", "OFFER", "ACCEPTED", "REJECTED"
+        );
+        statusSelect.setValue(I18n.get("inbox.filter.all_statuses"));
+
+        jobSelect.valueProperty().addListener((obs, o, n) -> applyFiltersAndPaginate());
+        statusSelect.valueProperty().addListener((obs, o, n) -> applyFiltersAndPaginate());
+    }
+
+    private void applyI18n() {
+        filterBtn.setText(I18n.get("inbox.filter"));
+        refreshBtn.setText(I18n.get("common.refresh"));
+        candidateCol.setText(I18n.get("inbox.col.candidate"));
+        jobCol.setText(I18n.get("inbox.col.position"));
+        dateCol.setText(I18n.get("inbox.col.date"));
+        matchCol.setText(I18n.get("inbox.col.match"));
+        scoreCol.setText(I18n.get("inbox.col.score_profil"));
+        statusCol.setText(I18n.get("inbox.col.status"));
+        actionsCol.setText(I18n.get("inbox.col.actions"));
+        jobSelect.setPromptText(I18n.get("inbox.filter.all_jobs"));
+        statusSelect.setPromptText(I18n.get("inbox.filter.all_statuses"));
     }
 
     public void setCurrentUser(User user) {
@@ -87,9 +122,68 @@ public class ApplicationInboxController implements Initializable {
     
     private void setupTable() {
         candidateCol.setCellValueFactory(new PropertyValueFactory<>("candidateName"));
+        candidateCol.setCellFactory(col -> new TableCell<ApplicationRow, String>() {
+            @Override
+            protected void updateItem(String candidateName, boolean empty) {
+                super.updateItem(candidateName, empty);
+                if (empty || candidateName == null) {
+                    setGraphic(null);
+                    setText(null);
+                    return;
+                }
+                Label nameLabel = new Label(candidateName);
+                nameLabel.getStyleClass().add("text-sm");
+                setGraphic(nameLabel);
+                setText(null);
+            }
+        });
         jobCol.setCellValueFactory(new PropertyValueFactory<>("jobTitle"));
         dateCol.setCellValueFactory(new PropertyValueFactory<>("applicationDate"));
-        
+
+        // Match % column with coloured badges
+        matchCol.setCellValueFactory(new PropertyValueFactory<>("matchPercent"));
+        matchCol.setCellFactory(col -> new TableCell<ApplicationRow, String>() {
+            @Override
+            protected void updateItem(String pct, boolean empty) {
+                super.updateItem(pct, empty);
+                if (empty || pct == null || pct.isBlank()) {
+                    setGraphic(null);
+                    setText(null);
+                    return;
+                }
+                TLBadge.Variant variant = TLBadge.Variant.SECONDARY;
+                try {
+                    double val = Double.parseDouble(pct.replace("%", ""));
+                    if (val >= 80) variant = TLBadge.Variant.SUCCESS;
+                    else if (val >= 60) variant = TLBadge.Variant.SECONDARY;
+                    else variant = TLBadge.Variant.OUTLINE;
+                } catch (NumberFormatException ignored) {}
+                TLBadge badge = new TLBadge(pct, variant);
+                setGraphic(badge);
+                setAlignment(Pos.CENTER);
+                setText(null);
+            }
+        });
+
+        // Score profil column
+        scoreCol.setCellValueFactory(new PropertyValueFactory<>("candidateScore"));
+        scoreCol.setCellFactory(col -> new TableCell<ApplicationRow, String>() {
+            @Override
+            protected void updateItem(String score, boolean empty) {
+                super.updateItem(score, empty);
+                if (empty || score == null || score.isBlank() || "0".equals(score)) {
+                    setGraphic(null);
+                    setText(null);
+                    return;
+                }
+                Label lbl = new Label(score);
+                lbl.getStyleClass().add("text-sm");
+                setGraphic(lbl);
+                setAlignment(Pos.CENTER);
+                setText(null);
+            }
+        });
+
         // Status column with badges
         statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
         statusCol.setCellFactory(col -> new TableCell<ApplicationRow, String>() {
@@ -143,7 +237,12 @@ public class ApplicationInboxController implements Initializable {
                     moreBtn.setOnAction(e -> {
                         TLDropdownMenu menu = new TLDropdownMenu();
                         menu.addItem(I18n.get("inbox.view_profile"), ev -> handleViewProfile(app));
-                        menu.addItem(I18n.get("inbox.accept"), ev -> handleAccept(app));
+                        if ("PENDING".equals(app.getStatus())) {
+                            menu.addItem(I18n.get("inbox.move_to_review"), ev -> handleMoveToReview(app));
+                        }
+                        if ("PENDING".equals(app.getStatus()) || "REVIEW".equals(app.getStatus())) {
+                            menu.addItem(I18n.get("inbox.accept_for_interview"), ev -> handleAcceptForInterview(app));
+                        }
                         menu.addItem(I18n.get("inbox.reject"), ev -> handleReject(app));
                         menu.addItem(I18n.get("inbox.contact"), ev -> handleContact(app));
                         menu.show(moreBtn, javafx.geometry.Side.BOTTOM, 0, 4);
@@ -158,6 +257,7 @@ public class ApplicationInboxController implements Initializable {
     
     private void loadApplications() {
         statsLabel.setText(I18n.get("common.loading"));
+        applicationsTable.setPlaceholder(new TLLoadingState());
 
         Task<List<Application>> task = new Task<>() {
             @Override
@@ -174,16 +274,21 @@ public class ApplicationInboxController implements Initializable {
                 String displayStatus = mapStatusToI18nKey(app.getStatus());
                 allApplications.add(new ApplicationRow(
                         app.getId(),
+                        app.getCandidateProfileId(),
+                        app.getJobOfferId(),
                         app.getCandidateName() != null ? app.getCandidateName() : I18n.get("inbox.candidate_num", app.getCandidateProfileId()),
                         app.getJobTitle() != null ? app.getJobTitle() : I18n.get("inbox.offer_num", app.getJobOfferId()),
                         app.getAppliedDate() != null ? app.getAppliedDate().format(DATE_FMT) : "",
-                        displayStatus
+                        displayStatus,
+                        app.getCandidateScore() > 0 ? String.valueOf(app.getCandidateScore()) : ""
                 ));
             }
 
             currentPage = 0;
+            populateJobFilter();
             updateStats();
             applyPagination();
+            computeMatchScoresAsync();
         });
 
         task.setOnFailed(e -> {
@@ -206,13 +311,49 @@ public class ApplicationInboxController implements Initializable {
     }
     
     private void updateStats() {
-        long pending = allApplications.stream().filter(a ->
+        long pending = getFilteredApplications().stream().filter(a ->
                 a.getStatus().equals("PENDING") || a.getStatus().equals("REVIEW")).count();
         statsLabel.setText(I18n.get("inbox.pending", pending));
     }
 
+    /** Populate the job dropdown with unique job titles from loaded data. */
+    private void populateJobFilter() {
+        String allLabel = I18n.get("inbox.filter.all_jobs");
+        List<String> jobTitles = allApplications.stream()
+            .map(ApplicationRow::getJobTitle)
+            .filter(t -> t != null && !t.isBlank())
+            .distinct()
+            .sorted()
+            .collect(Collectors.toList());
+        jobTitles.add(0, allLabel);
+        jobSelect.getItems().setAll(jobTitles);
+        jobSelect.setValue(allLabel);
+    }
+
+    /** Returns applications filtered by current jobSelect and statusSelect values. */
+    private List<ApplicationRow> getFilteredApplications() {
+        if (allApplications == null) return List.of();
+        String selectedJob = jobSelect.getValue();
+        String selectedStatus = statusSelect.getValue();
+        boolean filterJob = selectedJob != null && !selectedJob.equals(I18n.get("inbox.filter.all_jobs"));
+        boolean filterStatus = selectedStatus != null && !selectedStatus.equals(I18n.get("inbox.filter.all_statuses"));
+
+        return allApplications.stream()
+            .filter(a -> !filterJob || selectedJob.equals(a.getJobTitle()))
+            .filter(a -> !filterStatus || selectedStatus.equals(a.getStatus()))
+            .toList();
+    }
+
+    /** Re-apply filters and reset to page 0. */
+    private void applyFiltersAndPaginate() {
+        currentPage = 0;
+        updateStats();
+        applyPagination();
+    }
+
     private void applyPagination() {
-        int total = allApplications.size();
+        List<ApplicationRow> filtered = getFilteredApplications();
+        int total = filtered.size();
         if (total == 0) {
             applicationsTable.setItems(FXCollections.observableArrayList());
             paginationLabel.setText("0 " + I18n.get("inbox.of") + " 0");
@@ -225,7 +366,7 @@ public class ApplicationInboxController implements Initializable {
         int end = Math.min(start + itemsPerPage, total);
 
         ObservableList<ApplicationRow> pageItems = FXCollections.observableArrayList(
-                allApplications.subList(start, end));
+                filtered.subList(start, end));
         applicationsTable.setItems(pageItems);
 
         paginationLabel.setText((start + 1) + "-" + end + " " + I18n.get("inbox.of") + " " + total);
@@ -233,6 +374,29 @@ public class ApplicationInboxController implements Initializable {
 
         prevBtn.setDisable(currentPage == 0);
         nextBtn.setDisable(end >= total);
+    }
+
+    private void computeMatchScoresAsync() {
+        if (allApplications == null || allApplications.isEmpty()) return;
+        AppThreadPool.execute(() -> {
+            boolean changed = false;
+            for (ApplicationRow r : allApplications) {
+                if (r.getMatchPercent() != null) continue;
+                try {
+                    JobOffer offer = jobService.findJobOfferById(r.getJobOfferId());
+                    if (offer == null) continue;
+                    MatchingScore score = matchingService.calculateMatch(r.getCandidateProfileId(), offer);
+                    String pct = String.format("%.0f%%", score.getTotalScore());
+                    r.setMatchPercent(pct);
+                    changed = true;
+                } catch (Exception ex) {
+                    // If match calculation fails, leave it empty (no badge)
+                }
+            }
+            if (changed) {
+                javafx.application.Platform.runLater(() -> applicationsTable.refresh());
+            }
+        });
     }
     
     private void handleViewProfile(ApplicationRow app) {
@@ -243,22 +407,43 @@ public class ApplicationInboxController implements Initializable {
             + "\n" + I18n.get("inbox.status") + ": " + app.getStatus());
     }
     
-    private void handleAccept(ApplicationRow app) {
+    private void handleMoveToReview(ApplicationRow app) {
+        AppThreadPool.execute(() -> {
+            try {
+                applicationService.updateStatus(app.getApplicationId(), Status.REVIEWING);
+                javafx.application.Platform.runLater(() -> {
+                    app.setStatus("REVIEW");
+                    applicationsTable.refresh();
+                    updateStats();
+                    TLToast.success(applicationsTable.getScene(),
+                        I18n.get("inbox.moved_to_review"),
+                        app.getCandidateName());
+                });
+            } catch (Exception ex) {
+                logger.error("Failed to move to review", ex);
+            }
+        });
+    }
+
+    private void handleAcceptForInterview(ApplicationRow app) {
         DialogUtils.showConfirmation(
-            I18n.get("inbox.accept.confirm.title"),
-            I18n.get("inbox.accept.confirm.message", app.getCandidateName())
+            I18n.get("inbox.accept_interview.title"),
+            I18n.get("inbox.accept_interview.message", app.getCandidateName())
         ).ifPresent(result -> {
             if (result == ButtonType.OK) {
                 AppThreadPool.execute(() -> {
                     try {
-                        applicationService.updateStatus(app.getApplicationId(), Status.ACCEPTED);
+                        applicationService.updateStatus(app.getApplicationId(), Status.INTERVIEW);
                         javafx.application.Platform.runLater(() -> {
-                            app.setStatus("ACCEPTED");
+                            app.setStatus("INTERVIEW");
                             applicationsTable.refresh();
                             updateStats();
+                            TLToast.success(applicationsTable.getScene(),
+                                I18n.get("inbox.accepted_for_interview"),
+                                app.getCandidateName());
                         });
                     } catch (Exception ex) {
-                        logger.error("Failed to accept application", ex);
+                        logger.error("Failed to accept for interview", ex);
                     }
                 });
             }
@@ -320,7 +505,7 @@ public class ApplicationInboxController implements Initializable {
     
     @FXML
     private void handleNextPage() {
-        int maxPage = (allApplications.size() - 1) / itemsPerPage;
+        int maxPage = (getFilteredApplications().size() - 1) / itemsPerPage;
         if (currentPage < maxPage) {
             currentPage++;
             applyPagination();
@@ -330,20 +515,29 @@ public class ApplicationInboxController implements Initializable {
     // Inner class for table data
     public static class ApplicationRow {
         private int applicationId;
+        private int candidateProfileId;
+        private int jobOfferId;
         private String candidateName;
         private String jobTitle;
         private String applicationDate;
         private String status;
+        private String matchPercent;
+        private String candidateScore;
         
-        public ApplicationRow(int applicationId, String candidateName, String jobTitle, String applicationDate, String status) {
+        public ApplicationRow(int applicationId, int candidateProfileId, int jobOfferId, String candidateName, String jobTitle, String applicationDate, String status, String candidateScore) {
             this.applicationId = applicationId;
+            this.candidateProfileId = candidateProfileId;
+            this.jobOfferId = jobOfferId;
             this.candidateName = candidateName;
             this.jobTitle = jobTitle;
             this.applicationDate = applicationDate;
             this.status = status;
+            this.candidateScore = candidateScore;
         }
 
         public int getApplicationId() { return applicationId; }
+        public int getCandidateProfileId() { return candidateProfileId; }
+        public int getJobOfferId() { return jobOfferId; }
         
         public String getCandidateName() { return candidateName; }
         public void setCandidateName(String candidateName) { this.candidateName = candidateName; }
@@ -356,5 +550,11 @@ public class ApplicationInboxController implements Initializable {
         
         public String getStatus() { return status; }
         public void setStatus(String status) { this.status = status; }
+
+        public String getMatchPercent() { return matchPercent; }
+        public void setMatchPercent(String matchPercent) { this.matchPercent = matchPercent; }
+
+        public String getCandidateScore() { return candidateScore; }
+        public void setCandidateScore(String candidateScore) { this.candidateScore = candidateScore; }
     }
 }

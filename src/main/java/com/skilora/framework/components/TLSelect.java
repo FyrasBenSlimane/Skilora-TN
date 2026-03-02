@@ -14,6 +14,9 @@ import javafx.scene.layout.VBox;
  */
 public final class TLSelect<T> extends VBox {
 
+    private static final String STYLESHEET =
+            TLSelect.class.getResource("/com/skilora/framework/styles/tl-select.css").toExternalForm();
+
     private final Label labelNode;
     private final ComboBox<T> combo;
 
@@ -26,6 +29,7 @@ public final class TLSelect<T> extends VBox {
     }
 
     public TLSelect(String label, ObservableList<T> items) {
+        getStylesheets().add(STYLESHEET);
         getStyleClass().add("select");
         setSpacing(8);
 

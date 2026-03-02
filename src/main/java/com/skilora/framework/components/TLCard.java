@@ -16,11 +16,15 @@ import javafx.collections.ObservableList;
 @DefaultProperty("content")
 public class TLCard extends VBox {
 
+    private static final String STYLESHEET =
+            TLCard.class.getResource("/com/skilora/framework/styles/tl-card.css").toExternalForm();
+
     private VBox header;
     private VBox body;
     private VBox footer;
 
     public TLCard() {
+        getStylesheets().add(STYLESHEET);
         initialize();
     }
 
@@ -35,6 +39,7 @@ public class TLCard extends VBox {
 
         body = new VBox();
         body.getStyleClass().add("card-content");
+        body.setStyle("-fx-padding: 24px;"); // Full padding when no header
 
         footer = new VBox();
         footer.getStyleClass().add("card-footer");
@@ -56,6 +61,7 @@ public class TLCard extends VBox {
         Label titleLabel = new Label(title);
         titleLabel.getStyleClass().add("card-title");
         header.getChildren().add(titleLabel);
+        body.setStyle(""); // Let CSS .card-content (0 24 24 24) take over
         header.setVisible(true);
         header.setManaged(true);
     }
@@ -63,6 +69,7 @@ public class TLCard extends VBox {
     public void setHeader(Node node) {
         header.getChildren().clear();
         header.getChildren().add(node);
+        body.setStyle(""); // Let CSS .card-content (0 24 24 24) take over
         header.setVisible(true);
         header.setManaged(true);
     }

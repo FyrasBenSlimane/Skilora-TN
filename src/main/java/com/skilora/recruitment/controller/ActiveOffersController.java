@@ -6,12 +6,16 @@ import com.skilora.recruitment.service.JobService;
 import com.skilora.framework.components.TLButton;
 import com.skilora.framework.components.TLCard;
 import com.skilora.framework.components.TLBadge;
+import com.skilora.framework.components.TLEmptyState;
+import com.skilora.framework.components.TLLoadingState;
 import com.skilora.framework.components.TLTextField;
 import com.skilora.framework.components.TLSeparator;
+import com.skilora.framework.components.TLTabs;
 import com.skilora.framework.components.TLToast;
 import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.DialogUtils;
 import com.skilora.utils.I18n;
+import com.skilora.utils.SvgIcons;
 import com.skilora.utils.UiUtils;
 
 import javafx.concurrent.Task;
@@ -20,8 +24,6 @@ import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
-import javafx.scene.control.ToggleButton;
-import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -60,8 +62,12 @@ public class ActiveOffersController implements Initializable {
 
     private final JobService jobService = JobService.getInstance();
     private List<JobOffer> allOffers;
-    private ToggleGroup filterGroup;
+    private List<JobOffer> currentFiltered;
     private String currentFilter = "ALL";
+
+    // Pagination — render in batches to avoid lag with 900+ cards
+    private static final int PAGE_SIZE = 30;
+    private int currentPage = 0;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -81,7 +87,6 @@ public class ActiveOffersController implements Initializable {
     }
 
     private void setupFilters() {
-        filterGroup = new ToggleGroup();
         String[][] filters = {
             {I18n.get("offers.filter.all"), "ALL"},
             {I18n.get("offers.filter.open"), "OPEN"},
@@ -90,23 +95,15 @@ public class ActiveOffersController implements Initializable {
             {I18n.get("offers.filter.closed"), "CLOSED"}
         };
 
+        TLTabs tabs = new TLTabs();
         for (String[] f : filters) {
-            ToggleButton btn = new ToggleButton(f[0]);
-            btn.setUserData(f[1]);
-            btn.getStyleClass().add("chip-filter");
-            btn.setToggleGroup(filterGroup);
-            if ("ALL".equals(f[1])) btn.setSelected(true);
-
-            btn.setOnAction(e -> {
-                if (btn.isSelected()) {
-                    currentFilter = (String) btn.getUserData();
-                    applyFilters();
-                } else if (filterGroup.getSelectedToggle() == null) {
-                    btn.setSelected(true);
-                }
-            });
-            filterBox.getChildren().add(btn);
+            tabs.addTab(f[1], f[0], (javafx.scene.Node) null);
         }
+        tabs.setOnTabChanged(tabId -> {
+            currentFilter = tabId;
+            applyFilters();
+        });
+        filterBox.getChildren().add(tabs);
     }
 
     private void setupSearch() {
@@ -116,6 +113,11 @@ public class ActiveOffersController implements Initializable {
     }
 
     private void loadData() {
+        offersContainer.getChildren().clear();
+        offersContainer.getChildren().add(new TLLoadingState());
+        emptyState.setVisible(false);
+        emptyState.setManaged(false);
+
         Task<List<JobOffer>> task = new Task<>() {
             @Override
             protected List<JobOffer> call() throws Exception {
@@ -166,8 +168,15 @@ public class ActiveOffersController implements Initializable {
 
     private void renderOffers(List<JobOffer> offers) {
         offersContainer.getChildren().clear();
+        currentFiltered = offers;
+        currentPage = 0;
 
         if (offers.isEmpty()) {
+            emptyState.getChildren().clear();
+            emptyState.getChildren().add(new TLEmptyState(
+                SvgIcons.SEARCH,
+                I18n.get("offers.empty.title"),
+                I18n.get("offers.empty.subtitle")));
             emptyState.setVisible(true);
             emptyState.setManaged(true);
             statsLabel.setText(I18n.get("offers.total", 0));
@@ -179,8 +188,45 @@ public class ActiveOffersController implements Initializable {
 
         statsLabel.setText(I18n.get("offers.total", offers.size()));
 
-        for (JobOffer offer : offers) {
-            offersContainer.getChildren().add(createOfferCard(offer));
+        // Render first page only
+        appendPage();
+    }
+
+    /** Appends the next page of cards to the container. */
+    private void appendPage() {
+        if (currentFiltered == null) return;
+
+        // Remove existing "Load More" button if present
+        if (!offersContainer.getChildren().isEmpty()) {
+            javafx.scene.Node last = offersContainer.getChildren().get(offersContainer.getChildren().size() - 1);
+            if (last.getUserData() != null && "load-more".equals(last.getUserData())) {
+                offersContainer.getChildren().remove(last);
+            }
+        }
+
+        int start = currentPage * PAGE_SIZE;
+        int end = Math.min(start + PAGE_SIZE, currentFiltered.size());
+
+        for (int i = start; i < end; i++) {
+            offersContainer.getChildren().add(createOfferCard(currentFiltered.get(i)));
+        }
+
+        currentPage++;
+
+        // Add "Load More" button if there are remaining offers
+        int remaining = currentFiltered.size() - end;
+        if (remaining > 0) {
+            TLButton loadMoreBtn = new TLButton(
+                    I18n.get("feed.load_more").replace("{0}", String.valueOf(remaining)),
+                    TLButton.ButtonVariant.OUTLINE);
+            loadMoreBtn.setMaxWidth(Double.MAX_VALUE);
+            loadMoreBtn.setUserData("load-more");
+            loadMoreBtn.setOnAction(e -> appendPage());
+
+            VBox loadMoreWrap = new VBox(loadMoreBtn);
+            loadMoreWrap.setPadding(new Insets(12, 0, 12, 0));
+            loadMoreWrap.setUserData("load-more");
+            offersContainer.getChildren().add(loadMoreWrap);
         }
     }
 
@@ -189,7 +235,6 @@ public class ActiveOffersController implements Initializable {
         card.getStyleClass().add("offer-card");
 
         VBox content = new VBox(12);
-        content.setPadding(new Insets(20));
 
         // ── Top row: Title + Status Badge ──
         HBox topRow = new HBox(12);
@@ -201,8 +246,7 @@ public class ActiveOffersController implements Initializable {
 
         if (offer.getCompanyName() != null) {
             Label companyLabel = new Label(offer.getCompanyName());
-            companyLabel.getStyleClass().add("text-muted");
-            companyLabel.setStyle("-fx-font-size: 13px;");
+            companyLabel.getStyleClass().addAll("text-muted", "text-13");
             titleBlock.getChildren().addAll(titleLabel, companyLabel);
         } else {
             titleBlock.getChildren().add(titleLabel);
@@ -239,23 +283,23 @@ public class ActiveOffersController implements Initializable {
 
         if (offer.getLocation() != null) {
             detailsRow.getChildren().add(createDetailChip(
-                "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
+                SvgIcons.MAP_PIN,
                 offer.getLocation()));
         }
 
         if (offer.getWorkType() != null) {
             detailsRow.getChildren().add(createDetailChip(
-                "M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-2 .89-2 2v11c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z",
+                SvgIcons.BRIEFCASE,
                 offer.getWorkType()));
         }
 
         detailsRow.getChildren().add(createDetailChip(
-            "M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z",
+            SvgIcons.DOLLAR_SIGN,
             offer.getSalaryRange() + " " + (offer.getCurrency() != null ? offer.getCurrency() : "TND")));
 
         if (offer.getPostedDate() != null) {
             detailsRow.getChildren().add(createDetailChip(
-                "M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM9 10H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z",
+                SvgIcons.CALENDAR,
                 offer.getPostedDate().format(DATE_FMT)));
         }
 
@@ -295,11 +339,19 @@ public class ActiveOffersController implements Initializable {
         icon.setScaleY(0.7);
 
         Label label = new Label(text);
-        label.getStyleClass().add("text-muted");
-        label.setStyle("-fx-font-size: 13px;");
+        label.getStyleClass().addAll("text-muted", "text-13");
 
         chip.getChildren().addAll(icon, label);
         return chip;
+    }
+
+    /** Called by MainView infinite-scroll listener to auto-load the next page. */
+    public void loadNextPageIfAvailable() {
+        if (currentFiltered == null) return;
+        int loaded = currentPage * PAGE_SIZE;
+        if (loaded < currentFiltered.size()) {
+            javafx.application.Platform.runLater(this::appendPage);
+        }
     }
 
     @FXML
@@ -313,6 +365,7 @@ public class ActiveOffersController implements Initializable {
             I18n.get("offers.delete.confirm.message", offer.getTitle())
         ).ifPresent(result -> {
             if (result == ButtonType.OK) {
+                offersContainer.setDisable(true);
                 Task<Boolean> task = new Task<>() {
                     @Override
                     protected Boolean call() throws Exception {
@@ -320,12 +373,14 @@ public class ActiveOffersController implements Initializable {
                     }
                 };
                 task.setOnSucceeded(e -> {
+                    offersContainer.setDisable(false);
                     if (task.getValue()) {
                         allOffers.remove(offer);
                         applyFilters();
                     }
                 });
                 task.setOnFailed(e -> {
+                    offersContainer.setDisable(false);
                     logger.error("Failed to delete offer", task.getException());
                     TLToast.error(offersContainer.getScene(), I18n.get("common.error"), I18n.get("error.failed_delete_offer"));
                 });
@@ -341,6 +396,7 @@ public class ActiveOffersController implements Initializable {
             I18n.get("offers.close.confirm.message", offer.getTitle())
         ).ifPresent(result -> {
             if (result == ButtonType.OK) {
+                offersContainer.setDisable(true);
                 offer.setStatus(JobStatus.CLOSED);
                 Task<Boolean> task = new Task<>() {
                     @Override
@@ -348,8 +404,12 @@ public class ActiveOffersController implements Initializable {
                         return jobService.updateJobOffer(offer);
                     }
                 };
-                task.setOnSucceeded(e -> applyFilters());
+                task.setOnSucceeded(e -> {
+                    offersContainer.setDisable(false);
+                    applyFilters();
+                });
                 task.setOnFailed(e -> {
+                    offersContainer.setDisable(false);
                     logger.error("Failed to close offer", task.getException());
                     TLToast.error(offersContainer.getScene(), I18n.get("common.error"), I18n.get("error.failed_close_offer"));
                 });

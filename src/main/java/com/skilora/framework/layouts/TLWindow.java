@@ -23,7 +23,7 @@ public class TLWindow extends BorderPane {
     private double yOffset = 0;
 
     public TLWindow(Stage stage, String title, Node content) {
-        getStyleClass().addAll("app-layout", "custom-window");
+        getStyleClass().addAll("app-layout", "custom-window", detectOsStyleClass());
         setPadding(new Insets(0));
 
         topBar = new HBox(8);
@@ -62,18 +62,31 @@ public class TLWindow extends BorderPane {
     }
 
     private void setupWindowControls(Stage stage) {
-        HBox controls = new HBox(8);
-        controls.setAlignment(Pos.CENTER_RIGHT);
+        final boolean isMac = getStyleClass().contains("os-mac");
 
-        Button btnMin = createWindowButton("min", "M4 11h8v1H4z"); 
+        HBox controls = new HBox(8);
+        controls.getStyleClass().add("window-controls");
+        controls.setAlignment(isMac ? Pos.CENTER_LEFT : Pos.CENTER_RIGHT);
+
+        Button btnMin = isMac
+                ? createMacControlButton("min")
+                : createWindowButton("min", "M4 11h8v1H4z");
         btnMin.setOnAction(e -> stage.setIconified(true));
 
-        Button btnClose = createWindowButton("close", "M 4.7 3.3 L 3.3 4.7 L 6.6 8 L 3.3 11.3 L 4.7 12.7 L 8 9.4 L 11.3 12.7 L 12.7 11.3 L 9.4 8 L 12.7 4.7 L 11.3 3.3 L 8 6.6 L 4.7 3.3 z");
-        btnClose.getStyleClass().add("window-control-close");
+        Button btnClose = isMac
+                ? createMacControlButton("close")
+                : createWindowButton("close", "M 4.7 3.3 L 3.3 4.7 L 6.6 8 L 3.3 11.3 L 4.7 12.7 L 8 9.4 L 11.3 12.7 L 12.7 11.3 L 9.4 8 L 12.7 4.7 L 11.3 3.3 L 8 6.6 L 4.7 3.3 z");
+
+        if (!isMac) btnClose.getStyleClass().add("window-control-close");
         btnClose.setOnAction(e -> stage.close());
 
-        controls.getChildren().addAll(btnMin, btnClose);
-        topBar.getChildren().add(controls);
+        if (isMac) {
+            controls.getChildren().addAll(btnClose, btnMin);
+            topBar.getChildren().add(0, controls);
+        } else {
+            controls.getChildren().addAll(btnMin, btnClose);
+            topBar.getChildren().add(controls);
+        }
     }
 
     private Button createWindowButton(String type, String svgContent) {
@@ -82,11 +95,27 @@ public class TLWindow extends BorderPane {
         
         SVGPath icon = new SVGPath();
         icon.setContent(svgContent);
-        icon.getStyleClass().add("svg-path");
-        // Ensure icon has a color (inheritance from button text fill usually works, but explicit ensures visibility)
-        icon.setStyle("-fx-fill: -fx-muted-foreground;"); 
+        icon.getStyleClass().addAll("svg-filled", "icon-muted"); 
         btn.setGraphic(icon);
         
         return btn;
+    }
+
+    private Button createMacControlButton(String type) {
+        Button btn = new Button();
+        btn.getStyleClass().addAll("window-control-btn", "window-control-mac");
+        switch (type) {
+            case "close" -> btn.getStyleClass().add("window-control-mac-close");
+            case "min" -> btn.getStyleClass().add("window-control-mac-min");
+            default -> btn.getStyleClass().add("window-control-mac-max");
+        }
+        return btn;
+    }
+
+    private static String detectOsStyleClass() {
+        String os = System.getProperty("os.name", "").toLowerCase();
+        if (os.contains("mac") || os.contains("darwin") || os.contains("os x")) return "os-mac";
+        if (os.contains("win")) return "os-win";
+        return "os-linux";
     }
 }

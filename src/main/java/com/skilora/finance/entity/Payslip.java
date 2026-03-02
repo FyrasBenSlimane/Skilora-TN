@@ -26,6 +26,8 @@ public class Payslip {
     private String paymentStatus;
     private LocalDateTime paymentDate;
     private String pdfUrl;
+    private String deductionsJson;
+    private String bonusesJson;
     private LocalDateTime createdDate;
 
     // Transient fields
@@ -99,6 +101,12 @@ public class Payslip {
 
     public String getPdfUrl() { return pdfUrl; }
     public void setPdfUrl(String pdfUrl) { this.pdfUrl = pdfUrl; }
+
+    public String getDeductionsJson() { return deductionsJson; }
+    public void setDeductionsJson(String deductionsJson) { this.deductionsJson = deductionsJson; }
+
+    public String getBonusesJson() { return bonusesJson; }
+    public void setBonusesJson(String bonusesJson) { this.bonusesJson = bonusesJson; }
 
     public LocalDateTime getCreatedDate() { return createdDate; }
     public void setCreatedDate(LocalDateTime createdDate) { this.createdDate = createdDate; }

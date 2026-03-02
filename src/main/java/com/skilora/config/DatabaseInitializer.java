@@ -23,7 +23,9 @@ public class DatabaseInitializer {
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
                 Statement stmt = conn.createStatement()) {
 
+            boolean hasProfiles = tableExists(stmt, "profiles");
             boolean hasSkills = tableExists(stmt, "skills");
+            boolean hasExperiences = tableExists(stmt, "experiences");
             boolean hasCompanies = tableExists(stmt, "companies");
             boolean hasJobOffers = tableExists(stmt, "job_offers");
             boolean hasApplications = tableExists(stmt, "applications");
@@ -78,8 +80,57 @@ public class DatabaseInitializer {
                 createUserPreferencesTable(stmt);
             }
 
+            // Ensure core profile tables exist
+            if (!hasProfiles) {
+                createProfilesTable(stmt);
+            }
+            if (!hasSkills) {
+                createSkillsTable(stmt);
+                hasSkills = true;
+            }
+            if (!hasExperiences) {
+                createExperiencesTable(stmt);
+            }
+
+            // Create role_upgrade_requests table if missing
+            if (!tableExists(stmt, "role_upgrade_requests")) {
+                createRoleUpgradeRequestsTable(stmt);
+            }
+
+            // Create audit_logs table if missing
+            if (!tableExists(stmt, "audit_logs")) {
+                createAuditLogsTable(stmt);
+            }
+
+            // Recruitment: saved jobs (bookmarks) table
+            if (!tableExists(stmt, "saved_jobs")) {
+                createSavedJobsTable(stmt);
+            }
+
             // Create community module tables if missing
             createCommunityTables(stmt);
+
+            // Ensure connections table has requester_id column
+            if (tableExists(stmt, "connections") && !columnExists(stmt, "connections", "requester_id")) {
+                try {
+                    stmt.execute("ALTER TABLE connections ADD COLUMN requester_id INT AFTER user_id_2");
+                    logger.info("Added 'requester_id' column to connections table.");
+                } catch (SQLException e) {
+                    logger.debug("Could not add requester_id column: {}", e.getMessage());
+                }
+            }
+
+            // Ensure job_offers table has updated_at column
+            if (tableExists(stmt, "job_offers") && !columnExists(stmt, "job_offers", "updated_at")) {
+                try {
+                    stmt.execute("ALTER TABLE job_offers ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+                    // Backfill existing rows
+                    stmt.execute("UPDATE job_offers SET updated_at = posted_date WHERE updated_at IS NULL");
+                    logger.info("Added 'updated_at' column to job_offers table.");
+                } catch (SQLException e) {
+                    logger.debug("Could not add updated_at column to job_offers: {}", e.getMessage());
+                }
+            }
 
             // Create formation & certification module tables if missing
             createFormationTables(stmt);
@@ -90,23 +141,98 @@ public class DatabaseInitializer {
             // Create finance module tables if missing
             createFinanceTables(stmt);
 
+            // Create integration v2 tables and columns (merged from branches)
+            createIntegrationV2Tables(stmt);
+
+            // Create security_alerts table if missing
+            if (!tableExists(stmt, "security_alerts")) {
+                try {
+                    stmt.execute("""
+                        CREATE TABLE IF NOT EXISTS security_alerts (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            username VARCHAR(100) NOT NULL,
+                            alert_type VARCHAR(30) NOT NULL DEFAULT 'FAILED_LOGIN_CAPTURE',
+                            photo_path TEXT,
+                            ip_address VARCHAR(45),
+                            failed_attempts INT DEFAULT 0,
+                            reviewed BOOLEAN DEFAULT FALSE,
+                            reviewed_by VARCHAR(100),
+                            notes TEXT,
+                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                            reviewed_at DATETIME,
+                            INDEX idx_security_username (username),
+                            INDEX idx_security_reviewed (reviewed)
+                        )
+                        """);
+                    logger.info("Created 'security_alerts' table.");
+                } catch (SQLException e) {
+                    logger.error("Error creating security_alerts table: {}", e.getMessage(), e);
+                }
+            }
+
+            // Create user_blocks table for DM privacy
+            if (!tableExists(stmt, "user_blocks")) {
+                try {
+                    stmt.execute("""
+                        CREATE TABLE IF NOT EXISTS user_blocks (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            blocker_id INT NOT NULL,
+                            blocked_id INT NOT NULL,
+                            reason VARCHAR(255),
+                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                            UNIQUE KEY uq_block (blocker_id, blocked_id),
+                            INDEX idx_block_blocker (blocker_id),
+                            INDEX idx_block_blocked (blocked_id),
+                            FOREIGN KEY (blocker_id) REFERENCES users(id) ON DELETE CASCADE,
+                            FOREIGN KEY (blocked_id) REFERENCES users(id) ON DELETE CASCADE
+                        )
+                        """);
+                    logger.info("Created 'user_blocks' table.");
+                } catch (SQLException e) {
+                    logger.error("Error creating user_blocks table: {}", e.getMessage(), e);
+                }
+            }
+
+            // Create interview_proposals table for candidate time-slot proposals
+            if (!tableExists(stmt, "interview_proposals")) {
+                try {
+                    stmt.execute("""
+                        CREATE TABLE IF NOT EXISTS interview_proposals (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            application_id INT NOT NULL,
+                            proposed_by INT NOT NULL,
+                            proposed_date DATETIME NOT NULL,
+                            duration_minutes INT DEFAULT 60,
+                            type VARCHAR(20) DEFAULT 'VIDEO',
+                            message TEXT,
+                            status VARCHAR(20) DEFAULT 'PENDING',
+                            responded_at DATETIME,
+                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                            INDEX idx_proposal_app (application_id),
+                            INDEX idx_proposal_status (status),
+                            FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE,
+                            FOREIGN KEY (proposed_by) REFERENCES users(id) ON DELETE CASCADE
+                        )
+                        """);
+                    logger.info("Created 'interview_proposals' table.");
+                } catch (SQLException e) {
+                    logger.error("Error creating interview_proposals table: {}", e.getMessage(), e);
+                }
+            }
+
             // Add missing columns to users table
             ensureUsersTableColumns(stmt);
 
             // Create performance indexes on foreign keys
             createIndexes(stmt);
 
-            if (hasSkills) {
-                logger.info("Database schema is up-to-date.");
-                return;
-            }
-
-            // Run full initialization for brand new database
-            logger.info("Database missing core tables. Running initialization script...");
-            runFullScript(stmt);
+            logger.info("Database schema is up-to-date.");
 
         } catch (SQLException e) {
             logger.error("Failed to initialize database: {}", e.getMessage(), e);
+        } catch (RuntimeException e) {
+            // Covers connection pool init failures (e.g., MySQL down / connection refused).
+            logger.error("Failed to initialize database (runtime): {}", e.getMessage(), e);
         }
     }
 
@@ -152,7 +278,7 @@ public class DatabaseInitializer {
                     CREATE TABLE IF NOT EXISTS job_offers (
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         company_id INT NOT NULL,
-                        title VARCHAR(100) NOT NULL,
+                        title VARCHAR(255) NOT NULL,
                         description TEXT,
                         requirements TEXT,
                         min_salary DECIMAL(10,2),
@@ -307,6 +433,153 @@ public class DatabaseInitializer {
         }
     }
 
+    private static void createProfilesTable(Statement stmt) {
+        try {
+            String sql = """
+                    CREATE TABLE IF NOT EXISTS profiles (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT NOT NULL,
+                        first_name VARCHAR(100) NOT NULL,
+                        last_name VARCHAR(100) NOT NULL,
+                        phone VARCHAR(30),
+                        photo_url LONGTEXT,
+                        cv_url TEXT,
+                        location VARCHAR(120),
+                        birth_date DATE,
+                        headline VARCHAR(255),
+                        bio TEXT,
+                        website VARCHAR(255),
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        UNIQUE KEY uq_profiles_user (user_id),
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                    """;
+            stmt.execute(sql);
+            logger.info("Created 'profiles' table.");
+        } catch (SQLException e) {
+            logger.error("Error creating profiles table: {}", e.getMessage(), e);
+        }
+    }
+
+    private static void createSkillsTable(Statement stmt) {
+        try {
+            String sql = """
+                    CREATE TABLE IF NOT EXISTS skills (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        profile_id INT NOT NULL,
+                        skill_name VARCHAR(120) NOT NULL,
+                        proficiency_level VARCHAR(30) DEFAULT 'BEGINNER',
+                        years_experience INT DEFAULT 0,
+                        verified BOOLEAN DEFAULT FALSE,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE KEY uq_skill_profile_name (profile_id, skill_name),
+                        FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+                    )
+                    """;
+            stmt.execute(sql);
+            logger.info("Created 'skills' table.");
+        } catch (SQLException e) {
+            logger.error("Error creating skills table: {}", e.getMessage(), e);
+        }
+    }
+
+    private static void createExperiencesTable(Statement stmt) {
+        try {
+            String sql = """
+                    CREATE TABLE IF NOT EXISTS experiences (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        profile_id INT NOT NULL,
+                        company VARCHAR(160) NOT NULL,
+                        position VARCHAR(160) NOT NULL,
+                        start_date DATE NOT NULL,
+                        end_date DATE NULL,
+                        description TEXT,
+                        current_job BOOLEAN DEFAULT FALSE,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+                    )
+                    """;
+            stmt.execute(sql);
+            logger.info("Created 'experiences' table.");
+        } catch (SQLException e) {
+            logger.error("Error creating experiences table: {}", e.getMessage(), e);
+        }
+    }
+
+    private static void createRoleUpgradeRequestsTable(Statement stmt) {
+        try {
+            String sql = """
+                    CREATE TABLE IF NOT EXISTS role_upgrade_requests (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT NOT NULL,
+                        requested_role VARCHAR(50) NOT NULL,
+                        current_user_role VARCHAR(50) NOT NULL,
+                        request_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+                        justification TEXT,
+                        admin_notes TEXT,
+                        reviewed_by INT NULL,
+                        requested_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        reviewed_date DATETIME NULL,
+                        CONSTRAINT fk_rur_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                        CONSTRAINT fk_rur_reviewer FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
+                    )
+                    """;
+            stmt.execute(sql);
+            logger.info("Created 'role_upgrade_requests' table.");
+        } catch (SQLException e) {
+            logger.error("Error creating role_upgrade_requests table: {}", e.getMessage(), e);
+        }
+    }
+
+    private static void createAuditLogsTable(Statement stmt) {
+        try {
+            String sql = """
+                    CREATE TABLE IF NOT EXISTS audit_logs (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        actor_user_id INT NULL,
+                        action VARCHAR(80) NOT NULL,
+                        module VARCHAR(40) NOT NULL,
+                        entity_type VARCHAR(80) NULL,
+                        entity_id VARCHAR(80) NULL,
+                        details TEXT NULL,
+                        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        INDEX idx_audit_actor_time (actor_user_id, created_at),
+                        INDEX idx_audit_module_time (module, created_at),
+                        CONSTRAINT fk_audit_actor FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL
+                    )
+                    """;
+            stmt.execute(sql);
+            logger.info("Created 'audit_logs' table.");
+        } catch (SQLException e) {
+            logger.error("Error creating audit_logs table: {}", e.getMessage(), e);
+        }
+    }
+
+    private static void createSavedJobsTable(Statement stmt) {
+        try {
+            String sql = """
+                    CREATE TABLE IF NOT EXISTS saved_jobs (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT NOT NULL,
+                        job_url TEXT NOT NULL,
+                        job_title VARCHAR(255),
+                        company_name VARCHAR(255),
+                        location VARCHAR(255),
+                        source VARCHAR(255),
+                        saved_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE KEY uq_saved_jobs_user_url (user_id, job_url(255)),
+                        INDEX idx_saved_jobs_user_time (user_id, saved_at),
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                    """;
+            stmt.execute(sql);
+            logger.info("Created 'saved_jobs' table.");
+        } catch (SQLException e) {
+            logger.error("Error creating saved_jobs table: {}", e.getMessage(), e);
+        }
+    }
+
     private static void ensureUsersTableColumns(Statement stmt) {
         // Add email column if missing
         if (!columnExists(stmt, "users", "email")) {
@@ -391,6 +664,7 @@ public class DatabaseInitializer {
         }
     }
 
+    @SuppressWarnings("unused")
     private static void runFullScript(Statement stmt) {
         StringBuilder script = new StringBuilder();
         try (BufferedReader reader = Files.newBufferedReader(Paths.get(SCRIPT_PATH))) {
@@ -427,6 +701,7 @@ public class DatabaseInitializer {
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         user_id_1 INT NOT NULL,
                         user_id_2 INT NOT NULL,
+                        requester_id INT,
                         status VARCHAR(20) DEFAULT 'PENDING',
                         connection_type VARCHAR(30) DEFAULT 'PROFESSIONAL',
                         created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -739,6 +1014,8 @@ public class DatabaseInitializer {
                         subject VARCHAR(255) NOT NULL,
                         description TEXT,
                         assigned_to INT,
+                        sla_due_date DATETIME,
+                        first_response_date DATETIME,
                         created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
                         updated_date DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                         resolved_date DATETIME,
@@ -750,6 +1027,18 @@ public class DatabaseInitializer {
             } catch (SQLException e) {
                 logger.error("Error creating support_tickets table: {}", e.getMessage(), e);
             }
+        }
+
+        // Support tickets schema upgrades (for existing databases)
+        try {
+            if (!columnExists(stmt, "support_tickets", "sla_due_date")) {
+                stmt.execute("ALTER TABLE support_tickets ADD COLUMN sla_due_date DATETIME");
+            }
+            if (!columnExists(stmt, "support_tickets", "first_response_date")) {
+                stmt.execute("ALTER TABLE support_tickets ADD COLUMN first_response_date DATETIME");
+            }
+        } catch (SQLException e) {
+            logger.debug("Could not upgrade support_tickets schema: {}", e.getMessage());
         }
 
         // Ticket Messages
@@ -773,6 +1062,29 @@ public class DatabaseInitializer {
             }
         }
 
+        // Ticket Attachments
+        if (!tableExists(stmt, "ticket_attachments")) {
+            try {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS ticket_attachments (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        ticket_id INT NOT NULL,
+                        message_id INT,
+                        file_name VARCHAR(255) NOT NULL,
+                        mime_type VARCHAR(100),
+                        file_path TEXT NOT NULL,
+                        file_size BIGINT,
+                        created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (ticket_id) REFERENCES support_tickets(id) ON DELETE CASCADE,
+                        FOREIGN KEY (message_id) REFERENCES ticket_messages(id) ON DELETE CASCADE
+                    )
+                    """);
+                logger.info("Created 'ticket_attachments' table.");
+            } catch (SQLException e) {
+                logger.error("Error creating ticket_attachments table: {}", e.getMessage(), e);
+            }
+        }
+
         // FAQ Articles
         if (!tableExists(stmt, "faq_articles")) {
             try {
@@ -784,6 +1096,7 @@ public class DatabaseInitializer {
                         answer TEXT NOT NULL,
                         language VARCHAR(5) DEFAULT 'fr',
                         helpful_count INT DEFAULT 0,
+                        not_helpful_count INT DEFAULT 0,
                         view_count INT DEFAULT 0,
                         is_published BOOLEAN DEFAULT TRUE,
                         created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -794,6 +1107,14 @@ public class DatabaseInitializer {
             } catch (SQLException e) {
                 logger.error("Error creating faq_articles table: {}", e.getMessage(), e);
             }
+        }
+
+        try {
+            if (!columnExists(stmt, "faq_articles", "not_helpful_count")) {
+                stmt.execute("ALTER TABLE faq_articles ADD COLUMN not_helpful_count INT DEFAULT 0");
+            }
+        } catch (SQLException e) {
+            logger.debug("Could not upgrade faq_articles schema: {}", e.getMessage());
         }
 
         // Chatbot Conversations
@@ -986,16 +1307,22 @@ public class DatabaseInitializer {
             "CREATE INDEX idx_exchange_rates_currencies ON exchange_rates(from_currency, to_currency)",
             "CREATE INDEX idx_transactions_payslip ON payment_transactions(payslip_id)",
             "CREATE INDEX idx_tax_config_country ON tax_configurations(country, tax_type)",
+            "CREATE INDEX idx_escrow_contract ON escrow_accounts(contract_id)",
+            "CREATE INDEX idx_escrow_admin ON escrow_accounts(admin_id)",
+            "CREATE INDEX idx_escrow_status ON escrow_accounts(status)",
             // Support module indexes
             "CREATE INDEX idx_tickets_user ON support_tickets(user_id)",
             "CREATE INDEX idx_tickets_status ON support_tickets(status)",
             "CREATE INDEX idx_tickets_priority ON support_tickets(priority)",
             "CREATE INDEX idx_tickets_assigned ON support_tickets(assigned_to)",
             "CREATE INDEX idx_ticket_messages_ticket ON ticket_messages(ticket_id)",
+            "CREATE INDEX idx_ticket_attachments_ticket ON ticket_attachments(ticket_id)",
+            "CREATE INDEX idx_ticket_attachments_message ON ticket_attachments(message_id)",
             "CREATE INDEX idx_chatbot_conv_user ON chatbot_conversations(user_id)",
             "CREATE INDEX idx_chatbot_msg_conv ON chatbot_messages(conversation_id)",
             "CREATE INDEX idx_faq_category ON faq_articles(category)",
-            "CREATE INDEX idx_feedback_user ON user_feedback(user_id)"
+            "CREATE INDEX idx_feedback_user ON user_feedback(user_id)",
+            "CREATE INDEX idx_rur_user_status ON role_upgrade_requests(user_id, request_status)"
         };
 
         int created = 0;
@@ -1164,6 +1491,30 @@ public class DatabaseInitializer {
                 logger.info("Created 'payment_transactions' table.");
             } catch (SQLException e) {
                 logger.error("Error creating payment_transactions table: {}", e.getMessage(), e);
+            }
+        }
+
+        if (!tableExists(stmt, "escrow_accounts")) {
+            try {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS escrow_accounts (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        contract_id INT NOT NULL,
+                        admin_id INT NOT NULL,
+                        amount DECIMAL(12,2) NOT NULL,
+                        currency VARCHAR(10) DEFAULT 'TND',
+                        status VARCHAR(20) DEFAULT 'HOLDING',
+                        description TEXT,
+                        created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        released_date DATETIME,
+                        release_notes TEXT,
+                        FOREIGN KEY (contract_id) REFERENCES employment_contracts(id) ON DELETE CASCADE,
+                        FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                    """);
+                logger.info("Created 'escrow_accounts' table.");
+            } catch (SQLException e) {
+                logger.error("Error creating escrow_accounts table: {}", e.getMessage(), e);
             }
         }
 
@@ -1410,6 +1761,431 @@ public class DatabaseInitializer {
         }
         if (created > 0) {
             logger.info("Created {} formation module indexes.", created);
+        }
+    }
+
+    /**
+     * Integration v2 – tables and columns added during branch merges.
+     * Safe to call multiple times (IF NOT EXISTS / columnExists guards).
+     */
+    private static void createIntegrationV2Tables(Statement stmt) {
+        // ---------- Community: new tables ----------
+        if (!tableExists(stmt, "user_online_status")) {
+            try {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS user_online_status (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT NOT NULL UNIQUE,
+                        is_online BOOLEAN DEFAULT FALSE,
+                        last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        status_message VARCHAR(255),
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                    """);
+                logger.info("Created 'user_online_status' table.");
+            } catch (SQLException e) { logger.debug("user_online_status: {}", e.getMessage()); }
+        }
+
+        if (!tableExists(stmt, "typing_status")) {
+            try {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS typing_status (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        conversation_id INT NOT NULL,
+                        user_id INT NOT NULL,
+                        is_typing BOOLEAN DEFAULT FALSE,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        UNIQUE KEY uq_typing (conversation_id, user_id),
+                        FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                    """);
+                logger.info("Created 'typing_status' table.");
+            } catch (SQLException e) { logger.debug("typing_status: {}", e.getMessage()); }
+        }
+
+        if (!tableExists(stmt, "message_reactions")) {
+            try {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS message_reactions (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        message_id INT NOT NULL,
+                        user_id INT NOT NULL,
+                        emoji VARCHAR(10) NOT NULL,
+                        created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE KEY uq_msg_reaction (message_id, user_id, emoji),
+                        FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                    """);
+                logger.info("Created 'message_reactions' table.");
+            } catch (SQLException e) { logger.debug("message_reactions: {}", e.getMessage()); }
+        }
+
+        if (!tableExists(stmt, "group_messages")) {
+            try {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS group_messages (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        group_id INT NOT NULL,
+                        sender_id INT NOT NULL,
+                        content TEXT NOT NULL,
+                        message_type VARCHAR(20) DEFAULT 'TEXT',
+                        media_url TEXT,
+                        reply_to_id INT,
+                        is_edited BOOLEAN DEFAULT FALSE,
+                        created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_date DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        FOREIGN KEY (group_id) REFERENCES community_groups(id) ON DELETE CASCADE,
+                        FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                    """);
+                logger.info("Created 'group_messages' table.");
+            } catch (SQLException e) { logger.debug("group_messages: {}", e.getMessage()); }
+        }
+
+        if (!tableExists(stmt, "group_message_reads")) {
+            try {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS group_message_reads (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        message_id INT NOT NULL,
+                        user_id INT NOT NULL,
+                        read_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE KEY uq_grp_read (message_id, user_id),
+                        FOREIGN KEY (message_id) REFERENCES group_messages(id) ON DELETE CASCADE,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                    """);
+                logger.info("Created 'group_message_reads' table.");
+            } catch (SQLException e) { logger.debug("group_message_reads: {}", e.getMessage()); }
+        }
+
+        if (!tableExists(stmt, "group_message_reactions")) {
+            try {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS group_message_reactions (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        message_id INT NOT NULL,
+                        user_id INT NOT NULL,
+                        emoji VARCHAR(10) NOT NULL,
+                        created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE KEY uq_grp_msg_reaction (message_id, user_id, emoji),
+                        FOREIGN KEY (message_id) REFERENCES group_messages(id) ON DELETE CASCADE,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                    """);
+                logger.info("Created 'group_message_reactions' table.");
+            } catch (SQLException e) { logger.debug("group_message_reactions: {}", e.getMessage()); }
+        }
+
+        // ---------- Community: new columns on messages ----------
+        addColumnIfMissing(stmt, "messages", "message_type", "VARCHAR(20) DEFAULT 'TEXT'");
+        addColumnIfMissing(stmt, "messages", "media_url", "TEXT");
+        addColumnIfMissing(stmt, "messages", "file_name", "VARCHAR(255)");
+        addColumnIfMissing(stmt, "messages", "duration", "INT DEFAULT 0");
+
+        // ---------- Formation: new tables ----------
+        if (!tableExists(stmt, "formation_ratings")) {
+            try {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS formation_ratings (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        formation_id INT NOT NULL,
+                        user_id INT NOT NULL,
+                        is_like BOOLEAN NOT NULL DEFAULT TRUE,
+                        review TEXT,
+                        created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_date DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        UNIQUE KEY uq_formation_rating (formation_id, user_id),
+                        FOREIGN KEY (formation_id) REFERENCES formations(id) ON DELETE CASCADE,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                    """);
+                logger.info("Created 'formation_ratings' table.");
+            } catch (SQLException e) { logger.debug("formation_ratings: {}", e.getMessage()); }
+        }
+
+        if (!tableExists(stmt, "lesson_progress")) {
+            try {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS lesson_progress (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        enrollment_id INT NOT NULL,
+                        module_id INT NOT NULL,
+                        user_id INT NOT NULL,
+                        completed BOOLEAN DEFAULT FALSE,
+                        progress_percentage DECIMAL(5,2) DEFAULT 0.00,
+                        time_spent_minutes INT DEFAULT 0,
+                        last_accessed DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        completed_date DATETIME,
+                        notes TEXT,
+                        UNIQUE KEY uq_lesson_progress (enrollment_id, module_id),
+                        FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE CASCADE,
+                        FOREIGN KEY (module_id) REFERENCES formation_modules(id) ON DELETE CASCADE,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                    """);
+                logger.info("Created 'lesson_progress' table.");
+            } catch (SQLException e) { logger.debug("lesson_progress: {}", e.getMessage()); }
+        }
+
+        if (!tableExists(stmt, "formation_materials")) {
+            try {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS formation_materials (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        formation_id INT NOT NULL,
+                        title VARCHAR(200) NOT NULL,
+                        description TEXT,
+                        file_url TEXT,
+                        file_type VARCHAR(50),
+                        file_size BIGINT DEFAULT 0,
+                        download_count INT DEFAULT 0,
+                        uploaded_by INT,
+                        created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (formation_id) REFERENCES formations(id) ON DELETE CASCADE,
+                        FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE SET NULL
+                    )
+                    """);
+                logger.info("Created 'formation_materials' table.");
+            } catch (SQLException e) { logger.debug("formation_materials: {}", e.getMessage()); }
+        }
+
+        // ---------- Formation: new columns ----------
+        addColumnIfMissing(stmt, "formations", "lesson_count", "INT DEFAULT 0");
+        addColumnIfMissing(stmt, "formations", "director_signature", "TEXT");
+        addColumnIfMissing(stmt, "formations", "updated_date", "DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+        addColumnIfMissing(stmt, "formation_modules", "content", "TEXT");
+        addColumnIfMissing(stmt, "formation_modules", "created_at", "DATETIME DEFAULT CURRENT_TIMESTAMP");
+        addColumnIfMissing(stmt, "formation_modules", "updated_at", "DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+        addColumnIfMissing(stmt, "enrollments", "completed", "BOOLEAN DEFAULT FALSE");
+        addColumnIfMissing(stmt, "enrollments", "last_accessed_at", "DATETIME");
+        addColumnIfMissing(stmt, "enrollments", "completion_percentage", "DECIMAL(5,2) DEFAULT 0.00");
+        addColumnIfMissing(stmt, "enrollments", "certificate_id", "INT");
+        addColumnIfMissing(stmt, "certificates", "user_id", "INT");
+        addColumnIfMissing(stmt, "certificates", "formation_id", "INT");
+        addColumnIfMissing(stmt, "certificates", "verification_token", "VARCHAR(128)");
+        addColumnIfMissing(stmt, "certificates", "completed_at", "DATETIME");
+
+        // ---------- Finance: new tables ----------
+        if (!tableExists(stmt, "contracts")) {
+            try {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS contracts (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT NOT NULL,
+                        company_Name VARCHAR(150) DEFAULT '',
+                        type VARCHAR(30) DEFAULT 'CDI',
+                        position VARCHAR(150),
+                        salary DECIMAL(12,2) DEFAULT 0.00,
+                        start_date DATE,
+                        end_date DATE,
+                        status VARCHAR(20) DEFAULT 'ACTIVE',
+                        created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                    """);
+                logger.info("Created 'contracts' table.");
+            } catch (SQLException e) { logger.debug("contracts: {}", e.getMessage()); }
+        }
+
+        if (!tableExists(stmt, "bonuses")) {
+            try {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS bonuses (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT NOT NULL,
+                        amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+                        reason VARCHAR(255),
+                        date_awarded DATE,
+                        created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                    """);
+                logger.info("Created 'bonuses' table.");
+            } catch (SQLException e) { logger.debug("bonuses: {}", e.getMessage()); }
+        }
+
+        // ---------- Finance: new columns ----------
+        addColumnIfMissing(stmt, "bank_accounts", "is_verified", "BOOLEAN DEFAULT FALSE");
+        addColumnIfMissing(stmt, "bank_accounts", "swift", "VARCHAR(11)");
+        addColumnIfMissing(stmt, "payslips", "month", "INT");
+        addColumnIfMissing(stmt, "payslips", "year", "INT");
+        addColumnIfMissing(stmt, "payslips", "base_salary", "DECIMAL(12,2) DEFAULT 0.00");
+        addColumnIfMissing(stmt, "payslips", "overtime_hours", "DECIMAL(8,2) DEFAULT 0.00");
+        addColumnIfMissing(stmt, "payslips", "overtime_total", "DECIMAL(12,2) DEFAULT 0.00");
+        addColumnIfMissing(stmt, "payslips", "status", "VARCHAR(20) DEFAULT 'PENDING'");
+        addColumnIfMissing(stmt, "payslips", "deductions_json", "TEXT");
+        addColumnIfMissing(stmt, "payslips", "bonuses_json", "TEXT");
+        addColumnIfMissing(stmt, "payment_transactions", "stripe_payment_id", "VARCHAR(100)");
+        addColumnIfMissing(stmt, "payment_transactions", "reference_projet", "VARCHAR(100)");
+        addColumnIfMissing(stmt, "payment_transactions", "nom_beneficiaire", "VARCHAR(150)");
+
+        // ---------- Support: new columns ----------
+        addColumnIfMissing(stmt, "ticket_messages", "attachments_json", "TEXT");
+        addColumnIfMissing(stmt, "ticket_messages", "audio_path", "TEXT");
+        addColumnIfMissing(stmt, "ticket_messages", "is_audio", "BOOLEAN DEFAULT FALSE");
+        addColumnIfMissing(stmt, "user_feedback", "ticket_id", "INT");
+
+        // ---------- Recruitment: new columns ----------
+        addColumnIfMissing(stmt, "applications", "match_percentage", "DECIMAL(5,2) DEFAULT 0.00");
+        addColumnIfMissing(stmt, "applications", "candidate_score", "INT DEFAULT 0");
+        addColumnIfMissing(stmt, "job_offers", "experience_level", "VARCHAR(30)");
+        addColumnIfMissing(stmt, "job_offers", "skills_required", "TEXT");
+        addColumnIfMissing(stmt, "job_offers", "benefits", "TEXT");
+        addColumnIfMissing(stmt, "job_offers", "company_name", "VARCHAR(150)");
+        addColumnIfMissing(stmt, "job_offers", "is_featured", "BOOLEAN DEFAULT FALSE");
+        addColumnIfMissing(stmt, "job_offers", "views_count", "INT DEFAULT 0");
+        addColumnIfMissing(stmt, "job_offers", "applications_count", "INT DEFAULT 0");
+
+        // ---------- Recruitment: job_preferences ----------
+        if (!tableExists(stmt, "job_preferences")) {
+            try {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS job_preferences (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT NOT NULL,
+                        preferred_title VARCHAR(200),
+                        preferred_location VARCHAR(200),
+                        preferred_work_type VARCHAR(50),
+                        min_salary DECIMAL(12,2),
+                        max_salary DECIMAL(12,2),
+                        preferred_currency VARCHAR(10) DEFAULT 'TND',
+                        is_remote_ok BOOLEAN DEFAULT TRUE,
+                        created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_date DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        UNIQUE KEY uq_job_pref_user (user_id),
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                    """);
+                logger.info("Created 'job_preferences' table.");
+            } catch (SQLException e) { logger.debug("job_preferences: {}", e.getMessage()); }
+        }
+
+        // ---------- User: portfolio_items, reviews ----------
+        if (!tableExists(stmt, "portfolio_items")) {
+            try {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS portfolio_items (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT NOT NULL,
+                        title VARCHAR(200) NOT NULL,
+                        description TEXT,
+                        project_url TEXT,
+                        image_url TEXT,
+                        technologies VARCHAR(500),
+                        start_date DATE,
+                        end_date DATE,
+                        is_featured BOOLEAN DEFAULT FALSE,
+                        created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                    """);
+                logger.info("Created 'portfolio_items' table.");
+            } catch (SQLException e) { logger.debug("portfolio_items: {}", e.getMessage()); }
+        }
+
+        if (!tableExists(stmt, "reviews")) {
+            try {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS reviews (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        reviewer_id INT NOT NULL,
+                        reviewed_user_id INT NOT NULL,
+                        rating INT NOT NULL DEFAULT 5,
+                        comment TEXT,
+                        is_anonymous BOOLEAN DEFAULT FALSE,
+                        created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE KEY uq_review (reviewer_id, reviewed_user_id),
+                        FOREIGN KEY (reviewer_id) REFERENCES users(id) ON DELETE CASCADE,
+                        FOREIGN KEY (reviewed_user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                    """);
+                logger.info("Created 'reviews' table.");
+            } catch (SQLException e) { logger.debug("reviews: {}", e.getMessage()); }
+        }
+
+        // ---------- Community: notifications ----------
+        if (!tableExists(stmt, "notifications")) {
+            try {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS notifications (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT NOT NULL,
+                        type VARCHAR(50),
+                        title VARCHAR(255),
+                        message TEXT,
+                        icon VARCHAR(100),
+                        is_read BOOLEAN DEFAULT FALSE,
+                        reference_type VARCHAR(50),
+                        reference_id INT,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    )
+                    """);
+                logger.info("Created 'notifications' table.");
+            } catch (SQLException e) { logger.debug("notifications: {}", e.getMessage()); }
+        }
+
+        // ---------- Community: reports ----------
+        if (!tableExists(stmt, "reports")) {
+            try {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS reports (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        subject VARCHAR(255),
+                        type VARCHAR(50),
+                        description TEXT,
+                        reporter_id INT NOT NULL,
+                        reported_entity_type VARCHAR(50),
+                        reported_entity_id INT,
+                        status VARCHAR(30) DEFAULT 'PENDING',
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        resolved_by INT,
+                        resolved_at DATETIME,
+                        FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE,
+                        FOREIGN KEY (resolved_by) REFERENCES users(id) ON DELETE SET NULL
+                    )
+                    """);
+                logger.info("Created 'reports' table.");
+            } catch (SQLException e) { logger.debug("reports: {}", e.getMessage()); }
+        }
+
+        // ---------- Formation: add star_rating column to formation_ratings ----------
+        addColumnIfMissing(stmt, "formation_ratings", "star_rating", "INT DEFAULT 3");
+
+        // Widen exchange_rates.rate to support very large rates (e.g. IRR)
+        try {
+            stmt.execute("ALTER TABLE exchange_rates MODIFY COLUMN rate DECIMAL(20,6) NOT NULL");
+        } catch (SQLException e) { /* ignore if already widened or table missing */ }
+
+        // Sync bank_accounts.swift from swift_bic if needed
+        try {
+            stmt.execute("UPDATE bank_accounts SET swift = swift_bic WHERE swift IS NULL AND swift_bic IS NOT NULL");
+        } catch (SQLException e) { /* ignore */ }
+
+        // Sync payslips alias columns
+        try {
+            stmt.execute("UPDATE payslips SET month = period_month WHERE month IS NULL AND period_month IS NOT NULL");
+            stmt.execute("UPDATE payslips SET year = period_year WHERE year IS NULL AND period_year IS NOT NULL");
+            stmt.execute("UPDATE payslips SET base_salary = gross_salary WHERE (base_salary IS NULL OR base_salary = 0) AND gross_salary > 0");
+        } catch (SQLException e) { /* ignore */ }
+
+        logger.info("Integration v2 schema migration complete.");
+    }
+
+    /**
+     * Convenience: add a column if it doesn't already exist.
+     */
+    private static void addColumnIfMissing(Statement stmt, String table, String column, String definition) {
+        if (!columnExists(stmt, table, column)) {
+            try {
+                stmt.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition);
+                logger.info("Added column '{}.{}'.", table, column);
+            } catch (SQLException e) {
+                logger.debug("Could not add {}.{}: {}", table, column, e.getMessage());
+            }
         }
     }
 }

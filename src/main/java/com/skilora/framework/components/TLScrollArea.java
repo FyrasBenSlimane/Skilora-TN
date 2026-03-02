@@ -8,20 +8,22 @@ import javafx.scene.control.ScrollPane;
  */
 public class TLScrollArea extends ScrollPane {
 
+    private static final String STYLESHEET =
+            TLScrollArea.class.getResource("/com/skilora/framework/styles/tl-scroll-area.css").toExternalForm();
+
     public TLScrollArea() {
         this(null);
     }
 
     public TLScrollArea(Node content) {
+        getStylesheets().add(STYLESHEET);
         getStyleClass().add("scroll-area");
         setFitToWidth(true);
-        setFitToHeight(true);
+        setFitToHeight(false);
         setPannable(false);
         if (content != null)
             setContent(content);
 
-        // PERFORMANCE: Enable caching for smoother scrolling
-        setCache(true);
-        setCacheHint(javafx.scene.CacheHint.SPEED);
+        // NOTE: Bitmap caching removed — it corrupts rendering on scrollable content.
     }
 }

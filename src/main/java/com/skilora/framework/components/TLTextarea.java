@@ -1,5 +1,6 @@
 package com.skilora.framework.components;
 
+import javafx.beans.property.StringProperty;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.VBox;
@@ -11,6 +12,9 @@ import javafx.scene.layout.VBox;
  * Reference: https://ui.shadcn.com/docs/components/textarea
  */
 public class TLTextarea extends VBox {
+
+    private static final String STYLESHEET =
+            TLTextarea.class.getResource("/com/skilora/framework/styles/tl-textarea.css").toExternalForm();
 
     private final TextArea area;
     private final Label labelNode;
@@ -24,6 +28,7 @@ public class TLTextarea extends VBox {
     }
 
     public TLTextarea(String label, String prompt) {
+        getStylesheets().add(STYLESHEET);
         getStyleClass().add("form-field");
         setSpacing(8);
 
@@ -42,9 +47,7 @@ public class TLTextarea extends VBox {
         area.setPrefHeight(120);   // Comfortable default height
         getChildren().add(area);
 
-        // PERFORMANCE: Enable caching for GPU-accelerated rendering
-        setCache(true);
-        setCacheHint(javafx.scene.CacheHint.SPEED);
+        // NOTE: Bitmap caching removed — it corrupts text rendering in TextArea.
     }
 
     public String getText() {
@@ -59,8 +62,28 @@ public class TLTextarea extends VBox {
         return area;
     }
 
+    public StringProperty textProperty() {
+        return area.textProperty();
+    }
+
+    public String getPromptText() {
+        return area.getPromptText();
+    }
+
     public void setPromptText(String text) {
         area.setPromptText(text);
+    }
+
+    public StringProperty promptTextProperty() {
+        return area.promptTextProperty();
+    }
+
+    public void setWrapText(boolean wrap) {
+        area.setWrapText(wrap);
+    }
+
+    public void setPrefRowCount(int rows) {
+        area.setPrefRowCount(rows);
     }
 
     /** Add .textarea-error for error state. */
@@ -72,4 +95,26 @@ public class TLTextarea extends VBox {
             area.getStyleClass().remove("textarea-error");
         }
     }
+
+    public void setError(String errorMessage) {
+        setError(true);
+        if (errorLabel == null) {
+            errorLabel = new Label();
+            errorLabel.getStyleClass().add("field-error");
+            getChildren().add(errorLabel);
+        }
+        errorLabel.setText(errorMessage);
+        errorLabel.setVisible(true);
+        errorLabel.setManaged(true);
+    }
+
+    public void clearValidation() {
+        setError(false);
+        if (errorLabel != null) {
+            errorLabel.setVisible(false);
+            errorLabel.setManaged(false);
+        }
+    }
+
+    private Label errorLabel;
 }

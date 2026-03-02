@@ -12,7 +12,8 @@ public enum WorkType {
     CONTRACT("Contract"),
     FREELANCE("Freelance"),
     INTERNSHIP("Internship"),
-    TEMPORARY("Temporary");
+    TEMPORARY("Temporary"),
+    REMOTE("Remote");
 
     private final String displayName;
 

@@ -25,6 +25,7 @@ public class PreferencesService {
     public static final String KEY_ANIMATIONS = "animations";
     public static final String KEY_NOTIFICATIONS = "notifications";
     public static final String KEY_SOUND_NOTIFICATIONS = "sound_notifications";
+    public static final String KEY_EMAIL_NOTIFICATIONS = "email_notifications";
 
     private PreferencesService() {}
 

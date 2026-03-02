@@ -2,30 +2,43 @@ package com.skilora.recruitment.controller;
 
 import com.skilora.recruitment.entity.JobOpportunity;
 import com.skilora.recruitment.service.JobService;
+import com.skilora.recruitment.service.MatchingService;
 import com.skilora.recruitment.ui.JobCard;
+import com.skilora.user.entity.Profile;
+import com.skilora.user.service.ProfileService;
 import com.skilora.framework.components.TLButton;
+import com.skilora.framework.components.TLEmptyState;
+import com.skilora.framework.components.TLLoadingState;
+import com.skilora.framework.components.TLSelect;
+import com.skilora.framework.components.TLTabs;
 import com.skilora.framework.components.TLTextField;
+import com.skilora.user.entity.User;
 import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.I18n;
+import com.skilora.utils.SvgIcons;
 import com.skilora.utils.UiUtils;
 
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.ToggleButton;
-import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 
 import java.net.URL;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /**
@@ -37,9 +50,13 @@ import java.util.stream.Collectors;
 public class FeedController implements Initializable {
 
     @FXML
+    private Label feedTitle;
+    @FXML
+    private Label feedSubtitle;
+    @FXML
     private FlowPane grid;
     @FXML
-    private HBox tabsBox;
+    private VBox tabsBox;
     @FXML
     private TLButton refreshBtn;
     @FXML
@@ -47,17 +64,23 @@ public class FeedController implements Initializable {
     @FXML
     private ScrollPane scrollPane;
 
-    private ToggleGroup tagGroup = new ToggleGroup();
+    private TLTabs tagTabs;
     private final JobService jobService;
+    private final MatchingService matchingService;
+    private final ProfileService profileService;
 
     private List<JobOpportunity> allJobs;
     private List<JobOpportunity> currentFilteredJobs;
     private boolean isLoadingMore = false;
 
-    private java.util.function.Consumer<JobOpportunity> onJobClick;
+    /** Pre-built user skill corpus for efficient batch scoring (null if unavailable). */
+    private Set<String> candidateCorpus;
 
-    // Pagination
-    private static final int CARDS_PER_PAGE = 20;
+    private java.util.function.Consumer<JobOpportunity> onJobClick;
+    private User currentUser;
+
+    // Pagination — show more cards initially and per batch for better UX
+    private static final int CARDS_PER_PAGE = 40;
     private int currentPage = 0;
 
     // Predefined keywords for tags
@@ -67,18 +90,57 @@ public class FeedController implements Initializable {
     // Cache for lowercase job fields to avoid repeated toLowerCase() in filtering
     private Map<JobOpportunity, String[]> lowerCaseCache;
 
+    // Filter requests sequence (to drop stale async results)
+    private final AtomicLong filterSeq = new AtomicLong(0);
+
+    // Sort & additional filter state
+    private String currentSort = "recent"; // "recent", "a-z", "z-a"
+    private String currentLocationFilter = null; // null = all
+    private Label resultCountLabel;
+
     public FeedController() {
         this.jobService = JobService.getInstance();
+        this.matchingService = MatchingService.getInstance();
+        this.profileService = ProfileService.getInstance();
     }
 
     public void setOnJobClick(java.util.function.Consumer<JobOpportunity> onJobClick) {
         this.onJobClick = onJobClick;
     }
 
+    public void setCurrentUser(User user) {
+        this.currentUser = user;
+    }
+
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        applyI18n();
+        if (grid != null) {
+            // FlowPane caching can cause "blank but clickable" artifacts with dynamic content.
+            grid.setCache(false);
+            // Make cards responsive: listen to grid width and recalculate card sizes
+            grid.widthProperty().addListener((obs, oldW, newW) -> updateCardWidths(newW.doubleValue()));
+        }
+        if (scrollPane != null) {
+            // Smooth scroll setup: disable fit-to-width quirks, set pannable for touch
+            scrollPane.setFitToWidth(true);
+            scrollPane.setPannable(true);
+            scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+            scrollPane.setCache(true);
+            scrollPane.setCacheHint(javafx.scene.CacheHint.SPEED);
+        }
         setupEventHandlers();
         loadDataAsync();
+    }
+
+    private void applyI18n() {
+        if (feedTitle != null) feedTitle.setText(I18n.get("feed.title"));
+        if (feedSubtitle != null) feedSubtitle.setText(I18n.get("feed.subtitle"));
+        if (refreshBtn != null) refreshBtn.setText(I18n.get("feed.refresh"));
+        if (searchField != null) {
+            searchField.setLabel(I18n.get("feed.search.label"));
+            searchField.setPromptText(I18n.get("feed.search.prompt"));
+        }
     }
 
     private void setupEventHandlers() {
@@ -86,14 +148,14 @@ public class FeedController implements Initializable {
         if (searchField != null && searchField.getControl() != null) {
             UiUtils.debounce(searchField.getControl(), 300, () -> {
                 String currentTag = getCurrentTagText();
-                filterJobsByTag(currentTag, searchField.getText());
+                requestFilter(currentTag, searchField.getText());
             });
         }
 
-        // Infinite scroll
+        // Infinite scroll — trigger pre-fetch early for seamless loading
         if (scrollPane != null) {
             scrollPane.vvalueProperty().addListener((obs, oldVal, newVal) -> {
-                if (newVal.doubleValue() > 0.8 && !isLoadingMore && hasMoreCards()) {
+                if (newVal.doubleValue() > 0.7 && !isLoadingMore && hasMoreCards()) {
                     loadMoreCardsQuietly();
                 }
             });
@@ -108,7 +170,8 @@ public class FeedController implements Initializable {
         refreshBtn.setDisable(true);
         refreshBtn.setText(I18n.get("feed.updating"));
 
-        jobService.refreshFeed(() -> {
+        // Manual refresh validates links for cleaner data (slower, but more correct).
+        jobService.refreshFeed(true, () -> {
             Platform.runLater(() -> {
                 loadDataAsync();
                 refreshBtn.setText(I18n.get("feed.refresh"));
@@ -122,23 +185,60 @@ public class FeedController implements Initializable {
      * Keeps the UI thread free during data fetching.
      */
     private void loadDataAsync() {
-        Task<List<JobOpportunity>> loadTask = new Task<>() {
+        if (grid != null) {
+            grid.getChildren().clear();
+            grid.getChildren().add(new TLLoadingState());
+        }
+
+        Task<FeedData> loadTask = new Task<>() {
             @Override
-            protected List<JobOpportunity> call() {
-                return jobService.getJobsFromCache();
+            protected FeedData call() {
+                List<JobOpportunity> jobs = jobService.getJobsFromCache();
+                Map<JobOpportunity, String[]> cache = buildLowerCaseCache(jobs);
+
+                // Build candidate corpus + enrich match scores (no UI calls)
+                Set<String> corpus = null;
+                if (currentUser != null) {
+                    try {
+                        Profile profile = profileService.findProfileByUserId(currentUser.getId());
+                        if (profile != null) {
+                            corpus = matchingService.buildCandidateCorpus(profile.getId());
+                            if (corpus != null && !corpus.isEmpty()) {
+                                for (JobOpportunity job : jobs) {
+                                    int score = matchingService.scoreFromCorpus(
+                                        corpus, job.getTitle(), job.getDescription(),
+                                        job.getSkills());
+                                    job.setMatchPercentage(score);
+                                }
+                            }
+                        }
+                    } catch (Exception ignored) {
+                        // Profile not found or DB error — skip enrichment
+                    }
+                }
+                return new FeedData(jobs, cache, corpus);
             }
         };
 
         loadTask.setOnSucceeded(event -> {
-            allJobs = loadTask.getValue();
-            buildLowerCaseCache();
+            FeedData data = loadTask.getValue();
+            allJobs = data.jobs;
+            lowerCaseCache = data.lowerCaseCache;
+            candidateCorpus = data.corpus;
             refreshTags();
-            filterJobsByTag("All", "");
+            setupFilterBar();
+            requestFilter("All", "");
         });
 
         loadTask.setOnFailed(event -> {
-            // Fallback to empty state
             allJobs = List.of();
+            if (grid != null) {
+                grid.getChildren().clear();
+                grid.getChildren().add(new TLEmptyState(
+                    SvgIcons.BRIEFCASE,
+                    I18n.get("common.error"),
+                    I18n.get("feed.load_error")));
+            }
         });
 
         AppThreadPool.execute(loadTask);
@@ -148,18 +248,19 @@ public class FeedController implements Initializable {
      * Pre-compute lowercase versions of searchable fields to avoid
      * repeated String allocation during filtering.
      */
-    private void buildLowerCaseCache() {
-        if (allJobs == null) return;
-        lowerCaseCache = new HashMap<>(allJobs.size());
-        for (JobOpportunity job : allJobs) {
+    private Map<JobOpportunity, String[]> buildLowerCaseCache(List<JobOpportunity> jobs) {
+        if (jobs == null) return new HashMap<>();
+        Map<JobOpportunity, String[]> cache = new HashMap<>(jobs.size());
+        for (JobOpportunity job : jobs) {
             String[] fields = new String[] {
                 job.getTitle() != null ? job.getTitle().toLowerCase() : "",
                 job.getLocation() != null ? job.getLocation().toLowerCase() : "",
                 job.getDescription() != null ? job.getDescription().toLowerCase() : "",
                 job.getSource() != null ? job.getSource().toLowerCase() : ""
             };
-            lowerCaseCache.put(job, fields);
+            cache.put(job, fields);
         }
+        return cache;
     }
 
     private void refreshTags() {
@@ -174,7 +275,7 @@ public class FeedController implements Initializable {
             int c = 0;
             String lowerKey = key.toLowerCase();
             for (JobOpportunity job : allJobs) {
-                String[] fields = lowerCaseCache.get(job);
+                String[] fields = lowerCacheFor(job);
                 if (fields != null) {
                     boolean matches = fields[0].contains(lowerKey) ||
                             fields[1].contains(lowerKey) ||
@@ -186,67 +287,124 @@ public class FeedController implements Initializable {
                 counts.put(key, c);
         }
 
-        // Clear existing tabs
+        // Clear existing tabs and rebuild
         tabsBox.getChildren().clear();
-        tagGroup = new ToggleGroup();
+        tagTabs = new TLTabs();
 
         // Add 'All' first
-        addTagButton("All", "All", true,
-                () -> filterJobsByTag("All", searchField != null ? searchField.getText() : ""));
+        tagTabs.addTab("All", "All (" + counts.get("All") + ")", (javafx.scene.Node) null);
 
-        // Add others
+        // Add keyword tabs with counts
         for (String key : KEYWORDS) {
             if (counts.containsKey(key)) {
-                String label = key + " (" + counts.get(key) + ")";
-                addTagButton(label, key, false,
-                        () -> filterJobsByTag(label, searchField != null ? searchField.getText() : ""));
+                tagTabs.addTab(key, key + " (" + counts.get(key) + ")", (javafx.scene.Node) null);
             }
         }
-    }
 
-    private void addTagButton(String label, String rawKey, boolean selected, Runnable onSelect) {
-        ToggleButton btn = new ToggleButton(label);
-        btn.setUserData(rawKey);
-        btn.getStyleClass().add("chip-filter");
-        btn.setSelected(selected);
-        btn.setToggleGroup(tagGroup);
-
-        btn.setOnAction(e -> {
-            if (btn.isSelected()) {
-                onSelect.run();
-            } else {
-                if (tagGroup.getSelectedToggle() == null) {
-                    btn.setSelected(true);
-                }
-            }
+        tagTabs.setOnTabChanged(tabId -> {
+            requestFilter(tabId, searchField != null ? searchField.getText() : "");
         });
 
-        tabsBox.getChildren().add(btn);
+        tabsBox.getChildren().add(tagTabs);
+    }
+
+    /**
+     * Build a secondary filter bar with sort + location dropdown + result count.
+     */
+    private void setupFilterBar() {
+        if (tabsBox == null || allJobs == null) return;
+
+        HBox filterBar = new HBox(12);
+        filterBar.setAlignment(Pos.CENTER_LEFT);
+        filterBar.setPadding(new Insets(4, 0, 0, 0));
+
+        // Sort selector
+        TLSelect<String> sortSelect = new TLSelect<>(I18n.get("feed.sort"));
+        sortSelect.getItems().addAll(I18n.get("feed.sort.recent"), I18n.get("feed.sort.az"), I18n.get("feed.sort.za"));
+        // Add "Best Match" sort only if match scores are available
+        if (candidateCorpus != null && !candidateCorpus.isEmpty()) {
+            sortSelect.getItems().add(I18n.get("feed.sort.match"));
+        }
+        sortSelect.setValue(I18n.get("feed.sort.recent"));
+        sortSelect.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (I18n.get("feed.sort.az").equals(newVal)) currentSort = "a-z";
+            else if (I18n.get("feed.sort.za").equals(newVal)) currentSort = "z-a";
+            else if (I18n.get("feed.sort.match").equals(newVal)) currentSort = "match";
+            else currentSort = "recent";
+            requestFilter(getCurrentTagText(), searchField != null ? searchField.getText() : "");
+        });
+
+        // Location filter (dynamically populated from data)
+        TLSelect<String> locationSelect = new TLSelect<>(I18n.get("feed.filter.location"));
+        Set<String> locations = new TreeSet<>();
+        locations.add(I18n.get("support.admin.filter.all"));
+        for (JobOpportunity job : allJobs) {
+            if (job.getLocation() != null && !job.getLocation().isBlank()) {
+                locations.add(job.getLocation().trim());
+            }
+        }
+        locationSelect.getItems().addAll(locations);
+        locationSelect.setValue(I18n.get("support.admin.filter.all"));
+        locationSelect.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (I18n.get("support.admin.filter.all").equals(newVal)) {
+                currentLocationFilter = null;
+            } else {
+                currentLocationFilter = newVal;
+            }
+            requestFilter(getCurrentTagText(), searchField != null ? searchField.getText() : "");
+        });
+
+        // Result count
+        resultCountLabel = new Label("");
+        resultCountLabel.getStyleClass().addAll("text-sm", "text-muted");
+
+        javafx.scene.layout.Region spacer = new javafx.scene.layout.Region();
+        HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
+
+        filterBar.getChildren().addAll(sortSelect, locationSelect, spacer, resultCountLabel);
+        tabsBox.getChildren().add(filterBar);
+    }
+
+    private String[] lowerCacheFor(JobOpportunity job) {
+        return lowerCaseCache != null ? lowerCaseCache.get(job) : null;
     }
 
     private String getCurrentTagText() {
-        if (tagGroup.getSelectedToggle() != null) {
-            return ((ToggleButton) tagGroup.getSelectedToggle()).getText();
+        if (tagTabs != null && tagTabs.getActiveTabId() != null) {
+            return tagTabs.getActiveTabId();
         }
         return "All";
     }
 
-    private void filterJobsByTag(String tagRaw, String query) {
-        if (allJobs == null)
-            return;
+    private void requestFilter(String tagRaw, String query) {
+        if (allJobs == null) return;
+        final long seq = filterSeq.incrementAndGet();
+
+        AppThreadPool.execute(() -> {
+            List<JobOpportunity> filtered = computeFilteredJobs(tagRaw, query);
+            Platform.runLater(() -> {
+                if (seq != filterSeq.get()) return; // stale result
+                currentFilteredJobs = filtered;
+                populateGrid(filtered);
+            });
+        });
+    }
+
+    private List<JobOpportunity> computeFilteredJobs(String tagRaw, String query) {
+        if (allJobs == null) return List.of();
 
         String tag = tagRaw;
         if (tagRaw != null && tagRaw.contains(" (") && tagRaw.endsWith(")")) {
             tag = tagRaw.substring(0, tagRaw.lastIndexOf(" ("));
         }
-        if (tag == null)
-            tag = "All";
+        if (tag == null) tag = "All";
 
         String lowerQuery = query == null ? "" : query.toLowerCase();
         String finalTag = tag.toLowerCase();
         boolean isAll = tag.equals("All");
+        String locFilter = currentLocationFilter != null ? currentLocationFilter.toLowerCase() : null;
 
-        currentFilteredJobs = allJobs.stream()
+        List<JobOpportunity> result = allJobs.stream()
                 .filter(j -> {
                     String[] fields = lowerCaseCache != null ? lowerCaseCache.get(j) : null;
                     String title = fields != null ? fields[0] : (j.getTitle() != null ? j.getTitle().toLowerCase() : "");
@@ -264,11 +422,23 @@ public class FeedController implements Initializable {
                             desc.contains(finalTag) ||
                             location.contains(finalTag);
 
-                    return matchesSearch && matchesTag;
+                    boolean matchesLocation = locFilter == null || location.contains(locFilter);
+
+                    return matchesSearch && matchesTag && matchesLocation;
                 })
                 .collect(Collectors.toList());
 
-        populateGrid(currentFilteredJobs);
+        // Apply sort
+        switch (currentSort) {
+            case "a-z" -> result.sort(Comparator.comparing(
+                    j -> j.getTitle() != null ? j.getTitle().toLowerCase() : "", Comparator.naturalOrder()));
+            case "z-a" -> result.sort(Comparator.comparing(
+                    (JobOpportunity j) -> j.getTitle() != null ? j.getTitle().toLowerCase() : "").reversed());
+            case "match" -> result.sort(Comparator.comparingInt(JobOpportunity::getMatchPercentage).reversed());
+            default -> {} // "recent" is default order from source
+        }
+
+        return result;
     }
 
     private void populateGrid(List<JobOpportunity> jobs) {
@@ -278,10 +448,26 @@ public class FeedController implements Initializable {
         grid.getChildren().clear();
         currentPage = 0;
 
+        // Update result count
+        if (resultCountLabel != null) {
+            resultCountLabel.setText(jobs.size() + " " + I18n.get("feed.results"));
+        }
+
+        if (jobs.isEmpty()) {
+            grid.getChildren().add(new TLEmptyState(
+                SvgIcons.BRIEFCASE,
+                I18n.get("feed.no_results"),
+                I18n.get("feed.no_results.desc")));
+            return;
+        }
+
         int endIdx = Math.min(CARDS_PER_PAGE, jobs.size());
         for (int i = 0; i < endIdx; i++) {
-            grid.getChildren().add(new JobCard(jobs.get(i), onJobClick));
+            grid.getChildren().add(new JobCard(jobs.get(i), onJobClick, currentUser != null ? currentUser.getId() : null));
         }
+
+        // Size cards to fill grid evenly
+        updateCardWidths(grid.getWidth());
 
         // Add "Load More" button if there are more jobs
         if (jobs.size() > CARDS_PER_PAGE) {
@@ -322,7 +508,7 @@ public class FeedController implements Initializable {
         int endIdx = Math.min(startIdx + CARDS_PER_PAGE, currentFilteredJobs.size());
 
         for (int i = startIdx; i < endIdx; i++) {
-            grid.getChildren().add(new JobCard(currentFilteredJobs.get(i), onJobClick));
+            grid.getChildren().add(new JobCard(currentFilteredJobs.get(i), onJobClick, currentUser != null ? currentUser.getId() : null));
         }
 
         int remaining = currentFilteredJobs.size() - endIdx;
@@ -350,9 +536,50 @@ public class FeedController implements Initializable {
         int endIdx = Math.min(startIdx + CARDS_PER_PAGE, currentFilteredJobs.size());
 
         for (int i = startIdx; i < endIdx; i++) {
-            grid.getChildren().add(new JobCard(currentFilteredJobs.get(i)));
+            // Keep cards clickable even when loaded via infinite scroll
+            grid.getChildren().add(new JobCard(
+                currentFilteredJobs.get(i),
+                onJobClick,
+                currentUser != null ? currentUser.getId() : null
+            ));
         }
 
+        // Size newly added cards
+        updateCardWidths(grid.getWidth());
+
         isLoadingMore = false;
+    }
+
+    private static final class FeedData {
+        private final List<JobOpportunity> jobs;
+        private final Map<JobOpportunity, String[]> lowerCaseCache;
+        private final Set<String> corpus;
+
+        private FeedData(List<JobOpportunity> jobs, Map<JobOpportunity, String[]> lowerCaseCache, Set<String> corpus) {
+            this.jobs = jobs != null ? jobs : List.of();
+            this.lowerCaseCache = lowerCaseCache != null ? lowerCaseCache : new HashMap<>();
+            this.corpus = corpus;
+        }
+    }
+
+    /**
+     * Dynamically resize job cards to fill the grid width evenly.
+     * Calculates how many columns fit and distributes remaining space.
+     */
+    private void updateCardWidths(double gridWidth) {
+        if (gridWidth <= 0 || grid == null) return;
+        double gap = grid.getHgap();
+        double minCard = 280;
+        double maxCard = 420;
+        int cols = Math.max(1, (int) ((gridWidth + gap) / (minCard + gap)));
+        double cardWidth = (gridWidth - (cols - 1) * gap) / cols;
+        cardWidth = Math.min(cardWidth, maxCard);
+        cardWidth = Math.max(cardWidth, minCard);
+        for (javafx.scene.Node node : grid.getChildren()) {
+            if (node instanceof JobCard card) {
+                card.setPrefWidth(cardWidth);
+                card.setMaxWidth(cardWidth);
+            }
+        }
     }
 }

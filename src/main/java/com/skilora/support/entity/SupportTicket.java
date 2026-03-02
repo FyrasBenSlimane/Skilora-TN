@@ -12,6 +12,8 @@ public class SupportTicket {
     private String subject;
     private String description;
     private Integer assignedTo;
+    private LocalDateTime slaDueDate;
+    private LocalDateTime firstResponseDate;
     private LocalDateTime createdDate;
     private LocalDateTime updatedDate;
     private LocalDateTime resolvedDate;
@@ -56,6 +58,12 @@ public class SupportTicket {
     
     public Integer getAssignedTo() { return assignedTo; }
     public void setAssignedTo(Integer assignedTo) { this.assignedTo = assignedTo; }
+
+    public LocalDateTime getSlaDueDate() { return slaDueDate; }
+    public void setSlaDueDate(LocalDateTime slaDueDate) { this.slaDueDate = slaDueDate; }
+
+    public LocalDateTime getFirstResponseDate() { return firstResponseDate; }
+    public void setFirstResponseDate(LocalDateTime firstResponseDate) { this.firstResponseDate = firstResponseDate; }
     
     public LocalDateTime getCreatedDate() { return createdDate; }
     public void setCreatedDate(LocalDateTime createdDate) { this.createdDate = createdDate; }

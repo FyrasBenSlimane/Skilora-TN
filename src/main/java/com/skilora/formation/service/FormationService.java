@@ -41,7 +41,7 @@ public class FormationService {
      */
     public int createFormation(Formation formation) {
         String sql = "INSERT INTO formations (title, description, category, duration_hours, cost, currency, " +
-                "provider, image_url, level, is_free, created_by, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                "provider, image_url, level, is_free, created_by, status, director_signature) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -58,6 +58,7 @@ public class FormationService {
             stmt.setBoolean(10, formation.isFree());
             stmt.setObject(11, formation.getCreatedBy() > 0 ? formation.getCreatedBy() : null);
             stmt.setString(12, formation.getStatus());
+            stmt.setString(13, formation.getDirectorSignature());
 
             int rows = stmt.executeUpdate();
             if (rows > 0) {
@@ -77,31 +78,10 @@ public class FormationService {
     }
 
     /**
-     * Find a formation by ID.
-     */
-    public Formation findById(int id) {
-        String sql = "SELECT * FROM formations WHERE id = ?";
-
-        try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
-            stmt.setInt(1, id);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return mapResultSet(rs);
-                }
-            }
-        } catch (SQLException e) {
-            logger.error("Error finding formation by ID {}: {}", id, e.getMessage(), e);
-        }
-        return null;
-    }
-
-    /**
      * Find all formations.
      */
     public List<Formation> findAll() {
-        String sql = "SELECT * FROM formations ORDER BY created_date DESC";
+        String sql = "SELECT * FROM formations ORDER BY created_date DESC LIMIT 500";
         List<Formation> formations = new ArrayList<>();
 
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
@@ -165,44 +145,30 @@ public class FormationService {
     }
 
     /**
-     * Search formations by title, description, or provider.
+     * Find a formation by ID.
      */
-    public List<Formation> search(String query) {
-        String sql = "SELECT * FROM formations WHERE title LIKE ? OR description LIKE ? OR provider LIKE ? " +
-                "ORDER BY created_date DESC";
-        List<Formation> formations = new ArrayList<>();
-        String searchPattern = "%" + query + "%";
-
+    public Formation findById(int id) {
+        String sql = "SELECT * FROM formations WHERE id = ?";
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
-            stmt.setString(1, searchPattern);
-            stmt.setString(2, searchPattern);
-            stmt.setString(3, searchPattern);
-            
+            stmt.setInt(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    formations.add(mapResultSet(rs));
-                }
+                if (rs.next()) return mapResultSet(rs);
             }
-            logger.debug("Search for '{}' returned {} formations", query, formations.size());
         } catch (SQLException e) {
-            logger.error("Error searching formations: {}", e.getMessage(), e);
+            logger.error("Error finding formation {}: {}", id, e.getMessage(), e);
         }
-        return formations;
+        return null;
     }
 
     /**
-     * Update a formation.
+     * Update an existing formation.
      */
-    public boolean update(Formation formation) {
+    public boolean updateFormation(Formation formation) {
         String sql = "UPDATE formations SET title = ?, description = ?, category = ?, duration_hours = ?, " +
-                "cost = ?, currency = ?, provider = ?, image_url = ?, level = ?, is_free = ?, status = ? " +
-                "WHERE id = ?";
-
+                "cost = ?, currency = ?, provider = ?, image_url = ?, level = ?, is_free = ?, status = ?, director_signature = ? WHERE id = ?";
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
             stmt.setString(1, formation.getTitle());
             stmt.setString(2, formation.getDescription());
             stmt.setString(3, formation.getCategory());
@@ -214,78 +180,107 @@ public class FormationService {
             stmt.setString(9, formation.getLevel() != null ? formation.getLevel().name() : "BEGINNER");
             stmt.setBoolean(10, formation.isFree());
             stmt.setString(11, formation.getStatus());
-            stmt.setInt(12, formation.getId());
-
-            int rows = stmt.executeUpdate();
-            if (rows > 0) {
-                logger.info("Formation ID {} updated successfully", formation.getId());
-                return true;
-            }
+            stmt.setString(12, formation.getDirectorSignature());
+            stmt.setInt(13, formation.getId());
+            boolean updated = stmt.executeUpdate() > 0;
+            if (updated) logger.info("Formation {} updated", formation.getId());
+            return updated;
         } catch (SQLException e) {
-            logger.error("Error updating formation ID {}: {}", formation.getId(), e.getMessage(), e);
+            logger.error("Error updating formation {}: {}", formation.getId(), e.getMessage(), e);
         }
         return false;
     }
 
     /**
-     * Delete a formation by ID.
+     * Delete a formation.
      */
-    public boolean delete(int id) {
+    public boolean deleteFormation(int id) {
         String sql = "DELETE FROM formations WHERE id = ?";
-
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
             stmt.setInt(1, id);
-            int rows = stmt.executeUpdate();
-            if (rows > 0) {
-                logger.info("Formation ID {} deleted successfully", id);
-                return true;
-            }
+            boolean deleted = stmt.executeUpdate() > 0;
+            if (deleted) logger.info("Formation {} deleted", id);
+            return deleted;
         } catch (SQLException e) {
-            logger.error("Error deleting formation ID {}: {}", id, e.getMessage(), e);
+            logger.error("Error deleting formation {}: {}", id, e.getMessage(), e);
         }
         return false;
     }
 
     /**
-     * Count all formations.
+     * Search formations by title, description, or provider.
      */
-    public long countAll() {
-        String sql = "SELECT COUNT(*) FROM formations";
-
+    public List<Formation> search(String query) {
+        String sql = "SELECT * FROM formations WHERE title LIKE ? OR description LIKE ? OR provider LIKE ? ORDER BY created_date DESC";
+        List<Formation> formations = new ArrayList<>();
+        String pattern = "%" + query + "%";
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
-            
-            if (rs.next()) {
-                return rs.getLong(1);
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, pattern);
+            stmt.setString(2, pattern);
+            stmt.setString(3, pattern);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) formations.add(mapResultSet(rs));
             }
         } catch (SQLException e) {
-            logger.error("Error counting formations: {}", e.getMessage(), e);
+            logger.error("Error searching formations: {}", e.getMessage(), e);
         }
-        return 0;
+        return formations;
     }
 
     /**
-     * Count formations by category.
+     * Find formations created by a specific user (trainer).
      */
-    public long countByCategory(String category) {
-        String sql = "SELECT COUNT(*) FROM formations WHERE category = ?";
-
+    public List<Formation> findByCreator(int userId) {
+        String sql = "SELECT * FROM formations WHERE created_by = ? ORDER BY created_date DESC";
+        List<Formation> formations = new ArrayList<>();
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            
-            stmt.setString(1, category);
+            stmt.setInt(1, userId);
             try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getLong(1);
-                }
+                while (rs.next()) formations.add(mapResultSet(rs));
             }
         } catch (SQLException e) {
-            logger.error("Error counting formations by category {}: {}", category, e.getMessage(), e);
+            logger.error("Error finding formations by creator {}: {}", userId, e.getMessage(), e);
         }
-        return 0;
+        return formations;
+    }
+
+    /**
+     * Search formations by keyword in title or description only.
+     */
+    public List<Formation> searchByKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) return findAll();
+        String sql = "SELECT * FROM formations WHERE title LIKE ? OR description LIKE ? ORDER BY created_date DESC";
+        List<Formation> formations = new ArrayList<>();
+        String pattern = "%" + keyword.trim() + "%";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, pattern);
+            stmt.setString(2, pattern);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) formations.add(mapResultSet(rs));
+            }
+        } catch (SQLException e) {
+            logger.error("Error searching formations by keyword: {}", e.getMessage(), e);
+        }
+        return formations;
+    }
+
+    /**
+     * Check if a formation exists by ID.
+     */
+    public boolean formationExists(int id) {
+        String sql = "SELECT 1 FROM formations WHERE id = ? LIMIT 1";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, id);
+            return stmt.executeQuery().next();
+        } catch (SQLException e) {
+            logger.error("Error checking formation existence: id={}", id, e);
+        }
+        return false;
     }
 
     /**
@@ -321,6 +316,14 @@ public class FormationService {
         }
         
         formation.setStatus(rs.getString("status"));
+
+        // Read director_signature if column exists (LONGTEXT, may be null)
+        try {
+            formation.setDirectorSignature(rs.getString("director_signature"));
+        } catch (SQLException ignored) {
+            // Column may not yet exist in older schemas
+        }
+
         return formation;
     }
 }

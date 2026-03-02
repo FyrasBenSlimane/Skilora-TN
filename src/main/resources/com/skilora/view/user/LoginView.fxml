@@ -16,23 +16,18 @@
          <!-- Video content added by controller at index 0 -->
          
          <!-- Overlay Content -->
-         <VBox alignment="BOTTOM_LEFT" spacing="16">
-             <style>
-                 -fx-padding: 48;
-             </style>
+         <VBox alignment="BOTTOM_LEFT" spacing="16" styleClass="hero-content">
              <HBox spacing="12" alignment="CENTER_LEFT">
                  <SVGPath content="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z" 
-                          style="-fx-fill: white;" scaleX="1.5" scaleY="1.5"/>
-                 <Label text="Skilora Tunisia" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: white;"/>
+                          styleClass="hero-icon" scaleX="1.5" scaleY="1.5"/>
+                 <Label fx:id="heroBrand" text="" styleClass="hero-brand"/>
              </HBox>
              
              <Region VBox.vgrow="ALWAYS"/>
              
              <VBox spacing="16">
-                 <Label text="Connecting Tunisia's Youth&#10;to Global Opportunities." wrapText="true" 
-                        style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: white;"/>
-                 <Label text="Secure. Intelligent. Limitless." 
-                        style="-fx-font-size: 14px; -fx-text-fill: rgba(255,255,255,0.8);"/>
+                 <Label fx:id="heroHeading" text="" wrapText="true" styleClass="hero-heading"/>
+                 <Label fx:id="heroSubtitle" text="" styleClass="hero-subtitle"/>
              </VBox>
          </VBox>
     </StackPane>
@@ -41,32 +36,32 @@
     <StackPane HBox.hgrow="ALWAYS" alignment="CENTER" minWidth="400">
         <VBox maxWidth="380" spacing="24" alignment="CENTER_LEFT">
             <VBox spacing="8" alignment="CENTER_LEFT">
-                <Label text="Welcome back" styleClass="h2"/>
-                <Label text="Enter your credentials to access your account" styleClass="text-muted"/>
+                <Label fx:id="welcomeTitle" text="" styleClass="h2"/>
+                <Label fx:id="welcomeSubtitle" text="" styleClass="text-muted"/>
             </VBox>
             
             <Label fx:id="errorLabel" visible="false" managed="false" styleClass="text-sm, text-destructive"/>
             
-            <TLTextField fx:id="usernameField" label="Username" promptText="Enter your username"/>
+            <TLTextField fx:id="usernameField" label="" promptText=""/>
             <VBox spacing="4">
-                <TLPasswordField fx:id="passwordField" label="Password" promptText="Enter your password"/>
+                <TLPasswordField fx:id="passwordField" label="" promptText=""/>
                 <HBox alignment="CENTER_RIGHT">
-                    <TLButton fx:id="forgotPasswordLink" text="Forgot password?" variant="GHOST"
-                              style="-fx-padding: 0; -fx-font-size: 13px; -fx-text-fill: -fx-muted-foreground; -fx-underline: true;"
+                    <TLButton fx:id="forgotPasswordLink" text="" variant="GHOST"
+                              styleClass="forgot-link"
                               onAction="#openForgotPassword"/>
                 </HBox>
             </VBox>
             
-            <TLButton fx:id="loginBtn" text="Sign In" variant="PRIMARY" maxWidth="Infinity" onAction="#handleLogin"/>
-            <TLButton fx:id="biometricBtn" text="Login with Face ID" variant="OUTLINE" maxWidth="Infinity" onAction="#handleBiometricLogin"/>
+            <TLButton fx:id="loginBtn" text="" variant="PRIMARY" maxWidth="Infinity" onAction="#handleLogin"/>
+            <TLButton fx:id="biometricBtn" text="" variant="OUTLINE" maxWidth="Infinity" onAction="#handleBiometricLogin"/>
             
             <HBox alignment="CENTER">
-                <Label text="OR CONTINUE WITH" styleClass="text-xs, text-muted"/>
+                <Label fx:id="orContinueLabel" text="" styleClass="text-xs, text-muted"/>
             </HBox>
             
             <HBox alignment="CENTER" spacing="4">
-                <Label text="Don't have an account?" styleClass="text-muted"/>
-                <TLButton fx:id="registerLink" text="Sign Up" variant="GHOST" style="-fx-padding: 0;" onAction="#openRegister"/>
+                <Label fx:id="noAccountLabel" text="" styleClass="text-muted"/>
+                <TLButton fx:id="registerLink" text="" variant="GHOST" styleClass="link-inline" onAction="#openRegister"/>
             </HBox>
         </VBox>
     </StackPane>

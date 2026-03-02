@@ -18,6 +18,7 @@ public class ProfileWizardView extends VBox {
     private final User user;
     private ProfileWizardController controller;
     private Runnable onProfileUpdated;
+    private Runnable onViewPublicProfile;
 
     public ProfileWizardView(User user) {
         this.user = user;
@@ -35,6 +36,9 @@ public class ProfileWizardView extends VBox {
             // Pass data to controller
             if (this.controller != null) {
                 this.controller.initializeContext(user, this::handleProfileUpdate);
+                if (this.onViewPublicProfile != null) {
+                    this.controller.setOnViewPublicProfile(this.onViewPublicProfile);
+                }
             }
 
         } catch (IOException e) {
@@ -48,6 +52,13 @@ public class ProfileWizardView extends VBox {
         // Update controller if already loaded
         if (this.controller != null) {
             this.controller.initializeContext(user, this::handleProfileUpdate);
+        }
+    }
+
+    public void setOnViewPublicProfile(Runnable onViewPublicProfile) {
+        this.onViewPublicProfile = onViewPublicProfile;
+        if (this.controller != null) {
+            this.controller.setOnViewPublicProfile(onViewPublicProfile);
         }
     }
 

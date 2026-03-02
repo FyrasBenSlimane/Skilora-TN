@@ -24,9 +24,9 @@ public final class I18n {
     public static final Locale LOCALE_AR = new Locale("ar");
 
     /** Current locale */
-    private static Locale currentLocale = LOCALE_FR;
+    private static volatile Locale currentLocale = LOCALE_FR;
 
-    private static ResourceBundle bundle = ResourceBundle.getBundle(BUNDLE_BASE, LOCALE_FR);
+    private static volatile ResourceBundle bundle = ResourceBundle.getBundle(BUNDLE_BASE, LOCALE_FR);
 
     private I18n() {}
 

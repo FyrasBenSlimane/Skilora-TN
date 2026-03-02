@@ -38,6 +38,17 @@ public class BankAccountService {
      * @return generated ID
      */
     public int create(BankAccount account) throws SQLException {
+        if (account == null) throw new IllegalArgumentException("Account must not be null");
+        if (account.getUserId() <= 0) throw new IllegalArgumentException("Invalid user ID");
+        if (account.getBankName() == null || account.getBankName().isBlank())
+            throw new IllegalArgumentException("Bank name is required");
+        if (account.getAccountHolder() == null || account.getAccountHolder().isBlank())
+            throw new IllegalArgumentException("Account holder name is required");
+        if (account.getIban() == null || account.getIban().isBlank())
+            throw new IllegalArgumentException("IBAN is required");
+        if (account.getCurrency() == null || account.getCurrency().isBlank())
+            throw new IllegalArgumentException("Currency is required");
+
         String sql = "INSERT INTO bank_accounts (user_id, bank_name, account_holder, iban, " +
                 "swift_bic, rib, currency, is_primary) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
@@ -71,25 +82,6 @@ public class BankAccountService {
     }
 
     /**
-     * Finds a bank account by ID.
-     */
-    public BankAccount findById(int id) throws SQLException {
-        String sql = "SELECT * FROM bank_accounts WHERE id = ?";
-
-        try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, id);
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return mapResultSet(rs);
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
      * Finds all bank accounts for a user.
      */
     public List<BankAccount> findByUserId(int userId) throws SQLException {
@@ -110,38 +102,83 @@ public class BankAccountService {
     }
 
     /**
-     * Updates an existing bank account.
+     * Find a bank account by ID.
+     */
+    public BankAccount findById(int id) throws SQLException {
+        String sql = "SELECT * FROM bank_accounts WHERE id = ?";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, id);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) return mapResultSet(rs);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Update a bank account.
      */
     public boolean update(BankAccount account) throws SQLException {
         String sql = "UPDATE bank_accounts SET bank_name = ?, account_holder = ?, iban = ?, " +
-                "swift_bic = ?, rib = ?, currency = ?, is_primary = ? WHERE id = ?";
-
+                "swift_bic = ?, rib = ?, currency = ? WHERE id = ? AND user_id = ?";
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-
             stmt.setString(1, account.getBankName());
             stmt.setString(2, account.getAccountHolder());
             stmt.setString(3, account.getIban());
             stmt.setString(4, account.getSwiftBic());
             stmt.setString(5, account.getRib());
             stmt.setString(6, account.getCurrency());
-            stmt.setBoolean(7, account.isPrimary());
-            stmt.setInt(8, account.getId());
-
+            stmt.setInt(7, account.getId());
+            stmt.setInt(8, account.getUserId());
             return stmt.executeUpdate() > 0;
         }
     }
 
     /**
-     * Deletes a bank account by ID.
+     * Delete a bank account (only if not primary).
      */
-    public boolean delete(int id) throws SQLException {
-        String sql = "DELETE FROM bank_accounts WHERE id = ?";
-
+    public boolean delete(int id, int userId) throws SQLException {
+        String sql = "DELETE FROM bank_accounts WHERE id = ? AND user_id = ? AND is_primary = FALSE";
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
+            stmt.setInt(2, userId);
             return stmt.executeUpdate() > 0;
+        }
+    }
+
+    /**
+     * Set a bank account as primary (unsets all others for that user).
+     */
+    public boolean setPrimary(int accountId, int userId) throws SQLException {
+        try (Connection conn = DatabaseConfig.getInstance().getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                String unsetSql = "UPDATE bank_accounts SET is_primary = FALSE WHERE user_id = ?";
+                try (PreparedStatement stmt = conn.prepareStatement(unsetSql)) {
+                    stmt.setInt(1, userId);
+                    stmt.executeUpdate();
+                }
+                String setSql = "UPDATE bank_accounts SET is_primary = TRUE WHERE id = ? AND user_id = ?";
+                try (PreparedStatement stmt = conn.prepareStatement(setSql)) {
+                    stmt.setInt(1, accountId);
+                    stmt.setInt(2, userId);
+                    int rows = stmt.executeUpdate();
+                    if (rows > 0) {
+                        conn.commit();
+                        return true;
+                    }
+                }
+                conn.rollback();
+                return false;
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
         }
     }
 

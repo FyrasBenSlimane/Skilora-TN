@@ -33,6 +33,10 @@
     -fx-card: #1e1f22;
     -fx-card-foreground: #fafafa;
 
+    /* Auth hero gradient tokens (avoid hardcoded view colors) */
+    -fx-auth-hero-from: -fx-card;
+    -fx-auth-hero-to: derive(-fx-background, -12%);
+
     -fx-popover: #1e1f22;
     -fx-popover-foreground: #fafafa;
 
@@ -95,10 +99,35 @@
     -fx-radius-xl: 12px;      /* rounded-xl = 0.75rem = 12px */
     -fx-radius-full: 9999px;  /* rounded-full */
 
-    /* ========== SHADOW (New York) ========== */
-    -fx-effect-default: dropshadow(gaussian, rgba(0,0,0,0.08), 4, 0, 0, 1);
+    /* ========== SHADOW & ICONS (New York) ========== */
+    -fx-shadow-color: rgba(0, 0, 0, 0.3);
+    -fx-card-shadow: dropshadow(gaussian, -fx-shadow-color, 8, 0, 0, 2);
+    -fx-popover-shadow: dropshadow(gaussian, -fx-shadow-color, 12, 0, 0, 4);
+    
+    -fx-icon-color: -fx-muted-foreground;
+    -fx-icon-color-active: -fx-foreground;
 
-    /* ========== JAVA FX RESETS ========== */
+    -fx-effect-default: dropshadow(gaussian, -fx-shadow-color, 4, 0, 0, 1);
+
+    /* ========== JAVA FX / MODENA RESETS ========== */
+    /* Override Modena's core variables so ALL controls resolve correct text/bg */
+    -fx-base: #27272a;
+    -fx-color: -fx-base;
+    -fx-text-base-color: #fafafa;
+    -fx-text-fill: -fx-foreground;
+    -fx-light-text-color: #fafafa;
+    -fx-dark-text-color: #fafafa;
+    -fx-mid-text-color: #a1a1aa;
+    -fx-mark-color: -fx-foreground;
+    -fx-mark-highlight-color: derive(-fx-foreground, 20%);
+    -fx-body-color: -fx-card;
+    -fx-control-inner-background: -fx-card;
+    -fx-control-inner-background-alt: derive(-fx-card, 5%);
+    -fx-text-inner-color: -fx-foreground;
+    -fx-selection-bar: -fx-accent;
+    -fx-selection-bar-non-focused: -fx-muted;
+    -fx-selection-bar-text: -fx-accent-foreground;
+
     -fx-focus-color: transparent;
     -fx-faint-focus-color: transparent;
     -fx-background-color: -fx-background;
@@ -134,6 +163,10 @@
     -fx-card: #ffffff;
     -fx-card-foreground: #09090b;
 
+    /* Auth hero gradient tokens (avoid hardcoded view colors) */
+    -fx-auth-hero-from: -fx-secondary;
+    -fx-auth-hero-to: -fx-border;
+
     -fx-popover: #ffffff;
     -fx-popover-foreground: #09090b;
 
@@ -168,15 +201,27 @@
     -fx-red-foreground: #ffffff;
     -fx-blue: #2563eb;
     -fx-blue-foreground: #ffffff;
-}
 
-/* Auth Hero Section */
-.auth-hero {
-    -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, #1e1f22, #131415);
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.4), 10, 0, 0, 0);
-}
-
-.root.light .auth-hero {
-    -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, #f4f4f5, #e4e4e7);
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 10, 0, 0, 0);
+    /* ========== LIGHT MODE SHADOWS & ICONS ========== */
+    -fx-shadow-color: rgba(0, 0, 0, 0.06);
+    -fx-card-shadow: dropshadow(gaussian, -fx-shadow-color, 8, 0, 0, 2);
+    -fx-popover-shadow: dropshadow(gaussian, -fx-shadow-color, 12, 0, 0, 4);
+    
+    /* ========== MODENA OVERRIDES (light mode) ========== */
+    -fx-base: #f4f4f5;
+    -fx-color: -fx-base;
+    -fx-text-base-color: #09090b;
+    -fx-text-fill: -fx-foreground;
+    -fx-light-text-color: #09090b;
+    -fx-dark-text-color: #09090b;
+    -fx-mid-text-color: #71717a;
+    -fx-mark-color: -fx-foreground;
+    -fx-mark-highlight-color: derive(-fx-foreground, -20%);
+    -fx-body-color: -fx-card;
+    -fx-control-inner-background: -fx-card;
+    -fx-control-inner-background-alt: derive(-fx-card, -3%);
+    -fx-text-inner-color: -fx-foreground;
+    -fx-selection-bar: -fx-accent;
+    -fx-selection-bar-non-focused: -fx-muted;
+    -fx-selection-bar-text: -fx-accent-foreground;
 }

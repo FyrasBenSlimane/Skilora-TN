@@ -7,36 +7,35 @@
 
 <VBox xmlns:fx="http://javafx.com/fxml/1" 
       fx:controller="com.skilora.community.controller.DashboardController"
-      spacing="24" fillWidth="true">
+      spacing="28" fillWidth="true">
     
     <padding>
         <Insets top="32" right="32" bottom="32" left="32"/>
     </padding>
 
-    <!-- Header -->
-    <VBox spacing="8" fx:id="headerSection">
+    <!-- Greeting header -->
+    <VBox spacing="4" fx:id="headerSection">
         <Label fx:id="greetingLabel" styleClass="h2"/>
         <Label fx:id="subGreetingLabel" styleClass="text-muted"/>
     </VBox>
 
     <!-- Quick Actions -->
     <VBox spacing="12" fx:id="quickActionsSection">
-        <Label text="Actions Rapides" styleClass="h3"/>
-        <FlowPane fx:id="actionsContainer" hgap="12" vgap="12"/>
+        <Label fx:id="quickActionsLabel" text="" styleClass="h4"/>
+        <FlowPane fx:id="actionsContainer" hgap="10" vgap="10"/>
     </VBox>
 
-    <!-- Stats Grid -->
+    <!-- Statistics Cards -->
     <VBox spacing="12" fx:id="statsSection">
-        <Label text="Statistiques" styleClass="h3"/>
-        <FlowPane fx:id="statsGrid" hgap="16" vgap="16" prefWrapLength="1000"/>
+        <Label fx:id="statsHeaderLabel" text="" styleClass="h4"/>
+        <FlowPane fx:id="statsGrid" hgap="16" vgap="16"/>
     </VBox>
 
     <!-- Recent Activity -->
-    <VBox spacing="16" fx:id="activitySection">
-        <Label text="Activités Récentes" styleClass="h3"/>
-        
+    <VBox spacing="12" fx:id="activitySection" VBox.vgrow="ALWAYS">
+        <Label fx:id="activityHeaderLabel" text="" styleClass="h4"/>
         <TLCard>
-             <VBox fx:id="activityList" spacing="12"/>
+             <VBox fx:id="activityList" spacing="0"/>
         </TLCard>
     </VBox>
 

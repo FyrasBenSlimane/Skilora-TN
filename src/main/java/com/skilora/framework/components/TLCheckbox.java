@@ -8,7 +8,7 @@ import javafx.scene.layout.VBox;
  * TLCheckbox - shadcn/ui Checkbox for JavaFX.
  *
  * Wraps JavaFX CheckBox with optional description text, matching shadcn styling.
- * The underlying CheckBox is already styled by components.css (.check-box).
+ * The underlying CheckBox is already styled by framework.css (.check-box).
  *
  * Usage:
  *   TLCheckbox cb = new TLCheckbox("Accept terms");
@@ -16,6 +16,9 @@ import javafx.scene.layout.VBox;
  *   cb.isChecked(); cb.setChecked(true);
  */
 public class TLCheckbox extends VBox {
+
+    private static final String STYLESHEET =
+            TLCheckbox.class.getResource("/com/skilora/framework/styles/tl-checkbox.css").toExternalForm();
 
     private final CheckBox checkBox;
     private Label helperLabel;
@@ -25,6 +28,7 @@ public class TLCheckbox extends VBox {
     }
 
     public TLCheckbox(String text, String helperText) {
+        getStylesheets().add(STYLESHEET);
         setSpacing(2);
 
         checkBox = new CheckBox(text);

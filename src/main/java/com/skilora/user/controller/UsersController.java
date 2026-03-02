@@ -3,11 +3,14 @@ package com.skilora.user.controller;
 import com.skilora.framework.components.*;
 import com.skilora.framework.components.TLButton.ButtonVariant;
 import com.skilora.user.entity.User;
+import com.skilora.user.entity.RoleUpgradeRequest;
 import com.skilora.user.enums.Role;
+import com.skilora.user.service.RoleUpgradeService;
 import com.skilora.user.service.UserService;
 import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.DialogUtils;
 import com.skilora.utils.I18n;
+import com.skilora.utils.SvgIcons;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,33 +20,42 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
 import javafx.geometry.Pos;
+import javafx.geometry.Insets;
 import javafx.scene.shape.SVGPath;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.concurrent.Task;
 import javafx.geometry.Side;
+import java.util.List;
 
 public class UsersController {
 
     private static final Logger logger = LoggerFactory.getLogger(UsersController.class);
 
     @FXML
-    private Button addUserBtn;
+    private TLButton addUserBtn;
+    @FXML
+    private TLButton roleRequestsBtn;
     @FXML
     private TLTextField searchField;
     @FXML
-    private Button filterBtn;
+    private TLButton filterBtn;
     @FXML
-    private Button columnsBtn;
+    private TLButton columnsBtn;
     @FXML
     private TableView<User> usersTable;
     @FXML
     private Label rowsInfo;
     @FXML
     private Pagination pagination;
+    @FXML
+    private Label titleLabel;
+    @FXML
+    private Label subtitleLabel;
 
     private UserService userService;
+    private User currentAdmin;
     private java.util.function.Consumer<User> onShowUserForm;
     private Runnable onRefreshView;
     private java.util.function.Function<User, String> initialsGenerator;
@@ -54,10 +66,12 @@ public class UsersController {
     private ObservableList<User> allData;
 
     public void initializeContext(UserService userService,
+            User currentAdmin,
             java.util.function.Consumer<User> onShowUserForm,
             Runnable onRefreshView,
             java.util.function.Function<User, String> initialsGenerator) {
         this.userService = userService;
+        this.currentAdmin = currentAdmin;
         this.onShowUserForm = onShowUserForm;
         this.onRefreshView = onRefreshView;
         this.initialsGenerator = initialsGenerator;
@@ -77,11 +91,31 @@ public class UsersController {
     }
 
     private void setupButtons() {
+        // I18n overrides for header labels
+        if (titleLabel != null) {
+            titleLabel.setText(I18n.get("users.title"));
+        }
+        if (subtitleLabel != null) {
+            subtitleLabel.setText(I18n.get("users.subtitle"));
+        }
+
+        if (roleRequestsBtn != null) {
+            SVGPath shield = new SVGPath();
+            shield.setContent(SvgIcons.SHIELD_CHECK);
+            shield.getStyleClass().add("svg-path");
+            shield.setScaleX(0.8);
+            shield.setScaleY(0.8);
+            roleRequestsBtn.setGraphic(shield);
+            roleRequestsBtn.setText(I18n.get("users.role_requests"));
+            roleRequestsBtn.setOnAction(e -> showRoleRequestsDialog());
+        }
+
         // Add User Button with Icon
         SVGPath plusIcon = new SVGPath();
-        plusIcon.setContent("M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z");
+        plusIcon.setContent(SvgIcons.PLUS);
         plusIcon.getStyleClass().add("svg-path");
         addUserBtn.setGraphic(plusIcon);
+        addUserBtn.setText(I18n.get("users.add"));
         addUserBtn.setOnAction(e -> {
             if (onShowUserForm != null) {
                 onShowUserForm.accept(null);
@@ -93,20 +127,146 @@ public class UsersController {
 
         // Filter Button with Icon
         SVGPath filterIcon = new SVGPath();
-        filterIcon.setContent("M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z");
+        filterIcon.setContent(SvgIcons.FILTER);
         filterIcon.getStyleClass().add("svg-path");
         filterIcon.setScaleX(0.8);
         filterIcon.setScaleY(0.8);
         filterBtn.setGraphic(filterIcon);
+        filterBtn.setText(I18n.get("users.filters"));
         filterBtn.setOnAction(e -> showFilterMenu());
 
         // Columns Button with Icon
         SVGPath colsIcon = new SVGPath();
-        colsIcon.setContent("M10 18h5v-6h-5v6zm-6 0h5v-6H4v6zM10 6v6h5V6h-5zm-6 0v6h5V6H4zm12 0v12h5V6h-5z");
+        colsIcon.setContent(SvgIcons.COLUMNS_3);
         colsIcon.getStyleClass().add("svg-path");
         colsIcon.setScaleX(0.8);
         colsIcon.setScaleY(0.8);
         columnsBtn.setGraphic(colsIcon);
+        columnsBtn.setText(I18n.get("users.columns"));
+    }
+
+    private void showRoleRequestsDialog() {
+        if (currentAdmin == null || currentAdmin.getRole() != Role.ADMIN) {
+            return;
+        }
+        TLDialog<ButtonType> dialog = new TLDialog<>();
+        if (usersTable != null && usersTable.getScene() != null) {
+            dialog.initOwner(usersTable.getScene().getWindow());
+        }
+        dialog.setDialogTitle(I18n.get("users.role_requests"));
+        dialog.setDescription(I18n.get("users.role_requests.desc"));
+
+        VBox body = new VBox(12);
+        body.setPadding(new Insets(4));
+        TLLoadingState loading = new TLLoadingState(I18n.get("common.loading"));
+        body.getChildren().add(loading);
+
+        ScrollPane scroll = new ScrollPane(body);
+        scroll.setFitToWidth(true);
+        scroll.setPrefViewportHeight(420);
+        scroll.setStyle("-fx-background-color: transparent;");
+
+        dialog.setContent(scroll);
+        dialog.addButton(ButtonType.CLOSE);
+
+        Task<List<RoleUpgradeRequest>> task = new Task<>() {
+            @Override
+            protected List<RoleUpgradeRequest> call() {
+                return RoleUpgradeService.getInstance().findPendingRequests();
+            }
+        };
+        task.setOnSucceeded(e -> {
+            List<RoleUpgradeRequest> list = task.getValue();
+            javafx.application.Platform.runLater(() -> {
+                body.getChildren().clear();
+                if (list == null || list.isEmpty()) {
+                    body.getChildren().add(new TLEmptyState(SvgIcons.SHIELD, I18n.get("users.role_requests.empty"),
+                            I18n.get("users.role_requests.empty.desc")));
+                    return;
+                }
+                for (RoleUpgradeRequest r : list) {
+                    body.getChildren().add(buildRoleRequestCard(r, dialog));
+                }
+            });
+        });
+        task.setOnFailed(e -> javafx.application.Platform.runLater(() -> {
+            body.getChildren().clear();
+            body.getChildren().add(new TLAlert(TLAlert.Variant.DESTRUCTIVE, I18n.get("common.error"),
+                    I18n.get("users.role_requests.load_failed")));
+        }));
+        AppThreadPool.execute(task);
+
+        dialog.showAndWait();
+    }
+
+    private TLCard buildRoleRequestCard(RoleUpgradeRequest req, TLDialog<ButtonType> parentDialog) {
+        TLCard card = new TLCard();
+        VBox content = new VBox(10);
+
+        String name = req.getFullName() != null ? req.getFullName() : ("#" + req.getUserId());
+        Label title = new Label(name);
+        title.getStyleClass().add("h4");
+
+        Label meta = new Label(req.getCurrentRole() + " → " + req.getRequestedRole());
+        meta.getStyleClass().add("text-muted");
+
+        content.getChildren().addAll(title, meta);
+
+        if (req.getJustification() != null && !req.getJustification().isBlank()) {
+            Label just = new Label(req.getJustification());
+            just.setWrapText(true);
+            just.getStyleClass().add("text-sm");
+            content.getChildren().add(just);
+        }
+
+        HBox actions = new HBox(10);
+        actions.setAlignment(Pos.CENTER_RIGHT);
+
+        TLTextField notes = new TLTextField("", "");
+        notes.setLabel(I18n.get("users.role_requests.admin_notes"));
+        notes.setPromptText(I18n.get("users.role_requests.notes"));
+        notes.setPrefWidth(340);
+
+        TLButton reject = new TLButton(I18n.get("common.reject"), ButtonVariant.GHOST);
+        reject.getStyleClass().add("text-destructive");
+        reject.setOnAction(e -> {
+            // Block admin from rejecting their own role upgrade request
+            if (currentAdmin != null && req.getUserId() == currentAdmin.getId()) {
+                if (reject.getScene() != null) {
+                    com.skilora.framework.components.TLToast.error(
+                        reject.getScene(), I18n.get("common.error"), I18n.get("admin.self_action.reject_own"));
+                }
+                return;
+            }
+            boolean ok = RoleUpgradeService.getInstance().reject(req.getId(), currentAdmin.getId(), notes.getText());
+            if (ok) {
+                parentDialog.close();
+                loadUsers();
+            }
+        });
+
+        TLButton approve = new TLButton(I18n.get("common.approve"), ButtonVariant.PRIMARY);
+        approve.setOnAction(e -> {
+            // Block admin from approving their own role upgrade request
+            if (currentAdmin != null && req.getUserId() == currentAdmin.getId()) {
+                if (approve.getScene() != null) {
+                    com.skilora.framework.components.TLToast.error(
+                        approve.getScene(), I18n.get("common.error"), I18n.get("admin.self_action.approve_own"));
+                }
+                return;
+            }
+            boolean ok = RoleUpgradeService.getInstance().approve(req.getId(), currentAdmin.getId(), notes.getText());
+            if (ok) {
+                parentDialog.close();
+                loadUsers();
+            }
+        });
+
+        actions.getChildren().addAll(reject, approve);
+
+        content.getChildren().addAll(notes, actions);
+        card.setBody(content);
+        return card;
     }
 
     private void setupTable() {
@@ -158,7 +318,7 @@ public class UsersController {
         idCol.setCellFactory(col -> new TableCell<>() {
             {
                 setAlignment(Pos.CENTER);
-                setStyle("-fx-text-fill: -fx-foreground;");
+                getStyleClass().add("text-primary");
             }
 
             @Override
@@ -186,7 +346,7 @@ public class UsersController {
                 avatar.setPrefSize(32, 32);
                 avatar.setMinSize(32, 32);
                 avatar.setMaxSize(32, 32);
-                nameLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: -fx-foreground;");
+                nameLabel.getStyleClass().addAll("font-bold", "text-primary");
                 box.getChildren().addAll(avatar, nameLabel);
             }
 
@@ -267,12 +427,12 @@ public class UsersController {
 
             {
                 SVGPath moreIcon = new SVGPath();
-                moreIcon.setContent(
-                        "M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z");
+                moreIcon.setContent(SvgIcons.ELLIPSIS);
                 moreIcon.getStyleClass().add("svg-path");
                 moreIcon.setScaleX(0.9);
                 moreIcon.setScaleY(0.9);
                 moreBtn.setGraphic(moreIcon);
+                moreBtn.setTooltip(new Tooltip("More actions"));
                 moreBtn.getStyleClass().add("btn-icon");
 
                 TLDropdownMenu actionsMenu = new TLDropdownMenu();
@@ -290,6 +450,12 @@ public class UsersController {
                 MenuItem editItem = actionsMenu.addItem(I18n.get("users.edit"));
                 editItem.setOnAction(e -> {
                     User u = getTableView().getItems().get(getIndex());
+                    // Block admin from editing themselves (role change risk)
+                    if (currentAdmin != null && u.getId() == currentAdmin.getId()) {
+                        com.skilora.framework.components.TLToast.error(
+                            moreBtn.getScene(), I18n.get("common.error"), I18n.get("admin.self_action.edit"));
+                        return;
+                    }
                     if (onShowUserForm != null) {
                         onShowUserForm.accept(u);
                     }
@@ -299,6 +465,12 @@ public class UsersController {
                 deleteItem.getStyleClass().add("text-destructive");
                 deleteItem.setOnAction(e -> {
                     User u = getTableView().getItems().get(getIndex());
+                    // Block admin from deleting themselves
+                    if (currentAdmin != null && u.getId() == currentAdmin.getId()) {
+                        com.skilora.framework.components.TLToast.error(
+                            moreBtn.getScene(), I18n.get("common.error"), I18n.get("admin.self_action.delete"));
+                        return;
+                    }
                     // Confirmation dialog via DialogUtils
                     DialogUtils.showConfirmation(
                             I18n.get("users.delete.confirm_title"),
@@ -314,6 +486,10 @@ public class UsersController {
                                             });
                                         } catch (Exception ex) {
                                             logger.error("Failed to delete user", ex);
+                                            javafx.application.Platform.runLater(() -> {
+                                                com.skilora.framework.components.TLToast.error(
+                                                    moreBtn.getScene(), "Error", "Failed to delete user: " + ex.getMessage());
+                                            });
                                         }
                                     });
                                 }

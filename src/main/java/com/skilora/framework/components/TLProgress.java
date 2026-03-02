@@ -17,6 +17,9 @@ import javafx.scene.control.ProgressBar;
  */
 public class TLProgress extends ProgressBar {
 
+    private static final String STYLESHEET =
+            TLProgress.class.getResource("/com/skilora/framework/styles/tl-progress.css").toExternalForm();
+
     public enum Size {
         SM, DEFAULT, LG
     }
@@ -39,6 +42,7 @@ public class TLProgress extends ProgressBar {
 
     public TLProgress(double progress, Size size, Variant variant) {
         super(progress);
+        getStylesheets().add(STYLESHEET);
         getStyleClass().add("progress");
         setMaxWidth(Double.MAX_VALUE);
 

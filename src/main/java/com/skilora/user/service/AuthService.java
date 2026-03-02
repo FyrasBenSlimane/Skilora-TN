@@ -21,6 +21,7 @@ public class AuthService {
     private static final int LOCKOUT_MINUTES = 15;
 
     private static volatile AuthService instance;
+    private User currentUser;
 
     private AuthService() {
     }
@@ -34,6 +35,27 @@ public class AuthService {
             }
         }
         return instance;
+    }
+
+    /**
+     * Get the currently logged-in user.
+     */
+    public User getCurrentUser() {
+        return currentUser;
+    }
+
+    /**
+     * Set the currently logged-in user.
+     */
+    public void setCurrentUser(User user) {
+        this.currentUser = user;
+    }
+    
+    /**
+     * Logout the current user.
+     */
+    public void logout() {
+        this.currentUser = null;
     }
 
     /**
@@ -52,6 +74,7 @@ public class AuthService {
             User user = userOpt.get();
             if (UserService.verifyPassword(password, user.getPassword())) {
                 recordLoginAttempt(username, true);
+                this.currentUser = user;
                 return Optional.of(user);
             }
         }
@@ -162,6 +185,25 @@ public class AuthService {
             }
         } catch (SQLException e) {
             logger.debug("Could not check lockout time");
+        }
+        return 0;
+    }
+
+    /**
+     * Get the current number of recent failed login attempts for a username
+     * (within the lockout window). Used by security monitoring.
+     */
+    public int getRecentFailedAttemptCount(String username) {
+        String sql = "SELECT COUNT(*) FROM login_attempts WHERE username = ? AND success = FALSE AND attempted_at > ?";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, username);
+            stmt.setTimestamp(2, Timestamp.valueOf(LocalDateTime.now().minusMinutes(LOCKOUT_MINUTES)));
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        } catch (SQLException e) {
+            logger.debug("Could not get failed attempt count");
         }
         return 0;
     }

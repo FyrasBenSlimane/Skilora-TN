@@ -25,7 +25,6 @@ public class HelpDialog {
         dialog.setDescription(I18n.get("help.description"));
 
         VBox content = new VBox(20);
-        content.setPadding(new Insets(16));
 
         // Quick Links Section
         VBox quickLinksSection = createSection(I18n.get("help.quick_links"),
@@ -43,14 +42,13 @@ public class HelpDialog {
 
         // Version Info
         Label versionLabel = new Label(I18n.get("help.version"));
-        versionLabel.getStyleClass().add("text-muted");
-        versionLabel.setStyle("-fx-font-size: 12px;");
+        versionLabel.getStyleClass().addAll("text-muted", "text-xs");
 
         content.getChildren().addAll(quickLinksSection, contactSection, versionLabel);
         dialog.setContent(content);
 
         ButtonType closeBtn = new ButtonType(I18n.get("common.close"), ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().add(closeBtn);
+        dialog.addButton(closeBtn);
 
         dialog.showAndWait();
     }
@@ -73,15 +71,14 @@ public class HelpDialog {
         HBox item = new HBox(12);
         item.setAlignment(Pos.CENTER_LEFT);
         item.setPadding(new Insets(8));
-        item.setStyle("-fx-background-color: -fx-background; -fx-background-radius: 8px;");
+        item.getStyleClass().add("bg-card");
 
         VBox textBox = new VBox(4);
         Label titleLabel = new Label(title);
-        titleLabel.setStyle("-fx-font-weight: bold;");
+        titleLabel.getStyleClass().add("font-bold");
         
         Label descLabel = new Label(description);
-        descLabel.getStyleClass().add("text-muted");
-        descLabel.setStyle("-fx-font-size: 12px;");
+        descLabel.getStyleClass().addAll("text-muted", "text-xs");
         
         textBox.getChildren().addAll(titleLabel, descLabel);
         
@@ -95,7 +92,7 @@ public class HelpDialog {
                     logger.error("Could not open link: " + link, ex);
                 }
             });
-            item.setStyle(item.getStyle() + " -fx-cursor: hand;");
+            item.getStyleClass().add("cursor-hand");
         }
 
         return item;

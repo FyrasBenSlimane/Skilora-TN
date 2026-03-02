@@ -107,6 +107,51 @@ public class TicketMessageService {
         return false;
     }
 
+    /**
+     * Updates the content of an existing ticket message.
+     * Ported from branch MessageTicketService.modifierMessage().
+     */
+    public boolean updateMessage(TicketMessage msg) {
+        String sql = "UPDATE ticket_messages SET message = ?, is_internal = ? WHERE id = ?";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, msg.getMessage());
+            stmt.setBoolean(2, msg.isInternal());
+            stmt.setInt(3, msg.getId());
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            logger.error("Failed to update message {}", msg.getId(), e);
+        }
+        return false;
+    }
+
+    /**
+     * Returns all messages across all tickets.
+     * Ported from branch MessageTicketService.getAllMessages().
+     */
+    public List<TicketMessage> findAll() {
+        String sql = """
+            SELECT tm.*, u.full_name as sender_name, u.role as sender_role
+            FROM ticket_messages tm
+            LEFT JOIN users u ON tm.sender_id = u.id
+            ORDER BY tm.created_date DESC
+            LIMIT 1000
+            """;
+        List<TicketMessage> messages = new java.util.ArrayList<>();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+
+            while (rs.next()) {
+                messages.add(mapResultSet(rs));
+            }
+        } catch (SQLException e) {
+            logger.error("Failed to find all messages", e);
+        }
+        return messages;
+    }
+
     private void updateTicketTimestamp(Connection conn, int ticketId) {
         String sql = "UPDATE support_tickets SET updated_date = ? WHERE id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {

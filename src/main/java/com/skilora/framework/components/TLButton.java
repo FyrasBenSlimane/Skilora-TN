@@ -1,17 +1,21 @@
 package com.skilora.framework.components;
 
 import javafx.scene.control.Button;
+import com.skilora.utils.SvgIcons;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * TLButton - Skilora Button Component
  *
- * Uses CSS classes (theme.css + components.css) so colors follow dark/light
+ * Uses CSS classes (theme.css + framework.css) so colors follow dark/light
  * theme.
  * Usage: TLButton btn = new TLButton("Click Me", ButtonVariant.PRIMARY);
  */
 public class TLButton extends Button {
+
+    private static final String STYLESHEET =
+            TLButton.class.getResource("/com/skilora/framework/styles/tl-button.css").toExternalForm();
 
     private static final Logger logger = LoggerFactory.getLogger(TLButton.class);
 
@@ -25,25 +29,30 @@ public class TLButton extends Button {
 
     private ButtonVariant variant = ButtonVariant.PRIMARY;
     private ButtonSize size = ButtonSize.MD;
+    private String iconName;
 
     public TLButton() {
         super();
+        getStylesheets().add(STYLESHEET);
         applyStyleClasses();
     }
 
     public TLButton(String text) {
         super(text);
+        getStylesheets().add(STYLESHEET);
         applyStyleClasses();
     }
 
     public TLButton(String text, ButtonVariant variant) {
         super(text);
+        getStylesheets().add(STYLESHEET);
         this.variant = variant;
         applyStyleClasses();
     }
 
     public TLButton(String text, ButtonVariant variant, ButtonSize size) {
         super(text);
+        getStylesheets().add(STYLESHEET);
         this.variant = variant;
         this.size = size;
         applyStyleClasses();
@@ -117,6 +126,30 @@ public class TLButton extends Button {
             applyStyleClasses();
         } catch (IllegalArgumentException e) {
             logger.error("Invalid button size: " + size, e);
+        }
+    }
+
+    /** Get current icon name */
+    public String getIcon() {
+        return iconName;
+    }
+
+    /**
+     * Set icon from a SvgIcons constant name (for FXML compatibility).
+     * Example: icon="EYE" resolves to SvgIcons.EYE.
+     */
+    public void setIcon(String iconName) {
+        this.iconName = iconName;
+        if (iconName != null && !iconName.isEmpty()) {
+            try {
+                java.lang.reflect.Field field = SvgIcons.class.getField(iconName);
+                String pathData = (String) field.get(null);
+                setGraphic(SvgIcons.icon(pathData, 16));
+            } catch (Exception e) {
+                logger.error("Unknown icon: " + iconName, e);
+            }
+        } else {
+            setGraphic(null);
         }
     }
 }

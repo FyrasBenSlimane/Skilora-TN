@@ -11,6 +11,10 @@ public class WindowConfig {
     public static void configureStage(Stage stage) {
         // Set transparent style for custom chrome
         stage.initStyle(StageStyle.TRANSPARENT);
+
+        // Enforce minimum window dimensions
+        stage.setMinWidth(900);
+        stage.setMinHeight(600);
     }
 
     public static void configureScene(Scene scene) {

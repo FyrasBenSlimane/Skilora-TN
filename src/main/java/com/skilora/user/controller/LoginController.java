@@ -2,6 +2,7 @@ package com.skilora.user.controller;
 
 import com.skilora.user.entity.User;
 import com.skilora.user.service.AuthService;
+import com.skilora.security.LoginSecurityService;
 import com.skilora.ui.MainView;
 import com.skilora.framework.layouts.TLWindow;
 import com.skilora.framework.utils.WindowConfig;
@@ -77,10 +78,44 @@ public class LoginController implements Initializable {
         this.stage = stage;
     }
 
+    /**
+     * Pre-fill the username field (e.g. after registration).
+     */
+    public void setPrefilledUsername(String username) {
+        if (usernameField != null && username != null && !username.isEmpty()) {
+            usernameField.setText(username);
+        }
+    }
+
+    @FXML private Label heroHeading;
+    @FXML private Label heroSubtitle;
+    @FXML private Label heroBrand;
+    @FXML private Label welcomeTitle;
+    @FXML private Label welcomeSubtitle;
+    @FXML private Label orContinueLabel;
+    @FXML private Label noAccountLabel;
+
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        applyI18n();
         setupEventHandlers();
         initializeVideo();
+    }
+
+    private void applyI18n() {
+        if (heroBrand != null) heroBrand.setText(I18n.get("app.name"));
+        if (heroHeading != null) heroHeading.setText(I18n.get("login.hero.heading"));
+        if (heroSubtitle != null) heroSubtitle.setText(I18n.get("login.hero.subtitle"));
+        if (welcomeTitle != null) welcomeTitle.setText(I18n.get("login.welcome"));
+        if (welcomeSubtitle != null) welcomeSubtitle.setText(I18n.get("login.welcome.subtitle"));
+        if (usernameField != null) { usernameField.setLabel(I18n.get("login.username")); usernameField.setPromptText(I18n.get("login.username.prompt")); }
+        if (passwordField != null) { passwordField.setLabel(I18n.get("login.password")); passwordField.setPromptText(I18n.get("login.password.prompt")); }
+        if (forgotPasswordLink != null) forgotPasswordLink.setText(I18n.get("login.forgot_password"));
+        if (loginBtn != null) loginBtn.setText(I18n.get("login.sign_in"));
+        if (biometricBtn != null) biometricBtn.setText(I18n.get("login.biometric_login"));
+        if (orContinueLabel != null) orContinueLabel.setText(I18n.get("login.or_continue"));
+        if (noAccountLabel != null) noAccountLabel.setText(I18n.get("login.no_account"));
+        if (registerLink != null) registerLink.setText(I18n.get("login.sign_up"));
     }
 
     private void setupEventHandlers() {
@@ -101,18 +136,24 @@ public class LoginController implements Initializable {
 
     @FXML
     private void handleLogin() {
+        usernameField.clearValidation();
+        passwordField.clearValidation();
+        errorLabel.setVisible(false);
+        errorLabel.setManaged(false);
+
         String username = usernameField.getText();
         String password = passwordField.getText();
 
-        // Null/empty validation
+        boolean hasError = false;
         if (username == null || username.trim().isEmpty()) {
-            showError(I18n.get("login.error.username_required"));
-            return;
+            usernameField.setError(I18n.get("login.error.username_required"));
+            hasError = true;
         }
         if (password == null || password.trim().isEmpty()) {
-            showError(I18n.get("login.error.password_required"));
-            return;
+            passwordField.setError(I18n.get("login.error.password_required"));
+            hasError = true;
         }
+        if (hasError) return;
 
         loginBtn.setDisable(true);
         loginBtn.setText(I18n.get("login.signing_in"));
@@ -136,6 +177,12 @@ public class LoginController implements Initializable {
                 // Check lockout state on background thread (not UI thread)
                 boolean lockedAfterAttempt = !user.isPresent() && authService.isLockedOut(username);
                 int lockMinutes = lockedAfterAttempt ? authService.getRemainingLockoutMinutes(username) : 0;
+
+                // Security: trigger camera capture on repeated failed attempts
+                if (!user.isPresent()) {
+                    int failCount = authService.getRecentFailedAttemptCount(username);
+                    LoginSecurityService.getInstance().onLoginFailed(username, failCount, lockedAfterAttempt);
+                }
 
                 Platform.runLater(() -> {
                     if (user.isPresent()) {
@@ -273,6 +320,9 @@ public class LoginController implements Initializable {
         }
         MediaCache.getInstance().dispose();
 
+        // Release camera — security camera is only needed on the login screen
+        com.skilora.user.service.FastCameraManager.getInstance().shutdown();
+
         MainView dashboardView = new MainView(user);
         dashboardView.setupWindowControls(stage);
 
@@ -323,7 +373,7 @@ public class LoginController implements Initializable {
 
         // Face scan icon
         SVGPath faceIcon = new SVGPath();
-        faceIcon.setContent("M9 11.75c-.69 0-1.25.56-1.25 1.25s.56 1.25 1.25 1.25 1.25-.56 1.25-1.25-.56-1.25-1.25-1.25zm6 0c-.69 0-1.25.56-1.25 1.25s.56 1.25 1.25 1.25 1.25-.56 1.25-1.25-.56-1.25-1.25-1.25zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8 0-.29.02-.58.05-.86 2.36-1.05 4.23-2.98 5.21-5.37C11.07 8.33 14.05 10 17.42 10c.78 0 1.53-.09 2.25-.26.21.71.33 1.47.33 2.26 0 4.41-3.59 8-8 8z");
+        faceIcon.setContent(SvgIcons.SCAN_FACE);
         faceIcon.getStyleClass().add("svg-path");
         faceIcon.setScaleX(2.0);
         faceIcon.setScaleY(2.0);
@@ -352,7 +402,8 @@ public class LoginController implements Initializable {
         // Buttons
         ButtonType setupNow = new ButtonType(com.skilora.utils.I18n.get("login.biometric.setup_now"), javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
         ButtonType remindLater = new ButtonType(com.skilora.utils.I18n.get("login.biometric.later"), javafx.scene.control.ButtonBar.ButtonData.CANCEL_CLOSE);
-        dialog.getDialogPane().getButtonTypes().addAll(remindLater, setupNow);
+        dialog.addButton(remindLater);
+        dialog.addButton(setupNow);
 
         Optional<ButtonType> result = dialog.showAndWait();
         if (result.isPresent() && result.get() == setupNow) {
@@ -448,9 +499,12 @@ public class LoginController implements Initializable {
                 overlay.widthProperty().bind(heroContainer.widthProperty());
                 overlay.heightProperty().bind(heroContainer.heightProperty());
 
-                // Derive overlay color from the current theme background
-                // Auth hero overlay always uses dark tint for text readability over video
-                javafx.scene.paint.Color themeBg = javafx.scene.paint.Color.web("#000000");
+                // Derive overlay color from the current theme
+                boolean isLight = heroContainer.getScene() != null
+                        && heroContainer.getScene().getRoot().getStyleClass().contains("light");
+                javafx.scene.paint.Color themeBg = isLight
+                        ? javafx.scene.paint.Color.web("#ffffff")
+                        : javafx.scene.paint.Color.web("#191a1c");
                 javafx.scene.paint.Stop[] stops = new javafx.scene.paint.Stop[] {
                         new javafx.scene.paint.Stop(0, javafx.scene.paint.Color.color(themeBg.getRed(), themeBg.getGreen(), themeBg.getBlue(), 0.9)),
                         new javafx.scene.paint.Stop(0.5, javafx.scene.paint.Color.color(themeBg.getRed(), themeBg.getGreen(), themeBg.getBlue(), 0.4)),

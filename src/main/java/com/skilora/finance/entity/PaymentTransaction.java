@@ -21,6 +21,9 @@ public class PaymentTransaction {
     private String reference;
     private LocalDateTime transactionDate;
     private String notes;
+    private String stripePaymentId;
+    private String referenceProjet;
+    private String nomBeneficiaire;
 
     public PaymentTransaction() {
         this.currency = "TND";
@@ -67,6 +70,15 @@ public class PaymentTransaction {
 
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
+
+    public String getStripePaymentId() { return stripePaymentId; }
+    public void setStripePaymentId(String stripePaymentId) { this.stripePaymentId = stripePaymentId; }
+
+    public String getReferenceProjet() { return referenceProjet; }
+    public void setReferenceProjet(String referenceProjet) { this.referenceProjet = referenceProjet; }
+
+    public String getNomBeneficiaire() { return nomBeneficiaire; }
+    public void setNomBeneficiaire(String nomBeneficiaire) { this.nomBeneficiaire = nomBeneficiaire; }
 
     @Override
     public boolean equals(Object o) {

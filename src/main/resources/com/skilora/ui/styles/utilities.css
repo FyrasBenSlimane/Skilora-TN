@@ -15,6 +15,20 @@
 .py-sm { -fx-padding: 8px 0; }
 .py-md { -fx-padding: 16px 0; }
 
+/* Directional padding */
+.pt-4 { -fx-padding: 4 0 0 0; }
+.pt-8 { -fx-padding: 8 0 0 0; }
+.pt-16 { -fx-padding: 16 0 0 0; }
+.pt-20 { -fx-padding: 20 0 0 0; }
+.pb-8 { -fx-padding: 0 0 8 0; }
+.pb-24 { -fx-padding: 0 0 24 0; }
+.pb-28 { -fx-padding: 0 0 28 0; }
+.p-48 { -fx-padding: 48; }
+
+/* Backgrounds & Effects */
+.bg-transparent { -fx-background-color: transparent; -fx-background: transparent; }
+.no-effect { -fx-effect: null; }
+
 .gap-xs { -fx-spacing: 4px; }
 .gap-sm { -fx-spacing: 8px; }
 .gap-md { -fx-spacing: 16px; }
@@ -24,8 +38,12 @@
 .text-primary { -fx-text-fill: -fx-foreground; }
 .text-muted { -fx-text-fill: -fx-muted-foreground; }
 .text-destructive { -fx-text-fill: -fx-destructive; }
+.text-success { -fx-text-fill: -fx-success; }
+.text-warning { -fx-text-fill: -fx-warning; }
 
 /* Use variables from theme.css */
+.text-3xs { -fx-font-size: 10px; }
+.text-2xs { -fx-font-size: 11px; }
 .text-xs { -fx-font-size: 12px; }
 .text-sm { -fx-font-size: 14px; }
 .text-base { -fx-font-size: 16px; }
@@ -38,6 +56,7 @@
 .font-medium { -fx-font-weight: 500; }
 .font-semibold { -fx-font-weight: 600; }
 .font-bold { -fx-font-weight: bold; }
+.italic { -fx-font-style: italic; }
 .font-title { -fx-font-family: "Inter", "System", "Segoe UI", sans-serif; }
 .font-body { -fx-font-family: "Inter", "System", "Segoe UI", sans-serif; }
 
@@ -54,6 +73,105 @@
 
 /* ========== STATE ========== */
 .disabled { -fx-opacity: 0.5; -fx-cursor: default; }
+
+/* ========== BORDERS ========== */
+.border-destructive { -fx-border-color: -fx-destructive; -fx-border-width: 1px; }
+
+/* ========== BACKGROUNDS ========== */
+.bg-muted { -fx-background-color: -fx-muted; }
+.bg-muted-rounded { -fx-background-color: -fx-muted; -fx-background-radius: 8px; }
+
+/* ========== SVG ICON FILLS ========== */
+.icon-foreground { -fx-fill: -fx-foreground; }
+.icon-muted { -fx-fill: -fx-muted-foreground; }
+.icon-primary { -fx-fill: -fx-primary; }
+
+/* ========== CHAT BUBBLES ========== */
+.chat-bubble-mine {
+    -fx-background-color: -fx-primary;
+    -fx-text-fill: -fx-primary-foreground;
+    -fx-padding: 10 14;
+    -fx-background-radius: 12;
+}
+.chat-bubble-other {
+    -fx-background-color: -fx-muted;
+    -fx-text-fill: -fx-foreground;
+    -fx-padding: 10 14;
+    -fx-background-radius: 12;
+}
+.chat-bubble-sm-mine {
+    -fx-background-color: -fx-primary;
+    -fx-text-fill: -fx-primary-foreground;
+    -fx-padding: 8 12;
+    -fx-background-radius: 12;
+}
+.chat-bubble-sm-other {
+    -fx-background-color: -fx-muted;
+    -fx-text-fill: -fx-foreground;
+    -fx-padding: 8 12;
+    -fx-background-radius: 12;
+}
+.chat-typing-indicator {
+    -fx-background-color: -fx-muted;
+    -fx-padding: 10 18;
+    -fx-background-radius: 12;
+}
+.chat-bubble-internal {
+    -fx-background-color: -fx-secondary;
+    -fx-text-fill: -fx-muted-foreground;
+    -fx-padding: 10 14;
+    -fx-background-radius: 12;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1;
+    -fx-border-radius: 12;
+    -fx-font-style: italic;
+}
+.comment-card-bg {
+    -fx-background-color: -fx-muted;
+    -fx-background-radius: 8;
+}
+
+/* ========== REPLY TEXTAREA ========== */
+.reply-textarea {
+    -fx-background-color: -fx-background;
+    -fx-text-fill: -fx-foreground;
+    -fx-border-color: -fx-input;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 10 14;
+}
+
+/* ========== SPECIFIC UTILITIES ========== */
+.text-13 { -fx-font-size: 13px; }
+.bg-card { -fx-background-color: -fx-background; -fx-background-radius: 8px; }
+.icon-red { -fx-fill: -fx-red; }
+.cursor-hand { -fx-cursor: hand; }
+.bg-muted-rounded-sm { -fx-background-color: -fx-muted; -fx-background-radius: 6px; }
+.icon-btn-sm { -fx-min-width: 24; -fx-min-height: 24; -fx-padding: 0; }
+
+/* ========== PROGRESS BAR ACCENTS ========== */
+.accent-success { -fx-accent: -fx-success; }
+.accent-warning { -fx-accent: -fx-warning; }
+.accent-muted { -fx-accent: -fx-muted-foreground; }
+
+/* ========== VIEWFINDER STROKES ========== */
+.viewfinder-success { -fx-stroke: -fx-green; -fx-stroke-width: 4; }
+.viewfinder-error { -fx-stroke: -fx-red; -fx-stroke-width: 4; }
+.viewfinder-scanning { -fx-stroke: -fx-blue; -fx-stroke-width: 3; }
+
+/* ========== STEP INDICATOR (Forgot Password) ========== */
+.step-circle-done { -fx-background-color: -fx-green; -fx-background-radius: 16; }
+.step-num-active { -fx-font-size: 13px; -fx-font-weight: 700; -fx-text-fill: -fx-primary-foreground; }
+.step-num-done { -fx-font-size: 13px; -fx-font-weight: 700; -fx-text-fill: -fx-green-foreground; }
+.step-num-inactive { -fx-font-size: 13px; -fx-font-weight: 700; -fx-text-fill: -fx-muted-foreground; }
+.step-label-active { -fx-font-size: 11px; -fx-text-fill: -fx-primary; }
+.step-label-done { -fx-font-size: 11px; -fx-text-fill: -fx-green; }
+.step-label-inactive { -fx-font-size: 11px; -fx-text-fill: -fx-muted-foreground; }
+.connector-done { -fx-background-color: -fx-green; -fx-background-radius: 1; }
+.connector-pending { -fx-background-color: -fx-muted; -fx-background-radius: 1; }
+.timer-safe { -fx-font-size: 12px; -fx-font-weight: 600; -fx-text-fill: -fx-green; -fx-alignment: center; }
+.timer-warning { -fx-font-size: 12px; -fx-font-weight: 600; -fx-text-fill: -fx-amber; -fx-alignment: center; }
+.timer-danger { -fx-font-size: 12px; -fx-font-weight: 600; -fx-text-fill: -fx-red; -fx-alignment: center; }
 
 /* ========== BORDER RADIUS (6px default) ========== */
 .rounded-sm { -fx-background-radius: 4px; -fx-border-radius: 4px; }

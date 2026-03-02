@@ -197,82 +197,11 @@ public class ContractService {
     }
 
     /**
-     * Updates an existing contract.
-     */
-    public boolean update(EmploymentContract contract) throws SQLException {
-        String sql = "UPDATE employment_contracts SET user_id = ?, employer_id = ?, job_offer_id = ?, " +
-                "salary_base = ?, currency = ?, start_date = ?, end_date = ?, contract_type = ?, " +
-                "status = ?, pdf_url = ?, is_signed = ? WHERE id = ?";
-
-        try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setInt(1, contract.getUserId());
-
-            if (contract.getEmployerId() != null) {
-                stmt.setInt(2, contract.getEmployerId());
-            } else {
-                stmt.setNull(2, Types.INTEGER);
-            }
-
-            if (contract.getJobOfferId() != null) {
-                stmt.setInt(3, contract.getJobOfferId());
-            } else {
-                stmt.setNull(3, Types.INTEGER);
-            }
-
-            stmt.setBigDecimal(4, contract.getSalaryBase());
-            stmt.setString(5, contract.getCurrency());
-            stmt.setDate(6, Date.valueOf(contract.getStartDate()));
-
-            if (contract.getEndDate() != null) {
-                stmt.setDate(7, Date.valueOf(contract.getEndDate()));
-            } else {
-                stmt.setNull(7, Types.DATE);
-            }
-
-            stmt.setString(8, contract.getContractType());
-            stmt.setString(9, contract.getStatus());
-            stmt.setString(10, contract.getPdfUrl());
-            stmt.setBoolean(11, contract.isSigned());
-            stmt.setInt(12, contract.getId());
-
-            return stmt.executeUpdate() > 0;
-        }
-    }
-
-    /**
      * Signs a contract: sets is_signed=TRUE, signed_date=NOW(), status='ACTIVE'.
      */
     public boolean sign(int id) throws SQLException {
         String sql = "UPDATE employment_contracts SET is_signed = TRUE, signed_date = NOW(), " +
                 "status = 'ACTIVE' WHERE id = ?";
-
-        try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, id);
-            return stmt.executeUpdate() > 0;
-        }
-    }
-
-    /**
-     * Terminates a contract: sets status='TERMINATED'.
-     */
-    public boolean terminate(int id) throws SQLException {
-        String sql = "UPDATE employment_contracts SET status = 'TERMINATED' WHERE id = ?";
-
-        try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, id);
-            return stmt.executeUpdate() > 0;
-        }
-    }
-
-    /**
-     * Deletes a contract only if status is 'DRAFT'.
-     */
-    public boolean delete(int id) throws SQLException {
-        String sql = "DELETE FROM employment_contracts WHERE id = ? AND status = 'DRAFT'";
 
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -319,7 +248,9 @@ public class ContractService {
 
         contract.setSalaryBase(rs.getBigDecimal("salary_base"));
         contract.setCurrency(rs.getString("currency"));
-        contract.setStartDate(rs.getDate("start_date").toLocalDate());
+
+        Date startDate = rs.getDate("start_date");
+        contract.setStartDate(startDate != null ? startDate.toLocalDate() : null);
 
         Date endDate = rs.getDate("end_date");
         contract.setEndDate(endDate != null ? endDate.toLocalDate() : null);

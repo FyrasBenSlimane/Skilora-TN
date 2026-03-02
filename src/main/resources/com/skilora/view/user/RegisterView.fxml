@@ -13,68 +13,61 @@
       styleClass="app-root"
       fillHeight="true">
     
-    <!-- LEFT SIDE (Hero) -->
     <StackPane fx:id="heroContainer" styleClass="auth-hero" 
                prefWidth="500" minWidth="400" alignment="CENTER">
         <HBox.hgrow>ALWAYS</HBox.hgrow>
         
-        <!-- Content Layer (video/overlay added programmatically) -->
         <VBox alignment="BOTTOM_LEFT" maxHeight="Infinity">
             <padding><Insets top="48" right="48" bottom="48" left="48"/></padding>
             
-            <!-- Brand -->
             <HBox spacing="12" alignment="CENTER_LEFT">
                 <SVGPath content="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z" 
-                         style="-fx-fill: white;" scaleX="1.5" scaleY="1.5"/>
-                <Label text="Skilora Tunisia" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: white;"/>
+                         styleClass="hero-icon" scaleX="1.5" scaleY="1.5"/>
+                <Label fx:id="heroBrandLabel" text="" styleClass="hero-brand"/>
             </HBox>
             
             <Region VBox.vgrow="ALWAYS"/>
             
-            <!-- Quote -->
             <VBox spacing="16">
-                <Label text="Join the future of&#10;Talent Management." 
-                       style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: white;" 
-                       wrapText="true"/>
-                <Label text="Create your profile in seconds." 
-                       style="-fx-font-size: 14px; -fx-text-fill: rgba(255,255,255,0.8);"/>
+                <Label fx:id="heroHeadingLabel" text="" styleClass="hero-heading" wrapText="true"/>
+                <Label fx:id="heroSubtitleLabel" text="" styleClass="hero-subtitle"/>
             </VBox>
         </VBox>
     </StackPane>
     
-    <!-- RIGHT SIDE (Form) -->
     <StackPane minWidth="400" alignment="CENTER">
         <HBox.hgrow>ALWAYS</HBox.hgrow>
         
         <VBox spacing="24" maxWidth="380" alignment="CENTER_LEFT">
-            <!-- Header -->
             <VBox spacing="8" alignment="CENTER_LEFT">
-                <Label text="Create an account" styleClass="h2"/>
-                <Label text="Enter your email below to create your account" styleClass="text-muted"/>
+                <Label fx:id="formTitleLabel" text="" styleClass="h2"/>
+                <Label fx:id="formSubtitleLabel" text="" styleClass="text-muted"/>
             </VBox>
             
-            <!-- Error Label -->
             <Label fx:id="errorLabel" visible="false" managed="false" styleClass="text-sm, text-destructive"/>
+
+            <HBox fx:id="roleToggle" spacing="0" alignment="CENTER" styleClass="role-toggle">
+                <TLButton fx:id="freelancerBtn" text="I want to work" variant="PRIMARY"
+                          onAction="#selectFreelancer" HBox.hgrow="ALWAYS" maxWidth="Infinity"/>
+                <TLButton fx:id="clientBtn" text="I want to hire" variant="OUTLINE"
+                          onAction="#selectClient" HBox.hgrow="ALWAYS" maxWidth="Infinity"/>
+            </HBox>
+
+            <TLTextField fx:id="fullNameField" label="" promptText=""/>
+            <TLTextField fx:id="usernameField" label="" promptText=""/>
+            <TLTextField fx:id="emailField" label="" promptText=""/>
+            <TLPasswordField fx:id="passwordField" label="" promptText=""/>
+            <TLPasswordField fx:id="confirmPasswordField" label="" promptText=""/>
             
-            <!-- Form Fields -->
-            <TLTextField fx:id="fullNameField" label="Full Name" promptText="Ahmed Ben Ali"/>
-            <TLTextField fx:id="usernameField" label="Username" promptText="ahmed.benali"/>
-            <TLTextField fx:id="emailField" label="Email" promptText="ahmed@example.com"/>
-            <TLPasswordField fx:id="passwordField" label="Password" promptText="Min. 8 characters"/>
-            <TLPasswordField fx:id="confirmPasswordField" label="Confirm Password" promptText="Re-enter your password"/>
+            <TLButton fx:id="registerBtn" text="" variant="PRIMARY" maxWidth="Infinity" onAction="#handleRegister"/>
             
-            <!-- Register Button -->
-            <TLButton fx:id="registerBtn" text="Sign Up" variant="PRIMARY" maxWidth="Infinity" onAction="#handleRegister"/>
-            
-            <!-- Divider -->
             <HBox alignment="CENTER">
-                <Label text="ALREADY HAVE AN ACCOUNT?" styleClass="text-xs, text-muted"/>
+                <Label fx:id="dividerLabel" text="" styleClass="text-xs, text-muted"/>
             </HBox>
             
-            <!-- Login Link -->
             <HBox spacing="4" alignment="CENTER">
-                <Label text="Already have an account?" styleClass="text-muted"/>
-                <TLButton fx:id="loginLink" text="Sign In" variant="GHOST" style="-fx-padding: 0;" onAction="#openLogin"/>
+                <Label fx:id="alreadyAccountLabel" text="" styleClass="text-muted"/>
+                <TLButton fx:id="loginLink" text="" variant="GHOST" styleClass="link-inline" onAction="#openLogin"/>
             </HBox>
         </VBox>
     </StackPane>

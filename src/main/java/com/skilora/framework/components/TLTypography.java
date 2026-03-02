@@ -8,6 +8,9 @@ import javafx.scene.control.Label;
  */
 public class TLTypography extends Label {
 
+    private static final String STYLESHEET =
+            TLTypography.class.getResource("/com/skilora/framework/styles/tl-typography.css").toExternalForm();
+
     public enum Variant {
         H1, H2, H3, P, SM, XS
     }
@@ -22,6 +25,7 @@ public class TLTypography extends Label {
 
     public TLTypography(String text, Variant variant) {
         super(text);
+        getStylesheets().add(STYLESHEET);
         getStyleClass().add(variantToClass(variant));
     }
 

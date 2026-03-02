@@ -6,6 +6,7 @@ import java.util.Objects;
 public class UserFeedback {
     private int id;
     private int userId;
+    private int ticketId;
     private String feedbackType;
     private int rating;
     private String comment;
@@ -31,6 +32,9 @@ public class UserFeedback {
     
     public int getUserId() { return userId; }
     public void setUserId(int userId) { this.userId = userId; }
+    
+    public int getTicketId() { return ticketId; }
+    public void setTicketId(int ticketId) { this.ticketId = ticketId; }
     
     public String getFeedbackType() { return feedbackType; }
     public void setFeedbackType(String feedbackType) { this.feedbackType = feedbackType; }
