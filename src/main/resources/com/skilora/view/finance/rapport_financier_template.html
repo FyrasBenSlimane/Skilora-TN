@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Rapport Financier Skilora</title>
+  <style>
+    body { background-color: #0d1117; color: #e8edf2; font-family: Arial, Helvetica, sans-serif; padding: 52px 40px 80px; margin: 0; }
+    .page { max-width: 880px; margin: 0 auto; }
+    .header { padding-bottom: 36px; border-bottom: 1px solid #1e2d3d; margin-bottom: 36px; }
+    .header table, .meta-bar table, .payslip-row table { width: 100%; border-collapse: collapse; }
+    .header td, .meta-bar td, .payslip-row td { vertical-align: middle; }
+    h1 { font-family: Georgia, serif; font-size: 40px; color: #00c4a7; margin: 0 0 8px 0; line-height: 1.05; }
+    .subtitle { font-size: 11px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; color: #00c4a7; }
+    .logo-fallback { font-family: Georgia, serif; font-size: 28px; font-weight: 900; color: #e8edf2; text-align: right; }
+    .logo-dot { color: #00c4a7; }
+    .logo-tagline { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #00c4a7; text-align: right; margin-top: 5px; }
+    .meta-bar { margin-bottom: 40px; margin-top: 30px; }
+    .mlabel { font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #6a7f96; display: block; margin-bottom: 5px; }
+    .mvalue { font-size: 16px; font-weight: 600; color: #e8edf2; }
+    .section { background: #111820; border: 1px solid #1e2d3d; border-left: 3px solid #00c4a7; border-radius: 18px; padding: 28px 32px; margin-bottom: 18px; }
+    .section-header { margin-bottom: 20px; }
+    .sec-icon { width: 38px; height: 38px; background: rgba(0,196,167,0.12); border: 1px solid rgba(0,196,167,0.3); border-radius: 8px; text-align: center; line-height: 38px; font-size: 16px; display: inline-block; vertical-align: middle; }
+    .sec-title { font-family: Georgia, serif; font-size: 20px; color: #00c4a7; margin: 0; padding-left: 12px; vertical-align: middle; }
+    .salary-grid { display: grid; gap: 14px; }
+    .salary-card { background: #0f161d; border: 1px solid #1e2d3d; border-radius: 12px; padding: 20px 22px; margin-bottom: 15px; }
+    .report-field { margin-bottom: 14px; line-height: 1.5; }
+    .report-field:last-child { margin-bottom: 0; }
+    .report-field-label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #00c4a7; margin-bottom: 4px; }
+    .report-field-value { font-size: 15px; font-weight: 600; color: #e8edf2; }
+    .role { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; color: #6a7f96; margin-bottom: 10px; }
+    .amount { font-family: Georgia, serif; font-size: 26px; font-weight: 700; color: #00c4a7; }
+    .currency { font-size: 13px; color: #6a7f96; margin-left: 5px; }
+    .bank-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+    .bank-card { background: #0f161d; border: 1px solid #1e2d3d; border-radius: 12px; padding: 16px 18px; margin-bottom: 15px; }
+    .bank-name { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #6a7f96; margin-bottom: 8px; }
+    .iban { font-size: 14px; font-weight: 600; color: #e8edf2; letter-spacing: 1px; }
+    .bonus-badge { background: rgba(240,192,64,0.1); border: 1px solid rgba(240,192,64,0.3); border-radius: 12px; padding: 18px 26px; display: inline-block; }
+    .b-amount { font-family: Georgia, serif; font-size: 35px; font-weight: 900; color: #f0c040; }
+    .b-currency { font-size: 14px; color: rgba(240,192,64,0.6); margin-left: 6px; }
+    .b-label { font-size: 11px; font-weight: 600; color: rgba(240,192,64,0.6); text-transform: uppercase; letter-spacing: 2px; margin-top: 5px; }
+    .payslip-row { padding: 16px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .payslip-col-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; color: #6a7f96; margin-bottom: 5px; }
+    .payslip-col-value { font-size: 15px; font-weight: 600; color: #e8edf2; }
+    .payslip-net { font-family: Georgia, serif; font-size: 21px; font-weight: 700; color: #e8edf2; }
+    .payslip-net-currency { font-size: 13px; color: #6a7f96; margin-left: 5px; }
+    .tag { background: rgba(0,196,167,0.08); border: 1px solid rgba(0,196,167,0.3); color: #00c4a7; font-size: 11px; font-weight: bold; padding: 5px 12px; border-radius: 20px; letter-spacing: 1px; text-transform: uppercase; display: inline-block; }
+    .summary-text { color: #e8edf2; font-size: 15px; line-height: 1.7; }
+    .footer { margin-top: 52px; padding-top: 26px; border-top: 1px solid #1e2d3d; font-size: 11px; color: #6a7f96; text-align: center; text-transform: uppercase; letter-spacing: 1px; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <table>
+      <tr>
+        <td style="width:55%;">
+          <h1>Rapport Financier</h1>
+          <p class="subtitle">Document confidentiel</p>
+        </td>
+        <td style="width:45%; text-align:right;">
+          <div class="logo-fallback">SKIL<span class="logo-dot">O</span>RA</div>
+          <div class="logo-tagline">Prove your skills</div>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="meta-bar">
+    <table>
+      <tr>
+        <td style="width:50%;">
+          <span class="mlabel">Employé :</span>
+          <span class="mvalue">{{EMPLOYEE_NAME}}</span>
+        </td>
+        <td style="width:50%;">
+          <span class="mlabel">Émis le :</span>
+          <span class="mvalue">{{DATE_EMIS}}</span>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  {{SECTION_SUMMARY}}
+  {{SECTION_CONTRACTS}}
+  {{SECTION_BANK}}
+  {{SECTION_BONUS}}
+  {{SECTION_PAYSLIPS}}
+
+  <div class="footer">
+    Document confidentiel -- Skilora Gestion Finance -- {{YEAR}}
+  </div>
+
+</div>
+</body>
+</html>

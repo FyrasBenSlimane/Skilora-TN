@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+
+<!--
+  PaymentView.fxml — Stripe Payment Form (test-mode).
+  Adapted from branch paiement.fxml.
+-->
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.skilora.finance.controller.PaymentController"
+      spacing="16"
+      style="-fx-padding: 24; -fx-background-color: -fx-background;">
+
+    <Label text="💳 Effectuer un Paiement Stripe"
+           style="-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+
+    <GridPane hgap="14" vgap="14"
+              style="-fx-background-color: -fx-card; -fx-padding: 24; -fx-background-radius: 12; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 12;">
+
+        <Label text="Montant (TND)" GridPane.rowIndex="0" GridPane.columnIndex="0"
+               style="-fx-text-fill: -fx-foreground;"/>
+        <TextField fx:id="txtMontant" promptText="0.00" GridPane.rowIndex="0" GridPane.columnIndex="1"
+                   prefWidth="220"/>
+
+        <Label text="Référence Projet" GridPane.rowIndex="1" GridPane.columnIndex="0"
+               style="-fx-text-fill: -fx-foreground;"/>
+        <TextField fx:id="txtReferenceProjet" promptText="REF-001" GridPane.rowIndex="1" GridPane.columnIndex="1"
+                   prefWidth="220"/>
+
+        <Label text="Bénéficiaire" GridPane.rowIndex="2" GridPane.columnIndex="0"
+               style="-fx-text-fill: -fx-foreground;"/>
+        <ComboBox fx:id="cmbNomBeneficiaire" promptText="Choisir…" GridPane.rowIndex="2" GridPane.columnIndex="1"
+                  prefWidth="220"/>
+
+        <Label text="Numéro de Carte" GridPane.rowIndex="3" GridPane.columnIndex="0"
+               style="-fx-text-fill: -fx-foreground;"/>
+        <TextField fx:id="txtNumeroCarte" promptText="4242 4242 4242 4242" GridPane.rowIndex="3" GridPane.columnIndex="1"
+                   prefWidth="220"/>
+
+        <Label text="Expiration" GridPane.rowIndex="4" GridPane.columnIndex="0"
+               style="-fx-text-fill: -fx-foreground;"/>
+        <TextField fx:id="txtExpiration" promptText="MM/AA" GridPane.rowIndex="4" GridPane.columnIndex="1"
+                   prefWidth="100"/>
+
+        <Label text="CVV" GridPane.rowIndex="5" GridPane.columnIndex="0"
+               style="-fx-text-fill: -fx-foreground;"/>
+        <TextField fx:id="txtCvv" promptText="123" GridPane.rowIndex="5" GridPane.columnIndex="1"
+                   prefWidth="80"/>
+
+        <Button fx:id="btnPayer" text="Payer" onAction="#onPayer"
+                GridPane.rowIndex="6" GridPane.columnIndex="1"
+                style="-fx-background-color: #4f46e5; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 24; -fx-cursor: hand; -fx-background-radius: 8;"/>
+    </GridPane>
+
+    <ProgressIndicator fx:id="progressIndicator" visible="false" maxWidth="36" maxHeight="36"/>
+
+    <Label fx:id="lblResultat" text=""
+           style="-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground;"/>
+
+    <!-- Stripe test-card reminder -->
+    <VBox spacing="4" style="-fx-padding: 10; -fx-background-color: rgba(59,130,246,0.08); -fx-background-radius: 8;">
+        <Label text="ℹ️  Carte test Stripe : 4242 4242 4242 4242"
+               style="-fx-text-fill: #3b82f6; -fx-font-size: 12px;"/>
+        <Label text="Expiration : toute date future  |  CVV : n'importe lequel"
+               style="-fx-text-fill: #3b82f6; -fx-font-size: 11px;"/>
+    </VBox>
+
+</VBox>
