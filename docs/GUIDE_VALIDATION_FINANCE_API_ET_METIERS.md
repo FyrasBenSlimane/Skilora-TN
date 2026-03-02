@@ -82,6 +82,31 @@ Envoyer un message **WhatsApp** de confirmation après un paiement réussi (bén
 
 ---
 
+### 1.3 API OpenAI (IA — chatbot et résumé PDF)
+
+**À quoi ça sert ?**  
+Générer des réponses en langage naturel pour le **chatbot Ma Paie** et pour le **résumé en tête du rapport PDF**. Même API, deux usages : questions/réponses (chatbot) et rédaction d'un paragraphe (résumé PDF).
+
+**Où c'est dans le projet ?**
+- **Service** : `com.skilora.finance.service.FinanceChatbotAIService`
+- **Configuration** : `config.properties` → `openai.api.key` (clé secrète OpenAI, type sk-... ou sk-proj-...)
+- **Utilisation** :  
+  - **Chatbot** : `FinanceChatbotService.answer()` appelle `FinanceChatbotAIService.askAI(question, context)`.  
+  - **Résumé PDF** : `FinanceController.buildProfessionalSummaryWithAI()` appelle `FinanceChatbotAIService.generateReportSummary(rawData)`.
+
+**Comment ça marche ?**
+- Appels HTTP **POST** vers `https://api.openai.com/v1/chat/completions` avec le header `Authorization: Bearer <api_key>`.
+- Corps JSON : `model` (gpt-4o-mini), `messages` (rôle system + rôle user), `max_tokens`, `temperature`.
+- **Chatbot** : message système = instructions (assistant Ma Paie, sujets paie/finance uniquement, refus hors-sujet) + contexte (employé, dernier bulletin, liste employés). Message utilisateur = la question.
+- **Résumé PDF** : message système = consigne de rédaction (un paragraphe professionnel en français à partir des données). Message utilisateur = données brutes (contrat, bulletins, primes, comptes) construites par `buildRawDataForAISummary`.
+- Réponse : on extrait `choices[0].message.content` (texte renvoyé par l'IA).
+
+**Points à retenir**  
+- Une seule clé OpenAI (`openai.api.key`) pour les deux fonctionnalités IA (chatbot + résumé PDF).  
+- Si la clé est absente ou invalide : **repli** sur les règles (chatbot) et sur la logique métier (résumé PDF), sans crash.
+
+---
+
 ## PARTIE 2 — LES MÉTIERS AVANCÉS
 
 ### 2.1 Chatbot Finance (assistant Ma Paie) — avec IA (OpenAI)
@@ -119,15 +144,18 @@ Un assistant qui répond **uniquement** aux questions sur la paie et la finance 
 
 ---
 
-### 2.2 Résumé automatique du rapport PDF (par employé)
+### 2.2 Résumé automatique du rapport PDF (par employé) — avec IA (OpenAI)
 
 **À quoi ça sert ?**  
 En tête du rapport financier PDF, on affiche un **paragraphe unique** qui résume la situation de l’employé : poste, type de contrat, salaire, nombre de bulletins, dernier net, primes, comptes bancaires. Ce n’est plus un texte générique identique pour tout le monde.
 
 **Où c’est ?**
-- **Construction du texte** : `FinanceController.buildProfessionalSummary(int empId, String employeeName)`
-- **Utilisation** : `FinanceController.handleGenerateEmployeeReport()` appelle cette méthode puis passe le résultat en `customSummary` à `PDFGenerator.generateEmployeeReport(...)`.
-- **PDF** : `PDFGenerator` insère ce texte dans la section « Résumé » du rapport (template HTML).
+- **Point d'entrée** : `FinanceController.buildProfessionalSummaryWithAI(empId, employeeName)` — tente d'abord l'IA, puis repli sur la logique métier.
+- **Données pour l'IA** : `buildRawDataForAISummary(empId, employeeName)` construit le texte structuré (contrat, bulletins, primes, comptes) envoyé à l'API.
+- **Appel IA** : `FinanceChatbotAIService.generateReportSummary(rawData)` — envoie les données à OpenAI (consigne : un paragraphe professionnel en français).
+- **Repli** : `FinanceController.buildProfessionalSummary(empId, employeeName)` — logique déterministe sans IA.
+- **Utilisation** : `handleGenerateEmployeeReport()` appelle `buildProfessionalSummaryWithAI` puis passe le résultat en `customSummary` à `PDFGenerator.generateEmployeeReport(...)`.
+- **PDF** : `PDFGenerator` insère ce texte dans la section Résumé du rapport (template HTML).
 
 **Comment c’est fait ?**
 - On filtre les listes déjà en mémoire (contrats, bulletins, primes, comptes) pour l’employé choisi.
@@ -138,8 +166,8 @@ En tête du rapport financier PDF, on affiche un **paragraphe unique** qui résu
 - Tout est **déterministe**, à partir des données du contrôleur (pas d’API, pas de LLM).
 
 **Points pour le professeur**  
-- Résumé « automatique » = logique métier qui agrège les données de l’employé (contrat, bulletins, primes, banques).  
-- Chaque employé a un résumé différent car les données sont différentes.  
+- Résumé PDF = métier intégré avec l'IA (OpenAI si clé ; sinon repli logique). Même service FinanceChatbotAIService pour chatbot et résumé PDF qui agrège les données de l’employé (contrat, bulletins, primes, banques).  
+- Chaque employé a un résumé différent (données différentes ; IA ou logique les transforme en paragraphe).  
 - Pas d’IA externe.
 
 ---
@@ -181,7 +209,7 @@ Produire un **rapport financier** (PDF ou HTML) par employé : résumé personna
 **Où c’est ?**
 - **Générateur** : `com.skilora.finance.utils.PDFGenerator`
 - **Template HTML** : `src/main/resources/com/skilora/finance/rapport_financier_template.html`
-- **Données** : `FinanceController` construit les blocs HTML (`buildContractInfo`, `buildBankInfo`, `buildBonusInfo`, `buildPayslipInfo`) et le résumé (`buildProfessionalSummary`), puis appelle `PDFGenerator.generateEmployeeReport(...)`.
+- **Données** : `FinanceController` construit les blocs HTML (`buildContractInfo`, `buildBankInfo`, `buildBonusInfo`, `buildPayslipInfo`) et le résumé (buildProfessionalSummaryWithAI, ou buildProfessionalSummary en repli), puis appelle `PDFGenerator.generateEmployeeReport(...)`.
 
 **Technique**  
 - L’utilisateur choisit l’emplacement du fichier (FileChooser).  
@@ -231,10 +259,10 @@ Permettre de « payer » un avance projet : saisie bénéficiaire, montant, réf
 
 | Sujet | Réponse courte |
 |-------|----------------|
-| **Quelles API externes ?** | **Stripe** (paiements carte, mode TEST) et **Twilio** (envoi WhatsApp). Les deux utilisent des appels HTTP ; les clés sont dans `config.properties`. |
-| **Où sont les clés API ?** | `src/main/resources/config.properties` (Stripe, Twilio, et **OpenAI** : `openai.api.key` pour le chatbot IA). |
+| **Quelles API externes ?** | **Stripe** (paiements), **Twilio** (WhatsApp), **OpenAI** (IA : chatbot + résumé PDF). Toutes en HTTP ; clés dans `config.properties`. |
+| **Où sont les clés API ?** | `src/main/resources/config.properties` (Stripe, Twilio, **OpenAI** : `openai.api.key` pour chatbot **et** résumé PDF). |
 | **Comment fonctionne le chatbot ?** | Si `openai.api.key` est configurée : réponses par **IA (OpenAI GPT)** avec contexte (dernier bulletin, liste employés). Sinon (ou en erreur) : **repli par règles** + mots-clés (finance/paie), refus hors-sujet, personnalisation via le même contexte. |
-| **Résumé automatique PDF ?** | Méthode `buildProfessionalSummary` dans `FinanceController` : agrège contrat, bulletins, primes, comptes pour l’employé et produit un paragraphe. Injecté comme `customSummary` dans le générateur PDF. Pas d’IA externe. |
+| **Résumé automatique PDF ?** | Avec IA : `buildProfessionalSummaryWithAI` + `generateReportSummary` (OpenAI). Sans clé : repli `buildProfessionalSummary`. Dans `FinanceController` : agrège contrat, bulletins, primes, comptes pour l’employé et produit un paragraphe. Injecté comme `customSummary` dans le générateur PDF. Pas d’IA externe. |
 | **Calculs fiscaux ?** | `TaxCalculationService` : CNSS (9,18 % / 16,5 %), IRPP progressif (tranches 0–35 %). Tout en Java, pas d’API. |
 | **Génération PDF ?** | `PDFGenerator` : HTML à partir d’un template + sections ; conversion en PDF (OpenHTML-to-PDF, puis iText en secours). Données et résumé fournis par `FinanceController`. |
 | **Workflow paiement ?** | Formulaire → Stripe (resolve PM, create PaymentIntent, confirm) → sauvegarde en BDD (`Paiement` + `stripe_payment_id`) → envoi WhatsApp (Twilio). Task en arrière-plan pour ne pas bloquer l’UI. |
@@ -246,7 +274,7 @@ Permettre de « payer » un avance projet : saisie bénéficiaire, montant, réf
 - **Stripe** : `StripePaymentService.java`, `config.properties` (stripe.*), `PaiementController.java`  
 - **Twilio** : `SmsService.java`, `config.properties` (twilio.*), appel depuis `PaiementController` après succès paiement  
 - **Chatbot (avec IA)** : `FinanceChatbotService.java`, `FinanceChatbotAIService.java` (appel OpenAI), `config.properties` (openai.api.key), `EmployeurFinanceController.java` (buildChatContext, handleChatSend), `EmployeurFinanceView.fxml`  
-- **Résumé PDF** : `FinanceController.buildProfessionalSummary`, `handleGenerateEmployeeReport`, `PDFGenerator.generateEmployeeReport` (paramètre customSummary)  
+- **Résumé PDF (avec IA)** : `FinanceController.buildProfessionalSummaryWithAI`, `buildRawDataForAISummary`, `FinanceChatbotAIService.generateReportSummary`, repli `buildProfessionalSummary`, `handleGenerateEmployeeReport`, `PDFGenerator.generateEmployeeReport` (paramètre customSummary)  
 - **Fiscal** : `TaxCalculationService.java`  
 - **PDF** : `PDFGenerator.java`, `rapport_financier_template.html`, `FinanceController` (buildContractInfo, buildBankInfo, buildBonusInfo, buildPayslipInfo)  
 - **Paiement (workflow)** : `PaiementController.java`, `PaiementService.java`, `Paiement.java`, `paiement.fxml`

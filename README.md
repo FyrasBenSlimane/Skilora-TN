@@ -6,6 +6,16 @@
 
 ---
 
+## 📌 Pour la validation / questions du professeur
+
+**Pour tout retrouver vite et ne pas paniquer :**
+- **Index du projet (où est quoi)** → **[INDEX_PROJET.md](INDEX_PROJET.md)**
+- **Guide complet APIs + métiers avancés + IA (Finance)** → **[docs/GUIDE_VALIDATION_FINANCE_API_ET_METIERS.md](docs/GUIDE_VALIDATION_FINANCE_API_ET_METIERS.md)**
+
+Module Finance : code dans `src/main/java/com/skilora/finance/`, vues dans `src/main/resources/finance/views/`, clés API dans `src/main/resources/config.properties`.
+
+---
+
 ## 🚀 La Vision
 
 **Skilora Tunisia** n'est pas seulement une plateforme ; c'est un pont vers l'avenir.
