@@ -19,17 +19,18 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * AISummaryService — Service d'intégration de l'API Google Gemini pour résumer les discussions.
+ * AISummaryService — Service d'intégration de l'API Google Gemini pour résumer
+ * les discussions.
  *
  * ╔═══════════════════════════════════════════════════════════════════╗
- * ║  API UTILISÉE : Google Gemini (generativelanguage.googleapis.com)║
- * ║  Modèle       : gemini-2.0-flash (gratuit)                     ║
- * ║  Format        : JSON (REST)                                    ║
- * ║  Limite        : 15 requêtes/min (tier gratuit)                 ║
+ * ║ API UTILISÉE : Google Gemini (generativelanguage.googleapis.com)║
+ * ║ Modèle : gemini-2.0-flash (gratuit) ║
+ * ║ Format : JSON (REST) ║
+ * ║ Limite : 15 requêtes/min (tier gratuit) ║
  * ╠═══════════════════════════════════════════════════════════════════╣
- * ║  STRATÉGIE :                                                     ║
- * ║  1. Appel Gemini API avec retry (3 tentatives, backoff)         ║
- * ║  2. Si API indisponible → résumé local algorithmique            ║
+ * ║ STRATÉGIE : ║
+ * ║ 1. Appel Gemini API avec retry (3 tentatives, backoff) ║
+ * ║ 2. Si API indisponible → résumé local algorithmique ║
  * ╚═══════════════════════════════════════════════════════════════════╝
  *
  * Pattern : Singleton thread-safe (cohérent avec TranslationService, etc.)
@@ -42,8 +43,8 @@ public class AISummaryService {
     private static final String GEMINI_API_KEY = loadApiKey();
 
     // ── URL de l'API Gemini ──
-    private static final String GEMINI_API_URL =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + GEMINI_API_KEY;
+    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key="
+            + GEMINI_API_KEY;
 
     /**
      * Charge la clé API depuis le fichier .env à la racine du projet.
@@ -80,7 +81,8 @@ public class AISummaryService {
     // ── Singleton ──
     private static volatile AISummaryService instance;
 
-    private AISummaryService() {}
+    private AISummaryService() {
+    }
 
     public static AISummaryService getInstance() {
         if (instance == null) {
@@ -118,6 +120,7 @@ public class AISummaryService {
 
     /**
      * Appelle l'API Gemini avec retry et backoff exponentiel.
+     * 
      * @return Le résumé ou null si toutes les tentatives échouent
      */
     private String callGeminiWithRetry(List<String> messages) {
@@ -155,8 +158,8 @@ public class AISummaryService {
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setDoOutput(true);
-                conn.setConnectTimeout(15000);
-                conn.setReadTimeout(30000);
+                conn.setConnectTimeout(30000); // Augmenté à 30 secondes
+                conn.setReadTimeout(60000); // Augmenté à 60 secondes
 
                 try (OutputStream os = conn.getOutputStream()) {
                     byte[] input = body.getBytes(StandardCharsets.UTF_8);
@@ -216,7 +219,8 @@ public class AISummaryService {
                 return null;
             } catch (Exception e) {
                 logger.error("Error calling Gemini API (attempt " + attempt + ")", e);
-                if (attempt == MAX_RETRIES) return null;
+                if (attempt == MAX_RETRIES)
+                    return null;
             }
         }
         return null; // All retries exhausted
@@ -225,7 +229,8 @@ public class AISummaryService {
     /**
      * Génère un résumé local algorithmique (sans API).
      * Analyse les messages pour extraire : participants, nombre de messages,
-     * sujets principaux, et les messages les plus longs (souvent les plus importants).
+     * sujets principaux, et les messages les plus longs (souvent les plus
+     * importants).
      */
     private String generateLocalSummary(List<String> messages) {
         StringBuilder sb = new StringBuilder();
