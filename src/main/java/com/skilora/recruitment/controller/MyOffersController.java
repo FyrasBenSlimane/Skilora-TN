@@ -4,7 +4,6 @@ import com.skilora.recruitment.entity.JobOffer;
 import com.skilora.user.entity.User;
 import com.skilora.recruitment.enums.JobStatus;
 import com.skilora.recruitment.service.JobService;
-import com.skilora.recruitment.service.ApplicationService;
 import com.skilora.framework.components.TLButton;
 import com.skilora.framework.components.TLCard;
 import com.skilora.framework.components.TLBadge;
@@ -63,10 +62,8 @@ public class MyOffersController implements Initializable {
     @FXML private TLButton newOfferBtn;
 
     private final JobService jobService = JobService.getInstance();
-    private final ApplicationService applicationService = ApplicationService.getInstance();
     private User currentUser;
     private Runnable onNewOffer;
-    private java.util.function.Consumer<JobOffer> onViewDetails;
     private List<JobOffer> allOffers;
     private String currentFilter = "ALL";
 
@@ -86,10 +83,6 @@ public class MyOffersController implements Initializable {
 
     public void setOnNewOffer(Runnable onNewOffer) {
         this.onNewOffer = onNewOffer;
-    }
-
-    public void setOnViewDetails(java.util.function.Consumer<JobOffer> onViewDetails) {
-        this.onViewDetails = onViewDetails;
     }
 
     private void setupFilters() {
@@ -257,17 +250,6 @@ public class MyOffersController implements Initializable {
             detailsRow.getChildren().add(dateLabel);
         }
 
-        // Application count
-        try {
-            int appCount = jobService.countApplicationsForJob(offer.getId());
-            Label appCountLabel = new Label(I18n.get("myoffers.app_count", appCount));
-            appCountLabel.setGraphic(SvgIcons.icon(SvgIcons.USERS, 14, "-fx-muted-foreground"));
-            appCountLabel.getStyleClass().add("text-muted");
-            detailsRow.getChildren().add(appCountLabel);
-        } catch (Exception ex) {
-            // skip count if DB unavailable
-        }
-
         // Actions row
         TLSeparator sep = new TLSeparator();
 
@@ -287,115 +269,11 @@ public class MyOffersController implements Initializable {
             actionsRow.getChildren().add(closeBtn);
         }
 
-        // View Details button
-        TLButton viewBtn = new TLButton(I18n.get("myoffers.view_details"), TLButton.ButtonVariant.OUTLINE);
-        viewBtn.setOnAction(e -> showOfferDetailsDialog(offer));
-        actionsRow.getChildren().add(viewBtn);
-
         actionsRow.getChildren().addAll(editBtn, deleteBtn);
-
-        // Reopen button for closed offers
-        if (offer.getStatus() == JobStatus.CLOSED) {
-            TLButton reopenBtn = new TLButton(I18n.get("myoffers.reopen"), TLButton.ButtonVariant.SECONDARY);
-            reopenBtn.setOnAction(e -> handleReopenOffer(offer));
-            actionsRow.getChildren().add(reopenBtn);
-        }
 
         content.getChildren().addAll(topRow, detailsRow, sep, actionsRow);
         card.getContent().add(content);
         return card;
-    }
-
-    /** Show a dialog with full details of the selected job offer. */
-    private void showOfferDetailsDialog(JobOffer offer) {
-        TLDialog<ButtonType> dialog = new TLDialog<>();
-        dialog.setTitle(I18n.get("myoffers.view_details"));
-        dialog.setDialogTitle(offer.getTitle());
-        dialog.setDescription(offer.getCompanyName() != null ? offer.getCompanyName() : "");
-
-        VBox body = new VBox(12);
-
-        // Status
-        HBox statusRow = new HBox(8);
-        statusRow.setAlignment(Pos.CENTER_LEFT);
-        Label statusLabel = new Label(I18n.get("inbox.col.status") + ":");
-        statusLabel.setStyle("-fx-font-weight:bold;");
-        TLBadge statusBadge = new TLBadge(
-                offer.getStatus() != null ? offer.getStatus().name() : "—",
-                offer.getStatus() == JobStatus.OPEN || offer.getStatus() == JobStatus.ACTIVE
-                        ? TLBadge.Variant.SUCCESS : TLBadge.Variant.SECONDARY);
-        statusRow.getChildren().addAll(statusLabel, statusBadge);
-        body.getChildren().add(statusRow);
-
-        // Location & work type
-        if (offer.getLocation() != null && !offer.getLocation().isBlank()) {
-            body.getChildren().add(detailLine("\uD83D\uDCCD " + I18n.get("postjob.location"), offer.getLocation()));
-        }
-        if (offer.getWorkType() != null && !offer.getWorkType().isBlank()) {
-            body.getChildren().add(detailLine("\uD83C\uDFE2 " + I18n.get("myoffers.detail.worktype"), offer.getWorkType()));
-        }
-
-        // Salary
-        String salaryText = String.format("%.0f - %.0f %s",
-                offer.getSalaryMin(), offer.getSalaryMax(),
-                offer.getCurrency() != null ? offer.getCurrency() : "TND");
-        body.getChildren().add(detailLine("\uD83D\uDCB0 " + I18n.get("postjob.salary"), salaryText));
-
-        // Dates
-        if (offer.getPostedDate() != null) {
-            body.getChildren().add(detailLine("\uD83D\uDCC5 " + I18n.get("myoffers.detail.posted"), offer.getPostedDate().format(DATE_FMT)));
-        }
-        if (offer.getDeadline() != null) {
-            body.getChildren().add(detailLine("\u23F0 " + I18n.get("myoffers.detail.deadline"), offer.getDeadline().format(DATE_FMT)));
-        }
-
-        // Required skills
-        if (offer.getRequiredSkills() != null && !offer.getRequiredSkills().isEmpty()) {
-            Label skillsTitle = new Label("\uD83D\uDCDD " + I18n.get("postjob.skills_required"));
-            skillsTitle.setStyle("-fx-font-weight:bold;");
-            body.getChildren().add(skillsTitle);
-
-            javafx.scene.layout.FlowPane skillsFlow = new javafx.scene.layout.FlowPane(8, 6);
-            for (String skill : offer.getRequiredSkills()) {
-                TLBadge skillBadge = new TLBadge(skill, TLBadge.Variant.OUTLINE);
-                skillsFlow.getChildren().add(skillBadge);
-            }
-            body.getChildren().add(skillsFlow);
-        }
-
-        // Description
-        if (offer.getDescription() != null && !offer.getDescription().isBlank()) {
-            body.getChildren().add(new TLSeparator());
-            Label descTitle = new Label(I18n.get("postjob.description"));
-            descTitle.setStyle("-fx-font-weight:bold;");
-            Label descBody = new Label(offer.getDescription());
-            descBody.setWrapText(true);
-            descBody.setMaxWidth(500);
-            descBody.getStyleClass().add("text-muted");
-            body.getChildren().addAll(descTitle, descBody);
-        }
-
-        // Application count
-        try {
-            int appCount = applicationService.getApplicationsByJobOffer(offer.getId()).size();
-            body.getChildren().add(detailLine("\uD83D\uDC65 " + I18n.get("myoffers.detail.applications"), String.valueOf(appCount)));
-        } catch (Exception ignored) {}
-
-        dialog.setContent(body);
-        dialog.getDialogPane().getButtonTypes().setAll(ButtonType.CLOSE);
-        dialog.showAndWait();
-    }
-
-    /** Helper: creates a single "label: value" line for the details dialog. */
-    private HBox detailLine(String label, String value) {
-        HBox row = new HBox(8);
-        row.setAlignment(Pos.CENTER_LEFT);
-        Label lbl = new Label(label + ":");
-        lbl.setStyle("-fx-font-weight:bold;");
-        Label val = new Label(value);
-        val.getStyleClass().add("text-muted");
-        row.getChildren().addAll(lbl, val);
-        return row;
     }
 
     @FXML
@@ -590,40 +468,6 @@ public class MyOffersController implements Initializable {
                     offersContainer.setDisable(false);
                     logger.error("Failed to close offer", task.getException());
                     TLToast.error(offersContainer.getScene(), I18n.get("common.error"), I18n.get("error.failed_close_offer"));
-                });
-
-                AppThreadPool.execute(task);
-            }
-        });
-    }
-
-    private void handleReopenOffer(JobOffer offer) {
-        DialogUtils.showConfirmation(
-            I18n.get("myoffers.reopen.confirm.title"),
-            I18n.get("myoffers.reopen.confirm.message", offer.getTitle())
-        ).ifPresent(result -> {
-            if (result == ButtonType.OK) {
-                offersContainer.setDisable(true);
-                offer.setStatus(JobStatus.OPEN);
-                Task<Boolean> task = new Task<>() {
-                    @Override
-                    protected Boolean call() throws Exception {
-                        return jobService.updateJobOffer(offer);
-                    }
-                };
-                task.setOnSucceeded(e -> {
-                    offersContainer.setDisable(false);
-                    TLToast.success(offersContainer.getScene(),
-                            I18n.get("myoffers.reopen.success.title"),
-                            I18n.get("myoffers.reopen.success.msg"));
-                    loadData();
-                });
-                task.setOnFailed(e -> {
-                    offersContainer.setDisable(false);
-                    logger.error("Failed to reopen offer", task.getException());
-                    TLToast.error(offersContainer.getScene(),
-                            I18n.get("common.error"),
-                            I18n.get("myoffers.reopen.error.msg"));
                 });
 
                 AppThreadPool.execute(task);

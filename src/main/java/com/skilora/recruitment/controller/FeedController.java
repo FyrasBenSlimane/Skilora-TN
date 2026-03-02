@@ -2,10 +2,7 @@ package com.skilora.recruitment.controller;
 
 import com.skilora.recruitment.entity.JobOpportunity;
 import com.skilora.recruitment.service.JobService;
-import com.skilora.recruitment.service.MatchingService;
 import com.skilora.recruitment.ui.JobCard;
-import com.skilora.user.entity.Profile;
-import com.skilora.user.service.ProfileService;
 import com.skilora.framework.components.TLButton;
 import com.skilora.framework.components.TLEmptyState;
 import com.skilora.framework.components.TLLoadingState;
@@ -66,15 +63,10 @@ public class FeedController implements Initializable {
 
     private TLTabs tagTabs;
     private final JobService jobService;
-    private final MatchingService matchingService;
-    private final ProfileService profileService;
 
     private List<JobOpportunity> allJobs;
     private List<JobOpportunity> currentFilteredJobs;
     private boolean isLoadingMore = false;
-
-    /** Pre-built user skill corpus for efficient batch scoring (null if unavailable). */
-    private Set<String> candidateCorpus;
 
     private java.util.function.Consumer<JobOpportunity> onJobClick;
     private User currentUser;
@@ -100,8 +92,6 @@ public class FeedController implements Initializable {
 
     public FeedController() {
         this.jobService = JobService.getInstance();
-        this.matchingService = MatchingService.getInstance();
-        this.profileService = ProfileService.getInstance();
     }
 
     public void setOnJobClick(java.util.function.Consumer<JobOpportunity> onJobClick) {
@@ -195,28 +185,7 @@ public class FeedController implements Initializable {
             protected FeedData call() {
                 List<JobOpportunity> jobs = jobService.getJobsFromCache();
                 Map<JobOpportunity, String[]> cache = buildLowerCaseCache(jobs);
-
-                // Build candidate corpus + enrich match scores (no UI calls)
-                Set<String> corpus = null;
-                if (currentUser != null) {
-                    try {
-                        Profile profile = profileService.findProfileByUserId(currentUser.getId());
-                        if (profile != null) {
-                            corpus = matchingService.buildCandidateCorpus(profile.getId());
-                            if (corpus != null && !corpus.isEmpty()) {
-                                for (JobOpportunity job : jobs) {
-                                    int score = matchingService.scoreFromCorpus(
-                                        corpus, job.getTitle(), job.getDescription(),
-                                        job.getSkills());
-                                    job.setMatchPercentage(score);
-                                }
-                            }
-                        }
-                    } catch (Exception ignored) {
-                        // Profile not found or DB error — skip enrichment
-                    }
-                }
-                return new FeedData(jobs, cache, corpus);
+                return new FeedData(jobs, cache);
             }
         };
 
@@ -224,7 +193,6 @@ public class FeedController implements Initializable {
             FeedData data = loadTask.getValue();
             allJobs = data.jobs;
             lowerCaseCache = data.lowerCaseCache;
-            candidateCorpus = data.corpus;
             refreshTags();
             setupFilterBar();
             requestFilter("All", "");
@@ -321,15 +289,10 @@ public class FeedController implements Initializable {
         // Sort selector
         TLSelect<String> sortSelect = new TLSelect<>(I18n.get("feed.sort"));
         sortSelect.getItems().addAll(I18n.get("feed.sort.recent"), I18n.get("feed.sort.az"), I18n.get("feed.sort.za"));
-        // Add "Best Match" sort only if match scores are available
-        if (candidateCorpus != null && !candidateCorpus.isEmpty()) {
-            sortSelect.getItems().add(I18n.get("feed.sort.match"));
-        }
         sortSelect.setValue(I18n.get("feed.sort.recent"));
         sortSelect.valueProperty().addListener((obs, oldVal, newVal) -> {
             if (I18n.get("feed.sort.az").equals(newVal)) currentSort = "a-z";
             else if (I18n.get("feed.sort.za").equals(newVal)) currentSort = "z-a";
-            else if (I18n.get("feed.sort.match").equals(newVal)) currentSort = "match";
             else currentSort = "recent";
             requestFilter(getCurrentTagText(), searchField != null ? searchField.getText() : "");
         });
@@ -434,7 +397,6 @@ public class FeedController implements Initializable {
                     j -> j.getTitle() != null ? j.getTitle().toLowerCase() : "", Comparator.naturalOrder()));
             case "z-a" -> result.sort(Comparator.comparing(
                     (JobOpportunity j) -> j.getTitle() != null ? j.getTitle().toLowerCase() : "").reversed());
-            case "match" -> result.sort(Comparator.comparingInt(JobOpportunity::getMatchPercentage).reversed());
             default -> {} // "recent" is default order from source
         }
 
@@ -553,12 +515,10 @@ public class FeedController implements Initializable {
     private static final class FeedData {
         private final List<JobOpportunity> jobs;
         private final Map<JobOpportunity, String[]> lowerCaseCache;
-        private final Set<String> corpus;
 
-        private FeedData(List<JobOpportunity> jobs, Map<JobOpportunity, String[]> lowerCaseCache, Set<String> corpus) {
+        private FeedData(List<JobOpportunity> jobs, Map<JobOpportunity, String[]> lowerCaseCache) {
             this.jobs = jobs != null ? jobs : List.of();
             this.lowerCaseCache = lowerCaseCache != null ? lowerCaseCache : new HashMap<>();
-            this.corpus = corpus;
         }
     }
 

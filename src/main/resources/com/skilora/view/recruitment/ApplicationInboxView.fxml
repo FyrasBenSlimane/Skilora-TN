@@ -34,13 +34,11 @@
     
     <TLTable fx:id="applicationsTable" VBox.vgrow="ALWAYS">
         <columns>
-            <TableColumn fx:id="candidateCol" text="" prefWidth="180"/>
-            <TableColumn fx:id="jobCol" text="" prefWidth="170"/>
-            <TableColumn fx:id="dateCol" text="" prefWidth="100"/>
-            <TableColumn fx:id="matchCol" text="" prefWidth="90"/>
-            <TableColumn fx:id="scoreCol" text="" prefWidth="90"/>
-            <TableColumn fx:id="statusCol" text="" prefWidth="120"/>
-            <TableColumn fx:id="actionsCol" text="" prefWidth="80"/>
+            <TableColumn fx:id="candidateCol" text="" prefWidth="200"/>
+            <TableColumn fx:id="jobCol" text="" prefWidth="200"/>
+            <TableColumn fx:id="dateCol" text="" prefWidth="120"/>
+            <TableColumn fx:id="statusCol" text="" prefWidth="150"/>
+            <TableColumn fx:id="actionsCol" text="" prefWidth="200"/>
         </columns>
     </TLTable>
     

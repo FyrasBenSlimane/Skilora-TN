@@ -135,17 +135,6 @@ public class JobCard extends VBox {
             badgeRow.getChildren().add(workTypeBadge);
         }
 
-        // Match percentage badge (if enrichment data is available)
-        if (job != null && job.getMatchPercentage() > 0) {
-            int pct = job.getMatchPercentage();
-            String color = pct >= 70 ? "#16a34a" : pct >= 40 ? "#d97706" : "#6b7280";
-            Label matchBadge = new Label(pct + "% " + I18n.get("feed.match"));
-            matchBadge.setStyle(
-                "-fx-background-color: " + color + "20; -fx-text-fill: " + color + "; " +
-                "-fx-padding: 2 8; -fx-background-radius: 10; -fx-font-size: 11; -fx-font-weight: bold;");
-            badgeRow.getChildren().add(matchBadge);
-        }
-
         // Tags / Metadata
         HBox meta = new HBox(12);
         meta.setAlignment(Pos.CENTER_LEFT);

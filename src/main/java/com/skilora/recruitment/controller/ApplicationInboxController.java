@@ -63,8 +63,6 @@ public class ApplicationInboxController implements Initializable {
     @FXML private TableColumn<ApplicationRow, String> candidateCol;
     @FXML private TableColumn<ApplicationRow, String> jobCol;
     @FXML private TableColumn<ApplicationRow, String> dateCol;
-    @FXML private TableColumn<ApplicationRow, String> matchCol;
-    @FXML private TableColumn<ApplicationRow, String> scoreCol;
     @FXML private TableColumn<ApplicationRow, String> statusCol;
     @FXML private TableColumn<ApplicationRow, Void> actionsCol;
     
@@ -107,8 +105,6 @@ public class ApplicationInboxController implements Initializable {
         candidateCol.setText(I18n.get("inbox.col.candidate"));
         jobCol.setText(I18n.get("inbox.col.position"));
         dateCol.setText(I18n.get("inbox.col.date"));
-        matchCol.setText(I18n.get("inbox.col.match"));
-        scoreCol.setText(I18n.get("inbox.col.score_profil"));
         statusCol.setText(I18n.get("inbox.col.status"));
         actionsCol.setText(I18n.get("inbox.col.actions"));
         jobSelect.setPromptText(I18n.get("inbox.filter.all_jobs"));
@@ -131,59 +127,23 @@ public class ApplicationInboxController implements Initializable {
                     setText(null);
                     return;
                 }
+                ApplicationRow row = getTableView().getItems().get(getIndex());
                 Label nameLabel = new Label(candidateName);
                 nameLabel.getStyleClass().add("text-sm");
-                setGraphic(nameLabel);
+                HBox box = new HBox(8);
+                box.setAlignment(Pos.CENTER_LEFT);
+                box.getChildren().add(nameLabel);
+                if (row.getMatchPercent() != null && !row.getMatchPercent().isBlank()) {
+                    TLBadge badge = new TLBadge(row.getMatchPercent(), TLBadge.Variant.SECONDARY);
+                    box.getChildren().add(badge);
+                }
+                setGraphic(box);
                 setText(null);
             }
         });
         jobCol.setCellValueFactory(new PropertyValueFactory<>("jobTitle"));
         dateCol.setCellValueFactory(new PropertyValueFactory<>("applicationDate"));
-
-        // Match % column with coloured badges
-        matchCol.setCellValueFactory(new PropertyValueFactory<>("matchPercent"));
-        matchCol.setCellFactory(col -> new TableCell<ApplicationRow, String>() {
-            @Override
-            protected void updateItem(String pct, boolean empty) {
-                super.updateItem(pct, empty);
-                if (empty || pct == null || pct.isBlank()) {
-                    setGraphic(null);
-                    setText(null);
-                    return;
-                }
-                TLBadge.Variant variant = TLBadge.Variant.SECONDARY;
-                try {
-                    double val = Double.parseDouble(pct.replace("%", ""));
-                    if (val >= 80) variant = TLBadge.Variant.SUCCESS;
-                    else if (val >= 60) variant = TLBadge.Variant.SECONDARY;
-                    else variant = TLBadge.Variant.OUTLINE;
-                } catch (NumberFormatException ignored) {}
-                TLBadge badge = new TLBadge(pct, variant);
-                setGraphic(badge);
-                setAlignment(Pos.CENTER);
-                setText(null);
-            }
-        });
-
-        // Score profil column
-        scoreCol.setCellValueFactory(new PropertyValueFactory<>("candidateScore"));
-        scoreCol.setCellFactory(col -> new TableCell<ApplicationRow, String>() {
-            @Override
-            protected void updateItem(String score, boolean empty) {
-                super.updateItem(score, empty);
-                if (empty || score == null || score.isBlank() || "0".equals(score)) {
-                    setGraphic(null);
-                    setText(null);
-                    return;
-                }
-                Label lbl = new Label(score);
-                lbl.getStyleClass().add("text-sm");
-                setGraphic(lbl);
-                setAlignment(Pos.CENTER);
-                setText(null);
-            }
-        });
-
+        
         // Status column with badges
         statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
         statusCol.setCellFactory(col -> new TableCell<ApplicationRow, String>() {
@@ -279,8 +239,7 @@ public class ApplicationInboxController implements Initializable {
                         app.getCandidateName() != null ? app.getCandidateName() : I18n.get("inbox.candidate_num", app.getCandidateProfileId()),
                         app.getJobTitle() != null ? app.getJobTitle() : I18n.get("inbox.offer_num", app.getJobOfferId()),
                         app.getAppliedDate() != null ? app.getAppliedDate().format(DATE_FMT) : "",
-                        displayStatus,
-                        app.getCandidateScore() > 0 ? String.valueOf(app.getCandidateScore()) : ""
+                        displayStatus
                 ));
             }
 
@@ -522,9 +481,8 @@ public class ApplicationInboxController implements Initializable {
         private String applicationDate;
         private String status;
         private String matchPercent;
-        private String candidateScore;
         
-        public ApplicationRow(int applicationId, int candidateProfileId, int jobOfferId, String candidateName, String jobTitle, String applicationDate, String status, String candidateScore) {
+        public ApplicationRow(int applicationId, int candidateProfileId, int jobOfferId, String candidateName, String jobTitle, String applicationDate, String status) {
             this.applicationId = applicationId;
             this.candidateProfileId = candidateProfileId;
             this.jobOfferId = jobOfferId;
@@ -532,7 +490,6 @@ public class ApplicationInboxController implements Initializable {
             this.jobTitle = jobTitle;
             this.applicationDate = applicationDate;
             this.status = status;
-            this.candidateScore = candidateScore;
         }
 
         public int getApplicationId() { return applicationId; }
@@ -553,8 +510,5 @@ public class ApplicationInboxController implements Initializable {
 
         public String getMatchPercent() { return matchPercent; }
         public void setMatchPercent(String matchPercent) { this.matchPercent = matchPercent; }
-
-        public String getCandidateScore() { return candidateScore; }
-        public void setCandidateScore(String candidateScore) { this.candidateScore = candidateScore; }
     }
 }

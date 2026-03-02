@@ -63,7 +63,6 @@ public class InterviewsController implements Initializable {
     private List<Application> allInterviews;
     private Map<Integer, List<Interview>> interviewsByAppId = new HashMap<>();
     private String currentFilter = "ALL";
-    private volatile boolean isLoading = false;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -83,8 +82,10 @@ public class InterviewsController implements Initializable {
     private void setupFilters() {
         String[][] filters = {
             {I18n.get("interviews.filter.all"), "ALL"},
-            {I18n.get("interviews.filter.scheduled"), "SCHEDULED"},
-            {I18n.get("interviews.filter.to_schedule"), "TO_SCHEDULE"}
+            {I18n.get("interviews.filter.interview"), "INTERVIEW"},
+            {I18n.get("interviews.filter.offer_sent"), "OFFER"},
+            {I18n.get("interviews.filter.accepted"), "ACCEPTED"},
+            {I18n.get("interviews.filter.rejected"), "REJECTED"}
         };
 
         TLTabs tabs = new TLTabs();
@@ -99,8 +100,7 @@ public class InterviewsController implements Initializable {
     }
 
     private void loadData() {
-        if (currentUser == null || isLoading) return;
-        isLoading = true;
+        if (currentUser == null) return;
 
         interviewsContainer.getChildren().clear();
         interviewsContainer.getChildren().add(new TLLoadingState());
@@ -127,7 +127,6 @@ public class InterviewsController implements Initializable {
 
             @Override
             protected void succeeded() {
-                isLoading = false;
                 allInterviews = apps;
                 interviewsByAppId.clear();
                 for (Interview iv : interviews) {
@@ -143,7 +142,6 @@ public class InterviewsController implements Initializable {
 
             @Override
             protected void failed() {
-                isLoading = false;
                 logger.error("Failed to load interviews", getException());
                 statsLabel.setText(I18n.get("interviews.error"));
             }
@@ -156,25 +154,17 @@ public class InterviewsController implements Initializable {
         if (allInterviews == null) return;
 
         List<Application> filtered;
-        if ("SCHEDULED".equals(currentFilter)) {
-            // Applications that have at least one SCHEDULED interview
-            filtered = allInterviews.stream()
-                .filter(a -> {
-                    List<Interview> ivs = interviewsByAppId.getOrDefault(a.getId(), List.of());
-                    return ivs.stream().anyMatch(iv -> "SCHEDULED".equals(iv.getStatus()));
-                })
-                .collect(Collectors.toList());
-        } else if ("TO_SCHEDULE".equals(currentFilter)) {
-            // Applications in INTERVIEW status with NO scheduled interview yet
-            filtered = allInterviews.stream()
-                .filter(a -> a.getStatus() == Application.Status.INTERVIEW)
-                .filter(a -> {
-                    List<Interview> ivs = interviewsByAppId.getOrDefault(a.getId(), List.of());
-                    return ivs.stream().noneMatch(iv -> "SCHEDULED".equals(iv.getStatus()));
-                })
-                .collect(Collectors.toList());
-        } else {
+        if ("ALL".equals(currentFilter)) {
             filtered = allInterviews;
+        } else {
+            try {
+                Application.Status targetStatus = Application.Status.valueOf(currentFilter);
+                filtered = allInterviews.stream()
+                    .filter(a -> a.getStatus() == targetStatus)
+                    .collect(Collectors.toList());
+            } catch (IllegalArgumentException ex) {
+                filtered = allInterviews;
+            }
         }
 
         renderInterviews(filtered);
@@ -285,12 +275,6 @@ public class InterviewsController implements Initializable {
                     Label locLabel = new Label(iv.getLocation());
                     locLabel.getStyleClass().add("text-muted");
                     ivRow.getChildren().add(locLabel);
-                }
-
-                // Countdown widget for scheduled interviews
-                if ("SCHEDULED".equals(iv.getStatus()) && iv.getScheduledDate() != null) {
-                    InterviewCountdownWidget countdown = InterviewCountdownWidget.of(iv.getScheduledDate());
-                    ivRow.getChildren().add(countdown);
                 }
 
                 content.getChildren().add(ivRow);
