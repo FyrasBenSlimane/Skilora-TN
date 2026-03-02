@@ -28,3 +28,4 @@ tmp/
 *.tmp
 .github/
 .env
+security_captures/
