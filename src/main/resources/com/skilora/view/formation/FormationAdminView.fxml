@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+<?import com.skilora.framework.components.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.skilora.formation.controller.FormationAdminController"
+      spacing="24"
+      styleClass="transparent-bg">
+    <padding><Insets top="32" right="32" bottom="32" left="32"/></padding>
+
+    <!-- Header -->
+    <HBox spacing="16" alignment="CENTER_LEFT">
+        <VBox spacing="4">
+            <Label fx:id="titleLabel" text="Training Management" styleClass="h2"/>
+            <Label fx:id="statsLabel" text="Loading..." styleClass="text-muted"/>
+        </VBox>
+        <Region HBox.hgrow="ALWAYS"/>
+        <HBox spacing="8">
+            <TLButton fx:id="createBtn" text="New Training" variant="PRIMARY" onAction="#handleCreate"/>
+            <TLButton fx:id="refreshBtn" text="Refresh" variant="OUTLINE" onAction="#handleRefresh"/>
+        </HBox>
+    </HBox>
+
+    <!-- Formations List -->
+    <VBox fx:id="formationsContainer" spacing="12"/>
+
+    <!-- Empty State -->
+    <VBox fx:id="emptyState" spacing="12" alignment="CENTER" visible="false" managed="false"
+          styleClass="p-48">
+        <Label fx:id="emptyTitleLabel" text="No formations created" styleClass="h3"/>
+        <Label fx:id="emptySubtitleLabel" text="Start by creating your first formation." styleClass="text-muted"/>
+    </VBox>
+</VBox>

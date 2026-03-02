@@ -11,8 +11,6 @@ import com.skilora.framework.components.TLProgress;
 import com.skilora.framework.components.TLToast;
 import com.skilora.framework.components.TLTabs;
 import com.skilora.framework.components.TLDialog;
-import com.skilora.framework.components.FormationRatingPanel;
-import com.skilora.framework.components.ChatbotWidget;
 import com.skilora.formation.entity.Formation;
 import com.skilora.formation.entity.FormationModule;
 import com.skilora.formation.entity.Enrollment;
@@ -43,7 +41,6 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
 import org.slf4j.Logger;
@@ -102,7 +99,6 @@ public class FormationsController implements Initializable {
     @FXML private VBox courseDetailContainer;
     @FXML private TLButton refreshBtn;
     @FXML private TLButton certificatesBtn;
-    @FXML private StackPane chatbotContainer;
 
     private List<Formation> allFormations;
     private Map<Integer, Enrollment> userEnrollments = new HashMap<>();
@@ -202,23 +198,6 @@ public class FormationsController implements Initializable {
         }
     }
 
-    private boolean chatbotInitialized = false;
-
-    /**
-     * Initialize the floating chatbot widget once formations are loaded.
-     */
-    private void initChatbotWidget() {
-        if (chatbotInitialized || chatbotContainer == null || allFormations == null) return;
-        chatbotInitialized = true;
-        try {
-            ChatbotWidget chatbot = new ChatbotWidget(allFormations);
-            chatbotContainer.getChildren().add(chatbot);
-            StackPane.setAlignment(chatbot, Pos.BOTTOM_RIGHT);
-        } catch (Exception ex) {
-            logger.warn("Chatbot widget initialization skipped: {}", ex.getMessage());
-        }
-    }
-
     private void loadFormations() {
         formationsGrid.getChildren().clear();
         formationsGrid.getChildren().add(new TLLoadingState());
@@ -236,7 +215,6 @@ public class FormationsController implements Initializable {
             allFormations = task.getValue();
             applyFilters();
             logger.info("Loaded {} formations from database", allFormations.size());
-            initChatbotWidget();
         }));
 
         task.setOnFailed(e -> {
@@ -490,52 +468,19 @@ public class FormationsController implements Initializable {
         // ── Progress section (if enrolled) ──
         if (enrollment != null) {
             TLCard progressCard = new TLCard();
-            VBox progressBox = new VBox(12);
-            progressBox.setPadding(new Insets(20));
-
+            VBox progressBox = new VBox(8);
+            progressBox.setPadding(new Insets(16));
             Label progTitle = new Label(I18n.get("formations.detail.your_progress"));
-            progTitle.getStyleClass().add("h3");
-
-            // Overall progress bar
-            double progressVal = enrollment.getProgress();
-            boolean isCompleted = progressVal >= 100.0;
-
-            Label progLabel;
-            if (isCompleted) {
-                progLabel = new Label("\u2713 " + I18n.get("progress.formation_completed"));
-                progLabel.setStyle("-fx-text-fill: #22c55e; -fx-font-weight: 600;");
-            } else {
-                progLabel = new Label(I18n.get("formations.completion", String.format("%.0f", progressVal)));
-                progLabel.getStyleClass().add("text-muted");
-            }
-
-            TLProgress progressBar = new TLProgress(progressVal / 100.0);
+            progTitle.getStyleClass().add("h4");
+            Label progLabel = new Label(I18n.get("formations.completion", String.format("%.0f", enrollment.getProgress())));
+            progLabel.getStyleClass().add("text-muted");
+            TLProgress progressBar = new TLProgress(enrollment.getProgress() / 100.0);
             progressBar.setMaxWidth(Double.MAX_VALUE);
             progressBar.setPrefHeight(10);
-
-            // Stats row — populated after modules load
-            HBox statsRow = new HBox(12);
-            statsRow.setAlignment(Pos.CENTER_LEFT);
-            Label totalModulesLabel = new Label("...");
-            totalModulesLabel.getStyleClass().add("text-muted");
-            totalModulesLabel.setGraphic(SvgIcons.icon(SvgIcons.BOOK_OPEN, 14, "-fx-muted-foreground"));
-            Label completedModulesLabel = new Label("...");
-            completedModulesLabel.getStyleClass().add("text-muted");
-            completedModulesLabel.setGraphic(SvgIcons.icon(SvgIcons.CHECK_CIRCLE, 14, "#22c55e"));
-            Label remainingModulesLabel = new Label("...");
-            remainingModulesLabel.getStyleClass().add("text-muted");
-            remainingModulesLabel.setGraphic(SvgIcons.icon(SvgIcons.CLOCK, 14, "-fx-muted-foreground"));
-            statsRow.getChildren().addAll(totalModulesLabel, completedModulesLabel, remainingModulesLabel);
-
-            // Store refs for async update of stats
-            final Label[] statRefs = {totalModulesLabel, completedModulesLabel, remainingModulesLabel};
-
-            progressBox.getChildren().addAll(progTitle, progLabel, progressBar, statsRow);
+            progressBox.getChildren().addAll(progTitle, progLabel, progressBar);
 
             // Certificate button if 100%
-            if (isCompleted) {
-                HBox certActions = new HBox(8);
-                certActions.setAlignment(Pos.CENTER_LEFT);
+            if (enrollment.getProgress() >= 100.0) {
                 TLButton certBtn = new TLButton(I18n.get("certificate.view"), TLButton.ButtonVariant.PRIMARY);
                 certBtn.setGraphic(SvgIcons.icon(SvgIcons.CHECK_CIRCLE, 16));
                 certBtn.setOnAction(e -> {
@@ -550,31 +495,10 @@ public class FormationsController implements Initializable {
                         });
                     });
                 });
-
-                TLButton quizBtnProgress = new TLButton(I18n.get("quiz.title"), TLButton.ButtonVariant.OUTLINE);
-                quizBtnProgress.setGraphic(SvgIcons.icon(SvgIcons.LIGHTBULB, 14));
-                quizBtnProgress.setOnAction(ev -> {
-                    if (currentUser != null)
-                        QuizController.showQuizDialog(formation.getId(), currentUser.getId(), formationsGrid.getScene());
-                });
-
-                certActions.getChildren().addAll(certBtn, quizBtnProgress);
-                progressBox.getChildren().add(certActions);
+                progressBox.getChildren().add(certBtn);
             }
             progressCard.getContent().add(progressBox);
             courseDetailContainer.getChildren().add(progressCard);
-
-            // Resolve module stats async
-            AppThreadPool.execute(() -> {
-                int totalMods = moduleService.countByFormation(formation.getId());
-                int completedMods = lessonProgressService.getCompletedLessonsCount(enrollment.getId());
-                int remaining = Math.max(0, totalMods - completedMods);
-                Platform.runLater(() -> {
-                    statRefs[0].setText(I18n.get("progress.stat.total") + ": " + totalMods);
-                    statRefs[1].setText(I18n.get("progress.stat.completed") + ": " + completedMods);
-                    statRefs[2].setText(I18n.get("progress.stat.remaining") + ": " + remaining);
-                });
-            });
         } else {
             // Not enrolled — show enroll button
             TLCard enrollCard = new TLCard();
@@ -661,17 +585,6 @@ public class FormationsController implements Initializable {
                     QuizController.showQuizDialog(formation.getId(), currentUser.getId(), formationsGrid.getScene());
                 });
                 courseDetailContainer.getChildren().addAll(quizSep, quizBtn);
-
-                // Rating panel for completed formations
-                if (enrollment.getProgress() >= 100.0 && currentUser != null) {
-                    TLSeparator ratingSep = new TLSeparator();
-                    Label ratingHeader = new Label(I18n.get("formations.detail.rate_course"));
-                    ratingHeader.getStyleClass().add("h3");
-                    FormationRatingPanel ratingPanel = new FormationRatingPanel(
-                            currentUser.getId(), formation.getId());
-                    ratingPanel.setMaxWidth(Double.MAX_VALUE);
-                    courseDetailContainer.getChildren().addAll(ratingSep, ratingHeader, ratingPanel);
-                }
             }
         }));
 
