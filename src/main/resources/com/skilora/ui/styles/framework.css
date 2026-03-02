@@ -1,0 +1,539 @@
+/**
+ * Skilora Framework Shared Styles
+ *
+ * Global/shared styles for native JavaFX widgets and cross-cutting concerns.
+ * Component-specific styles are in /com/skilora/framework/styles/<component>.css
+ * and loaded by each component automatically.
+ */
+/* ========== INPUT (shadcn New York v4: h-9 rounded-md border-input bg-transparent px-3 py-1 text-sm shadow-xs) ========== */
+.text-input, .text-field {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-text-fill: -fx-foreground;
+    -fx-background-radius: 6px;           /* rounded-md */
+    -fx-border-color: -fx-input;
+    -fx-border-width: 1px;
+    -fx-border-radius: 6px;
+    -fx-padding: 4px 12px;                /* py-1=4px px-3=12px */
+    -fx-min-height: 36px;                 /* h-9 = 36px */
+    -fx-max-height: 36px;
+    -fx-font-size: 14px;                  /* text-sm */
+    -fx-prompt-text-fill: -fx-muted-foreground;
+    -fx-effect: dropshadow(gaussian, -fx-shadow-color, 1, 0, 0, 1); /* shadow-xs */
+}
+
+.text-input:hover, .text-field:hover {
+    -fx-border-color: derive(-fx-input, -10%);
+}
+.text-input:focused, .text-field:focused, .text-area:focused {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-border-color: -fx-ring;
+    -fx-border-width: 2px;
+    -fx-border-radius: 6px;
+    -fx-padding: 3px 11px;
+    -fx-effect: none;
+}
+/* ========== FORM FIELD (shadcn Field/FieldLabel/FieldDescription) ========== */
+.form-field { -fx-spacing: 8px; }     /* gap-2 = 8px */
+.form-label {
+    -fx-text-fill: -fx-foreground;
+    -fx-font-size: 14px;                  /* text-sm = 14px (shadcn Label) */
+    -fx-font-weight: 500;                 /* font-medium */
+}
+.form-helper { -fx-text-fill: -fx-muted-foreground; -fx-font-size: 13px; } /* text-[0.8rem] ~13px */
+/* ========== LABEL ========== */
+.label { -fx-text-fill: -fx-foreground; -fx-font-size: 13px; -fx-font-weight: 500; }
+/* ========== TOOLTIP ========== */
+.tooltip {
+    -fx-background-color: -fx-popover;
+    -fx-background-radius: 6px;
+    -fx-padding: 8px 12px;
+    -fx-effect: -fx-popover-shadow;
+}
+.tooltip .label { -fx-text-fill: -fx-popover-foreground; -fx-font-size: 12px; -fx-font-weight: 500; }
+/* ========== POPOVER ========== */
+.popover {
+    -fx-background-color: -fx-popover;
+    -fx-background-radius: 6px;
+    -fx-padding: 16px;
+    -fx-effect: -fx-popover-shadow;
+    -fx-min-width: 200px;
+}
+/* ========== RADIO GROUP ========== */
+/* Standard JavaFX RadioButton Styling */
+.radio-button {
+    -fx-cursor: hand;
+    -fx-text-fill: -fx-foreground;
+    -fx-font-size: 13px;
+    -fx-spacing: 8px;
+}
+.radio-button > .radio {
+    -fx-background-color: -fx-background;
+    -fx-background-radius: 9999px;
+    -fx-border-color: -fx-primary;
+    -fx-border-width: 1px;
+    -fx-border-radius: 9999px;
+    -fx-pref-width: 16px;
+    -fx-pref-height: 16px;
+    -fx-min-width: 16px;
+    -fx-min-height: 16px;
+    -fx-padding: 3px; /* controls dot size relative to container */
+}
+.radio-button:selected > .radio {
+    -fx-background-color: -fx-background;
+    -fx-border-color: -fx-primary;
+}
+.radio-button > .radio > .dot {
+    -fx-background-color: -fx-background; /* Hidden when not selected */
+    -fx-background-radius: 9999px;
+}
+.radio-button:selected > .radio > .dot {
+    -fx-background-color: -fx-primary; /* Fill dot when selected */
+}
+/* Ensure label text color is correct */
+.radio-button .label {
+    -fx-text-fill: -fx-foreground;
+}
+/* ========== SLIDER ========== */
+.slider {
+    -fx-pref-width: 9999px;
+    -fx-min-height: 24px;
+    -fx-alignment: center;
+}
+.slider .track {
+    -fx-background-color: -fx-muted;
+    -fx-background-radius: 9999px;
+    -fx-pref-height: 6px;
+    -fx-min-height: 6px;
+}
+.slider .thumb {
+    -fx-background-color: -fx-background;
+    -fx-border-color: -fx-primary;
+    -fx-border-width: 2px;
+    -fx-background-radius: 9999px;
+    -fx-border-radius: 9999px;
+    -fx-pref-width: 20px;
+    -fx-pref-height: 20px;
+    -fx-background-insets: 0;
+    -fx-effect: dropshadow(gaussian, -fx-shadow-color, 3, 0, 0, 1);
+}
+.slider .thumb:hover {
+    -fx-cursor: hand;
+    -fx-scale-x: 1.1;
+    -fx-scale-y: 1.1;
+}
+.slider:focused .thumb {
+    -fx-border-color: -fx-ring;
+    -fx-border-width: 2px;
+}
+/* ========== PAGINATION ========== */
+.pagination {
+    -fx-background-color: transparent;
+    -fx-alignment: center;
+}
+.pagination > .pagination-control {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+.pagination > .pagination-control > .control-box {
+    -fx-spacing: 4px;
+    -fx-alignment: center;
+}
+.pagination .number-button,
+.pagination .bullet-button,
+.pagination .left-arrow-button,
+.pagination .right-arrow-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6px;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-border-radius: 6px;
+    -fx-text-fill: -fx-foreground;
+    -fx-padding: 0; /* Centered content via helper */
+    -fx-font-size: 13px;
+    -fx-cursor: hand;
+    -fx-min-width: 36px;
+    -fx-min-height: 36px;
+    -fx-alignment: center;
+}
+.pagination .number-button:hover,
+.pagination .left-arrow-button:hover,
+.pagination .right-arrow-button:hover {
+    -fx-background-color: -fx-muted;
+}
+.pagination .number-button:selected {
+    -fx-background-color: transparent;
+    -fx-border-color: -fx-primary;
+    -fx-text-fill: -fx-foreground;
+    -fx-font-weight: bold;
+}
+.pagination .page-information {
+    -fx-text-fill: -fx-muted-foreground;
+    -fx-font-size: 13px;
+    -fx-padding: 4px 0 0 0;
+}
+/* Improved Arrows */
+.pagination .left-arrow, .pagination .right-arrow {
+    -fx-background-color: -fx-foreground;
+    -fx-effect: null;
+    -fx-scale-x: 0.85;
+    -fx-scale-y: 0.85;
+}
+.pagination .left-arrow-button:hover .left-arrow, 
+.pagination .right-arrow-button:hover .right-arrow {
+    -fx-background-color: -fx-foreground;
+}
+/* ========== HYPERLINK ========== */
+.hyperlink {
+    -fx-text-fill: -fx-primary;
+    -fx-underline: true;
+    -fx-font-size: 13px;
+    -fx-border-color: transparent;
+    -fx-padding: 4px 0;
+}
+.hyperlink:hover {
+    -fx-text-fill: derive(-fx-primary, 15%);
+}
+.hyperlink:visited {
+    -fx-text-fill: -fx-muted-foreground;
+}
+/* ========== ITEM (generic list) ========== */
+.item {
+    -fx-background-color: transparent;
+    -fx-padding: 8px 12px;
+    -fx-font-size: 13px;
+    -fx-text-fill: -fx-foreground;
+    -fx-cursor: hand;
+}
+.item:hover { -fx-background-color: -fx-muted; }
+.item:selected { -fx-background-color: -fx-primary; }
+.item:selected .label { -fx-text-fill: -fx-primary-foreground; }
+/* ========== CONTEXT MENU ========== */
+.context-menu {
+    -fx-background-color: -fx-popover;
+    -fx-background-radius: 6px;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-effect: -fx-popover-shadow;
+    -fx-padding: 4px;
+}
+/* ========== MENUBAR ========== */
+.menubar, .menu-bar {
+    -fx-background-color: -fx-card;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 0 8px;
+}
+.menubar .menu .label, .menu-bar .menu .label { -fx-text-fill: -fx-foreground; -fx-font-size: 13px; }
+.menubar .menu:hover .label, .menu-bar .menu:hover .label { -fx-text-fill: -fx-foreground; }
+.menu-item:focused {
+     -fx-background-color: -fx-muted;
+     -fx-background-radius: 4px;
+}
+.menu-item .label {
+    -fx-text-fill: -fx-foreground;
+    -fx-font-size: 13px;
+}
+/* ========== LIST & TREE VIEW ========== */
+.list-view, .tree-view {
+    -fx-background-color: -fx-background;
+    -fx-background-insets: 0;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+    -fx-padding: 4px;
+}
+.list-cell, .tree-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -fx-foreground;
+    -fx-padding: 8px 12px;
+    -fx-font-size: 13px;
+    -fx-cursor: hand;
+}
+.list-cell:filled:hover, .tree-cell:filled:hover {
+    -fx-background-color: -fx-muted;
+    -fx-background-radius: 4px;
+}
+.list-cell:filled:selected, .tree-cell:filled:selected {
+    -fx-background-color: -fx-primary;
+    -fx-background-radius: 4px;
+}
+.list-cell:filled:selected .text, .tree-cell:filled:selected .text {
+    -fx-fill: -fx-primary-foreground;
+}
+/* ========== SPLIT PANE ========== */
+.split-pane {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+.split-pane > .split-pane-divider {
+    -fx-background-color: -fx-border;
+    -fx-padding: 0 1px; /* Divider thickness */
+}
+/* ========== TAB PANE ========== */
+.tab-pane {
+    -fx-background-color: transparent;
+}
+.tab-pane > .tab-header-area {
+    -fx-background-color: transparent;
+    -fx-padding: 0 0 4px 0;
+}
+.tab-pane > .tab-header-area > .headers-region > .tab {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 8 16;
+    -fx-cursor: hand;
+}
+.tab-pane > .tab-header-area > .headers-region > .tab:hover {
+    -fx-background-color: -fx-muted;
+}
+.tab-pane > .tab-header-area > .headers-region > .tab:selected {
+    -fx-background-color: -fx-background;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 0 0 2px 0;
+    -fx-border-style: solid;
+}
+.tab-pane > .tab-header-area > .headers-region > .tab > .tab-container > .tab-label {
+    -fx-text-fill: -fx-muted-foreground;
+    -fx-font-size: 13px;
+    -fx-font-weight: 500;
+}
+.tab-pane > .tab-header-area > .headers-region > .tab:selected > .tab-container > .tab-label {
+    -fx-text-fill: -fx-foreground;
+}
+/* ========== TOOLBAR ========== */
+.tool-bar {
+    -fx-background-color: -fx-background;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 8px;
+    -fx-spacing: 8px;
+}
+.tool-bar .button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: -fx-foreground;
+}
+.tool-bar .button:hover {
+    -fx-background-color: -fx-muted;
+}
+/* ========== DATE PICKER ========== */
+.date-picker { -fx-background-color: transparent; }
+.date-picker .text-field { -fx-background-radius: 6px; -fx-border-radius: 6px; -fx-border-color: -fx-input; -fx-border-width: 1px; -fx-padding: 8px 12px; -fx-font-size: 13px; -fx-text-fill: -fx-foreground; }
+.date-picker .text-field:focused { -fx-border-color: -fx-ring; -fx-border-width: 2px; -fx-padding: 7px 11px; }
+.date-picker .arrow-button {
+    -fx-background-color: -fx-background;
+    -fx-background-radius: 0 6px 6px 0;
+    -fx-border-color: -fx-input;
+    -fx-border-width: 1px 1px 1px 0;
+    -fx-border-radius: 0 6px 6px 0;
+    -fx-pref-width: 30px;
+}
+.date-picker .arrow-button:hover {
+    -fx-background-color: -fx-muted;
+}
+.date-picker .arrow-button .arrow {
+    -fx-background-color: -fx-foreground;
+    -fx-scale-x: 0.8;
+    -fx-scale-y: 0.8;
+}
+/* ========== DROPDOWN MENU ========== */
+.dropdown-menu {
+    -fx-background-color: -fx-popover;
+    -fx-background-radius: 6px;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-effect: -fx-popover-shadow;
+    -fx-padding: 4px;
+}
+.dropdown-item { -fx-padding: 8px 12px; -fx-font-size: 13px; -fx-text-fill: -fx-foreground; -fx-cursor: hand; }
+.dropdown-item:hover { -fx-background-color: -fx-muted; -fx-background-radius: 4px; }
+.dropdown-item:focused { -fx-background-color: -fx-muted; -fx-background-radius: 4px; -fx-border-color: -fx-ring; -fx-border-width: 1px; -fx-border-radius: 4px; }
+/* ========== UTILITY CLASSES ========== */
+.transparent-bg {
+    -fx-background-color: transparent;
+}
+/* ========== GLOBAL SVG ICON THEME ADAPTATION ========== */
+/* Base rule: all SVG icons use stroke-based rendering (Lucide style) */
+.svg-path {
+    -fx-fill: transparent;
+    -fx-stroke: -fx-icon-color;
+    -fx-stroke-width: 2;
+    -fx-stroke-line-cap: round;
+    -fx-stroke-line-join: round;
+}
+/* Fill-based SVG icon rendering (for non-Lucide icons like shields, close polygons) */
+.svg-filled {
+    -fx-fill: -fx-icon-color;
+    -fx-stroke: transparent;
+}
+
+/* Hover: brighten icons when parent is hovered */
+.btn:hover .svg-path,
+.button:hover .svg-path {
+    -fx-stroke: -fx-icon-color-active;
+}
+
+/* Pressed state */
+.btn:pressed .svg-path,
+.button:pressed .svg-path {
+    -fx-stroke: -fx-icon-color-active;
+    -fx-opacity: 0.8;
+}
+
+/* Primary button icons should invert */
+.btn-primary .svg-path {
+    -fx-stroke: -fx-primary-foreground;
+}
+.btn-primary:hover .svg-path {
+    -fx-stroke: -fx-primary-foreground;
+}
+
+/* Destructive text icons */
+.text-destructive .svg-path {
+    -fx-stroke: -fx-destructive;
+}
+
+/* ── Offer Card Detail Chips ── */
+.offer-card {
+    -fx-effect: -fx-card-shadow;
+}
+.offer-card:hover {
+    -fx-effect: dropshadow(gaussian, -fx-shadow-color, 12, 0, 0, 4);
+}
+
+/* ── Quick Action buttons icon color (dashboard) ── */
+.btn-outline .svg-path {
+    -fx-stroke: -fx-foreground;
+}
+.btn-outline:hover .svg-path {
+    -fx-stroke: -fx-primary-foreground;
+}
+/* ========== CHIP FILTER (G-07 / R-04) ========== */
+/* Styled tag/filter pills with active state indicator */
+.chip-filter {
+    -fx-background-color: -fx-muted;
+    -fx-text-fill: -fx-muted-foreground;
+    -fx-background-radius: 9999px;
+    -fx-border-radius: 9999px;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-padding: 4px 14px;
+    -fx-font-size: 12px;
+    -fx-cursor: hand;
+}
+.chip-filter:hover {
+    -fx-background-color: -fx-accent;
+    -fx-text-fill: -fx-accent-foreground;
+    -fx-border-color: -fx-ring;
+}
+.chip-filter:selected {
+    -fx-background-color: -fx-primary;
+    -fx-text-fill: -fx-primary-foreground;
+    -fx-border-color: -fx-primary;
+}
+.chip-filter:selected:hover {
+    -fx-background-color: derive(-fx-primary, -8%);
+    -fx-border-color: derive(-fx-primary, -8%);
+}
+
+/* Applied to card-interactive and job-card-clickable classes */
+/* ========== "NEW" BADGE (R-03) ========== */
+.badge-new {
+    -fx-background-color: -fx-success;
+    -fx-text-fill: -fx-success-foreground;
+    -fx-background-radius: 4px;
+    -fx-padding: 1px 6px;
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+}
+/* ========== UNREAD DOT INDICATOR (S-02) ========== */
+.unread-dot {
+    -fx-background-color: -fx-primary;
+    -fx-background-radius: 9999px;
+    -fx-min-width: 8px;
+    -fx-min-height: 8px;
+    -fx-max-width: 8px;
+    -fx-max-height: 8px;
+}
+/* ========== INLINE VALIDATION (A-09) ========== */
+.field-valid .text-input { -fx-border-color: -fx-success; }
+.field-invalid .text-input { -fx-border-color: -fx-destructive; }
+.field-error-text {
+    -fx-font-size: 11px;
+    -fx-text-fill: -fx-destructive;
+    -fx-padding: 2px 0 0 0;
+}
+.field-success-text {
+    -fx-font-size: 11px;
+    -fx-text-fill: -fx-success;
+    -fx-padding: 2px 0 0 0;
+}
+/* ========== TOGGLE ========== */
+.toggle-button {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-background-radius: 6px;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-padding: 8px 16px;
+    -fx-font-size: 13px;
+    -fx-cursor: hand;
+    -fx-text-fill: -fx-foreground;
+}
+.toggle:hover, .toggle-button:hover { -fx-background-color: -fx-muted; }
+.toggle-button:focused { -fx-border-color: -fx-ring; }
+
+/* ========== SCROLL BAR (Minimalist & Modern) ========== */
+.scroll-bar {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+.scroll-bar:horizontal .track,
+.scroll-bar:vertical .track {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-background-radius: 0;
+}
+.scroll-bar:horizontal .thumb {
+    -fx-background-color: -fx-muted;
+    -fx-background-insets: 2 0 2 0;
+    -fx-background-radius: 9999px;
+}
+.scroll-bar:vertical .thumb {
+    -fx-background-color: -fx-muted;
+    -fx-background-insets: 0 2 0 2;
+    -fx-background-radius: 9999px;
+}
+.scroll-bar:horizontal .thumb:hover,
+.scroll-bar:vertical .thumb:hover {
+    -fx-background-color: -fx-muted-foreground;
+}
+.scroll-bar:horizontal .thumb:pressed,
+.scroll-bar:vertical .thumb:pressed {
+    -fx-background-color: -fx-foreground;
+}
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0;
+    -fx-padding: 0;
+    -fx-pref-width: 0;
+    -fx-pref-height: 0;
+    -fx-opacity: 0;
+}
+.scroll-bar .increment-arrow, 
+.scroll-bar .decrement-arrow {
+    -fx-padding: 0;
+    -fx-shape: " ";
+}
+.corner {
+    -fx-background-color: transparent;
+}
+
+/* ========== CHAT TYPING DOTS ========== */
+.chat-typing-dot { -fx-fill: -fx-muted-foreground; }

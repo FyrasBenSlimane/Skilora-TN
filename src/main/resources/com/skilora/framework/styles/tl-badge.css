@@ -1,0 +1,30 @@
+/* TLBadge Component Styles */
+/* ========== BADGE (adapt to theme) ========== */
+.badge {
+    -fx-background-color: -fx-primary;
+    -fx-background-radius: 4px;
+    -fx-padding: 1px 8px;
+    -fx-font-size: 11px;
+    -fx-font-weight: 600;
+    -fx-alignment: center;
+    -fx-min-width: 0;
+}
+.badge .label { -fx-text-fill: -fx-primary-foreground; }
+.badge-secondary { -fx-background-color: -fx-secondary; -fx-border-color: -fx-border; -fx-border-width: 1px; }
+.badge-secondary .label { -fx-text-fill: -fx-secondary-foreground; }
+.badge-destructive {
+    -fx-background-color: -fx-destructive-bg;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+}
+.badge-destructive .label { -fx-text-fill: -fx-destructive; }
+
+.badge-outline {
+    -fx-background-color: transparent;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+}
+.badge-outline .label { -fx-text-fill: -fx-foreground; }
+.badge-success { -fx-background-color: -fx-success; }
+.badge-success .label { -fx-text-fill: -fx-success-foreground; }
+

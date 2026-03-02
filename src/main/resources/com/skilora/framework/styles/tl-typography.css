@@ -1,0 +1,46 @@
+/* TLTypography Component Styles */
+/* ========== TYPOGRAPHY (adapt to theme) ========== */
+/* H1: Scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl */
+.h1, .label.h1 {
+    -fx-font-family: "Inter", "System", "Segoe UI", sans-serif;
+    -fx-font-size: 30px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -fx-foreground;
+}
+/* H2: Scroll-m-20 border-b pb-2 text-3xl font-semibold tracking-tight first:mt-0 */
+.h2, .label.h2 {
+    -fx-font-family: "Inter", "System", "Segoe UI", sans-serif;
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -fx-foreground;
+}
+/* H3: Scroll-m-20 text-2xl font-semibold tracking-tight */
+.h3, .label.h3 {
+    -fx-font-family: "Inter", "System", "Segoe UI", sans-serif;
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -fx-foreground;
+}
+/* H4: text-lg font-semibold tracking-tight */
+.h4, .label.h4 {
+    -fx-font-family: "Inter", "System", "Segoe UI", sans-serif;
+    -fx-font-size: 16px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -fx-foreground;
+}
+/* P: leading-7 [&:not(:first-child)]:mt-6 */
+.p, .label.p {
+    -fx-font-family: "Inter", "System", "Segoe UI", sans-serif;
+    -fx-font-size: 14px;
+    -fx-text-fill: -fx-foreground;
+}
+
+.text-sm, .label.text-sm {
+    -fx-font-family: "Inter", "System", "Segoe UI", sans-serif;
+    -fx-font-size: 14px;
+    -fx-text-fill: -fx-foreground;
+}
+.text-muted, .label.text-muted { -fx-text-fill: -fx-muted-foreground; }
+.font-bold { -fx-font-weight: bold; }
+/* Text node fill (JavaFX Text uses -fx-fill) */
+

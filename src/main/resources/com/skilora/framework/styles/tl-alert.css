@@ -1,0 +1,19 @@
+/* TLAlert Component Styles */
+/* ========== ALERT ========== */
+.alert {
+    -fx-background-color: -fx-background;
+    -fx-background-radius: 6px;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-border-radius: 6px;
+    -fx-padding: 16px;
+    -fx-spacing: 8px;
+}
+.alert-destructive { -fx-background-color: -fx-destructive-bg; -fx-border-color: -fx-destructive; }
+.alert-success { -fx-background-color: -fx-success-bg; -fx-border-color: -fx-success; }
+.alert-warning { -fx-background-color: -fx-warning-bg; -fx-border-color: -fx-warning; }
+.alert-info { -fx-background-color: -fx-info-bg; -fx-border-color: -fx-info; }
+.alert-icon { -fx-font-size: 16px; -fx-min-width: 20px; }
+.alert-title { -fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground; }
+.alert-description { -fx-font-size: 13px; -fx-text-fill: -fx-muted-foreground; }
+

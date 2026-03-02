@@ -1,0 +1,17 @@
+/* TLLoadingState Component Styles */
+/* ========== LOADING STATE (G-09) ========== */
+.loading-state {
+    -fx-alignment: center;
+    -fx-spacing: 12px;
+    -fx-padding: 48px 24px;
+}
+.loading-spinner {
+    -fx-progress-color: -fx-primary;
+    -fx-pref-width: 32px;
+    -fx-pref-height: 32px;
+}
+.loading-label {
+    -fx-font-size: 13px;
+    -fx-text-fill: -fx-muted-foreground;
+}
+

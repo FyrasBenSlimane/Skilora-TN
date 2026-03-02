@@ -1,0 +1,21 @@
+/* TLOtpInput Component Styles */
+/* ========== INPUT OTP ========== */
+.otp-digit {
+    -fx-font-size: 20px;
+    -fx-font-weight: 700;
+    -fx-background-color: transparent;
+    -fx-border-color: -fx-input;
+    -fx-border-width: 2;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-text-fill: -fx-foreground;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 1, 0, 0, 1);
+    -fx-alignment: center;
+    -fx-padding: 0;
+}
+.otp-digit-focused, .otp-digit:focused {
+    -fx-border-color: -fx-ring;
+    -fx-border-width: 2;
+    -fx-effect: none;
+}
+

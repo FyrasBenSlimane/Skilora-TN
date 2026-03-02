@@ -1,0 +1,14 @@
+/* TLSeparator Component Styles */
+/* ========== SEPARATOR ========== */
+.separator {
+    -fx-background-color: transparent;
+}
+.separator > .line {
+    -fx-border-style: solid;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px 0 0 0;
+}
+.separator:vertical > .line {
+    -fx-border-width: 0 0 0 1px;
+}
+

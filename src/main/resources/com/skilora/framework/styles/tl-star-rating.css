@@ -1,0 +1,7 @@
+/* TLStarRating Component Styles */
+/* ========== STAR RATING (S-05) ========== */
+.star-rating { -fx-spacing: 4px; -fx-alignment: center-left; }
+.star-rating .star { -fx-cursor: hand; }
+.star-rating .star-filled { -fx-fill: -fx-warning; -fx-stroke: -fx-warning; }
+.star-rating .star-empty { -fx-fill: transparent; -fx-stroke: -fx-muted-foreground; -fx-stroke-width: 1.5; }
+

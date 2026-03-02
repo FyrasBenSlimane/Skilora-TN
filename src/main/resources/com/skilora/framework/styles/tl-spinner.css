@@ -1,0 +1,20 @@
+/* TLSpinner Component Styles */
+/* ========== SPINNER ========== */
+.spinner, .progress-indicator {
+    -fx-pref-width: 24px;
+    -fx-pref-height: 24px;
+    -fx-min-width: 24px;
+    -fx-min-height: 24px;
+    -fx-background-color: transparent;
+}
+.spinner-arc {
+    -fx-stroke: -fx-muted-foreground;
+}
+.spinner .indicator, .progress-indicator .indicator {
+    -fx-background-color: transparent; 
+    -fx-background-radius: 0;
+}
+.spinner .progress-indicator .tick, .progress-indicator:indeterminate .segment {
+    -fx-background-color: -fx-primary;
+}
+

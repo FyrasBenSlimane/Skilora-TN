@@ -1,0 +1,555 @@
+/**
+ * Skilora Layout Styles
+ *
+ * App chrome: scrollbar resets, popup overrides, app layout (topbar, sidebar,
+ * content area), window controls, custom window decorations.
+ */
+
+/* ========== SCROLLBAR RESET (Force Override) ========== */
+.scroll-bar,
+.scroll-bar:horizontal,
+.scroll-bar:vertical {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+.scroll-bar .track {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-background-radius: 0;
+}
+.scroll-bar .thumb {
+    -fx-background-color: -fx-muted-foreground;
+    -fx-background-insets: 0;
+    -fx-background-radius: 4px;
+    -fx-opacity: 0.5;
+}
+.scroll-bar .thumb:hover { -fx-opacity: 0.8; }
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+    -fx-pref-width: 0;
+    -fx-pref-height: 0;
+}
+.scroll-bar .increment-arrow,
+.scroll-bar .decrement-arrow {
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+    -fx-shape: null;
+}
+.scroll-pane {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+.scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+/* ========== COMBOBOX POPUP OVERRIDE ========== */
+/* shadcn SelectContent: bg-popover rounded-md border shadow-md p-1 */
+.combo-box-popup .list-view {
+    -fx-background-color: -fx-popover;
+    -fx-background-insets: 0;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 8, 0, 0, 4); /* shadow-md */
+    -fx-background-radius: 8px;           /* rounded-lg */
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-padding: 4px;                     /* p-1 = 4px */
+}
+/* shadcn SelectItem: rounded-sm px-2 py-1.5 text-sm */
+.combo-box-popup .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -fx-popover-foreground;
+    -fx-padding: 6px 8px;                 /* py-1.5=6px px-2=8px */
+    -fx-font-size: 14px;                  /* text-sm */
+    -fx-cursor: hand;
+    -fx-background-radius: 4px;           /* rounded-sm */
+}
+/* SelectItem hover: bg-accent text-accent-foreground */
+.combo-box-popup .list-cell:filled:hover {
+    -fx-background-color: -fx-accent-hover;
+    -fx-text-fill: -fx-accent-foreground;
+    -fx-background-radius: 4px;
+}
+/* SelectItem selected: primary highlight for clear distinction */
+.combo-box-popup .list-cell:filled:selected {
+    -fx-background-color: -fx-primary;
+    -fx-text-fill: -fx-primary-foreground;
+    -fx-background-radius: 4px;
+}
+.combo-box-popup .list-cell:filled:selected .text {
+    -fx-fill: -fx-primary-foreground;
+}
+/* ========== DATE PICKER POPUP OVERRIDE ========== */
+.date-picker-popup {
+    -fx-background-color: -fx-popover;
+    -fx-background-insets: 0;
+    -fx-background-radius: 8px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 4);
+    -fx-padding: 12px; /* Reduced vertical padding */
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+}
+
+/* Header Area */
+.date-picker-popup .month-year-pane {
+    -fx-background-color: transparent;
+    -fx-padding: 8px 8px 12px 8px; /* Padding inside header */
+    -fx-alignment: center;
+    -fx-hgap: 12px; /* Add explicit gap between Month and Year */
+}
+.date-picker-popup .month-year-pane .label {
+    -fx-text-fill: -fx-foreground;
+    -fx-font-weight: 600;
+    -fx-font-size: 14px;
+}
+
+/* Spinners (Month/Year) */
+.date-picker-popup .spinner { 
+    -fx-background-color: transparent; 
+    -fx-alignment: center;
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+    -fx-min-width: -1; /* Reset mins */
+}
+.date-picker-popup .spinner .text-field {
+    -fx-background-color: transparent;
+    -fx-text-fill: -fx-foreground;
+    -fx-font-weight: 600;
+    -fx-alignment: center; /* Center text inside spinner */
+    -fx-padding: 0; 
+    -fx-pref-width: 90px; /* Ensure enough width for Month names */
+}
+
+/* Arrows */
+.date-picker-popup .spinner .button { 
+    -fx-background-color: transparent; 
+    -fx-padding: 4px 8px; /* Wider hit area but minimal visuals */
+    -fx-background-insets: 0;
+    -fx-cursor: hand;
+}
+.date-picker-popup .spinner .button .left-arrow,
+.date-picker-popup .spinner .button .right-arrow {
+    -fx-background-color: -fx-muted-foreground;
+    -fx-pref-width: 8px;
+    -fx-pref-height: 8px;
+    -fx-scale-x: 1;
+    -fx-scale-y: 1;
+}
+.date-picker-popup .spinner .button:hover { 
+    -fx-background-color: -fx-muted; 
+    -fx-background-radius: 4px; 
+}
+.date-picker-popup .spinner .button:hover .left-arrow,
+.date-picker-popup .spinner .button:hover .right-arrow {
+    -fx-background-color: -fx-foreground;
+}
+
+/* Calendar Grid */
+.date-picker-popup .calendar-grid {
+    -fx-background-color: transparent;
+    -fx-padding: 0; 
+    -fx-alignment: center;
+}
+.date-picker-popup .week-number-cell {
+    -fx-text-fill: -fx-muted-foreground;
+    -fx-font-size: 11px;
+}
+.date-picker-popup .day-name-cell {
+    -fx-text-fill: -fx-muted-foreground;
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+    -fx-padding: 8px 0;
+    -fx-alignment: center;
+}
+
+/* Day Cells */
+.date-picker-popup .day-cell {
+    -fx-background-color: transparent;
+    -fx-background-radius: 4px;
+    -fx-padding: 0; /* Remove padding as we use alignment */
+    -fx-font-size: 13px;
+    -fx-alignment: center;
+    -fx-text-fill: -fx-foreground;
+    -fx-border-color: transparent;
+    -fx-cursor: hand;
+    /* Fixed Size for Square Cells - Increased to widen popup */
+    -fx-pref-width: 40px; 
+    -fx-pref-height: 40px;
+    -fx-max-width: 40px;
+    -fx-max-height: 40px;
+}
+.date-picker-popup .day-cell:hover { 
+    -fx-background-color: -fx-muted; 
+}
+.date-picker-popup .selected {
+    -fx-background-color: -fx-primary;
+    -fx-text-fill: -fx-primary-foreground;
+    -fx-font-weight: 600;
+}
+.date-picker-popup .today {
+    -fx-background-color: -fx-muted;
+    -fx-text-fill: -fx-foreground;
+    -fx-border-color: transparent;
+}
+.date-picker-popup .today:hover {
+    -fx-background-color: derive(-fx-muted, -10%);
+}
+
+/* Dim previous/next month days */
+.date-picker-popup .previous-month,
+.date-picker-popup .next-month {
+    -fx-text-fill: -fx-muted-foreground;
+    -fx-opacity: 0.3; /* More subtle */
+}
+/* ========== APP LAYOUT (main window chrome) ========== */
+.app-layout {
+    -fx-background-color: -fx-background;
+}
+.app-topbar {
+    -fx-background-color: -fx-card;
+    /* PERFORMANCE: Removed dropshadow - use border instead */
+    -fx-border-color: transparent transparent -fx-border transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 12 16;
+    -fx-spacing: 12;
+    -fx-alignment: center-left;
+}
+.app-topbar .label {
+    -fx-text-fill: -fx-foreground;
+    -fx-font-size: 16px;
+    -fx-font-weight: 700;
+    -fx-padding: 0 4 0 0;
+}
+/* ========== MAIN LAYOUT ========== */
+.root {
+    -fx-font-family: "Inter", "Segoe UI", sans-serif;
+    -fx-font-smoothing-type: gray;
+}
+
+/* Sidebar: header row (toggle) */
+/* "MENU PRINCIPAL" and hamburger on one row – title gets remaining space so it doesn’t truncate */
+.sidebar-menu-header-row {
+    -fx-alignment: center-left;
+    -fx-spacing: 6;
+    -fx-padding: 0 0 8 0;
+    -fx-min-height: 40px;
+    -fx-pref-height: 40px;
+}
+.app-sidebar.collapsed .sidebar-menu-header-row {
+    -fx-padding: 0 0 8 0;
+    -fx-alignment: center;
+}
+/* Toggle: compact when expanded (more room for phrase), full size when collapsed */
+.sidebar-toggle-btn {
+    -fx-padding: 6;
+    -fx-content-display: graphic-only;
+    -fx-alignment: center;
+    -fx-graphic-text-gap: 0;
+    -fx-min-width: 36px;
+    -fx-max-width: 36px;
+    -fx-pref-width: 36px;
+    -fx-min-height: 36px;
+    -fx-max-height: 36px;
+    -fx-pref-height: 36px;
+}
+.app-sidebar.collapsed .sidebar-toggle-btn {
+    -fx-padding: 8;
+    -fx-min-width: 44px;
+    -fx-max-width: 44px;
+    -fx-pref-width: 44px;
+    -fx-min-height: 44px;
+    -fx-max-height: 44px;
+    -fx-pref-height: 44px;
+}
+.sidebar-toggle-btn .svg-path {
+    -fx-stroke: -fx-muted-foreground;
+}
+.sidebar-toggle-btn:hover .svg-path {
+    -fx-stroke: -fx-foreground;
+}
+
+.app-sidebar {
+    -fx-background-color: -fx-card;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-padding: 16 12;
+    -fx-spacing: 4;
+}
+.root:not(.light) .app-sidebar {
+    -fx-background-color: derive(-fx-background, 5%);
+}
+.root.light .app-sidebar {
+    -fx-background-color: -fx-muted;
+    -fx-border-color: transparent -fx-border transparent transparent;
+    -fx-border-width: 0 1 0 0;
+}
+
+/* Sidebar section: MENU PRINCIPAL label */
+.sidebar-title {
+    -fx-padding: 8 0 6 0;
+    -fx-font-size: 11px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -fx-muted-foreground;
+}
+
+/* Sidebar Collapsed State */
+.app-sidebar.collapsed {
+    -fx-padding: 12 8;
+    -fx-spacing: 8;
+}
+.app-sidebar.collapsed .sidebar-title {
+    -fx-opacity: 0;
+    -fx-padding: 0;
+    -fx-max-height: 0;
+    -fx-pref-height: 0;
+    -fx-min-height: 0;
+}
+.app-sidebar.collapsed .nav-menu .btn {
+    -fx-alignment: center;
+    -fx-content-display: graphic-only;
+    -fx-padding: 10;
+    -fx-min-width: 44px;
+    -fx-max-width: 44px;
+    -fx-pref-width: 44px;
+    -fx-min-height: 44px;
+    -fx-max-height: 44px;
+    -fx-pref-height: 44px;
+}
+/* Hide only nav menu button labels when collapsed; keep profile button visible */
+.app-sidebar.collapsed .nav-menu .btn .text {
+    visibility: hidden;
+}
+
+/* Profile button at bottom of sidebar: always visible, square when collapsed */
+.app-sidebar .profile-btn {
+    -fx-alignment: center-left;
+    -fx-padding: 8 12;
+    -fx-graphic-text-gap: 10;
+    -fx-min-height: 44px;
+    -fx-pref-height: 44px;
+}
+.app-sidebar.collapsed .profile-btn {
+    -fx-alignment: center;
+    -fx-content-display: graphic-only;
+    -fx-padding: 8;
+    -fx-min-width: 48px;
+    -fx-max-width: 48px;
+    -fx-pref-width: 48px;
+    -fx-min-height: 48px;
+    -fx-max-height: 48px;
+    -fx-pref-height: 48px;
+}
+.app-sidebar.collapsed .profile-btn .avatar {
+    -fx-pref-width: 36px;
+    -fx-pref-height: 36px;
+    -fx-min-width: 36px;
+    -fx-min-height: 36px;
+    -fx-max-width: 36px;
+    -fx-max-height: 36px;
+}
+
+/* Wrapper: left when expanded, centered when collapsed; always visible */
+.sidebar-profile-wrap {
+    -fx-alignment: center-left;
+    -fx-padding: 0;
+    -fx-min-height: 48px;
+    -fx-pref-height: 48px;
+}
+.app-sidebar.collapsed .sidebar-profile-wrap {
+    -fx-alignment: center;
+    -fx-padding: 8 0 0 0;
+    -fx-min-height: 48px;
+    -fx-pref-height: 48px;
+}
+
+/* Sidebar Nav Button */
+.app-sidebar .btn {
+    -fx-alignment: center-left;
+    -fx-spacing: 12;
+    -fx-padding: 8 12;
+    -fx-graphic-text-gap: 12;
+    -fx-min-height: 40px;
+}
+.app-sidebar .btn .svg-path {
+    -fx-fill: -fx-muted-foreground;
+}
+.app-sidebar .btn:hover {
+    -fx-background-color: -fx-accent-hover;
+}
+.app-sidebar .btn:hover .svg-path {
+    -fx-fill: -fx-foreground;
+}
+/* Active nav item should stand out in both modes */
+.app-sidebar .btn.nav-active {
+    -fx-background-color: -fx-accent;
+    -fx-text-fill: -fx-foreground;
+}
+.app-sidebar .btn.nav-active .svg-path {
+    -fx-fill: -fx-foreground;
+}
+.app-sidebar .profile-btn:hover .avatar,
+.app-sidebar .profile-btn:hover .avatar-fallback {
+    -fx-text-fill: -fx-foreground;
+}
+.app-content {
+    -fx-background-color: -fx-background;
+    -fx-padding: 24;
+    -fx-spacing: 24;
+}
+.theme-toggle {
+    -fx-background-color: transparent;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+    -fx-padding: 6;
+    -fx-cursor: hand;
+    -fx-text-fill: -fx-foreground;
+    -fx-font-size: 13px;
+    -fx-min-width: 34;
+    -fx-min-height: 34;
+    -fx-pref-width: 34;
+    -fx-pref-height: 34;
+    -fx-content-display: graphic-only;
+}
+.theme-toggle:hover {
+    -fx-background-color: -fx-muted;
+}
+.theme-toggle .svg-path {
+    -fx-stroke: -fx-foreground;
+}
+/* ========== SIDEBAR ========== */
+.sidebar {
+    -fx-background-color: -fx-card;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 0 1 0 0;
+}
+/* ========== WINDOW CONTROLS ========== */
+.window-controls {
+    -fx-alignment: center-right;
+}
+.window-controls.mac,
+.os-mac .window-controls {
+    -fx-alignment: center-left;
+    -fx-padding: 0 10 0 0;
+}
+.window-control-btn {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-text-fill: -fx-foreground;
+    -fx-background-radius: 4px; 
+    -fx-padding: 0;
+    -fx-alignment: center;
+    -fx-content-display: graphic-only;
+    -fx-cursor: default;
+}
+
+/* Windows / Linux window-control hit targets */
+.os-win .window-control-btn,
+.os-linux .window-control-btn {
+    -fx-min-width: 46px;
+    -fx-max-width: 46px;
+    -fx-pref-width: 46px;
+    -fx-min-height: 32px;
+    -fx-max-height: 32px;
+    -fx-pref-height: 32px;
+}
+.window-control-btn:hover { 
+    -fx-background-color: -fx-muted; 
+}
+.window-control-btn:focused,
+.window-control-close:focused {
+    -fx-border-color: transparent;
+    /* Do not show focus ring on window controls */
+    -fx-effect: null; 
+}
+.window-control-btn:pressed { -fx-background-color: derive(-fx-muted, -10%); }
+
+/* Close Button Special State */
+.window-control-close:hover {
+    -fx-background-color: -fx-destructive; /* Windows red */
+    -fx-text-fill: -fx-destructive-foreground;
+}
+.window-control-close:hover .window-control-icon {
+    -fx-fill: -fx-destructive-foreground !important;
+}
+.window-control-close:pressed { 
+    -fx-background-color: derive(-fx-destructive, -10%); 
+}
+
+/* macOS traffic lights (left) */
+.window-controls.mac .window-control-btn,
+.os-mac .window-controls .window-control-btn {
+    -fx-min-width: 12px;
+    -fx-max-width: 12px;
+    -fx-pref-width: 12px;
+    -fx-min-height: 12px;
+    -fx-max-height: 12px;
+    -fx-pref-height: 12px;
+    -fx-background-radius: 999px;
+    -fx-border-radius: 999px;
+    -fx-padding: 0;
+    -fx-cursor: hand;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+}
+/* macOS colours need double-class specificity (0,2,0) to beat
+   `.button { transparent }` from tl-button.css loaded later */
+.window-control-mac.window-control-mac-close { -fx-background-color: -fx-red; }
+.window-control-mac.window-control-mac-min   { -fx-background-color: -fx-amber; }
+.window-control-mac.window-control-mac-max   { -fx-background-color: -fx-green; }
+
+.window-control-mac.window-control-mac-close:hover { -fx-background-color: derive(-fx-red, -12%); }
+.window-control-mac.window-control-mac-min:hover   { -fx-background-color: derive(-fx-amber, -12%); }
+.window-control-mac.window-control-mac-max:hover   { -fx-background-color: derive(-fx-green, -12%); }
+
+.window-control-mac.window-control-mac-close:pressed { -fx-background-color: derive(-fx-red, -20%); }
+.window-control-mac.window-control-mac-min:pressed   { -fx-background-color: derive(-fx-amber, -20%); }
+.window-control-mac.window-control-mac-max:pressed   { -fx-background-color: derive(-fx-green, -20%); }
+/* ========== CUSTOM WINDOW ========== */
+/* Rounded corners and shadow for normal mode */
+.custom-window {
+    -fx-background-color: -fx-background;
+    -fx-background-radius: 12px;
+    -fx-border-radius: 12px;
+    -fx-border-color: transparent; 
+    -fx-border-width: 0;
+    /* Lighter shadow for better performance */
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 4);
+    /* Insets matching padding to make space for shadow */
+    -fx-background-insets: 15;
+    -fx-padding: 15;
+}
+
+/* Inner Layout Radius Adaptation */
+/* Top Bar: Top-Left & Top-Right corners */
+.custom-window > .app-topbar {
+    -fx-background-radius: 12px 12px 0 0;
+}
+/* Sidebar: Bottom-Left corner (Top is adjacent to TopBar) */
+.custom-window > .app-sidebar {
+    -fx-background-radius: 0 0 0 12px;
+}
+/* Content Area: Bottom-Right corner */
+.custom-window > .app-content {
+    -fx-background-radius: 0 0 12px 0;
+}
+
+/* MAXIMIZED STATE: Reset all radii and insets to 0 (Full Screen) */
+.custom-window.maximized {
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-border-width: 0;
+    -fx-effect: null;
+    -fx-padding: 0;
+    -fx-background-insets: 0;
+}
+.custom-window.maximized > .app-topbar,
+.custom-window.maximized > .app-sidebar,
+.custom-window.maximized > .app-content {
+    -fx-background-radius: 0;
+}

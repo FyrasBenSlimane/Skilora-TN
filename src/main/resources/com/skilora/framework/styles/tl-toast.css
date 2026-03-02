@@ -1,0 +1,17 @@
+/* TLToast Component Styles */
+/* ========== TOAST ========== */
+.toast {
+    -fx-background-color: -fx-popover;
+    -fx-background-radius: 6px;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-border-radius: 6px;
+    -fx-padding: 16px;
+    -fx-spacing: 8px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 10, 0, 0, 4);
+}
+.toast-destructive { -fx-background-color: -fx-destructive-bg; -fx-border-color: -fx-destructive; }
+.toast-success     { -fx-background-color: -fx-success-bg;     -fx-border-color: -fx-success; }
+.toast-warning     { -fx-background-color: -fx-warning-bg;     -fx-border-color: -fx-warning; }
+.toast-info        { -fx-background-color: -fx-info-bg;        -fx-border-color: -fx-info; }
+

@@ -1,0 +1,31 @@
+/* TLTabs Component Styles */
+/* ========== TABS ========== */
+.tabs { -fx-spacing: 8px; }
+.tabs-list {
+    -fx-background-insets: 0;
+    -fx-background-color: -fx-muted;
+    -fx-background-radius: 6px;
+    -fx-padding: 4px;
+    -fx-hgap: 4px;
+    -fx-vgap: 4px;
+    -fx-alignment: center-left;
+}
+.tabs-trigger {
+    -fx-background-insets: 0;
+    -fx-background-color: transparent;
+    -fx-text-fill: -fx-muted-foreground;
+    -fx-background-radius: 6px;
+    -fx-padding: 6px 12px;
+    -fx-font-size: 13px;
+    -fx-font-weight: 500;
+    -fx-cursor: hand;
+}
+.tabs-trigger:hover { -fx-background-color: -fx-muted; }
+.tabs-trigger-active {
+    -fx-background-color: -fx-background;
+    -fx-text-fill: -fx-foreground;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 2, 0, 0, 1);
+}
+.tabs-content-container { -fx-padding: 16px 0; }
+.tabs-content { -fx-spacing: 8px; }
+

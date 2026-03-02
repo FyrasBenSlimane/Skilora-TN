@@ -1,0 +1,6 @@
+/* TLEmptyState Component Styles */
+/* ========== EMPTY STATE ========== */
+.empty { -fx-spacing: 16px; -fx-alignment: center; -fx-padding: 48px 24px; }
+.empty-title { -fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground; }
+.empty-description { -fx-font-size: 13px; -fx-text-fill: -fx-muted-foreground; -fx-text-alignment: center; }
+

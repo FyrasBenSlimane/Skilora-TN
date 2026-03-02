@@ -1,0 +1,48 @@
+/* TLSelect Component Styles */
+/* ========== SELECT & COMBOBOX ========== */
+/* Container */
+.select { -fx-spacing: 8px; }
+.select-label { -fx-text-fill: -fx-foreground; -fx-font-size: 14px; -fx-font-weight: 500; }
+/* Trigger (the button itself) */
+.select-trigger, .combo-box-base, .combo-box {
+    -fx-background-color: transparent;    /* bg-transparent (shadcn) */
+    -fx-text-fill: -fx-foreground;
+    -fx-background-radius: 6px;
+    -fx-border-color: -fx-input;
+    -fx-border-width: 1px;
+    -fx-border-radius: 6px;
+    -fx-padding: 0 8px; /* Padding inside the box */
+    -fx-font-size: 13px;
+    -fx-alignment: center-left;
+    -fx-min-height: 36px;
+    -fx-pref-height: 36px;
+    -fx-cursor: hand;
+}
+.select-trigger:hover, .combo-box:hover {
+    -fx-border-color: -fx-border; 
+    -fx-background-color: -fx-muted;
+}
+.select-trigger:focused, .combo-box:focused {
+    -fx-border-color: -fx-ring;
+    -fx-border-width: 2px;
+    /* Adjust padding to prevent layout shift with thicker border */
+    -fx-padding: 0 7px; 
+}
+/* Display Node (Label inside) */
+.select-trigger .list-cell, .combo-box .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -fx-foreground;
+    -fx-padding: 0;
+}
+.combo-box > .list-cell .text { -fx-fill: -fx-foreground; }
+/* Arrow Button */
+.select-trigger > .arrow-button, .combo-box > .arrow-button {
+    -fx-background-color: transparent;
+    -fx-padding: 0 8px;
+}
+.select-trigger > .arrow-button > .arrow, .combo-box > .arrow-button > .arrow {
+    -fx-background-color: -fx-muted-foreground;
+    -fx-scale-x: 0.8;
+    -fx-scale-y: 0.8;
+}
+

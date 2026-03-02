@@ -12,7 +12,6 @@ import com.skilora.user.controller.LoginController;
 import com.skilora.user.controller.UserFormController;
 import com.skilora.user.controller.SettingsController;
 import com.skilora.formation.controller.FormationsController;
-import com.skilora.formation.controller.CertificationsController;
 import com.skilora.recruitment.controller.ActiveOffersController;
 import com.skilora.user.ui.ProfileWizardView;
 import com.skilora.user.ui.PublicProfileView;
@@ -88,7 +87,6 @@ public class MainView extends TLAppLayout {
     private Node cachedSupportAdminView;
     private Node cachedCommunityView;
     private Node cachedFinanceView;
-    private Node cachedCertificationsView;
 
     // Support notification dot
     private Circle supportNotificationDot;
@@ -335,8 +333,6 @@ public class MainView extends TLAppLayout {
                                 SvgIcons.USERS, this::showCommunityView),
                         createNavButton(I18n.get("nav.formations"),
                                 SvgIcons.GRADUATION_CAP, this::showFormationsView),
-                        createNavButton(I18n.get("nav.certifications"),
-                                SvgIcons.CHECK_CIRCLE, this::showCertificationsView),
                         createNavButton(I18n.get("nav.finance"),
                                 SvgIcons.DOLLAR_SIGN, this::showFinanceView),
                         createSupportNavButton());
@@ -624,7 +620,6 @@ public class MainView extends TLAppLayout {
         cachedSupportAdminView = null;
         cachedCommunityView = null;
         cachedFinanceView = null;
-        cachedCertificationsView = null;
 
         // Clear navigation history to prevent stale state on re-login
         navigationHistory.clear();
@@ -850,7 +845,6 @@ public class MainView extends TLAppLayout {
                     cachedSupportView = null;
                     cachedSupportAdminView = null;
                     cachedFinanceView = null;
-                    cachedCertificationsView = null;
 
                     // Update topbar labels in-place (no duplication)
                     refreshTopBarLabels();
@@ -1238,7 +1232,7 @@ public class MainView extends TLAppLayout {
         if (cachedFormationsView == null) {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/formation/FormationsView.fxml"));
-                StackPane formationsContent = loader.load();
+                VBox formationsContent = loader.load();
                 
                 // Pass current user to the controller
                 FormationsController controller = loader.getController();
@@ -1290,32 +1284,6 @@ public class MainView extends TLAppLayout {
             }
         }
         switchContent(cachedFormationAdminView);
-    }
-
-    private void showCertificationsView() {
-        pushNavigation(this::showCertificationsView);
-        if (cachedCertificationsView == null) {
-            try {
-                FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/formation/CertificationsView.fxml"));
-                VBox certContent = loader.load();
-
-                CertificationsController controller = loader.getController();
-                if (controller != null && currentUser != null) {
-                    controller.setCurrentUser(currentUser);
-                }
-
-                TLScrollArea scrollArea = new TLScrollArea(certContent);
-                scrollArea.setFitToWidth(true);
-                scrollArea.setFitToHeight(true);
-                scrollArea.getStyleClass().add("transparent-bg");
-
-                cachedCertificationsView = scrollArea;
-            } catch (Exception e) {
-                logger.error("Failed to load CertificationsView", e);
-                return;
-            }
-        }
-        switchContent(cachedCertificationsView);
     }
 
     private Node cachedMentorshipView;

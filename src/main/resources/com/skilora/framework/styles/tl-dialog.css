@@ -1,0 +1,193 @@
+/* TLDialog Component Styles */
+
+/* ========== DIALOG PANE (backdrop) ========== */
+/* IMPORTANT: `views.css` styles `.dialog-pane` globally as a card.
+   `TLDialog` uses `.tl-dialog-pane` + an inner `.dialog` card.
+   The DialogPane must be FULLY transparent — any color here bleeds
+   through the rounded corners of the inner card as a visible rectangle. */
+.tl-dialog-pane.dialog-pane {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0;
+    -fx-background-insets: 0;
+    -fx-padding: 32px;  /* breathing room for the unified drop-shadow */
+
+    /* Override views.css min/max-width (inherited at specificity 0,1,0) */
+    -fx-min-width: 0;
+    -fx-max-width: 99999;
+
+    /* Kill card surface / border / shadow (all handled by inner .dialog + .button-bar) */
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-border-radius: 0;
+
+    /* Unified shadow wraps both card + footer as one visual block */
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.25), 24, 0, 0, 8);
+}
+
+.tl-dialog-pane.dialog-pane > .content,
+.tl-dialog-pane.dialog-pane > .header-panel {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+/* Ensure background-only nodes are transparent */
+.tl-dialog-pane .background {
+    -fx-background-color: transparent;
+}
+
+/* ========== MAIN DIALOG CONTAINER ========== */
+.tl-dialog-pane.dialog-pane .dialog {
+    -fx-background-color: -fx-popover;
+    /* Top-only radius so footer can attach seamlessly */
+    -fx-background-radius: 12px 12px 0 0;
+    -fx-border-color: -fx-border;
+    /* No bottom border; footer draws bottom + side borders */
+    -fx-border-width: 1 1 0 1;
+    -fx-border-radius: 12px 12px 0 0;
+    /* Shadow is on the DialogPane now — remove from individual pieces */
+    -fx-effect: null;
+    -fx-spacing: 0;
+    -fx-padding: 0;
+    -fx-min-width: 380px;
+    -fx-pref-width: 500px;
+    -fx-max-width: 680px;
+}
+
+/* ========== HEADER ROW (title + close) ========== */
+.dialog-header-row {
+    -fx-padding: 20px 20px 12px 24px;
+    -fx-spacing: 8px;
+    -fx-alignment: top-right;
+}
+
+.dialog-header {
+    -fx-spacing: 4px;
+    -fx-padding: 0;
+}
+
+.dialog-title {
+    -fx-font-size: 17px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -fx-foreground;
+    -fx-wrap-text: true;
+}
+
+.dialog-description {
+    -fx-font-size: 13px;
+    -fx-text-fill: -fx-muted-foreground;
+    -fx-wrap-text: true;
+}
+
+/* ========== CLOSE BUTTON ========== */
+.dialog-close-btn {
+    -fx-min-width: 28px;
+    -fx-max-width: 28px;
+    -fx-min-height: 28px;
+    -fx-max-height: 28px;
+    -fx-padding: 0;
+    -fx-background-radius: 6px;
+    -fx-border-radius: 6px;
+    -fx-font-size: 14px;
+    -fx-text-fill: -fx-muted-foreground;
+    -fx-cursor: hand;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.dialog-close-btn:hover {
+    -fx-background-color: -fx-muted;
+    -fx-text-fill: -fx-foreground;
+}
+
+.dialog-close-btn .svg-path {
+    -fx-stroke: -fx-muted-foreground;
+}
+
+/* ========== SCROLLABLE CONTENT AREA ========== */
+.dialog-scroll {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+    -fx-padding: 0;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+}
+
+.dialog-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.dialog-scroll .scroll-bar:vertical {
+    -fx-pref-width: 6px;
+    -fx-padding: 2px 1px;
+}
+
+.dialog-scroll .scroll-bar:vertical .track {
+    -fx-background-color: transparent;
+    -fx-background-radius: 3px;
+}
+
+.dialog-scroll .scroll-bar:vertical .thumb {
+    -fx-background-color: -fx-muted-foreground;
+    -fx-background-radius: 3px;
+    -fx-opacity: 0.35;
+}
+
+.dialog-scroll .scroll-bar:vertical .thumb:hover {
+    -fx-opacity: 0.6;
+}
+
+.dialog-scroll .scroll-bar:vertical .increment-button,
+.dialog-scroll .scroll-bar:vertical .decrement-button {
+    -fx-pref-height: 0;
+    -fx-min-height: 0;
+    -fx-max-height: 0;
+}
+
+.dialog-content {
+    -fx-padding: 0 24px 16px 24px;
+    -fx-spacing: 16px;
+}
+
+/* ========== LIGHT MODE DIALOG ========== */
+.tl-dialog-pane.dialog-pane.light .dialog {
+    -fx-background-color: -fx-popover;
+}
+.tl-dialog-pane.dialog-pane.light > .button-bar {
+    -fx-background-color: -fx-popover;
+}
+
+/* ========== BUTTON BAR (footer) ========== */
+.tl-dialog-pane.dialog-pane > .button-bar {
+    -fx-background-color: -fx-popover;
+    -fx-padding: 14px 24px;
+    /* Attach seamlessly to `.dialog` container above */
+    -fx-border-color: -fx-border;
+    -fx-border-width: 0 1 1 1;
+    -fx-background-radius: 0 0 12px 12px;
+    -fx-border-radius: 0 0 12px 12px;
+    /* No individual shadow — the unified pane shadow covers both pieces */
+    -fx-effect: null;
+}
+
+.tl-dialog-pane .button-bar > .container {
+    -fx-spacing: 8px;
+    -fx-alignment: center-right;
+}
+
+.tl-dialog-pane .button-bar .btn {
+    -fx-min-width: 80px;
+    -fx-min-height: 36px;
+    -fx-max-height: 36px;
+    -fx-padding: 0 16px;
+}
+
+/* ========== FORM SECTIONS ========== */
+.dialog-form-section {
+    -fx-spacing: 12px;
+}
+
+.dialog-section-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -fx-foreground;
+}

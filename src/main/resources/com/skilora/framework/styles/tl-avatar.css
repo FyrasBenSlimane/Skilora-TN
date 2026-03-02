@@ -1,0 +1,16 @@
+/* TLAvatar Component Styles */
+/* ========== AVATAR ========== */
+.avatar {
+    -fx-alignment: center;
+    -fx-background-color: -fx-muted;
+    -fx-background-radius: 9999px;
+}
+.avatar-fallback {
+    -fx-text-fill: -fx-muted-foreground;
+    -fx-font-weight: 600;
+    -fx-font-size: 13px;
+}
+.avatar-sm { -fx-pref-width: 40px; -fx-pref-height: 40px; -fx-min-width: 40px; -fx-min-height: 40px; -fx-max-width: 40px; -fx-max-height: 40px; }
+.avatar-lg { -fx-pref-width: 96px; -fx-pref-height: 96px; -fx-min-width: 96px; -fx-min-height: 96px; -fx-max-width: 96px; -fx-max-height: 96px; }
+.avatar-xl { -fx-pref-width: 128px; -fx-pref-height: 128px; -fx-min-width: 128px; -fx-min-height: 128px; -fx-max-width: 128px; -fx-max-height: 128px; }
+

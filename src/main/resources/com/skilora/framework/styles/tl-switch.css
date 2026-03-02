@@ -1,0 +1,18 @@
+/* TLSwitch Component Styles */
+/* ========== SWITCH ========== */
+.switch { -fx-background-color: transparent; -fx-padding: 0; -fx-cursor: hand; }
+.switch-track {
+    -fx-background-radius: 9999px;
+    -fx-min-width: 44px;
+    -fx-min-height: 24px;
+    -fx-pref-width: 44px;
+    -fx-pref-height: 24px;
+}
+/* OFF: muted-foreground gives visible mid-gray in both modes */
+.switch-track-off { -fx-background-color: -fx-muted-foreground; }
+/* ON: foreground (white in dark, near-black in light) — high contrast */
+.switch-track-on  { -fx-background-color: -fx-foreground; }
+/* Thumb: always contrasts with the track */
+.switch-thumb { -fx-fill: -fx-background; }
+.switch-disabled { -fx-opacity: 0.5; -fx-cursor: default; }
+
