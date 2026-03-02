@@ -82,6 +82,7 @@ public class DashboardController {
     private Runnable onNavigateToReports;
     private Runnable onNavigateToPostJob;
     private Runnable onNavigateToApplicationInbox;
+    private Runnable onNavigateToFormations;
     private Runnable onNavigateToFormationAdmin;
     private Runnable onNavigateToFinance;
 
@@ -115,6 +116,7 @@ public class DashboardController {
                                        Runnable toFinance) {
         this.onNavigateToPostJob = toPostJob;
         this.onNavigateToApplicationInbox = toApplicationInbox;
+        this.onNavigateToFormations = toFormations;
         this.onNavigateToFormationAdmin = toFormationAdmin;
         this.onNavigateToFinance = toFinance;
 
