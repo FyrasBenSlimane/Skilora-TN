@@ -1,8 +1,10 @@
 package com.skilora.recruitment.controller;
 
+import com.skilora.framework.components.InterviewCountdownWidget;
 import com.skilora.framework.components.TLButton;
 import com.skilora.framework.components.TLCard;
 import com.skilora.framework.components.TLTypography;
+import com.skilora.utils.I18n;
 import com.skilora.recruitment.entity.Application;
 import com.skilora.recruitment.entity.Interview;
 import com.skilora.recruitment.entity.JobOffer;
@@ -24,7 +26,6 @@ import javafx.scene.shape.SVGPath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -190,44 +191,18 @@ public class EmployerDashboardController {
 
         info.getChildren().addAll(nameLabel, metaLabel);
 
-        // Right: simple countdown label (replaces InterviewCountdownWidget)
+        // Right: auto-updating countdown or "passed" label
         row.getChildren().add(info);
         if (iv.getScheduledDate() != null) {
-            Label countdown = buildCountdownLabel(iv.getScheduledDate());
-            if (countdown != null) row.getChildren().add(countdown);
+            if (iv.getScheduledDate().isAfter(LocalDateTime.now())) {
+                row.getChildren().add(new InterviewCountdownWidget(iv.getScheduledDate()));
+            } else {
+                Label passed = new Label(I18n.get("interviews.passed"));
+                passed.getStyleClass().add("text-muted");
+                row.getChildren().add(passed);
+            }
         }
         return row;
-    }
-
-    /**
-     * Simple countdown label showing time remaining until interview.
-     * Replaces InterviewCountdownWidget which is not available locally.
-     */
-    private Label buildCountdownLabel(LocalDateTime when) {
-        LocalDateTime now = LocalDateTime.now();
-        if (when.isBefore(now)) return null;
-        Duration d = Duration.between(now, when);
-        long days = d.toDays();
-        long hours = d.toHours() % 24;
-        long minutes = d.toMinutes() % 60;
-
-        String text;
-        String colour;
-        if (days > 0) {
-            text = days + "j " + hours + "h";
-            colour = days <= 1 ? "#d97706" : "#16a34a";
-        } else if (hours > 0) {
-            text = hours + "h " + minutes + "min";
-            colour = "#d97706";
-        } else {
-            text = minutes + "min";
-            colour = "#dc2626";
-        }
-
-        Label lbl = new Label("\u23F3 " + text);
-        lbl.setStyle("-fx-background-color:" + colour + "22; -fx-text-fill:" + colour
-                + "; -fx-padding:6 14; -fx-background-radius:20; -fx-font-weight:bold; -fx-font-size:12;");
-        return lbl;
     }
 
     private TLButton createQuickAction(String text, String svgPath, Runnable action) {

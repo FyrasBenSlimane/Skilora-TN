@@ -1,5 +1,6 @@
 package com.skilora.recruitment.controller;
 
+import com.skilora.framework.components.InterviewCountdownWidget;
 import com.skilora.framework.components.TLAvatar;
 import com.skilora.framework.components.TLDialog;
 import com.skilora.recruitment.entity.Application;
@@ -328,6 +329,10 @@ public class ApplicationDetailsController {
             if (interview.getNotes() != null && !interview.getNotes().isBlank())
                 addRow(ivGrid, row++, "Notes", interview.getNotes());
             applicationTabContent.getChildren().add(ivGrid);
+            if (interview.getScheduledDate() != null) {
+                InterviewCountdownWidget countdown = InterviewCountdownWidget.of(interview.getScheduledDate());
+                if (countdown != null) applicationTabContent.getChildren().add(countdown);
+            }
         }
 
         // Application metadata

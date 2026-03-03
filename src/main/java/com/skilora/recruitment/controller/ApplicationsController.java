@@ -1,42 +1,44 @@
 package com.skilora.recruitment.controller;
 
-import com.skilora.framework.components.*;
-import com.skilora.framework.components.TLLoadingState;
+import com.skilora.framework.components.InterviewCountdownWidget;
+import com.skilora.framework.components.TLBadge;
+import com.skilora.framework.components.TLButton;
 import com.skilora.recruitment.entity.Application;
-import com.skilora.recruitment.entity.HireOffer;
-import com.skilora.formation.service.FormationMatchingService;
-import com.skilora.formation.service.FormationMatchingService.ScoredFormation;
-import com.skilora.user.entity.User;
+import com.skilora.recruitment.entity.Interview;
 import com.skilora.recruitment.service.ApplicationService;
-import com.skilora.recruitment.service.HireOfferService;
-import com.skilora.recruitment.service.RecruitmentFinanceBridge;
+import com.skilora.recruitment.service.InterviewService;
+import com.skilora.recruitment.service.RecruitmentIntelligenceService;
+import com.skilora.user.entity.User;
 import com.skilora.user.service.ProfileService;
-import javafx.application.Platform;
+import com.skilora.utils.I18n;
+import javafx.animation.FadeTransition;
+import javafx.animation.TranslateTransition;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
-import javafx.scene.control.ButtonType;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
+import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Tooltip;
+import javafx.scene.layout.*;
+import javafx.scene.shape.Arc;
+import javafx.scene.shape.ArcType;
+import javafx.scene.shape.Circle;
+import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URL;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.ResourceBundle;
 
-import com.skilora.utils.AppThreadPool;
-import com.skilora.utils.DialogUtils;
-import com.skilora.utils.I18n;
-import com.skilora.utils.SvgIcons;
-
 /**
- * ApplicationsController - Kanban board for tracking job applications (Job Seeker view)
+ * ApplicationsController - Grid-based candidate applications view with AI scoring.
  */
 public class ApplicationsController implements Initializable {
 
@@ -44,392 +46,498 @@ public class ApplicationsController implements Initializable {
 
     @FXML private Label statsLabel;
     @FXML private TLButton refreshBtn;
-    
-    @FXML private Label appliedCount;
-    @FXML private Label reviewingCount;
-    @FXML private Label interviewingCount;
-    @FXML private Label offerCount;
-    @FXML private Label appliedHeader;
-    @FXML private Label reviewingHeader;
-    @FXML private Label interviewingHeader;
-    @FXML private Label offerHeader;
-    
-    @FXML private VBox appliedColumn;
-    @FXML private VBox reviewingColumn;
-    @FXML private VBox interviewingColumn;
-    @FXML private VBox offerColumn;
+    @FXML private FlowPane applicationsList;
+    @FXML private ScrollPane scrollPane;
 
     private User currentUser;
     private final ApplicationService applicationService = ApplicationService.getInstance();
-    private final HireOfferService hireOfferService = HireOfferService.getInstance();
-    private final RecruitmentFinanceBridge recruitmentFinanceBridge = RecruitmentFinanceBridge.getInstance();
-    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy");
-    
+    private final InterviewService interviewService = InterviewService.getInstance();
+    private final RecruitmentIntelligenceService intelligenceService = RecruitmentIntelligenceService.getInstance();
+    private boolean isLoading = false;
+    private static final DateTimeFormatter DATE_TIME_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+    private static final DateTimeFormatter DATE_SHORT_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy");
+
+    private static final double CARD_GAP = 14;
+    private static final double CARD_MIN_WIDTH = 340;
+
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        applyI18n();
-        refreshBtn.setGraphic(SvgIcons.icon(SvgIcons.REFRESH, 14));
-        if (appliedHeader != null) appliedHeader.setGraphic(SvgIcons.icon(SvgIcons.FILE_TEXT, 14));
-        if (reviewingHeader != null) reviewingHeader.setGraphic(SvgIcons.icon(SvgIcons.EYE, 14));
-        if (interviewingHeader != null) interviewingHeader.setGraphic(SvgIcons.icon(SvgIcons.MESSAGE_CIRCLE, 14));
-        if (offerHeader != null) offerHeader.setGraphic(SvgIcons.icon(SvgIcons.SPARKLES, 14));
+        // Dynamically resize cards when container width changes
+        if (scrollPane != null) {
+            scrollPane.viewportBoundsProperty().addListener((obs, oldBounds, newBounds) -> {
+                if (newBounds != null && applicationsList != null) {
+                    resizeCards(newBounds.getWidth());
+                }
+            });
+        }
     }
 
-    private void applyI18n() {
-        refreshBtn.setText(I18n.get("common.refresh"));
-        if (appliedHeader != null) appliedHeader.setText(I18n.get("applications.applied"));
-        if (reviewingHeader != null) reviewingHeader.setText(I18n.get("applications.in_progress"));
-        if (interviewingHeader != null) interviewingHeader.setText(I18n.get("applications.interview"));
-        if (offerHeader != null) offerHeader.setText(I18n.get("applications.offer"));
+    /** Recompute card widths so they fill rows evenly. */
+    private void resizeCards(double containerWidth) {
+        if (containerWidth <= 0) return;
+        double usable = containerWidth - 8; // padding
+        int cols = Math.max(1, (int) ((usable + CARD_GAP) / (CARD_MIN_WIDTH + CARD_GAP)));
+        double cardWidth = (usable - (cols - 1) * CARD_GAP) / cols;
+        for (var node : applicationsList.getChildren()) {
+            if (node instanceof VBox) {
+                ((VBox) node).setPrefWidth(cardWidth);
+                ((VBox) node).setMaxWidth(cardWidth);
+            }
+        }
     }
 
     public void setCurrentUser(User user) {
+        if (this.currentUser != null && user != null && this.currentUser.getId() == user.getId()) {
+            loadApplications();
+            return;
+        }
         this.currentUser = user;
         loadApplications();
     }
-    
+
     private void loadApplications() {
-        appliedColumn.getChildren().clear();
-        reviewingColumn.getChildren().clear();
-        interviewingColumn.getChildren().clear();
-        offerColumn.getChildren().clear();
-        appliedColumn.getChildren().add(new TLLoadingState());
-        statsLabel.setText(I18n.get("common.loading"));
+        if (isLoading) return;
+        isLoading = true;
+        if (applicationsList != null) applicationsList.getChildren().clear();
+        if (currentUser == null) {
+            isLoading = false;
+            if (statsLabel != null) statsLabel.setText(I18n.get("applications.error"));
+            return;
+        }
+        if (statsLabel != null) statsLabel.setText(I18n.get("common.loading"));
+
+        // Loading spinner
+        if (applicationsList != null) {
+            ProgressIndicator spinner = new ProgressIndicator();
+            spinner.setMaxSize(36, 36);
+            HBox spinnerBox = new HBox(spinner);
+            spinnerBox.setAlignment(Pos.CENTER);
+            spinnerBox.setPadding(new Insets(40));
+            spinnerBox.setPrefWidth(600);
+            applicationsList.getChildren().add(spinnerBox);
+        }
 
         Task<List<Application>> task = new Task<>() {
             @Override
             protected List<Application> call() throws Exception {
-                // Get profile ID for this user
-                var profile = ProfileService.getInstance()
-                        .findProfileByUserId(currentUser.getId());
+                var profile = ProfileService.getInstance().findProfileByUserId(currentUser.getId());
                 if (profile == null) return List.of();
-                return applicationService.getApplicationsByProfile(profile.getId());
+                List<Application> apps = applicationService.getApplicationsByProfile(profile.getId());
+                for (Application app : apps) {
+                    try {
+                        if (app.getMatchPercentage() <= 0) {
+                            int match = intelligenceService.calculateCompatibility(
+                                    app.getCandidateProfileId(), app.getJobOfferId()).join();
+                            app.setMatchPercentage(match);
+                        }
+                        if (app.getCandidateScore() <= 0) {
+                            int score = intelligenceService.scoreCandidate(
+                                    app.getCandidateProfileId()).join();
+                            app.setCandidateScore(score);
+                        }
+                    } catch (Exception ex) {
+                        logger.warn("AI score failed for app {}: {}", app.getId(), ex.getMessage());
+                    }
+                }
+                apps.sort((a, b) -> Integer.compare(
+                        (b.getMatchPercentage() + b.getCandidateScore()),
+                        (a.getMatchPercentage() + a.getCandidateScore())));
+                return apps;
             }
         };
 
         task.setOnSucceeded(e -> {
-            appliedColumn.getChildren().clear();
+            isLoading = false;
             List<Application> apps = task.getValue();
-            for (Application app : apps) {
-                TLCard card = createApplicationCard(
-                        app.getJobTitle() != null ? app.getJobTitle() : I18n.get("applications.offer_num", app.getJobOfferId()),
-                        app.getCompanyName() != null ? app.getCompanyName() : "",
-                        app.getAppliedDate() != null ? app.getAppliedDate().format(DATE_FMT) : "");
-
-                switch (app.getStatus()) {
-                    case PENDING -> appliedColumn.getChildren().add(card);
-                    case REVIEWING -> reviewingColumn.getChildren().add(card);
-                    case INTERVIEW -> interviewingColumn.getChildren().add(card);
-                    case OFFER -> offerColumn.getChildren().add(createOfferCard(app));
-                    case ACCEPTED -> offerColumn.getChildren().add(createAcceptedCard(app));
-                    case REJECTED -> appliedColumn.getChildren().add(createRejectedCard(app));
+            if (applicationsList != null) {
+                applicationsList.getChildren().clear();
+                if (apps != null && !apps.isEmpty()) {
+                    int idx = 0;
+                    for (Application app : apps) {
+                        Interview interview = null;
+                        if (app.getStatus() == Application.Status.ACCEPTED || app.getStatus() == Application.Status.INTERVIEW) {
+                            try {
+                                var list = interviewService.findByApplication(app.getId());
+                                if (list != null && !list.isEmpty()) interview = list.get(0);
+                            } catch (Exception ex) {
+                                logger.error("Interview load error for app {}", app.getId(), ex);
+                            }
+                        }
+                        VBox card = createCard(app,
+                                app.getJobTitle() != null ? app.getJobTitle() : I18n.get("applications.offer_num", app.getJobOfferId()),
+                                interview);
+                        // Stagger animation
+                        card.setOpacity(0);
+                        card.setTranslateY(16);
+                        FadeTransition ft = new FadeTransition(Duration.millis(250), card);
+                        ft.setFromValue(0); ft.setToValue(1); ft.setDelay(Duration.millis(idx * 50));
+                        TranslateTransition tt = new TranslateTransition(Duration.millis(250), card);
+                        tt.setFromY(16); tt.setToY(0); tt.setDelay(Duration.millis(idx * 50));
+                        applicationsList.getChildren().add(card);
+                        ft.play(); tt.play();
+                        idx++;
+                    }
+                    // Trigger initial sizing
+                    if (scrollPane != null && scrollPane.getViewportBounds() != null) {
+                        resizeCards(scrollPane.getViewportBounds().getWidth());
+                    }
+                } else {
+                    applicationsList.getChildren().add(createEmptyState());
                 }
             }
-
-            updateCounts();
+            updateCounts(apps != null ? apps.size() : 0);
         });
 
         task.setOnFailed(e -> {
-            statsLabel.setText(I18n.get("applications.error"));
+            isLoading = false;
+            if (statsLabel != null) statsLabel.setText(I18n.get("applications.error"));
             logger.error("Failed to load applications", task.getException());
         });
 
-        AppThreadPool.execute(task);
+        Thread t = new Thread(task, "LoadApplications");
+        t.setDaemon(true);
+        t.start();
     }
 
-    private void updateCounts() {
-        appliedCount.setText(String.valueOf(appliedColumn.getChildren().size()));
-        reviewingCount.setText(String.valueOf(reviewingColumn.getChildren().size()));
-        interviewingCount.setText(String.valueOf(interviewingColumn.getChildren().size()));
-        offerCount.setText(String.valueOf(offerColumn.getChildren().size()));
-
-        int total = appliedColumn.getChildren().size() + reviewingColumn.getChildren().size()
-                + interviewingColumn.getChildren().size() + offerColumn.getChildren().size();
-        statsLabel.setText(I18n.get("applications.count", total));
+    private void updateCounts(int total) {
+        if (statsLabel != null) statsLabel.setText(I18n.get("applications.count", total));
     }
-    
-    private TLCard createApplicationCard(String title, String company, String date) {
-        TLCard card = new TLCard();
-        
-        VBox content = new VBox(8);
-        
+
+    // ════════════════════════════════════════════════════════════════════
+    //  CARD — Self-contained tile with border, accent, scores, info
+    // ════════════════════════════════════════════════════════════════════
+
+    private VBox createCard(Application app, String title, Interview interview) {
+        VBox card = new VBox(0);
+        card.getStyleClass().addAll("app-card", getStatusCardClass(app.getStatus()));
+        card.setMinWidth(CARD_MIN_WIDTH);
+
+        // ── Force inline styles — guarantees border/bg even if CSS fails ──
+        String accentColor = getStatusAccentColor(app.getStatus());
+        boolean light = card.getScene() != null
+                && card.getScene().getRoot() != null
+                && card.getScene().getRoot().getStyleClass().contains("light");
+        String bg      = light ? "#ffffff"  : "#18181b";
+        String border  = light ? "#e4e4e7"  : "#2a2b2e";
+        String shadow  = light ? "rgba(0,0,0,0.06)" : "rgba(0,0,0,0.10)";
+        card.setStyle(
+            "-fx-background-color: " + bg + ";" +
+            "-fx-background-radius: 12;" +
+            "-fx-border-color: " + border + " " + border + " " + border + " " + accentColor + ";" +
+            "-fx-border-width: 1 1 1 3;" +
+            "-fx-border-radius: 12;" +
+            "-fx-effect: dropshadow(gaussian, " + shadow + ", 8, 0, 0, 2);"
+        );
+
+        // ── Top section: accent + header ──
+        VBox topSection = new VBox(10);
+        topSection.getStyleClass().add("app-card-top");
+        topSection.setPadding(new Insets(16, 16, 12, 16));
+
+        // Row 1: badge + delete
+        HBox topBar = new HBox(8);
+        topBar.setAlignment(Pos.CENTER_RIGHT);
+        TLBadge statusBadge = createStatusBadge(app.getStatus());
+        Region topSpacer = new Region();
+        HBox.setHgrow(topSpacer, Priority.ALWAYS);
+        Label dateLabel = new Label(formatTimeAgo(app.getAppliedDate()));
+        dateLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #a1a1aa;");
+        TLButton deleteBtn = new TLButton("", TLButton.ButtonVariant.GHOST);
+        deleteBtn.setText("✕");
+        deleteBtn.getStyleClass().add("app-card-delete-btn");
+        deleteBtn.setStyle("-fx-text-fill: #71717a; -fx-font-size: 13px; -fx-min-width: 28; -fx-max-width: 28; -fx-min-height: 28; -fx-max-height: 28; -fx-padding: 0; -fx-cursor: hand;");
+        deleteBtn.setTooltip(new Tooltip(I18n.get("applications.delete_tooltip", "Supprimer")));
+        deleteBtn.setOnAction(e -> handleDeleteApplication(app.getId()));
+        topBar.getChildren().addAll(dateLabel, topSpacer, statusBadge, deleteBtn);
+        topSection.getChildren().add(topBar);
+
+        // Row 2: Job title
         Label titleLabel = new Label(title);
-        titleLabel.getStyleClass().add("h4");
+        titleLabel.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #fafafa;");
         titleLabel.setWrapText(true);
-        
-        Label companyLabel = new Label(company);
-        companyLabel.getStyleClass().add("text-muted");
-        
-        Label dateLabel = new Label(date);
-        dateLabel.getStyleClass().addAll("text-2xs", "text-muted");
-        
-        content.getChildren().addAll(titleLabel, companyLabel, dateLabel);
-        card.getContent().add(content);
-        
-        return card;
-    }
-    
-    private TLCard createRejectedCard(Application app) {
-        TLCard card = new TLCard();
-        VBox content = new VBox(8);
+        titleLabel.setMaxWidth(Double.MAX_VALUE);
+        topSection.getChildren().add(titleLabel);
 
-        Label titleLabel = new Label(app.getJobTitle() != null ? app.getJobTitle() : I18n.get("applications.offer_num", app.getJobOfferId()));
-        titleLabel.getStyleClass().add("h4");
-        titleLabel.setWrapText(true);
+        // Row 3: company + location
+        Label subtitleLabel = new Label(buildSubtitle(app));
+        subtitleLabel.setStyle("-fx-font-size: 12.5px; -fx-text-fill: #a1a1aa;");
+        topSection.getChildren().add(subtitleLabel);
 
-        TLBadge rejectedBadge = new TLBadge(I18n.get("applications.rejected"), TLBadge.Variant.DESTRUCTIVE);
+        card.getChildren().add(topSection);
 
-        Label dateLabel = new Label(app.getAppliedDate() != null ? app.getAppliedDate().format(DATE_FMT) : "");
-        dateLabel.getStyleClass().addAll("text-2xs", "text-muted");
+        // ── Divider ──
+        Region divider = new Region();
+        divider.setStyle("-fx-background-color: #2a2b2e;");
+        divider.setMinHeight(1); divider.setMaxHeight(1);
+        card.getChildren().add(divider);
 
-        TLButton suggestBtn = new TLButton(I18n.get("applications.get_training"), TLButton.ButtonVariant.OUTLINE);
-        suggestBtn.setMaxWidth(Double.MAX_VALUE);
-        suggestBtn.setGraphic(SvgIcons.icon(SvgIcons.GRADUATION_CAP, 14));
-        suggestBtn.setOnAction(e -> showTrainingSuggestions(app));
+        // ── Bottom section: scores + date ──
+        HBox bottomSection = new HBox(12);
+        bottomSection.getStyleClass().add("app-card-bottom");
+        bottomSection.setPadding(new Insets(12, 16, 14, 16));
+        bottomSection.setAlignment(Pos.CENTER);
 
-        content.getChildren().addAll(titleLabel, rejectedBadge, dateLabel, new TLSeparator(), suggestBtn);
-        card.getContent().add(content);
-        return card;
-    }
+        // Match score
+        VBox matchBlock = createScoreBlock(app.getMatchPercentage(), "AI Match", getMatchColor(app.getMatchPercentage()));
+        // Score block
+        VBox scoreBlock = createScoreBlock(app.getCandidateScore(), "Score", getScoreColor(app.getCandidateScore()));
 
-    private TLCard createAcceptedCard(Application app) {
-        TLCard card = new TLCard();
-        VBox content = new VBox(8);
+        Region midSpacer = new Region();
+        HBox.setHgrow(midSpacer, Priority.ALWAYS);
 
-        Label titleLabel = new Label(app.getJobTitle() != null ? app.getJobTitle() : I18n.get("applications.offer_num", app.getJobOfferId()));
-        titleLabel.getStyleClass().add("h4");
-        titleLabel.setWrapText(true);
+        // Applied date
+        VBox dateBlock = new VBox(2);
+        dateBlock.setAlignment(Pos.CENTER_RIGHT);
+        Label appliedLabel = new Label("Postulé le");
+        appliedLabel.setStyle("-fx-font-size: 10.5px; -fx-text-fill: #71717a;");
+        Label appliedDate = new Label(formatAppliedDate(app.getAppliedDate()));
+        appliedDate.setStyle("-fx-font-size: 12.5px; -fx-font-weight: bold; -fx-text-fill: #e4e4e7;");
+        dateBlock.getChildren().addAll(appliedLabel, appliedDate);
 
-        TLBadge acceptedBadge = new TLBadge(I18n.get("applications.accepted"), TLBadge.Variant.SUCCESS);
+        bottomSection.getChildren().addAll(matchBlock, scoreBlock, midSpacer, dateBlock);
+        card.getChildren().add(bottomSection);
 
-        Label companyLabel = new Label(app.getCompanyName() != null ? app.getCompanyName() : "");
-        companyLabel.getStyleClass().add("text-muted");
+        // ── Interview section ──
+        if (interview != null && interview.getScheduledDate() != null) {
+            Region div2 = new Region();
+            div2.setStyle("-fx-background-color: #2a2b2e;");
+            div2.setMinHeight(1); div2.setMaxHeight(1);
+            card.getChildren().add(div2);
 
-        Label dateLabel = new Label(app.getAppliedDate() != null ? app.getAppliedDate().format(DATE_FMT) : "");
-        dateLabel.getStyleClass().addAll("text-2xs", "text-muted");
+            HBox interviewRow = new HBox(8);
+            interviewRow.setStyle("-fx-background-color: #1e1e22; -fx-background-radius: 0 0 12 12;");
+            interviewRow.setPadding(new Insets(10, 16, 12, 16));
+            interviewRow.setAlignment(Pos.CENTER_LEFT);
 
-        content.getChildren().addAll(titleLabel, acceptedBadge, companyLabel, dateLabel);
-        card.getContent().add(content);
-        return card;
-    }
+            Label interviewIcon = new Label("🎯");
+            interviewIcon.setStyle("-fx-font-size: 15px;");
 
-    private TLCard createOfferCard(Application app) {
-        TLCard card = new TLCard();
-        VBox content = new VBox(10);
-
-        Label titleLabel = new Label(app.getJobTitle() != null ? app.getJobTitle() : I18n.get("applications.offer_num", app.getJobOfferId()));
-        titleLabel.getStyleClass().add("h4");
-        titleLabel.setWrapText(true);
-
-        TLBadge offerBadge = new TLBadge(I18n.get("applications.offer_received"), TLBadge.Variant.SECONDARY);
-
-        Label companyLabel = new Label(app.getCompanyName() != null ? app.getCompanyName() : "");
-        companyLabel.getStyleClass().add("text-muted");
-
-        VBox offerDetailsBox = new VBox(6);
-        offerDetailsBox.getChildren().add(new TLLoadingState(I18n.get("common.loading")));
-
-        HBox actions = new HBox(8);
-        actions.setAlignment(Pos.CENTER_LEFT);
-
-        TLButton rejectBtn = new TLButton(I18n.get("common.reject"), TLButton.ButtonVariant.OUTLINE);
-        rejectBtn.setGraphic(SvgIcons.icon(SvgIcons.X_CIRCLE, 14));
-        TLButton acceptBtn = new TLButton(I18n.get("common.accept"), TLButton.ButtonVariant.PRIMARY);
-        acceptBtn.setGraphic(SvgIcons.icon(SvgIcons.CHECK, 14));
-        rejectBtn.setDisable(true);
-        acceptBtn.setDisable(true);
-
-        actions.getChildren().addAll(rejectBtn, acceptBtn);
-
-        content.getChildren().addAll(titleLabel, offerBadge, companyLabel, new TLSeparator(), offerDetailsBox, actions);
-        card.getContent().add(content);
-
-        AppThreadPool.execute(() -> {
-            HireOffer offer = null;
-            try {
-                List<HireOffer> offers = hireOfferService.findByApplication(app.getId());
-                offer = offers.stream().filter(HireOffer::isPending).findFirst().orElse(offers.isEmpty() ? null : offers.get(0));
-            } catch (Exception ex) {
-                logger.error("Failed loading hire offer for application {}", app.getId(), ex);
+            VBox interviewInfo = new VBox(2);
+            Label schedLabel = new Label(interview.getScheduledDate().format(DATE_TIME_FMT));
+            schedLabel.setStyle("-fx-font-size: 12.5px; -fx-font-weight: bold; -fx-text-fill: #fafafa;");
+            HBox interviewTags = new HBox(6);
+            if (interview.getLocation() != null && !interview.getLocation().isEmpty()) {
+                Label loc = new Label("📍 " + interview.getLocation());
+                loc.setStyle("-fx-font-size: 11px; -fx-text-fill: #a1a1aa;");
+                interviewTags.getChildren().add(loc);
             }
+            if (interview.getType() != null && !interview.getType().isEmpty()) {
+                Label type = new Label(interview.getType());
+                type.setStyle("-fx-font-size: 11px; -fx-text-fill: #a1a1aa;");
+                interviewTags.getChildren().add(type);
+            }
+            interviewInfo.getChildren().add(schedLabel);
+            if (!interviewTags.getChildren().isEmpty()) interviewInfo.getChildren().add(interviewTags);
 
-            HireOffer finalOffer = offer;
-            Platform.runLater(() -> {
-                offerDetailsBox.getChildren().clear();
-                if (finalOffer == null) {
-                    offerDetailsBox.getChildren().add(new TLEmptyState(
-                            SvgIcons.SPARKLES,
-                            I18n.get("applications.offer_missing"),
-                            I18n.get("applications.offer_missing_desc")));
-                    return;
-                }
+            Region iSpacer = new Region();
+            HBox.setHgrow(iSpacer, Priority.ALWAYS);
 
-                Label salary = new Label(I18n.get("applications.salary", finalOffer.getFormattedSalary()));
-                salary.getStyleClass().add("text-sm");
+            interviewRow.getChildren().addAll(interviewIcon, interviewInfo, iSpacer);
 
-                Label contractType = new Label(I18n.get("applications.contract_type", finalOffer.getContractType()));
-                contractType.getStyleClass().add("text-muted");
+            InterviewCountdownWidget countdown = InterviewCountdownWidget.of(interview.getScheduledDate());
+            if (countdown != null) interviewRow.getChildren().add(countdown);
 
-                Label start = new Label(finalOffer.getStartDate() != null
-                        ? I18n.get("applications.start_date", finalOffer.getStartDate())
-                        : I18n.get("applications.start_date_na"));
-                start.getStyleClass().addAll("text-2xs", "text-muted");
-
-                offerDetailsBox.getChildren().addAll(salary, contractType, start);
-
-                rejectBtn.setDisable(false);
-                acceptBtn.setDisable(false);
-
-                rejectBtn.setOnAction(e -> handleOfferReject(finalOffer, app));
-                acceptBtn.setOnAction(e -> handleOfferAccept(finalOffer, app));
-            });
-        });
+            card.getChildren().add(interviewRow);
+        }
 
         return card;
     }
 
-    private void handleOfferAccept(HireOffer offer, Application app) {
-        if (offer == null) return;
-        boolean confirmed = DialogUtils.showConfirmation(
-                I18n.get("applications.offer_accept_title"),
-                I18n.get("applications.offer_accept_desc", offer.getFormattedSalary())
-        ).orElse(ButtonType.CANCEL) == ButtonType.OK;
-        if (!confirmed) return;
+    // ──────── Score block (ring + label) ────────
 
-        // Disable the entire offer column to prevent double-accept
-        offerColumn.setDisable(true);
+    private VBox createScoreBlock(int value, String label, String color) {
+        VBox block = new VBox(3);
+        block.setAlignment(Pos.CENTER);
+        block.setMinWidth(56);
 
-        AppThreadPool.execute(() -> {
-            int contractId = recruitmentFinanceBridge.acceptOfferAndGenerateContract(offer.getId());
-            Platform.runLater(() -> {
-                offerColumn.setDisable(false);
-                if (contractId > 0) {
-                    TLToast.success(offerColumn.getScene(),
-                            I18n.get("applications.offer_accepted"),
-                            I18n.get("applications.contract_generated", contractId));
-                } else {
-                    TLToast.error(offerColumn.getScene(),
-                            I18n.get("common.error"),
-                            I18n.get("applications.offer_accept_failed"));
-                }
-                loadApplications();
-            });
-        });
+        StackPane ring = createScoreRing(value, color);
+        Label nameLabel = new Label(label);
+        nameLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #a1a1aa; -fx-font-weight: 600;");
+
+        block.getChildren().addAll(ring, nameLabel);
+        return block;
     }
 
-    private void handleOfferReject(HireOffer offer, Application app) {
-        if (offer == null) return;
-        boolean confirmed = DialogUtils.showConfirmation(
-                I18n.get("applications.offer_reject_title"),
-                I18n.get("applications.offer_reject_desc")
-        ).orElse(ButtonType.CANCEL) == ButtonType.OK;
-        if (!confirmed) return;
+    private StackPane createScoreRing(int value, String color) {
+        double size = 48;
+        double stroke = 3.5;
+        double radius = (size - stroke) / 2;
 
-        // Disable to prevent double-reject
-        offerColumn.setDisable(true);
+        StackPane ring = new StackPane();
+        ring.setMinSize(size, size);
+        ring.setMaxSize(size, size);
 
-        AppThreadPool.execute(() -> {
-            boolean rejected = hireOfferService.reject(offer.getId());
-            try {
-                if (rejected) {
-                    applicationService.updateStatus(app.getId(), Application.Status.REJECTED);
-                }
-            } catch (Exception ex) {
-                logger.error("Failed updating application status after offer reject", ex);
-            }
-            Platform.runLater(() -> {
-                offerColumn.setDisable(false);
-                if (rejected) {
-                    TLToast.success(offerColumn.getScene(),
-                            I18n.get("applications.offer_rejected"),
-                            I18n.get("applications.offer_rejected_desc"));
-                } else {
-                    TLToast.error(offerColumn.getScene(),
-                            I18n.get("common.error"),
-                            I18n.get("applications.offer_reject_failed"));
-                }
-                loadApplications();
-            });
-        });
+        Circle bg = new Circle(radius);
+        bg.setStyle("-fx-fill: transparent; -fx-stroke: #3f3f46; -fx-stroke-width: " + stroke + ";");
+
+        if (value > 0) {
+            double angle = (value / 100.0) * 360.0;
+            Arc arc = new Arc(0, 0, radius, radius, 90, -angle);
+            arc.setType(ArcType.OPEN);
+            arc.setStyle("-fx-fill: transparent; -fx-stroke: " + color + "; -fx-stroke-width: " + (stroke + 0.5)
+                    + "; -fx-stroke-line-cap: round;");
+
+            Label val = new Label(value + "%");
+            val.setStyle("-fx-font-size: 11.5px; -fx-font-weight: bold; -fx-text-fill: " + color + ";");
+            ring.getChildren().addAll(bg, arc, val);
+        } else {
+            Label dash = new Label("—");
+            dash.setStyle("-fx-font-size: 13px; -fx-text-fill: #71717a;");
+            ring.getChildren().addAll(bg, dash);
+        }
+        return ring;
     }
 
-    private void showTrainingSuggestions(Application app) {
-        TLDialog<Void> dialog = new TLDialog<>();
-        dialog.setDialogTitle(I18n.get("applications.training_suggestions"));
-        dialog.setDescription(I18n.get("applications.training_suggestions_desc", app.getJobTitle()));
+    // ──────── Empty state ────────
 
-        VBox suggestionsBox = new VBox(12);
+    private VBox createEmptyState() {
+        VBox box = new VBox(12);
+        box.setAlignment(Pos.CENTER);
+        box.setPadding(new Insets(60, 24, 60, 24));
+        box.setStyle("-fx-background-color: #18181b; -fx-background-radius: 12; -fx-border-color: #2a2b2e; -fx-border-width: 1; -fx-border-radius: 12;");
+        box.setPrefWidth(600);
 
-        Label loadingLabel = new Label(I18n.get("common.loading"));
-        loadingLabel.getStyleClass().add("text-muted");
-        suggestionsBox.getChildren().add(loadingLabel);
+        Label emptyIcon = new Label("📭");
+        emptyIcon.setStyle("-fx-font-size: 42px;");
+        Label emptyTitle = new Label("Aucune candidature");
+        emptyTitle.setStyle("-fx-font-size: 17px; -fx-font-weight: bold; -fx-text-fill: #fafafa;");
+        Label emptyDesc = new Label("Explorez les offres et postulez pour commencer.");
+        emptyDesc.setStyle("-fx-font-size: 13px; -fx-text-fill: #a1a1aa;");
 
-        dialog.setDialogContent(suggestionsBox);
-        dialog.addButton(javafx.scene.control.ButtonType.CLOSE);
+        box.getChildren().addAll(emptyIcon, emptyTitle, emptyDesc);
+        return box;
+    }
 
-        AppThreadPool.execute(() -> {
-            try {
-                List<ScoredFormation> suggestions = FormationMatchingService.getInstance()
-                    .getSuggestionsForRejected(currentUser.getId(), app.getJobOfferId());
+    // ──────── Status helpers ────────
 
-                Platform.runLater(() -> {
-                    suggestionsBox.getChildren().clear();
-                    if (suggestions.isEmpty()) {
-                        Label emptyLabel = new Label(I18n.get("applications.no_suggestions"));
-                        emptyLabel.getStyleClass().add("text-muted");
-                        suggestionsBox.getChildren().add(emptyLabel);
-                        return;
-                    }
+    private TLBadge createStatusBadge(Application.Status status) {
+        String text; TLBadge.Variant variant;
+        switch (status) {
+            case PENDING:    text = I18n.get("inbox.status.pending");   variant = TLBadge.Variant.SECONDARY;    break;
+            case REVIEWING:  text = I18n.get("inbox.status.review");    variant = TLBadge.Variant.SUCCESS;      break;
+            case INTERVIEW:  text = I18n.get("inbox.status.interview"); variant = TLBadge.Variant.INFO;         break;
+            case OFFER:      text = I18n.get("inbox.status.offer");     variant = TLBadge.Variant.SUCCESS;      break;
+            case ACCEPTED:   text = I18n.get("inbox.status.accepted");  variant = TLBadge.Variant.SUCCESS;      break;
+            case REJECTED:   text = I18n.get("inbox.status.rejected");  variant = TLBadge.Variant.DESTRUCTIVE;  break;
+            default:         text = I18n.get("inbox.status.pending");   variant = TLBadge.Variant.DEFAULT;      break;
+        }
+        return new TLBadge(text, variant);
+    }
 
-                    for (ScoredFormation sf : suggestions) {
-                        TLCard suggCard = new TLCard();
-                        VBox cardContent = new VBox(6);
+    private String getStatusCardClass(Application.Status status) {
+        switch (status) {
+            case PENDING:    return "app-card-pending";
+            case REVIEWING:  return "app-card-reviewing";
+            case INTERVIEW:  return "app-card-interview";
+            case OFFER:      return "app-card-offer";
+            case ACCEPTED:   return "app-card-accepted";
+            case REJECTED:   return "app-card-rejected";
+            default:         return "app-card-pending";
+        }
+    }
 
-                        HBox topRow = new HBox(8);
-                        topRow.setAlignment(Pos.CENTER_LEFT);
-                        Label name = new Label(sf.getFormation().getTitle());
-                        name.getStyleClass().add("h4");
-                        name.setWrapText(true);
-                        Region spacer = new Region();
-                        HBox.setHgrow(spacer, Priority.ALWAYS);
-                        TLBadge scoreBadge = new TLBadge(
-                            String.format("%.0f%%", sf.getScore()), TLBadge.Variant.SUCCESS);
-                        topRow.getChildren().addAll(name, spacer, scoreBadge);
+    /** Left-border accent color per status (hex). */
+    private String getStatusAccentColor(Application.Status status) {
+        switch (status) {
+            case PENDING:    return "#71717a";
+            case REVIEWING:  return "#3b82f6";
+            case INTERVIEW:  return "#8b5cf6";
+            case OFFER:      return "#f59e0b";
+            case ACCEPTED:   return "#22c55e";
+            case REJECTED:   return "#ef4444";
+            default:         return "#71717a";
+        }
+    }
 
-                        Label reason = new Label(sf.getReason());
-                        reason.getStyleClass().add("text-muted");
-                        reason.setWrapText(true);
+    // ──────── Color helpers ────────
 
-                        HBox metaRow = new HBox(12);
-                        Label catLabel = new Label(sf.getFormation().getCategory());
-                        catLabel.getStyleClass().add("text-muted");
-                        Label durLabel = new Label(sf.getFormation().getDurationHours() + "h");
-                        durLabel.getStyleClass().add("text-muted");
-                        metaRow.getChildren().addAll(catLabel, durLabel);
+    private String getMatchColor(int pct) {
+        if (pct >= 80) return "#22c55e";
+        if (pct >= 60) return "#3b82f6";
+        if (pct >= 40) return "#f59e0b";
+        if (pct > 0)   return "#ef4444";
+        return "#71717a";
+    }
 
-                        cardContent.getChildren().addAll(topRow, reason, metaRow);
-                        suggCard.getContent().add(cardContent);
-                        suggestionsBox.getChildren().add(suggCard);
-                    }
-                });
-            } catch (Exception ex) {
-                logger.error("Failed to load training suggestions", ex);
-                Platform.runLater(() -> {
-                    suggestionsBox.getChildren().clear();
-                    Label errorLabel = new Label(I18n.get("common.error"));
-                    errorLabel.getStyleClass().add("text-destructive");
-                    suggestionsBox.getChildren().add(errorLabel);
-                });
-            }
-        });
+    private String getScoreColor(int score) {
+        if (score >= 75) return "#22c55e";
+        if (score >= 50) return "#3b82f6";
+        if (score >= 25) return "#f59e0b";
+        if (score > 0)   return "#ef4444";
+        return "#71717a";
+    }
 
-        dialog.showAndWait();
+    private String buildSubtitle(Application app) {
+        StringBuilder sb = new StringBuilder();
+        if (app.getCompanyName() != null && !app.getCompanyName().isEmpty()) sb.append(app.getCompanyName());
+        if (app.getJobLocation() != null && !app.getJobLocation().isEmpty()) {
+            if (sb.length() > 0) sb.append("  •  ");
+            sb.append(app.getJobLocation());
+        }
+        if (sb.length() == 0) sb.append("Offre #" + app.getJobOfferId());
+        return sb.toString();
+    }
+
+    private String formatAppliedDate(LocalDateTime dt) {
+        return dt != null ? dt.format(DATE_SHORT_FMT) : "";
+    }
+
+    private String formatTimeAgo(LocalDateTime dt) {
+        if (dt == null) return "";
+        long days = ChronoUnit.DAYS.between(dt, LocalDateTime.now());
+        if (days == 0) return "Aujourd'hui";
+        if (days == 1) return "Hier";
+        if (days < 7)  return "Il y a " + days + "j";
+        if (days < 30) return "Il y a " + (days / 7) + " sem.";
+        if (days < 365) return "Il y a " + (days / 30) + " mois";
+        return "Il y a " + (days / 365) + " an(s)";
     }
 
     @FXML
     private void handleRefresh() {
-        if (currentUser != null) {
-            loadApplications();
-        }
+        if (currentUser != null) loadApplications();
+    }
+
+    public void refreshIfNeeded() {
+        if (currentUser != null) loadApplications();
+    }
+
+    private void handleDeleteApplication(int applicationId) {
+        java.util.Optional<javafx.scene.control.ButtonType> result = com.skilora.utils.DialogUtils.showConfirmation(
+            I18n.get("applications.delete_confirm_title", "Supprimer la candidature"),
+            I18n.get("applications.delete_confirm_message", "Êtes-vous sûr de vouloir supprimer cette candidature ?")
+        );
+        if (result.isEmpty() || result.get() != javafx.scene.control.ButtonType.OK) return;
+
+        Task<Boolean> deleteTask = new Task<>() {
+            @Override
+            protected Boolean call() throws Exception {
+                return applicationService.delete(applicationId);
+            }
+        };
+        deleteTask.setOnSucceeded(e -> {
+            if (Boolean.TRUE.equals(deleteTask.getValue())) {
+                com.skilora.utils.DialogUtils.showInfo(
+                    I18n.get("applications.delete_success_title", "Candidature supprimée"),
+                    I18n.get("applications.delete_success_message", "Votre candidature a été supprimée.")
+                );
+                loadApplications();
+            } else {
+                com.skilora.utils.DialogUtils.showError(
+                    I18n.get("applications.delete_error_title", "Erreur"),
+                    I18n.get("applications.delete_error_message", "Impossible de supprimer la candidature.")
+                );
+            }
+        });
+        deleteTask.setOnFailed(e -> {
+            logger.error("Failed to delete application {}", applicationId, deleteTask.getException());
+            com.skilora.utils.DialogUtils.showError(
+                I18n.get("applications.delete_error_title", "Erreur"),
+                I18n.get("applications.delete_error_message", "Une erreur est survenue.")
+            );
+        });
+        Thread t = new Thread(deleteTask, "DeleteApplication");
+        t.setDaemon(true);
+        t.start();
     }
 }

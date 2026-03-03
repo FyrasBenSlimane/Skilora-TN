@@ -21,6 +21,7 @@ import com.skilora.utils.UiUtils;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
@@ -194,86 +195,160 @@ public class MyOffersController implements Initializable {
 
     private TLCard createOfferCard(JobOffer offer) {
         TLCard card = new TLCard();
+        card.getStyleClass().addAll("offer-card", "card-interactive");
 
-        VBox content = new VBox(8);
+        VBox content = new VBox(12);
+        content.setPadding(new Insets(4, 0, 4, 0));
 
-        // Top row: Title + Status badge
-        HBox topRow = new HBox(12);
-        topRow.setAlignment(Pos.CENTER_LEFT);
+        // ===== HEADER: Title + Status + Actions =====
+        HBox headerRow = new HBox(12);
+        headerRow.setAlignment(Pos.CENTER_LEFT);
 
+        // Status indicator dot
+        TLBadge statusBadge = createStatusBadge(offer.getStatus());
+
+        // Title with enhanced styling
         Label titleLabel = new Label(offer.getTitle() != null ? offer.getTitle() : I18n.get("myoffers.no_title"));
-        titleLabel.getStyleClass().add("h4");
-
-        TLBadge statusBadge = new TLBadge(
-            offer.getStatus() != null ? offer.getStatus().getDisplayName() : I18n.get("myoffers.draft"),
-            TLBadge.Variant.DEFAULT
-        );
-        if (offer.getStatus() == JobStatus.OPEN || offer.getStatus() == JobStatus.ACTIVE) {
-            statusBadge.getStyleClass().add("badge-success");
-        } else if (offer.getStatus() == JobStatus.CLOSED) {
-            statusBadge.getStyleClass().add("badge-destructive");
-        }
+        titleLabel.getStyleClass().addAll("h4", "job-card-title");
+        titleLabel.setWrapText(true);
+        titleLabel.setMaxWidth(500);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        topRow.getChildren().addAll(titleLabel, statusBadge, spacer);
+        // Quick action buttons in header
+        HBox quickActions = new HBox(6);
+        quickActions.setAlignment(Pos.CENTER_RIGHT);
 
-        // Details row
-        HBox detailsRow = new HBox(16);
-        detailsRow.setAlignment(Pos.CENTER_LEFT);
-
-        if (offer.getLocation() != null) {
-            Label locLabel = new Label(offer.getLocation());
-            locLabel.setGraphic(SvgIcons.icon(SvgIcons.MAP_PIN, 14, "-fx-muted-foreground"));
-            locLabel.getStyleClass().add("text-muted");
-            detailsRow.getChildren().add(locLabel);
-        }
-
-        if (offer.getWorkType() != null) {
-            Label typeLabel = new Label(offer.getWorkType());
-            typeLabel.setGraphic(SvgIcons.icon(SvgIcons.BRIEFCASE, 14, "-fx-muted-foreground"));
-            typeLabel.getStyleClass().add("text-muted");
-            detailsRow.getChildren().add(typeLabel);
-        }
-
-        Label salaryLabel = new Label(offer.getSalaryRange() + " " +
-            (offer.getCurrency() != null ? offer.getCurrency() : "TND"));
-        salaryLabel.setGraphic(SvgIcons.icon(SvgIcons.DOLLAR_SIGN, 14, "-fx-muted-foreground"));
-        salaryLabel.getStyleClass().add("text-muted");
-        detailsRow.getChildren().add(salaryLabel);
-
-        if (offer.getPostedDate() != null) {
-            Label dateLabel = new Label(offer.getPostedDate().format(DATE_FMT));
-            dateLabel.setGraphic(SvgIcons.icon(SvgIcons.CALENDAR, 14, "-fx-muted-foreground"));
-            dateLabel.getStyleClass().add("text-muted");
-            detailsRow.getChildren().add(dateLabel);
-        }
-
-        // Actions row
-        TLSeparator sep = new TLSeparator();
-
-        HBox actionsRow = new HBox(8);
-        actionsRow.setAlignment(Pos.CENTER_RIGHT);
-
-        TLButton editBtn = new TLButton(I18n.get("myoffers.edit"), TLButton.ButtonVariant.OUTLINE);
+        TLButton editBtn = new TLButton("", TLButton.ButtonVariant.GHOST);
+        editBtn.setGraphic(SvgIcons.icon(SvgIcons.EDIT, 16, "-fx-muted-foreground"));
+        editBtn.setTooltip(new javafx.scene.control.Tooltip(I18n.get("myoffers.edit")));
         editBtn.setOnAction(e -> handleEditOffer(offer));
 
-        TLButton deleteBtn = new TLButton(I18n.get("myoffers.delete"), TLButton.ButtonVariant.GHOST);
-        deleteBtn.getStyleClass().add("text-destructive");
+        TLButton deleteBtn = new TLButton("", TLButton.ButtonVariant.GHOST);
+        deleteBtn.setGraphic(SvgIcons.icon(SvgIcons.TRASH, 16, "-fx-destructive"));
+        deleteBtn.setTooltip(new javafx.scene.control.Tooltip(I18n.get("myoffers.delete")));
         deleteBtn.setOnAction(e -> handleDeleteOffer(offer));
+
+        quickActions.getChildren().addAll(editBtn, deleteBtn);
+
+        headerRow.getChildren().addAll(statusBadge, titleLabel, spacer, quickActions);
+
+        // ===== METADATA GRID: Location | Work Type | Salary | Date =====
+        javafx.scene.layout.FlowPane metadataPane = new javafx.scene.layout.FlowPane(12, 8);
+        metadataPane.setPrefWrapLength(600);
+
+        if (offer.getLocation() != null && !offer.getLocation().isEmpty()) {
+            metadataPane.getChildren().add(createMetadataItem(SvgIcons.MAP_PIN, offer.getLocation()));
+        }
+
+        if (offer.getWorkType() != null && !offer.getWorkType().isEmpty()) {
+            metadataPane.getChildren().add(createMetadataItem(SvgIcons.BRIEFCASE, offer.getWorkType()));
+        }
+
+        if (offer.getSalaryRange() != null && !offer.getSalaryRange().isEmpty()) {
+            metadataPane.getChildren().add(createMetadataItem(SvgIcons.DOLLAR_SIGN,
+                offer.getSalaryRange() + " " + (offer.getCurrency() != null ? offer.getCurrency() : "TND")));
+        }
+
+        if (offer.getPostedDate() != null) {
+            String dateText = I18n.get("myoffers.posted") + " " + offer.getPostedDate().format(DATE_FMT);
+            metadataPane.getChildren().add(createMetadataItem(SvgIcons.CALENDAR, dateText));
+        }
+
+        // ===== DESCRIPTION PREVIEW =====
+        VBox descBox = null;
+        if (offer.getDescription() != null && !offer.getDescription().isEmpty()) {
+            String desc = offer.getDescription();
+            if (desc.length() > 120) {
+                desc = desc.substring(0, 120) + "...";
+            }
+            Label descLabel = new Label(desc);
+            descLabel.getStyleClass().addAll("text-muted", "text-sm");
+            descLabel.setWrapText(true);
+            descBox = new VBox(descLabel);
+        }
+
+        // ===== FOOTER: Primary Actions =====
+        HBox footerRow = new HBox(8);
+        footerRow.setAlignment(Pos.CENTER_RIGHT);
+        footerRow.setPadding(new Insets(8, 0, 0, 0));
 
         if (offer.getStatus() == JobStatus.OPEN || offer.getStatus() == JobStatus.ACTIVE) {
             TLButton closeBtn = new TLButton(I18n.get("myoffers.close"), TLButton.ButtonVariant.OUTLINE);
+            closeBtn.setGraphic(SvgIcons.icon(SvgIcons.CHECK, 14, null));
             closeBtn.setOnAction(e -> handleCloseOffer(offer));
-            actionsRow.getChildren().add(closeBtn);
+            footerRow.getChildren().add(closeBtn);
+        } else if (offer.getStatus() == JobStatus.CLOSED) {
+            TLButton reopenBtn = new TLButton(I18n.get("myoffers.reopen"), TLButton.ButtonVariant.OUTLINE);
+            reopenBtn.setGraphic(SvgIcons.icon(SvgIcons.REFRESH, 14, null));
+            reopenBtn.setOnAction(e -> handleReopenOffer(offer));
+            footerRow.getChildren().add(reopenBtn);
         }
 
-        actionsRow.getChildren().addAll(editBtn, deleteBtn);
+        TLButton viewAppsBtn = new TLButton(I18n.get("myoffers.view_applications"), TLButton.ButtonVariant.SECONDARY);
+        viewAppsBtn.setGraphic(SvgIcons.icon(SvgIcons.USERS, 14, null));
+        viewAppsBtn.setOnAction(e -> handleViewApplications(offer));
+        footerRow.getChildren().add(viewAppsBtn);
 
-        content.getChildren().addAll(topRow, detailsRow, sep, actionsRow);
+        // Assemble content
+        content.getChildren().add(headerRow);
+        if (!metadataPane.getChildren().isEmpty()) {
+            content.getChildren().add(metadataPane);
+        }
+        if (descBox != null) {
+            content.getChildren().add(descBox);
+        }
+        content.getChildren().add(footerRow);
+
         card.getContent().add(content);
         return card;
+    }
+
+    private TLBadge createStatusBadge(JobStatus status) {
+        String label;
+        TLBadge.Variant variant;
+
+        if (status == null) {
+            label = I18n.get("myoffers.draft");
+            variant = TLBadge.Variant.DEFAULT;
+        } else {
+            switch (status) {
+                case OPEN, ACTIVE -> {
+                    label = I18n.get("myoffers.status.active");
+                    variant = TLBadge.Variant.SUCCESS;
+                }
+                case CLOSED -> {
+                    label = I18n.get("myoffers.status.closed");
+                    variant = TLBadge.Variant.DESTRUCTIVE;
+                }
+                case DRAFT -> {
+                    label = I18n.get("myoffers.status.draft");
+                    variant = TLBadge.Variant.SECONDARY;
+                }
+                default -> {
+                    label = status.getDisplayName();
+                    variant = TLBadge.Variant.DEFAULT;
+                }
+            }
+        }
+
+        TLBadge badge = new TLBadge(label, variant);
+        badge.getStyleClass().add("status-badge");
+        return badge;
+    }
+
+    private HBox createMetadataItem(String iconSvg, String text) {
+        HBox box = new HBox(6);
+        box.setAlignment(Pos.CENTER_LEFT);
+        box.getStyleClass().add("metadata-item");
+
+        javafx.scene.Node icon = SvgIcons.icon(iconSvg, 14, "-fx-muted-foreground");
+        Label label = new Label(text);
+        label.getStyleClass().addAll("text-sm", "text-muted");
+
+        box.getChildren().addAll(icon, label);
+        return box;
     }
 
     @FXML
@@ -473,5 +548,46 @@ public class MyOffersController implements Initializable {
                 AppThreadPool.execute(task);
             }
         });
+    }
+
+    private void handleReopenOffer(JobOffer offer) {
+        DialogUtils.showConfirmation(
+            I18n.get("myoffers.reopen.confirm.title"),
+            I18n.get("myoffers.reopen.confirm.message", offer.getTitle())
+        ).ifPresent(result -> {
+            if (result == ButtonType.OK) {
+                offersContainer.setDisable(true);
+                offer.setStatus(JobStatus.OPEN);
+                Task<Boolean> task = new Task<>() {
+                    @Override
+                    protected Boolean call() throws Exception {
+                        return jobService.updateJobOffer(offer);
+                    }
+                };
+                task.setOnSucceeded(e -> {
+                    offersContainer.setDisable(false);
+                    applyFilters();
+                    TLToast.success(offersContainer.getScene(),
+                        I18n.get("myoffers.reopen.success.title"),
+                        I18n.get("myoffers.reopen.success.message"));
+                });
+                task.setOnFailed(e -> {
+                    offersContainer.setDisable(false);
+                    logger.error("Failed to reopen offer", task.getException());
+                    TLToast.error(offersContainer.getScene(), I18n.get("common.error"), I18n.get("error.failed_reopen_offer"));
+                });
+                AppThreadPool.execute(task);
+            }
+        });
+    }
+
+    private void handleViewApplications(JobOffer offer) {
+        // Navigate to applications view filtered by this offer
+        if (offersContainer.getScene() != null) {
+            TLToast.info(offersContainer.getScene(),
+                I18n.get("myoffers.applications.title"),
+                I18n.get("myoffers.applications.message", offer.getTitle()));
+        }
+        // TODO: Implement navigation to applications inbox filtered by offer
     }
 }

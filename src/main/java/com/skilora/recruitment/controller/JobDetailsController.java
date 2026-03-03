@@ -90,6 +90,9 @@ public class JobDetailsController {
     public void setCallbacks(Runnable onBack, Runnable onApply) {
         this.onBack = onBack;
         this.onApply = onApply;
+        if (applyBtn != null && onApply != null) {
+            applyBtn.setText(I18n.get("feed.apply", "Postuler"));
+        }
     }
     
     private void populateJobDetails() {
@@ -159,9 +162,23 @@ public class JobDetailsController {
         boolean isOfferClosed = currentJob.getStatus() != null && "CLOSED".equals(currentJob.getStatus());
         if (isOfferClosed && applyBtn != null) {
             applyBtn.setDisable(true);
-            applyBtn.setText("Ferm\u00e9e");
+            applyBtn.setText(I18n.get("feed.closed", "Fermée"));
             applyBtn.setVariant(TLButton.ButtonVariant.DANGER);
             applyBtn.setOpacity(1.0);
+        } else if (applyBtn != null && currentJob.getId() > 0 && currentUserObj != null && onApply != null) {
+            try {
+                var profile = com.skilora.user.service.ProfileService.getInstance().findProfileByUserId(currentUserObj.getId());
+                if (profile != null && profile.getId() > 0) {
+                    boolean alreadyApplied = com.skilora.recruitment.service.ApplicationService.getInstance().hasApplied(currentJob.getId(), profile.getId());
+                    if (alreadyApplied) {
+                        applyBtn.setDisable(true);
+                        applyBtn.setText("✓ " + I18n.get("jobdetails.applied", "Candidature envoyée"));
+                        applyBtn.setVariant(TLButton.ButtonVariant.SECONDARY);
+                    }
+                }
+            } catch (Exception e) {
+                // ignore
+            }
         }
 
         // Load AI insights asynchronously
@@ -293,25 +310,34 @@ public class JobDetailsController {
     
     @FXML
     private void handleApply() {
+        if (applyBtn != null && applyBtn.isDisable()) return;
+        boolean isClosed = currentJob != null && currentJob.getStatus() != null && "CLOSED".equals(currentJob.getStatus());
+        if (currentJob != null && currentJob.getId() > 0) {
+            try {
+                var offer = com.skilora.recruitment.service.JobService.getInstance().findJobOfferById(currentJob.getId());
+                if (offer != null && offer.getStatus() == com.skilora.recruitment.enums.JobStatus.CLOSED) isClosed = true;
+            } catch (Exception e) { /* use status from currentJob */ }
+        }
+        if (isClosed) {
+            com.skilora.utils.DialogUtils.showError(I18n.get("application.offer_closed"), I18n.get("application.offer_closed_message"));
+            return;
+        }
+        if (onApply != null) {
+            onApply.run();
+            return;
+        }
         applyBtn.setGraphic(SvgIcons.icon(SvgIcons.CHECK, 14));
         applyBtn.setText(I18n.get("feed.opened"));
         applyBtn.setDisable(true);
-        
-        // Open the job URL in the default browser
-        String targetUrl = currentJob != null && currentJob.getApplyUrl() != null && !currentJob.getApplyUrl().isBlank()
+        String url = currentJob != null && currentJob.getApplyUrl() != null && !currentJob.getApplyUrl().isBlank()
                 ? currentJob.getApplyUrl()
                 : (currentJob != null ? currentJob.getUrl() : null);
-        if (targetUrl != null && !targetUrl.isBlank()) {
+        if (url != null && !url.isBlank()) {
             try {
-                java.awt.Desktop.getDesktop().browse(new java.net.URI(targetUrl));
+                java.awt.Desktop.getDesktop().browse(new java.net.URI(url));
             } catch (Exception ex) {
-                // Fallback: just log
-                System.err.println("Failed to open URL: " + targetUrl);
+                System.err.println("Failed to open URL: " + url);
             }
-        }
-        
-        if (onApply != null) {
-            onApply.run();
         }
     }
     

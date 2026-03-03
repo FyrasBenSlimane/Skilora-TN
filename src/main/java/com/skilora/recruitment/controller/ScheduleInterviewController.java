@@ -2,7 +2,10 @@ package com.skilora.recruitment.controller;
 
 import com.skilora.recruitment.entity.Application;
 import com.skilora.recruitment.entity.Interview;
+import com.skilora.recruitment.service.ApplicationService;
 import com.skilora.recruitment.service.InterviewService;
+import com.skilora.utils.DialogUtils;
+import com.skilora.utils.I18n;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.ComboBox;
@@ -104,15 +107,33 @@ public class ScheduleInterviewController {
 
             InterviewService service = InterviewService.getInstance();
             if (existingInterview != null && existingInterview.getId() > 0) {
-                service.reschedule(existingInterview.getId(), dateTime);
+                boolean ok = service.update(toSave);
+                if (!ok) {
+                    DialogUtils.showError(I18n.get("common.error", "Erreur"),
+                            I18n.get("interviews.save_failed", "Impossible d'enregistrer les modifications de l'entretien."));
+                    return false;
+                }
             } else {
-                service.create(toSave);
+                int id = service.create(toSave);
+                if (id <= 0) {
+                    DialogUtils.showError(I18n.get("common.error", "Erreur"),
+                            I18n.get("interviews.save_failed", "Impossible d'enregistrer l'entretien. Vérifiez la connexion et réessayez."));
+                    return false;
+                }
+                // Move application to "interview" phase
+                try {
+                    ApplicationService.getInstance().updateStatus(application.getId(), Application.Status.INTERVIEW);
+                } catch (Exception ex) {
+                    logger.warn("Could not update application status to INTERVIEW: {}", ex.getMessage());
+                }
             }
 
             if (onSuccess != null) onSuccess.run();
             return true;
         } catch (Exception e) {
             logger.error("Save interview failed", e);
+            DialogUtils.showError(I18n.get("common.error", "Erreur"),
+                    I18n.get("interviews.save_failed", "Impossible d'enregistrer l'entretien.") + " " + e.getMessage());
             return false;
         }
     }
