@@ -21,7 +21,6 @@ import java.time.format.DateTimeFormatter;
  *   // ... l'utilisateur parle ...
  *   File wavFile = recorder.stopRecording();  // retourne le fichier WAV
  */
-@SuppressWarnings("unused")
 public class AudioRecorderService {
 
     private static final Logger logger = LoggerFactory.getLogger(AudioRecorderService.class);
@@ -150,7 +149,7 @@ public class AudioRecorderService {
         // Vérifier que le fichier est valide (au moins 1 seconde)
         if (durationMs < 800) {
             logger.warn("Recording too short ({} ms) — discarding", durationMs);
-            if (currentFile.exists()) { boolean ignored = currentFile.delete(); }
+            if (currentFile.exists()) currentFile.delete();
             return null;
         }
 
@@ -174,8 +173,8 @@ public class AudioRecorderService {
         }
 
         if (currentFile != null && currentFile.exists()) {
-            boolean deleted = currentFile.delete();
-            logger.info("Recording cancelled and file deleted: {}", deleted);
+            currentFile.delete();
+            logger.info("Recording cancelled and file deleted");
         }
     }
 

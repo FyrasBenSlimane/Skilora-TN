@@ -2,6 +2,7 @@ package com.skilora.community.service;
 
 import com.skilora.config.DatabaseConfig;
 import com.skilora.user.entity.User;
+import com.skilora.user.enums.Role;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,18 +105,6 @@ public class DashboardStatsService {
     public int getUserConnectionCount(int userId) {
         return countQuery("SELECT COUNT(*) FROM connections WHERE (user_id_1 = ? OR user_id_2 = ?) " +
                          "AND status = 'ACCEPTED'", userId, userId);
-    }
-
-    // ── Trainer Stats ──
-
-    public int getTrainerFormationCount(int userId) {
-        return countQuery("SELECT COUNT(*) FROM formations WHERE created_by = ?", userId);
-    }
-
-    public int getTrainerTotalEnrollees(int userId) {
-        return countQuery("SELECT COUNT(*) FROM enrollments e " +
-                         "JOIN formations f ON e.formation_id = f.id " +
-                         "WHERE f.created_by = ?", userId);
     }
 
     // ── Recent Activity from DB ──
@@ -265,56 +254,7 @@ public class DashboardStatsService {
         return items.size() > limit ? items.subList(0, limit) : items;
     }
 
-    // ── Platform / Marketplace Stats (Admin) ──
-
-    public int getTotalFormations() {
-        return countQuery("SELECT COUNT(*) FROM formations");
-    }
-
-    public int getTotalEnrollments() {
-        return countQuery("SELECT COUNT(*) FROM enrollments");
-    }
-
-    public int getActiveContracts() {
-        return countQuery("SELECT COUNT(*) FROM employment_contracts WHERE status = 'ACTIVE'");
-    }
-
-    public int getCompletedJobsThisMonth() {
-        return countQuery("SELECT COUNT(*) FROM job_offers WHERE status IN ('CLOSED','FILLED') " +
-                         "AND COALESCE(updated_at, posted_date) >= DATE_FORMAT(NOW(), '%Y-%m-01')");
-    }
-
-    public int getUserCountByRole(String role) {
-        return countQueryStr("SELECT COUNT(*) FROM users WHERE role = ? AND is_active = 1", role);
-    }
-
-    /** Total applications submitted this month across the platform. */
-    public int getTotalApplicationsThisMonth() {
-        return countQuery("SELECT COUNT(*) FROM applications " +
-                         "WHERE applied_date >= DATE_FORMAT(NOW(), '%Y-%m-01')");
-    }
-
-    /** Count of interviews scheduled in the coming 7 days platform-wide. */
-    public int getPlatformInterviewsThisWeek() {
-        return countQuery("SELECT COUNT(*) FROM interviews " +
-                         "WHERE scheduled_date >= NOW() AND scheduled_date <= DATE_ADD(NOW(), INTERVAL 7 DAY)");
-    }
-
     // ── Helpers ──
-
-    /** Count query with a single String parameter. */
-    private int countQueryStr(String sql, String param) {
-        try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, param);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) return rs.getInt(1);
-            }
-        } catch (SQLException e) {
-            logger.error("Count query failed: {}", sql, e);
-        }
-        return 0;
-    }
 
     private int countQuery(String sql, int... params) {
         try (Connection conn = DatabaseConfig.getInstance().getConnection();

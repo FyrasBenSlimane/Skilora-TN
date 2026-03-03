@@ -234,7 +234,7 @@ public class MentionService {
      * @param postId          l'ID du post contenant la mention
      */
     private void createMentionNotification(int mentionedUserId, int authorId, int postId) {
-        String sql = "INSERT INTO notifications (user_id, type, message, reference_id, is_read, created_at) " +
+        String sql = "INSERT INTO notifications (user_id, type, message, reference_id, is_read, created_date) " +
                 "VALUES (?, 'MENTION', ?, ?, FALSE, NOW())";
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {

@@ -8,29 +8,33 @@
 <VBox xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.skilora.community.controller.NotificationsController"
       spacing="24"
-      styleClass="transparent-bg">
+      style="-fx-background-color: transparent;">
     <padding><Insets top="32" right="32" bottom="32" left="32"/></padding>
     
+    <!-- Header -->
     <HBox spacing="24" alignment="CENTER_LEFT">
         <VBox spacing="4">
-            <Label fx:id="titleLabel" text="" styleClass="notifications-page-title"/>
-            <Label fx:id="subtitleLabel" text="" styleClass="notifications-page-subtitle"/>
-            <Label fx:id="statsLabel" text="" styleClass="text-muted"/>
+            <Label text="Notifications" styleClass="h2"/>
+            <Label fx:id="statsLabel" text="0 non lues" styleClass="text-muted"/>
         </VBox>
+        
         <Region HBox.hgrow="ALWAYS"/>
+        
         <HBox spacing="12">
-            <TLButton fx:id="markAllBtn" text="" variant="OUTLINE" onAction="#handleMarkAllRead"/>
-            <TLButton fx:id="clearBtn" text="" variant="GHOST" onAction="#handleClearAll"/>
+            <TLButton fx:id="markAllBtn" text="✓ Tout marquer lu" variant="OUTLINE" onAction="#handleMarkAllRead"/>
+            <TLButton fx:id="clearBtn" text="🗑️ Effacer tout" variant="GHOST" onAction="#handleClearAll"/>
         </HBox>
     </HBox>
     
+    <!-- Tabs -->
     <HBox fx:id="tabsBox" spacing="8">
-        <TLButton fx:id="allTab" text="" variant="GHOST" styleClass="tab-button, tab-button-active" onAction="#handleShowAll"/>
-        <TLButton fx:id="unreadTab" text="" variant="GHOST" styleClass="tab-button" onAction="#handleShowUnread"/>
-        <TLButton fx:id="mentionsTab" text="" variant="GHOST" styleClass="tab-button" onAction="#handleShowMentions"/>
+        <ToggleButton text="Toutes" styleClass="tab-button" selected="true" onAction="#handleShowAll"/>
+        <ToggleButton text="Non lues" styleClass="tab-button" onAction="#handleShowUnread"/>
+        <ToggleButton text="Mentions" styleClass="tab-button" onAction="#handleShowMentions"/>
     </HBox>
     
-    <ScrollPane fitToWidth="true" styleClass="transparent-bg" VBox.vgrow="ALWAYS">
+    <!-- Notifications List -->
+    <ScrollPane fitToWidth="true" style="-fx-background-color: transparent;" VBox.vgrow="ALWAYS">
         <VBox fx:id="notificationsList" spacing="12">
             <padding><Insets top="0" right="8" bottom="0" left="0"/></padding>
         </VBox>

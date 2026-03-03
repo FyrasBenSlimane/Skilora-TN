@@ -32,13 +32,12 @@ public class ConnectionService {
         int user1 = Math.min(fromUserId, toUserId);
         int user2 = Math.max(fromUserId, toUserId);
         
-        String sql = "INSERT INTO connections (user_id_1, user_id_2, requester_id, status, created_date) VALUES (?, ?, ?, ?, NOW())";
+        String sql = "INSERT INTO connections (user_id_1, user_id_2, status, created_date) VALUES (?, ?, ?, NOW())";
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             stmt.setInt(1, user1);
             stmt.setInt(2, user2);
-            stmt.setInt(3, fromUserId);
-            stmt.setString(4, ConnectionStatus.PENDING.name());
+            stmt.setString(3, ConnectionStatus.PENDING.name());
             stmt.executeUpdate();
             
             ResultSet rs = stmt.getGeneratedKeys();
@@ -166,30 +165,17 @@ public class ConnectionService {
     public List<com.skilora.community.entity.Connection> getPendingRequests(int userId) {
         List<com.skilora.community.entity.Connection> requests = new ArrayList<>();
         String sql = """
-            SELECT c.*,
-                CASE
-                    WHEN c.requester_id = c.user_id_1 THEN u1.full_name
-                    ELSE u2.full_name
-                END as other_name,
-                CASE
-                    WHEN c.requester_id = c.user_id_1 THEN u1.photo_url
-                    ELSE u2.photo_url
-                END as other_photo
+            SELECT c.*, u1.full_name as other_name, u1.photo_url as other_photo
             FROM connections c
             JOIN users u1 ON c.user_id_1 = u1.id
-            JOIN users u2 ON c.user_id_2 = u2.id
-            WHERE (c.user_id_1 = ? OR c.user_id_2 = ?)
-              AND c.requester_id != ?
-              AND c.status = ?
+            WHERE c.user_id_2 = ? AND c.status = ?
             ORDER BY c.created_date DESC
             """;
         
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, userId);
-            stmt.setInt(2, userId);
-            stmt.setInt(3, userId);
-            stmt.setString(4, ConnectionStatus.PENDING.name());
+            stmt.setString(2, ConnectionStatus.PENDING.name());
             
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
@@ -236,6 +222,9 @@ public class ConnectionService {
         return 0;
     }
 
+    /**
+     * Returns count of pending incoming connection requests for a user.
+     */
     public int getPendingCount(int userId) {
         String sql = "SELECT COUNT(*) FROM connections WHERE user_id_2 = ? AND status = ?";
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
@@ -289,63 +278,11 @@ public class ConnectionService {
         return suggestions;
     }
 
-    /**
-     * Search people by full name, excluding the current user and already-connected users.
-     * Returns lightweight Connection objects where userId2 is the found user.
-     */
-    public List<com.skilora.community.entity.Connection> searchPeople(int userId, String query, int limit) {
-        List<com.skilora.community.entity.Connection> results = new ArrayList<>();
-        if (query == null || query.trim().isEmpty()) return results;
-        int safeLimit = Math.max(1, Math.min(limit, 50));
-        String sql = """
-            SELECT u.id as user_id, u.full_name, u.photo_url
-            FROM users u
-            WHERE u.id != ?
-              AND u.full_name LIKE ?
-              AND u.id NOT IN (
-                SELECT user_id_2 FROM connections WHERE user_id_1 = ?
-                UNION
-                SELECT user_id_1 FROM connections WHERE user_id_2 = ?
-              )
-            ORDER BY u.full_name ASC
-            LIMIT ?
-            """;
-
-        try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, userId);
-            stmt.setString(2, "%" + query.trim() + "%");
-            stmt.setInt(3, userId);
-            stmt.setInt(4, userId);
-            stmt.setInt(5, safeLimit);
-
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                com.skilora.community.entity.Connection c = new com.skilora.community.entity.Connection();
-                c.setUserId1(userId);
-                c.setUserId2(rs.getInt("user_id"));
-                c.setOtherUserName(rs.getString("full_name"));
-                c.setOtherUserPhoto(rs.getString("photo_url"));
-                c.setStatus(ConnectionStatus.PENDING);
-                results.add(c);
-            }
-        } catch (SQLException e) {
-            logger.error("Error searching people: {}", e.getMessage(), e);
-        }
-
-        return results;
-    }
-
     private com.skilora.community.entity.Connection mapConnection(ResultSet rs) throws SQLException {
         com.skilora.community.entity.Connection connection = new com.skilora.community.entity.Connection();
         connection.setId(rs.getInt("id"));
         connection.setUserId1(rs.getInt("user_id_1"));
         connection.setUserId2(rs.getInt("user_id_2"));
-        try {
-            connection.setRequesterId(rs.getInt("requester_id"));
-        } catch (SQLException ignored) {
-            // requester_id column may not exist in older data
-        }
         connection.setStatus(ConnectionStatus.valueOf(rs.getString("status")));
         connection.setConnectionType(rs.getString("connection_type"));
         connection.setStrengthScore(rs.getInt("strength_score"));

@@ -1,20 +1,23 @@
 package com.skilora.community.controller;
 
 import com.skilora.community.entity.Report;
+import com.skilora.user.entity.User;
 import com.skilora.community.service.ReportService;
 import com.skilora.framework.components.TLButton;
 import com.skilora.framework.components.TLCard;
 import com.skilora.framework.components.TLBadge;
 import com.skilora.framework.components.TLSeparator;
-import com.skilora.framework.components.TLTabs;
-import com.skilora.framework.components.TLToast;
 
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
+import javafx.scene.control.Separator;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -32,7 +35,6 @@ import java.util.List;
 import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 
-import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.I18n;
 
 /**
@@ -52,16 +54,17 @@ public class ReportsController implements Initializable {
     @FXML private TLButton refreshBtn;
 
     private List<Report> allReports = new ArrayList<>();
+    private ToggleGroup filterGroup;
     private String currentFilter = "ALL";
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        refreshBtn.setText(I18n.get("common.refresh"));
         setupFilters();
         loadReports();
     }
 
     private void setupFilters() {
+        filterGroup = new ToggleGroup();
         String[][] filters = {
             {I18n.get("reports.filter.all"), "ALL"},
             {I18n.get("reports.filter.pending"), "PENDING"},
@@ -70,15 +73,23 @@ public class ReportsController implements Initializable {
             {I18n.get("reports.filter.rejected"), "DISMISSED"}
         };
 
-        TLTabs tabs = new TLTabs();
         for (String[] f : filters) {
-            tabs.addTab(f[1], f[0], (javafx.scene.Node) null);
+            ToggleButton btn = new ToggleButton(f[0]);
+            btn.setUserData(f[1]);
+            btn.getStyleClass().add("chip-filter");
+            btn.setToggleGroup(filterGroup);
+            if ("ALL".equals(f[1])) btn.setSelected(true);
+
+            btn.setOnAction(e -> {
+                if (btn.isSelected()) {
+                    currentFilter = (String) btn.getUserData();
+                    applyFilters();
+                } else if (filterGroup.getSelectedToggle() == null) {
+                    btn.setSelected(true);
+                }
+            });
+            filterBox.getChildren().add(btn);
         }
-        tabs.setOnTabChanged(tabId -> {
-            currentFilter = tabId;
-            applyFilters();
-        });
-        filterBox.getChildren().add(tabs);
     }
 
     private void loadReports() {
@@ -101,7 +112,7 @@ public class ReportsController implements Initializable {
             statsLabel.setText(I18n.get("common.error"));
         });
 
-        AppThreadPool.execute(task);
+        new Thread(task, "ReportsLoader") {{ setDaemon(true); }}.start();
     }
 
     private void applyFilters() {
@@ -140,6 +151,7 @@ public class ReportsController implements Initializable {
         TLCard card = new TLCard();
 
         VBox content = new VBox(8);
+        content.setPadding(new Insets(16));
 
         // Top row: Type badge + Status + Time
         HBox topRow = new HBox(8);
@@ -230,12 +242,9 @@ public class ReportsController implements Initializable {
             }
         });
 
-        task.setOnFailed(e -> {
-            logger.error("Failed to update report status", task.getException());
-            TLToast.error(reportsContainer.getScene(), I18n.get("common.error"), I18n.get("error.failed_update_report"));
-        });
+        task.setOnFailed(e -> logger.error("Failed to update report status", task.getException()));
 
-        AppThreadPool.execute(task);
+        new Thread(task, "UpdateReportStatus") {{ setDaemon(true); }}.start();
     }
 
     private String getStatusDisplayName(String status) {

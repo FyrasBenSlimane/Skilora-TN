@@ -58,26 +58,10 @@ public class Message {
     public int getDuration() { return duration; }
     public void setDuration(int duration) { this.duration = duration; }
 
-    // Media type helpers
+    // Helpers
     public boolean isImage() { return "IMAGE".equals(messageType); }
     public boolean isVideo() { return "VIDEO".equals(messageType); }
     public boolean isVocal() { return "VOCAL".equals(messageType); }
     public boolean isText() { return "TEXT".equals(messageType) || messageType == null; }
     public boolean hasMedia() { return mediaUrl != null && !mediaUrl.isBlank(); }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Message that = (Message) o;
-        return id == that.id;
-    }
-
-    @Override
-    public int hashCode() { return Integer.hashCode(id); }
-
-    @Override
-    public String toString() {
-        return "Message{id=" + id + ", conversationId=" + conversationId + ", senderId=" + senderId + ", isRead=" + isRead + "}";
-    }
 }

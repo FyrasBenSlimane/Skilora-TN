@@ -2,7 +2,6 @@ package com.skilora.community.entity;
 
 import java.time.LocalDateTime;
 
-@SuppressWarnings("unused")
 public class GroupMessage {
     private int id;
     private int groupId;

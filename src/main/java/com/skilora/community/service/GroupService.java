@@ -18,7 +18,8 @@ public class GroupService {
     private static volatile GroupService instance;
     private final java.util.Map<String, Long> groupTypingStatus = new java.util.concurrent.ConcurrentHashMap<>();
 
-    private GroupService() {}
+    private GroupService() {
+    }
 
     public static GroupService getInstance() {
         if (instance == null) {
@@ -32,43 +33,35 @@ public class GroupService {
     }
 
     public int create(CommunityGroup group) {
-        String sql = "INSERT INTO community_groups (name, description, category, cover_image_url, creator_id, is_public, created_date) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, NOW())";
-        try (Connection conn = DatabaseConfig.getInstance().getConnection()) {
-            conn.setAutoCommit(false);
-            try (PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-                stmt.setString(1, group.getName());
-                stmt.setString(2, group.getDescription());
-                stmt.setString(3, group.getCategory());
-                stmt.setString(4, group.getCoverImageUrl());
-                stmt.setInt(5, group.getCreatorId());
-                stmt.setBoolean(6, group.isPublic());
-                stmt.executeUpdate();
-                
-                ResultSet rs = stmt.getGeneratedKeys();
-                if (rs.next()) {
-                    int id = rs.getInt(1);
-                    logger.info("Group created with id {}", id);
-                    
-                    // Add creator as ADMIN member
-                    String memberSql = "INSERT INTO group_members (group_id, user_id, role, joined_date) VALUES (?, ?, 'ADMIN', NOW())";
-                    try (PreparedStatement memberStmt = conn.prepareStatement(memberSql)) {
-                        memberStmt.setInt(1, id);
-                        memberStmt.setInt(2, group.getCreatorId());
-                        memberStmt.executeUpdate();
-                    }
-                    
-                    conn.commit();
-                    // Award achievement (outside transaction — non-critical)
-                    AchievementService.getInstance().checkAndAward(group.getCreatorId());
-                    return id;
+        String sql = "INSERT INTO community_groups (name, description, category, cover_image_url, creator_id, is_public, created_date) "
+                +
+                "VALUES (?, ?, ?, ?, ?, ?, NOW())";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+                PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            stmt.setString(1, group.getName());
+            stmt.setString(2, group.getDescription());
+            stmt.setString(3, group.getCategory());
+            stmt.setString(4, group.getCoverImageUrl());
+            stmt.setInt(5, group.getCreatorId());
+            stmt.setBoolean(6, group.isPublic());
+            stmt.executeUpdate();
+
+            ResultSet rs = stmt.getGeneratedKeys();
+            if (rs.next()) {
+                int id = rs.getInt(1);
+                logger.info("Group created with id {}", id);
+
+                // Add creator as ADMIN member
+                String memberSql = "INSERT INTO group_members (group_id, user_id, role, joined_date) VALUES (?, ?, 'ADMIN', NOW())";
+                try (PreparedStatement memberStmt = conn.prepareStatement(memberSql)) {
+                    memberStmt.setInt(1, id);
+                    memberStmt.setInt(2, group.getCreatorId());
+                    memberStmt.executeUpdate();
                 }
-                conn.rollback();
-            } catch (SQLException e) {
-                conn.rollback();
-                throw e;
-            } finally {
-                conn.setAutoCommit(true);
+
+                // Award achievement
+                AchievementService.getInstance().checkAndAward(group.getCreatorId());
+                return id;
             }
         } catch (SQLException e) {
             logger.error("Error creating group: {}", e.getMessage(), e);
@@ -78,14 +71,14 @@ public class GroupService {
 
     public CommunityGroup findById(int id) {
         String sql = """
-            SELECT g.*, u.full_name as creator_name
-            FROM community_groups g
-            JOIN users u ON g.creator_id = u.id
-            WHERE g.id = ?
-            """;
-        
+                SELECT g.*, u.full_name as creator_name
+                FROM community_groups g
+                JOIN users u ON g.creator_id = u.id
+                WHERE g.id = ?
+                """;
+
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
@@ -100,16 +93,15 @@ public class GroupService {
     public List<CommunityGroup> findAll() {
         List<CommunityGroup> groups = new ArrayList<>();
         String sql = """
-            SELECT g.*, u.full_name as creator_name
-            FROM community_groups g
-            JOIN users u ON g.creator_id = u.id
-            WHERE g.is_public = TRUE
-            ORDER BY g.member_count DESC, g.created_date DESC
-            LIMIT 200
-            """;
-        
+                SELECT g.*, u.full_name as creator_name
+                FROM community_groups g
+                JOIN users u ON g.creator_id = u.id
+                WHERE g.is_public = TRUE
+                ORDER BY g.member_count DESC, g.created_date DESC
+                """;
+
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 groups.add(mapGroup(rs));
@@ -123,16 +115,16 @@ public class GroupService {
     public List<CommunityGroup> findByMember(int userId) {
         List<CommunityGroup> groups = new ArrayList<>();
         String sql = """
-            SELECT g.*, u.full_name as creator_name
-            FROM community_groups g
-            JOIN users u ON g.creator_id = u.id
-            JOIN group_members gm ON g.id = gm.group_id
-            WHERE gm.user_id = ?
-            ORDER BY gm.joined_date DESC
-            """;
-        
+                SELECT g.*, u.full_name as creator_name
+                FROM community_groups g
+                JOIN users u ON g.creator_id = u.id
+                JOIN group_members gm ON g.id = gm.group_id
+                WHERE gm.user_id = ?
+                ORDER BY gm.joined_date DESC
+                """;
+
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, userId);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
@@ -149,19 +141,19 @@ public class GroupService {
     public List<CommunityGroup> search(String query) {
         List<CommunityGroup> groups = new ArrayList<>();
         String sql = """
-            SELECT g.*, u.full_name as creator_name
-            FROM community_groups g
-            JOIN users u ON g.creator_id = u.id
-            WHERE g.is_public = TRUE AND (g.name LIKE ? OR g.description LIKE ?)
-            ORDER BY g.member_count DESC
-            """;
-        
+                SELECT g.*, u.full_name as creator_name
+                FROM community_groups g
+                JOIN users u ON g.creator_id = u.id
+                WHERE g.is_public = TRUE AND (g.name LIKE ? OR g.description LIKE ?)
+                ORDER BY g.member_count DESC
+                """;
+
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
             String searchPattern = "%" + query + "%";
             stmt.setString(1, searchPattern);
             stmt.setString(2, searchPattern);
-            
+
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 groups.add(mapGroup(rs));
@@ -175,7 +167,7 @@ public class GroupService {
     public boolean update(CommunityGroup group) {
         String sql = "UPDATE community_groups SET name = ?, description = ?, category = ?, cover_image_url = ?, is_public = ? WHERE id = ?";
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, group.getName());
             stmt.setString(2, group.getDescription());
             stmt.setString(3, group.getCategory());
@@ -192,7 +184,7 @@ public class GroupService {
     public boolean delete(int id) {
         String sql = "DELETE FROM community_groups WHERE id = ?";
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
@@ -202,31 +194,20 @@ public class GroupService {
     }
 
     public boolean join(int groupId, int userId) {
-        try (Connection conn = DatabaseConfig.getInstance().getConnection()) {
-            conn.setAutoCommit(false);
-            try {
-                String sql = "INSERT INTO group_members (group_id, user_id, role, joined_date) VALUES (?, ?, 'MEMBER', NOW())";
-                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                    stmt.setInt(1, groupId);
-                    stmt.setInt(2, userId);
-                    
-                    if (stmt.executeUpdate() > 0) {
-                        // Increment member count
-                        String updateSql = "UPDATE community_groups SET member_count = member_count + 1 WHERE id = ?";
-                        try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
-                            updateStmt.setInt(1, groupId);
-                            updateStmt.executeUpdate();
-                        }
-                        conn.commit();
-                        return true;
-                    }
+        String sql = "INSERT INTO group_members (group_id, user_id, role, joined_date) VALUES (?, ?, 'MEMBER', NOW())";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, groupId);
+            stmt.setInt(2, userId);
+
+            if (stmt.executeUpdate() > 0) {
+                // Increment member count
+                String updateSql = "UPDATE community_groups SET member_count = member_count + 1 WHERE id = ?";
+                try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
+                    updateStmt.setInt(1, groupId);
+                    updateStmt.executeUpdate();
                 }
-                conn.rollback();
-            } catch (SQLException e) {
-                conn.rollback();
-                throw e;
-            } finally {
-                conn.setAutoCommit(true);
+                return true;
             }
         } catch (SQLException e) {
             logger.error("Error joining group: {}", e.getMessage(), e);
@@ -235,31 +216,20 @@ public class GroupService {
     }
 
     public boolean leave(int groupId, int userId) {
-        try (Connection conn = DatabaseConfig.getInstance().getConnection()) {
-            conn.setAutoCommit(false);
-            try {
-                String sql = "DELETE FROM group_members WHERE group_id = ? AND user_id = ?";
-                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                    stmt.setInt(1, groupId);
-                    stmt.setInt(2, userId);
-                    
-                    if (stmt.executeUpdate() > 0) {
-                        // Decrement member count
-                        String updateSql = "UPDATE community_groups SET member_count = member_count - 1 WHERE id = ?";
-                        try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
-                            updateStmt.setInt(1, groupId);
-                            updateStmt.executeUpdate();
-                        }
-                        conn.commit();
-                        return true;
-                    }
+        String sql = "DELETE FROM group_members WHERE group_id = ? AND user_id = ?";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, groupId);
+            stmt.setInt(2, userId);
+
+            if (stmt.executeUpdate() > 0) {
+                // Decrement member count
+                String updateSql = "UPDATE community_groups SET member_count = member_count - 1 WHERE id = ?";
+                try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
+                    updateStmt.setInt(1, groupId);
+                    updateStmt.executeUpdate();
                 }
-                conn.rollback();
-            } catch (SQLException e) {
-                conn.rollback();
-                throw e;
-            } finally {
-                conn.setAutoCommit(true);
+                return true;
             }
         } catch (SQLException e) {
             logger.error("Error leaving group: {}", e.getMessage(), e);
@@ -270,7 +240,7 @@ public class GroupService {
     public boolean isMember(int groupId, int userId) {
         String sql = "SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?";
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, groupId);
             stmt.setInt(2, userId);
             ResultSet rs = stmt.executeQuery();
@@ -284,15 +254,15 @@ public class GroupService {
     public List<GroupMember> getMembers(int groupId) {
         List<GroupMember> members = new ArrayList<>();
         String sql = """
-            SELECT gm.*, u.full_name as user_name, u.photo_url as user_photo
-            FROM group_members gm
-            JOIN users u ON gm.user_id = u.id
-            WHERE gm.group_id = ?
-            ORDER BY gm.role, gm.joined_date DESC
-            """;
-        
+                SELECT gm.*, u.full_name as user_name, u.photo_url as user_photo
+                FROM group_members gm
+                JOIN users u ON gm.user_id = u.id
+                WHERE gm.group_id = ?
+                ORDER BY gm.role, gm.joined_date DESC
+                """;
+
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, groupId);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
@@ -303,45 +273,6 @@ public class GroupService {
         }
         return members;
     }
-
-    private CommunityGroup mapGroup(ResultSet rs) throws SQLException {
-        CommunityGroup group = new CommunityGroup();
-        group.setId(rs.getInt("id"));
-        group.setName(rs.getString("name"));
-        group.setDescription(rs.getString("description"));
-        group.setCategory(rs.getString("category"));
-        group.setCoverImageUrl(rs.getString("cover_image_url"));
-        group.setCreatorId(rs.getInt("creator_id"));
-        group.setMemberCount(rs.getInt("member_count"));
-        group.setPublic(rs.getBoolean("is_public"));
-        
-        Timestamp created = rs.getTimestamp("created_date");
-        if (created != null) group.setCreatedDate(created.toLocalDateTime());
-        
-        group.setCreatorName(rs.getString("creator_name"));
-        
-        return group;
-    }
-
-    private GroupMember mapMember(ResultSet rs) throws SQLException {
-        GroupMember member = new GroupMember();
-        member.setId(rs.getInt("id"));
-        member.setGroupId(rs.getInt("group_id"));
-        member.setUserId(rs.getInt("user_id"));
-        member.setRole(rs.getString("role"));
-        
-        Timestamp joined = rs.getTimestamp("joined_date");
-        if (joined != null) member.setJoinedDate(joined.toLocalDateTime());
-        
-        member.setUserName(rs.getString("user_name"));
-        member.setUserPhoto(rs.getString("user_photo"));
-        
-        return member;
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    //  GROUP MESSAGES
-    // ═══════════════════════════════════════════════════════════
 
     public List<GroupMessage> getMessages(int groupId) {
         List<GroupMessage> messages = new ArrayList<>();
@@ -382,7 +313,12 @@ public class GroupService {
                 PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             stmt.setInt(1, msg.getGroupId());
             stmt.setInt(2, msg.getSenderId());
-            stmt.setString(3, msg.getContent());
+            // For media messages, use empty string if content is null
+            String content = msg.getContent();
+            if (content == null && msg.getMediaUrl() != null) {
+                content = "";
+            }
+            stmt.setString(3, content);
             stmt.setString(4, msg.getMessageType());
             stmt.setString(5, msg.getMediaUrl());
             stmt.setString(6, msg.getFileName());
@@ -398,10 +334,6 @@ public class GroupService {
         }
     }
 
-    // ═══════════════════════════════════════════════════════════
-    //  TYPING STATUS
-    // ═══════════════════════════════════════════════════════════
-
     public void updateTypingStatus(int groupId, int userId) {
         String key = groupId + ":" + userId;
         groupTypingStatus.put(key, System.currentTimeMillis());
@@ -416,7 +348,7 @@ public class GroupService {
         List<String> typingUsers = new ArrayList<>();
         long now = System.currentTimeMillis();
         for (java.util.Map.Entry<String, Long> entry : groupTypingStatus.entrySet()) {
-            if (now - entry.getValue() < 3000) {
+            if (now - entry.getValue() < 3000) { // 3 seconds timeout
                 String[] parts = entry.getKey().split(":");
                 int gId = Integer.parseInt(parts[0]);
                 int uId = Integer.parseInt(parts[1]);
@@ -438,14 +370,46 @@ public class GroupService {
             if (rs.next())
                 return rs.getString(1);
         } catch (SQLException e) {
-            logger.error("Error fetching user full name: {}", e.getMessage(), e);
         }
         return "Un utilisateur";
     }
 
-    // ═══════════════════════════════════════════════════════════
-    //  READ RECEIPTS
-    // ═══════════════════════════════════════════════════════════
+    private CommunityGroup mapGroup(ResultSet rs) throws SQLException {
+        CommunityGroup group = new CommunityGroup();
+        group.setId(rs.getInt("id"));
+        group.setName(rs.getString("name"));
+        group.setDescription(rs.getString("description"));
+        group.setCategory(rs.getString("category"));
+        group.setCoverImageUrl(rs.getString("cover_image_url"));
+        group.setCreatorId(rs.getInt("creator_id"));
+        group.setMemberCount(rs.getInt("member_count"));
+        group.setPublic(rs.getBoolean("is_public"));
+
+        Timestamp created = rs.getTimestamp("created_date");
+        if (created != null)
+            group.setCreatedDate(created.toLocalDateTime());
+
+        group.setCreatorName(rs.getString("creator_name"));
+
+        return group;
+    }
+
+    private GroupMember mapMember(ResultSet rs) throws SQLException {
+        GroupMember member = new GroupMember();
+        member.setId(rs.getInt("id"));
+        member.setGroupId(rs.getInt("group_id"));
+        member.setUserId(rs.getInt("user_id"));
+        member.setRole(rs.getString("role"));
+
+        Timestamp joined = rs.getTimestamp("joined_date");
+        if (joined != null)
+            member.setJoinedDate(joined.toLocalDateTime());
+
+        member.setUserName(rs.getString("user_name"));
+        member.setUserPhoto(rs.getString("user_photo"));
+
+        return member;
+    }
 
     /**
      * Marks all messages in a group as read by the given user.
@@ -518,7 +482,7 @@ public class GroupService {
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  REACTIONS — Emoji reactions on group messages
+    //  REACTIONS — Réactions emoji sur les messages de groupe
     // ═══════════════════════════════════════════════════════════
 
     /**
@@ -571,9 +535,9 @@ public class GroupService {
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 int msgId = rs.getInt("message_id");
-                String emojiVal = rs.getString("emoji");
+                String emoji = rs.getString("emoji");
                 int count = rs.getInt("cnt");
-                result.computeIfAbsent(msgId, k -> new java.util.LinkedHashMap<>()).put(emojiVal, count);
+                result.computeIfAbsent(msgId, k -> new java.util.LinkedHashMap<>()).put(emoji, count);
             }
         } catch (SQLException e) {
             logger.error("Error fetching group reactions: {}", e.getMessage(), e);
@@ -599,8 +563,8 @@ public class GroupService {
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 int msgId = rs.getInt("message_id");
-                String emojiVal = rs.getString("emoji");
-                result.computeIfAbsent(msgId, k -> new java.util.HashSet<>()).add(emojiVal);
+                String emoji = rs.getString("emoji");
+                result.computeIfAbsent(msgId, k -> new java.util.HashSet<>()).add(emoji);
             }
         } catch (SQLException e) {
             logger.error("Error fetching user group reactions: {}", e.getMessage(), e);

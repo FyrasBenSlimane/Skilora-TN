@@ -25,14 +25,11 @@ public class NotificationService {
     }
 
     /**
-     * Create a new notification. Returns the generated ID, or -1 on failure.
+     * Create a notification record.
      */
     public int create(Notification notif) {
-        String sql = """
-            INSERT INTO notifications (user_id, type, title, message, icon, is_read,
-                                       reference_type, reference_id, created_at)
-            VALUES (?, ?, ?, ?, ?, 0, ?, ?, NOW())
-            """;
+        String sql = "INSERT INTO notifications (user_id, type, title, message, icon, is_read, reference_type, reference_id) "
+                   + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, notif.getUserId());
@@ -40,18 +37,19 @@ public class NotificationService {
             ps.setString(3, notif.getTitle());
             ps.setString(4, notif.getMessage());
             ps.setString(5, notif.getIcon());
-            ps.setString(6, notif.getReferenceType());
+            ps.setBoolean(6, notif.isRead());
+            ps.setString(7, notif.getReferenceType());
             if (notif.getReferenceId() != null) {
-                ps.setInt(7, notif.getReferenceId());
+                ps.setInt(8, notif.getReferenceId());
             } else {
-                ps.setNull(7, java.sql.Types.INTEGER);
+                ps.setNull(8, Types.INTEGER);
             }
             ps.executeUpdate();
             try (ResultSet rs = ps.getGeneratedKeys()) {
                 if (rs.next()) return rs.getInt(1);
             }
         } catch (SQLException e) {
-            logger.error("Failed to create notification for user {}: {}", notif.getUserId(), e.getMessage(), e);
+            logger.error("Failed to create notification", e);
         }
         return -1;
     }
@@ -77,7 +75,7 @@ public class NotificationService {
     }
 
     /**
-     * Get all unread notifications for a user.
+     * Get unread notifications for a user.
      */
     public List<Notification> findUnreadByUserId(int userId) {
         List<Notification> list = new ArrayList<>();
@@ -94,23 +92,6 @@ public class NotificationService {
             logger.error("Failed to find unread notifications for user {}", userId, e);
         }
         return list;
-    }
-
-    /**
-     * Count unread notifications for a user.
-     */
-    public int getUnreadCount(int userId) {
-        String sql = "SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0";
-        try (Connection conn = DatabaseConfig.getInstance().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, userId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) return rs.getInt(1);
-            }
-        } catch (SQLException e) {
-            logger.error("Failed to count unread notifications for user {}", userId, e);
-        }
-        return 0;
     }
 
     /**
@@ -171,6 +152,23 @@ public class NotificationService {
             logger.error("Failed to delete notification {}", notificationId, e);
         }
         return false;
+    }
+
+    /**
+     * Get the count of unread notifications for a user.
+     */
+    public int getUnreadCount(int userId) {
+        String sql = "SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        } catch (SQLException e) {
+            logger.error("Failed to get unread count for user {}", userId, e);
+        }
+        return 0;
     }
 
     private Notification mapRow(ResultSet rs) throws SQLException {

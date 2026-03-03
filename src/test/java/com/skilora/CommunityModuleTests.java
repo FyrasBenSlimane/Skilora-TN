@@ -5,9 +5,6 @@ import com.skilora.community.entity.*;
 import com.skilora.community.enums.*;
 import com.skilora.community.service.*;
 
-// === User entity (role checks) ===
-import com.skilora.user.entity.User;
-import com.skilora.user.enums.Role;
 import com.skilora.config.DatabaseConfig;
 
 import org.junit.jupiter.api.*;
@@ -18,7 +15,6 @@ import org.junit.jupiter.params.provider.*;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.LocalDateTime;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;

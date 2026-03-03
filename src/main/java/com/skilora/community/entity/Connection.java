@@ -7,7 +7,6 @@ public class Connection {
     private int id;
     private int userId1;
     private int userId2;
-    private int requesterId; // Tracks who actually sent the connection request
     private ConnectionStatus status;
     private String connectionType;
     private LocalDateTime createdDate;
@@ -34,9 +33,6 @@ public class Connection {
     public int getUserId2() { return userId2; }
     public void setUserId2(int userId2) { this.userId2 = userId2; }
     
-    public int getRequesterId() { return requesterId; }
-    public void setRequesterId(int requesterId) { this.requesterId = requesterId; }
-
     public ConnectionStatus getStatus() { return status; }
     public void setStatus(ConnectionStatus status) { this.status = status; }
     
@@ -57,20 +53,4 @@ public class Connection {
     
     public String getOtherUserPhoto() { return otherUserPhoto; }
     public void setOtherUserPhoto(String otherUserPhoto) { this.otherUserPhoto = otherUserPhoto; }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Connection that = (Connection) o;
-        return id == that.id;
-    }
-
-    @Override
-    public int hashCode() { return Integer.hashCode(id); }
-
-    @Override
-    public String toString() {
-        return "Connection{id=" + id + ", userId1=" + userId1 + ", userId2=" + userId2 + ", status=" + status + "}";
-    }
 }

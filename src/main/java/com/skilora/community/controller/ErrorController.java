@@ -2,7 +2,6 @@ package com.skilora.community.controller;
 
 import com.skilora.framework.components.TLButton;
 import com.skilora.utils.I18n;
-import com.skilora.utils.SvgIcons;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
@@ -21,8 +20,6 @@ public class ErrorController {
     @FXML private TLButton supportBtn;
     @FXML private VBox detailsBox;
     @FXML private Label technicalDetails;
-    @FXML private Label needHelpLabel;
-    @FXML private Label techDetailsLabel;
     
     private Runnable onGoHome;
     private Runnable onGoBack;
@@ -37,47 +34,41 @@ public class ErrorController {
     public void setError(ErrorType type, String message, String details) {
         switch (type) {
             case NOT_FOUND -> {
-                errorIcon.setGraphic(SvgIcons.icon(SvgIcons.SEARCH, 64, "-fx-muted-foreground"));
+                errorIcon.setText("🔍");
                 errorCode.setText("404");
                 errorTitle.setText(I18n.get("errorpage.not_found"));
                 errorMessage.setText(message != null ? message : 
                     I18n.get("errorpage.not_found.desc"));
             }
             case SERVER_ERROR -> {
-                errorIcon.setGraphic(SvgIcons.icon(SvgIcons.ALERT_TRIANGLE, 64, "-fx-destructive"));
+                errorIcon.setText("⚠️");
                 errorCode.setText("500");
                 errorTitle.setText(I18n.get("errorpage.server_error"));
                 errorMessage.setText(message != null ? message : 
                     I18n.get("errorpage.server_error.desc"));
             }
             case NETWORK_ERROR -> {
-                errorIcon.setGraphic(SvgIcons.icon(SvgIcons.WIFI, 64, "-fx-muted-foreground"));
+                errorIcon.setText("📡");
                 errorCode.setText("---");
                 errorTitle.setText(I18n.get("errorpage.connection_error"));
                 errorMessage.setText(message != null ? message : 
                     I18n.get("errorpage.connection_error.desc"));
             }
             case UNAUTHORIZED -> {
-                errorIcon.setGraphic(SvgIcons.icon(SvgIcons.LOCK, 64, "-fx-muted-foreground"));
+                errorIcon.setText("🔒");
                 errorCode.setText("403");
                 errorTitle.setText(I18n.get("errorpage.access_denied"));
                 errorMessage.setText(message != null ? message : 
                     I18n.get("errorpage.access_denied.desc"));
             }
             case GENERIC -> {
-                errorIcon.setGraphic(SvgIcons.icon(SvgIcons.ALERT_TRIANGLE, 64, "-fx-amber"));
+                errorIcon.setText("⚠️");
                 errorCode.setText("!");
                 errorTitle.setText(I18n.get("errorpage.generic"));
                 errorMessage.setText(message != null ? message : 
                     I18n.get("errorpage.generic.desc"));
             }
         }
-        homeBtn.setText(I18n.get("errorpage.back_home"));
-        homeBtn.setGraphic(SvgIcons.icon(SvgIcons.ARROW_LEFT, 14));
-        backBtn.setText(I18n.get("errorpage.go_back"));
-        supportBtn.setText(I18n.get("errorpage.contact_support"));
-        if (needHelpLabel != null) needHelpLabel.setText(I18n.get("errorpage.need_help"));
-        if (techDetailsLabel != null) techDetailsLabel.setText(I18n.get("errorpage.technical_details"));
         
         if (details != null && !details.isEmpty()) {
             technicalDetails.setText(details);

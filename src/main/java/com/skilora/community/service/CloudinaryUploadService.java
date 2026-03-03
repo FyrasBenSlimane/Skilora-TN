@@ -15,67 +15,56 @@ import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
 /**
- * CloudinaryUploadService — Service d'intégration de l'API Cloudinary pour l'upload d'images.
+ * CloudinaryUploadService — Service d'intégration de l'API Cloudinary pour
+ * l'upload d'images.
  *
  * ╔═══════════════════════════════════════════════════════════════════════╗
- * ║  API UTILISÉE : Cloudinary (https://cloudinary.com)                  ║
- * ║  Type        : API REST avec upload non signé (unsigned upload)      ║
- * ║  Format      : Multipart/form-data (envoi de fichier binaire)        ║
- * ║  Limite      : 10 MB par image (plan gratuit : 25 crédits/mois)     ║
- * ║  Retour      : URL publique HTTPS de l'image hébergée               ║
+ * ║ API UTILISÉE : Cloudinary (https://cloudinary.com) ║
+ * ║ Type : API REST avec upload non signé (unsigned upload) ║
+ * ║ Format : Multipart/form-data (envoi de fichier binaire) ║
+ * ║ Limite : 10 MB par image (plan gratuit : 25 crédits/mois) ║
+ * ║ Retour : URL publique HTTPS de l'image hébergée ║
  * ╚═══════════════════════════════════════════════════════════════════════╝
  *
  * Qu'est-ce que Cloudinary ?
- *   Cloudinary est un service cloud spécialisé dans l'hébergement et la transformation
- *   d'images/vidéos. Il offre un CDN (Content Delivery Network) mondial pour une
- *   distribution rapide des fichiers.
+ * Cloudinary est un service cloud spécialisé dans l'hébergement et la
+ * transformation
+ * d'images/vidéos. Il offre un CDN (Content Delivery Network) mondial pour une
+ * distribution rapide des fichiers.
  *
  * Pourquoi Cloudinary dans Skilora ?
- *   - Les posts peuvent contenir des images (profil, partages, événements)
- *   - Au lieu de stocker les images localement, on les héberge dans le cloud
- *   - L'utilisateur sélectionne un fichier local → il est uploadé vers Cloudinary
- *   - L'API retourne une URL publique HTTPS qu'on stocke dans la base de données
+ * - Les posts peuvent contenir des images (profil, partages, événements)
+ * - Au lieu de stocker les images localement, on les héberge dans le cloud
+ * - L'utilisateur sélectionne un fichier local → il est uploadé vers Cloudinary
+ * - L'API retourne une URL publique HTTPS qu'on stocke dans la base de données
  *
  * Fonctionnement de l'upload non signé (Unsigned Upload) :
- *   1. L'utilisateur choisit un fichier image via un FileChooser JavaFX
- *   2. Le fichier est lu en bytes et envoyé en multipart/form-data
- *   3. Cloudinary reçoit le fichier, le stocke, et retourne l'URL
- *   4. L'URL est sauvegardée dans la colonne image_url du post
+ * 1. L'utilisateur choisit un fichier image via un FileChooser JavaFX
+ * 2. Le fichier est lu en bytes et envoyé en multipart/form-data
+ * 3. Cloudinary reçoit le fichier, le stocke, et retourne l'URL
+ * 4. L'URL est sauvegardée dans la colonne image_url du post
  *
  * Configuration nécessaire :
- *   - CLOUD_NAME  : nom de votre cloud Cloudinary (visible dans le dashboard)
- *   - UPLOAD_PRESET : preset d'upload non signé (créé dans Settings > Upload)
+ * - CLOUD_NAME : nom de votre cloud Cloudinary (visible dans le dashboard)
+ * - UPLOAD_PRESET : preset d'upload non signé (créé dans Settings > Upload)
  *
  * Pattern : Singleton thread-safe
  */
-@SuppressWarnings("unused")
 public class CloudinaryUploadService {
 
     private static final Logger logger = LoggerFactory.getLogger(CloudinaryUploadService.class);
 
     // ══════════════════════════════════════════════════════════
-    //  CONFIGURATION CLOUDINARY
-    //  Loaded from config/application.properties
+    // CONFIGURATION CLOUDINARY
     // ══════════════════════════════════════════════════════════
 
-    /** Nom du cloud Cloudinary (identifiant unique de votre compte) */
-    private static final String CLOUD_NAME;
+    /** Nom du cloud Cloudinary */
+    private static final String CLOUD_NAME = loadEnvValue("CLOUDINARY_CLOUD_NAME", "skilora");
 
-    /**
-     * Preset d'upload non signé.
-     * Créé dans Cloudinary Dashboard > Settings > Upload > Upload presets
-     */
-    private static final String UPLOAD_PRESET;
+    /** Preset d'upload non signé */
+    private static final String UPLOAD_PRESET = loadEnvValue("CLOUDINARY_UPLOAD_PRESET", "skilora_unsigned");
 
-    static {
-        CLOUD_NAME = com.skilora.config.EnvConfig.get("cloudinary.cloud.name", "skilora");
-        UPLOAD_PRESET = com.skilora.config.EnvConfig.get("cloudinary.upload.preset", "skilora_unsigned");
-    }
-
-    /** URL de l'API d'upload Cloudinary (format: /v1_1/{cloud_name}/image/upload) */
     private static final String UPLOAD_URL = "https://api.cloudinary.com/v1_1/" + CLOUD_NAME + "/image/upload";
-
-    /** URL de l'API d'upload vidéo Cloudinary */
     private static final String VIDEO_UPLOAD_URL = "https://api.cloudinary.com/v1_1/" + CLOUD_NAME + "/video/upload";
 
     /** Taille max d'upload en bytes (10 MB) */
@@ -85,18 +74,19 @@ public class CloudinaryUploadService {
     private static final long MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50 MB
 
     /** Extensions de fichiers image autorisées */
-    private static final String[] ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"};
+    private static final String[] ALLOWED_EXTENSIONS = { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp" };
 
     /** Extensions de fichiers vidéo autorisées */
-    private static final String[] ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".wmv", ".mkv", ".webm"};
-    private static final String[] ALLOWED_AUDIO_EXTENSIONS = {".wav", ".mp3", ".ogg", ".m4a", ".aac", ".wma"};
+    private static final String[] ALLOWED_VIDEO_EXTENSIONS = { ".mp4", ".avi", ".mov", ".wmv", ".mkv", ".webm" };
+    private static final String[] ALLOWED_AUDIO_EXTENSIONS = { ".wav", ".mp3", ".ogg", ".m4a", ".aac", ".wma" };
     private static final long MAX_AUDIO_SIZE = 25 * 1024 * 1024; // 25 MB
 
     // ── Singleton ──
     private static volatile CloudinaryUploadService instance;
 
     /** Constructeur privé (Singleton) */
-    private CloudinaryUploadService() {}
+    private CloudinaryUploadService() {
+    }
 
     /**
      * Retourne l'instance unique du service d'upload.
@@ -117,22 +107,22 @@ public class CloudinaryUploadService {
      * Upload un fichier image vers Cloudinary et retourne l'URL publique.
      *
      * Étapes détaillées :
-     *   1. Valider le fichier (existe, taille, extension)
-     *   2. Lire le fichier en bytes
-     *   3. Construire la requête HTTP multipart/form-data
-     *   4. Envoyer le fichier à Cloudinary via POST
-     *   5. Lire la réponse JSON
-     *   6. Extraire l'URL sécurisée (secure_url) de la réponse
+     * 1. Valider le fichier (existe, taille, extension)
+     * 2. Lire le fichier en bytes
+     * 3. Construire la requête HTTP multipart/form-data
+     * 4. Envoyer le fichier à Cloudinary via POST
+     * 5. Lire la réponse JSON
+     * 6. Extraire l'URL sécurisée (secure_url) de la réponse
      *
      * Format de la requête multipart :
-     *   --boundary
-     *   Content-Disposition: form-data; name="file"; filename="image.jpg"
-     *   Content-Type: image/jpeg
-     *   [contenu binaire du fichier]
-     *   --boundary
-     *   Content-Disposition: form-data; name="upload_preset"
-     *   skilora_unsigned
-     *   --boundary--
+     * --boundary
+     * Content-Disposition: form-data; name="file"; filename="image.jpg"
+     * Content-Type: image/jpeg
+     * [contenu binaire du fichier]
+     * --boundary
+     * Content-Disposition: form-data; name="upload_preset"
+     * skilora_unsigned
+     * --boundary--
      *
      * @param file le fichier image à uploader (depuis FileChooser)
      * @return l'URL HTTPS publique de l'image, ou null si échec
@@ -162,16 +152,17 @@ public class CloudinaryUploadService {
             URI uri = URI.create(UPLOAD_URL);
             java.net.URL url = uri.toURL();
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            connection.setDoOutput(true);  // Active l'envoi de données (POST body)
+            connection.setDoOutput(true); // Active l'envoi de données (POST body)
             connection.setRequestMethod("POST");
-            connection.setConnectTimeout(30000);  // Timeout connexion : 30 secondes
-            connection.setReadTimeout(30000);      // Timeout lecture : 30 secondes
+            connection.setConnectTimeout(30000); // Timeout connexion : 30 secondes
+            connection.setReadTimeout(30000); // Timeout lecture : 30 secondes
             // Header indiquant le type de contenu (multipart avec le boundary)
             connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
 
             // ── ÉTAPE 3 : Écrire le corps de la requête ──
             try (OutputStream outputStream = connection.getOutputStream();
-                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8), true)) {
+                    PrintWriter writer = new PrintWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8),
+                            true)) {
 
                 // ── Partie 1 : le fichier image (données binaires) ──
                 writer.append("--").append(boundary).append("\r\n");
@@ -213,7 +204,8 @@ public class CloudinaryUploadService {
                     : connection.getErrorStream();
 
             StringBuilder responseBody = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(responseStream, StandardCharsets.UTF_8))) {
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(responseStream, StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     responseBody.append(line);
@@ -223,11 +215,12 @@ public class CloudinaryUploadService {
             // ── ÉTAPE 5 : Parser la réponse JSON ──
             if (responseCode == 200) {
                 // Réponse réussie — structure JSON Cloudinary :
-                // { "secure_url": "https://res.cloudinary.com/skilora/image/upload/v123/image.jpg",
-                //   "public_id": "skilora/community/abc123", "format": "jpg", "width": 800, ... }
+                // { "secure_url":
+                // "https://res.cloudinary.com/skilora/image/upload/v123/image.jpg",
+                // "public_id": "skilora/community/abc123", "format": "jpg", "width": 800, ... }
                 JSONObject jsonResponse = new JSONObject(responseBody.toString());
                 String secureUrl = jsonResponse.getString("secure_url"); // URL HTTPS de l'image
-                String publicId = jsonResponse.getString("public_id");   // ID public dans Cloudinary
+                String publicId = jsonResponse.getString("public_id"); // ID public dans Cloudinary
                 logger.info("Image uploaded successfully: {} (public_id: {})", secureUrl, publicId);
                 return secureUrl; // ← URL de l'image hébergée dans le cloud
             } else {
@@ -245,13 +238,14 @@ public class CloudinaryUploadService {
 
     /**
      * Fallback local : copie l'image dans le dossier data/uploads/ du projet.
-     * Utilisé quand l'upload Cloudinary échoue (erreur réseau, credentials invalides, etc.).
+     * Utilisé quand l'upload Cloudinary échoue (erreur réseau, credentials
+     * invalides, etc.).
      *
      * Fonctionnement :
-     *   1. Crée le dossier data/uploads/ s'il n'existe pas
-     *   2. Génère un nom unique (UUID + extension originale)
-     *   3. Copie le fichier image dans ce dossier
-     *   4. Retourne l'URI file:/// pour affichage JavaFX
+     * 1. Crée le dossier data/uploads/ s'il n'existe pas
+     * 2. Génère un nom unique (UUID + extension originale)
+     * 3. Copie le fichier image dans ce dossier
+     * 4. Retourne l'URI file:/// pour affichage JavaFX
      *
      * @param originalFile le fichier image d'origine
      * @return URI locale du fichier copié (file:///...)
@@ -299,7 +293,8 @@ public class CloudinaryUploadService {
     private boolean isAllowedExtension(String filename) {
         String lower = filename.toLowerCase();
         for (String ext : ALLOWED_EXTENSIONS) {
-            if (lower.endsWith(ext)) return true;
+            if (lower.endsWith(ext))
+                return true;
         }
         return false;
     }
@@ -313,10 +308,14 @@ public class CloudinaryUploadService {
      */
     private String getContentType(String filename) {
         String lower = filename.toLowerCase();
-        if (lower.endsWith(".png")) return "image/png";
-        if (lower.endsWith(".gif")) return "image/gif";
-        if (lower.endsWith(".webp")) return "image/webp";
-        if (lower.endsWith(".bmp")) return "image/bmp";
+        if (lower.endsWith(".png"))
+            return "image/png";
+        if (lower.endsWith(".gif"))
+            return "image/gif";
+        if (lower.endsWith(".webp"))
+            return "image/webp";
+        if (lower.endsWith(".bmp"))
+            return "image/bmp";
         return "image/jpeg"; // Par défaut pour .jpg et .jpeg
     }
 
@@ -324,29 +323,31 @@ public class CloudinaryUploadService {
      * Retourne les extensions de fichiers autorisées pour le FileChooser de JavaFX.
      * Format : ["*.jpg", "*.jpeg", "*.png", "*.gif", "*.webp"]
      *
-     * @return tableau des patterns d'extension pour javafx.stage.FileChooser.ExtensionFilter
+     * @return tableau des patterns d'extension pour
+     *         javafx.stage.FileChooser.ExtensionFilter
      */
     public String[] getAllowedExtensionPatterns() {
-        return new String[]{"*.jpg", "*.jpeg", "*.png", "*.gif", "*.webp", "*.bmp"};
+        return new String[] { "*.jpg", "*.jpeg", "*.png", "*.gif", "*.webp", "*.bmp" };
     }
 
     /**
      * Retourne les extensions vidéo autorisées pour le FileChooser de JavaFX.
      */
     public String[] getAllowedVideoExtensionPatterns() {
-        return new String[]{"*.mp4", "*.avi", "*.mov", "*.wmv", "*.mkv", "*.webm"};
+        return new String[] { "*.mp4", "*.avi", "*.mov", "*.wmv", "*.mkv", "*.webm" };
     }
 
     /**
-     * Retourne toutes les extensions autorisées (images + vidéos) pour le FileChooser.
+     * Retourne toutes les extensions autorisées (images + vidéos) pour le
+     * FileChooser.
      */
     public String[] getAllowedMediaExtensionPatterns() {
-        return new String[]{"*.jpg", "*.jpeg", "*.png", "*.gif", "*.webp", "*.bmp",
-                            "*.mp4", "*.avi", "*.mov", "*.wmv", "*.mkv", "*.webm"};
+        return new String[] { "*.jpg", "*.jpeg", "*.png", "*.gif", "*.webp", "*.bmp",
+                "*.mp4", "*.avi", "*.mov", "*.wmv", "*.mkv", "*.webm" };
     }
 
     // ══════════════════════════════════════════════════════════
-    //  UPLOAD VIDÉO
+    // UPLOAD VIDÉO
     // ══════════════════════════════════════════════════════════
 
     /**
@@ -379,7 +380,8 @@ public class CloudinaryUploadService {
             connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
 
             try (OutputStream outputStream = connection.getOutputStream();
-                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8), true)) {
+                    PrintWriter writer = new PrintWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8),
+                            true)) {
 
                 writer.append("--").append(boundary).append("\r\n");
                 writer.append("Content-Disposition: form-data; name=\"file\"; filename=\"")
@@ -412,7 +414,8 @@ public class CloudinaryUploadService {
                     : connection.getErrorStream();
 
             StringBuilder responseBody = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(responseStream, StandardCharsets.UTF_8))) {
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(responseStream, StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     responseBody.append(line);
@@ -425,7 +428,8 @@ public class CloudinaryUploadService {
                 logger.info("Video uploaded successfully: {}", secureUrl);
                 return secureUrl;
             } else {
-                logger.warn("Cloudinary video upload failed with code {}: {} — fallback local", responseCode, responseBody);
+                logger.warn("Cloudinary video upload failed with code {}: {} — fallback local", responseCode,
+                        responseBody);
                 return saveLocally(file);
             }
 
@@ -441,7 +445,8 @@ public class CloudinaryUploadService {
     public boolean isAllowedVideoExtension(String filename) {
         String lower = filename.toLowerCase();
         for (String ext : ALLOWED_VIDEO_EXTENSIONS) {
-            if (lower.endsWith(ext)) return true;
+            if (lower.endsWith(ext))
+                return true;
         }
         return false;
     }
@@ -451,27 +456,37 @@ public class CloudinaryUploadService {
      */
     private String getVideoContentType(String filename) {
         String lower = filename.toLowerCase();
-        if (lower.endsWith(".mp4")) return "video/mp4";
-        if (lower.endsWith(".avi")) return "video/x-msvideo";
-        if (lower.endsWith(".mov")) return "video/quicktime";
-        if (lower.endsWith(".wmv")) return "video/x-ms-wmv";
-        if (lower.endsWith(".mkv")) return "video/x-matroska";
-        if (lower.endsWith(".webm")) return "video/webm";
+        if (lower.endsWith(".mp4"))
+            return "video/mp4";
+        if (lower.endsWith(".avi"))
+            return "video/x-msvideo";
+        if (lower.endsWith(".mov"))
+            return "video/quicktime";
+        if (lower.endsWith(".wmv"))
+            return "video/x-ms-wmv";
+        if (lower.endsWith(".mkv"))
+            return "video/x-matroska";
+        if (lower.endsWith(".webm"))
+            return "video/webm";
         return "video/mp4";
     }
 
     /**
      * Détermine si un fichier est une vidéo ou une image selon son extension.
+     * 
      * @return "IMAGE" ou "VIDEO"
      */
     public String detectMediaType(File file) {
-        if (isAllowedAudioExtension(file.getName())) return "VOCAL";
-        if (isAllowedVideoExtension(file.getName())) return "VIDEO";
+        if (isAllowedAudioExtension(file.getName()))
+            return "VOCAL";
+        if (isAllowedVideoExtension(file.getName()))
+            return "VIDEO";
         return "IMAGE";
     }
 
     /**
-     * Upload un fichier audio vers Cloudinary (endpoint vidéo, qui gère aussi l'audio).
+     * Upload un fichier audio vers Cloudinary (endpoint vidéo, qui gère aussi
+     * l'audio).
      */
     public String uploadAudio(File file) {
         if (file == null || !file.exists()) {
@@ -493,7 +508,8 @@ public class CloudinaryUploadService {
             connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
 
             try (OutputStream outputStream = connection.getOutputStream();
-                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(outputStream, java.nio.charset.StandardCharsets.UTF_8), true)) {
+                    PrintWriter writer = new PrintWriter(
+                            new OutputStreamWriter(outputStream, java.nio.charset.StandardCharsets.UTF_8), true)) {
 
                 writer.append("--").append(boundary).append("\r\n");
                 writer.append("Content-Disposition: form-data; name=\"file\"; filename=\"")
@@ -531,7 +547,8 @@ public class CloudinaryUploadService {
                     : connection.getErrorStream();
 
             StringBuilder responseBody = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(responseStream, java.nio.charset.StandardCharsets.UTF_8))) {
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(responseStream, java.nio.charset.StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     responseBody.append(line);
@@ -544,7 +561,8 @@ public class CloudinaryUploadService {
                 logger.info("Audio uploaded successfully: {}", secureUrl);
                 return secureUrl;
             } else {
-                logger.warn("Cloudinary audio upload failed with code {}: {} — fallback local", responseCode, responseBody);
+                logger.warn("Cloudinary audio upload failed with code {}: {} — fallback local", responseCode,
+                        responseBody);
                 return saveLocally(file);
             }
 
@@ -557,19 +575,48 @@ public class CloudinaryUploadService {
     public boolean isAllowedAudioExtension(String filename) {
         String lower = filename.toLowerCase();
         for (String ext : ALLOWED_AUDIO_EXTENSIONS) {
-            if (lower.endsWith(ext)) return true;
+            if (lower.endsWith(ext))
+                return true;
         }
         return false;
     }
 
     private String getAudioContentType(String filename) {
         String lower = filename.toLowerCase();
-        if (lower.endsWith(".wav")) return "audio/wav";
-        if (lower.endsWith(".mp3")) return "audio/mpeg";
-        if (lower.endsWith(".ogg")) return "audio/ogg";
-        if (lower.endsWith(".m4a")) return "audio/mp4";
-        if (lower.endsWith(".aac")) return "audio/aac";
-        if (lower.endsWith(".wma")) return "audio/x-ms-wma";
+        if (lower.endsWith(".wav"))
+            return "audio/wav";
+        if (lower.endsWith(".mp3"))
+            return "audio/mpeg";
+        if (lower.endsWith(".ogg"))
+            return "audio/ogg";
+        if (lower.endsWith(".m4a"))
+            return "audio/mp4";
+        if (lower.endsWith(".aac"))
+            return "audio/aac";
+        if (lower.endsWith(".wma"))
+            return "audio/x-ms-wma";
         return "audio/wav";
+    }
+
+    /**
+     * Méthode utilitaire pour charger des variables depuis le fichier .env
+     */
+    private static String loadEnvValue(String key, String defaultValue) {
+        try {
+            Path envPath = Paths.get(".env");
+            if (Files.exists(envPath)) {
+                for (String line : Files.readAllLines(envPath, StandardCharsets.UTF_8)) {
+                    line = line.trim();
+                    if (line.startsWith(key + "=")) {
+                        String val = line.substring((key + "=").length()).trim();
+                        logger.info("Configuration {} loaded from .env", key);
+                        return val;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Error loading .env variable {}", key, e);
+        }
+        return defaultValue;
     }
 }

@@ -30,7 +30,6 @@ import java.util.function.BiConsumer;
  *   notifier.start();
  *   // later: notifier.stop();
  */
-@SuppressWarnings("unused")
 public class CommunityNotificationService {
 
     private static final Logger logger = LoggerFactory.getLogger(CommunityNotificationService.class);
@@ -49,7 +48,7 @@ public class CommunityNotificationService {
     // Callbacks (fired on FX thread)
     private BiConsumer<Integer, Integer> onUnreadMessagesChanged;
     private BiConsumer<Integer, Integer> onPendingConnectionsChanged;
-    private final List<Runnable> onTickListeners = new ArrayList<>();
+    private List<Runnable> onTickListeners = new ArrayList<>();
 
     /**
      * Create a notification poller for the given user.
