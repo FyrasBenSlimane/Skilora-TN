@@ -148,6 +148,9 @@ class FxmlValidationTests {
             "fx:id", "fitToWidth", "fitToHeight", "visible", "managed",
             "styleClass", "hbarPolicy", "vbarPolicy"
         ));
+        CUSTOM_COMPONENT_PROPERTIES.put("TLCard", Set.of(
+            "fx:id", "title", "styleClass", "visible", "managed"
+        ));
     }
 
     // ═══════════════════════════════════════════════════════════════
