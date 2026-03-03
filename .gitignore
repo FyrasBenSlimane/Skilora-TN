@@ -29,3 +29,14 @@ tmp/
 .github/
 .env
 security_captures/
+
+# Helper/temp scripts
+find_missing_keys.py
+keys.txt
+fxml_keys.txt
+cleanup_ai_files.sh
+AI_GENERATED_FILES_TO_REMOVE.md
+missing_keys.txt
+tasks/
+data/uploads/
+push_commits.sh
