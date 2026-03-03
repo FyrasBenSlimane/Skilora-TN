@@ -56,15 +56,15 @@ public class ApplicationService {
         int matchPercentage = 0;
         int candidateScore = 0;
         try {
-            var jobOffer = JobService.getInstance().getById(jobOfferId);
-            if (jobOffer != null && jobOffer.isPresent()) {
-                MatchingScore score = MatchingService.getInstance().calculateMatch(candidateProfileId, jobOffer.get());
+            com.skilora.recruitment.entity.JobOffer jobOffer = JobService.getInstance().findJobOfferById(jobOfferId);
+            if (jobOffer != null) {
+                MatchingScore score = MatchingService.getInstance().calculateMatch(candidateProfileId, jobOffer);
                 if (score != null) {
                     matchPercentage = (int) score.getTotalScore();
                 }
             }
         } catch (Exception e) {
-            logger.warn("Failed to calculate match scores for profile {} and job {}: {}", 
+            logger.warn("Failed to calculate match scores for profile {} and job {}: {}",
                 candidateProfileId, jobOfferId, e.getMessage());
         }
 

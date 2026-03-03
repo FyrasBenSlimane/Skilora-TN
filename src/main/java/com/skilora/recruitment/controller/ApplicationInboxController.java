@@ -486,7 +486,7 @@ public class ApplicationInboxController implements Initializable {
             if (applicationsTable.getScene() != null && applicationsTable.getScene().getWindow() != null)
                 dialogStage.initOwner(applicationsTable.getScene().getWindow());
             javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/com/skilora/view/recruitment/ApplicationDetailsView.fxml"));
-            javafx.scene.layout.VBox root = loader.load();
+            javafx.scene.Parent root = loader.load();
             ApplicationDetailsController controller = loader.getController();
             if (controller != null) {
                 controller.setup(fullApp, dialogStage, newStatus -> {
