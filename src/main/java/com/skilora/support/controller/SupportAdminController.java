@@ -352,86 +352,131 @@ public class SupportAdminController implements Initializable {
             return;
         }
 
-        VBox ticketList = new VBox(12);
+        VBox ticketList = new VBox(10);
+        ticketList.setPadding(new Insets(4, 0, 4, 0));
 
         for (SupportTicket ticket : tickets) {
             TLCard card = new TLCard();
-            card.getStyleClass().add("card-interactive");
+            card.getStyleClass().addAll("ticket-card", "card-interactive");
 
-            VBox content = new VBox(8);
+            VBox content = new VBox(10);
+            content.setPadding(new Insets(4, 0, 4, 0));
 
-            // Subject header with status + priority badges
+            // ===== HEADER: Badges + Subject =====
+            HBox headerRow = new HBox(10);
+            headerRow.setAlignment(Pos.CENTER_LEFT);
+
+            // Status badge with icon
+            TLBadge statusBadge = createTicketStatusBadge(ticket.getStatus());
+
+            // Priority badge
+            TLBadge priorityBadge = createTicketPriorityBadge(ticket.getPriority());
+
+            // Subject label (grows)
             Label subjectLabel = new Label(ticket.getSubject() != null ? ticket.getSubject() : "-");
-            subjectLabel.getStyleClass().addAll("text-base", "font-bold");
+            subjectLabel.getStyleClass().addAll("h5", "ticket-subject");
+            subjectLabel.setWrapText(true);
+            HBox.setHgrow(subjectLabel, Priority.ALWAYS);
 
-            TLBadge statusBadge = new TLBadge(
-                    ticket.getStatus() != null ? ticket.getStatus() : "OPEN",
-                    getTicketBadgeVariant(ticket.getStatus()));
+            // Quick actions (visible on hover)
+            HBox quickActions = new HBox(4);
+            quickActions.setAlignment(Pos.CENTER_RIGHT);
+            quickActions.setOpacity(0.7);
 
-            TLBadge priorityBadge = new TLBadge(
-                    ticket.getPriority() != null ? ticket.getPriority() : "MEDIUM",
-                    getPriorityBadgeVariant(ticket.getPriority()));
+            TLButton assignBtn = new TLButton("", TLButton.ButtonVariant.GHOST);
+            assignBtn.setGraphic(SvgIcons.icon(SvgIcons.USER_PLUS, 14, "-fx-muted-foreground"));
+            assignBtn.setTooltip(new Tooltip(I18n.get("support.admin.ticket.assign")));
+            assignBtn.setOnAction(e -> {
+                e.consume();
+                showAssignTicketDialog(ticket);
+            });
 
-            HBox header = new HBox(12, subjectLabel, statusBadge, priorityBadge);
-            header.setAlignment(Pos.CENTER_LEFT);
+            TLButton viewBtn = new TLButton("", TLButton.ButtonVariant.GHOST);
+            viewBtn.setGraphic(SvgIcons.icon(SvgIcons.EYE, 14, "-fx-muted-foreground"));
+            viewBtn.setTooltip(new Tooltip(I18n.get("support.admin.ticket.view")));
+            viewBtn.setOnAction(e -> {
+                e.consume();
+                openTicketDetail(ticket.getId());
+            });
 
-            content.getChildren().add(header);
+            quickActions.getChildren().addAll(assignBtn, viewBtn);
 
-            // Description preview
+            headerRow.getChildren().addAll(statusBadge, priorityBadge, subjectLabel, quickActions);
+
+            // ===== DESCRIPTION PREVIEW =====
+            VBox descBox = null;
             String desc = ticket.getDescription() != null ? ticket.getDescription() : "";
             if (!desc.isEmpty()) {
-                Label descLabel = new Label(desc.length() > 100 ? desc.substring(0, 100) + "..." : desc);
+                String preview = desc.length() > 140 ? desc.substring(0, 140) + "..." : desc;
+                Label descLabel = new Label(preview);
                 descLabel.setWrapText(true);
-                descLabel.getStyleClass().add("text-muted");
-                content.getChildren().add(descLabel);
+                descLabel.getStyleClass().addAll("text-sm", "text-muted", "ticket-description");
+                descBox = new VBox(descLabel);
             }
 
-            // Info row
-            HBox infoRow = new HBox(16);
-            infoRow.setAlignment(Pos.CENTER_LEFT);
-            
-            Label userLabel = new Label(I18n.get("support.admin.ticket.user") + ": " + 
-                (ticket.getUserName() != null ? ticket.getUserName() : "#" + ticket.getUserId()));
-            userLabel.getStyleClass().addAll("text-xs", "text-muted");
-            
-            Label assignLabel = new Label(I18n.get("support.admin.ticket.assigned") + ": " +
-                (ticket.getAssignedToName() != null ? ticket.getAssignedToName() : I18n.get("support.admin.ticket.unassigned")));
-            assignLabel.getStyleClass().addAll("text-xs", "text-muted");
-            
-            Label dateLabel = new Label(ticket.getCreatedDate() != null
-                    ? ticket.getCreatedDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) : "-");
-            dateLabel.getStyleClass().addAll("text-xs", "text-muted");
+            // ===== METADATA ROW =====
+            javafx.scene.layout.FlowPane metadataPane = new javafx.scene.layout.FlowPane(12, 6);
+            metadataPane.setPrefWrapLength(800);
 
-            infoRow.getChildren().addAll(userLabel, assignLabel, dateLabel);
+            // User info
+            metadataPane.getChildren().add(createTicketMetadataItem(SvgIcons.USER,
+                ticket.getUserName() != null ? ticket.getUserName() : "#" + ticket.getUserId()));
 
-            // SLA countdown
+            // Assignee info
+            String assignee = ticket.getAssignedToName() != null
+                ? ticket.getAssignedToName()
+                : I18n.get("support.admin.ticket.unassigned");
+            metadataPane.getChildren().add(createTicketMetadataItem(SvgIcons.SHIELD,
+                I18n.get("support.admin.ticket.assigned_short") + ": " + assignee));
+
+            // Created date
+            if (ticket.getCreatedDate() != null) {
+                String dateStr = ticket.getCreatedDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
+                metadataPane.getChildren().add(createTicketMetadataItem(SvgIcons.CLOCK, dateStr));
+            }
+
+            // Category if available
+            if (ticket.getCategory() != null && !ticket.getCategory().isEmpty()) {
+                metadataPane.getChildren().add(createTicketMetadataItem(SvgIcons.BOOKMARK,
+                    ticket.getCategory()));
+            }
+
+            // SLA indicator
             if (ticket.getSlaDueDate() != null) {
                 long minutesLeft = ChronoUnit.MINUTES.between(LocalDateTime.now(), ticket.getSlaDueDate());
-                Label slaLabel;
+                HBox slaItem;
                 if (minutesLeft < 0) {
-                    long overdueMins = Math.abs(minutesLeft);
-                    slaLabel = new Label("SLA breached (" + (overdueMins / 60) + "h overdue)");
-                    slaLabel.setStyle("-fx-text-fill: #ef4444; -fx-font-weight: bold;");
-                } else if (minutesLeft < 120) {
-                    slaLabel = new Label("SLA: " + minutesLeft + "min left");
-                    slaLabel.setStyle("-fx-text-fill: #ef4444;");
-                } else if (minutesLeft < 360) {
-                    slaLabel = new Label("SLA: " + (minutesLeft / 60) + "h left");
-                    slaLabel.setStyle("-fx-text-fill: #f59e0b;");
+                    long overdueHours = Math.abs(minutesLeft) / 60;
+                    slaItem = createSLAMetadataItem(SvgIcons.ALERT_TRIANGLE,
+                        "SLA: " + overdueHours + "h " + I18n.get("support.admin.sla.overdue"),
+                        "-fx-destructive", true);
+                } else if (minutesLeft < 60) {
+                    slaItem = createSLAMetadataItem(SvgIcons.CLOCK,
+                        "SLA: " + minutesLeft + "min " + I18n.get("support.admin.sla.remaining"),
+                        "-fx-warning", false);
+                } else if (minutesLeft < 240) {
+                    slaItem = createSLAMetadataItem(SvgIcons.CLOCK,
+                        "SLA: " + (minutesLeft / 60) + "h " + I18n.get("support.admin.sla.remaining"),
+                        "-fx-warning", false);
                 } else {
-                    slaLabel = new Label("SLA: " + (minutesLeft / 60) + "h left");
-                    slaLabel.getStyleClass().addAll("text-xs", "text-muted");
+                    slaItem = createSLAMetadataItem(SvgIcons.CHECK_CIRCLE,
+                        "SLA: " + (minutesLeft / 60) + "h " + I18n.get("support.admin.sla.remaining"),
+                        "-fx-success", false);
                 }
-                slaLabel.getStyleClass().add("text-xs");
-                infoRow.getChildren().add(slaLabel);
+                metadataPane.getChildren().add(slaItem);
             }
 
-            content.getChildren().add(infoRow);
+            // Assemble content
+            content.getChildren().add(headerRow);
+            if (descBox != null) {
+                content.getChildren().add(descBox);
+            }
+            content.getChildren().add(metadataPane);
 
             card.setContent(content);
             ticketList.getChildren().add(card);
 
-            // Click to open ticket detail 
+            // Click to open ticket detail
             card.setOnMouseClicked(e -> openTicketDetail(ticket.getId()));
         }
 
@@ -687,27 +732,37 @@ public class SupportAdminController implements Initializable {
                 }
             });
 
-            // AI Suggestion button (branch integration: GeminiAIService)
+            // AI Suggestion button — context-aware reply suggestion (subject, description, category, full conversation)
             TLButton aiSuggestBtn = new TLButton("✨ AI Suggest", TLButton.ButtonVariant.OUTLINE);
-            aiSuggestBtn.setTooltip(new Tooltip("Let AI suggest a reply"));
+            aiSuggestBtn.setTooltip(new Tooltip(I18n.get("support.admin.ai_suggest_tooltip", "Suggest a reply using ticket and conversation context")));
             aiSuggestBtn.setOnAction(e -> {
                 aiSuggestBtn.setDisable(true);
+                String convThread = buildConversationThreadForAI(messages, ticket.getUserId());
                 Task<String> aiTask = new Task<>() {
                     @Override protected String call() {
-                        return geminiService.suggestReply(
+                        return geminiService.suggestReplyWithContext(
                             ticket.getSubject() != null ? ticket.getSubject() : "",
-                            ticket.getDescription() != null ? ticket.getDescription() : "");
+                            ticket.getDescription() != null ? ticket.getDescription() : "",
+                            ticket.getCategory(),
+                            convThread);
                     }
                 };
                 aiTask.setOnSucceeded(ev -> Platform.runLater(() -> {
                     String suggestion = aiTask.getValue();
-                    if (suggestion != null && !suggestion.isBlank()) {
+                    if (suggestion != null && !suggestion.isBlank() && !suggestion.startsWith("Error:")) {
                         replyArea.setText(suggestion);
+                    } else if (suggestion != null && suggestion.startsWith("Error:")) {
+                        if (contentPane != null && contentPane.getScene() != null) {
+                            TLToast.error(contentPane.getScene(), I18n.get("common.error"), I18n.get("support.admin.ai_suggest_error", "AI suggestion failed"));
+                        }
                     }
                     aiSuggestBtn.setDisable(false);
                 }));
                 aiTask.setOnFailed(ev -> Platform.runLater(() -> {
                     logger.error("AI suggestion failed", aiTask.getException());
+                    if (contentPane != null && contentPane.getScene() != null) {
+                        TLToast.error(contentPane.getScene(), I18n.get("common.error"), I18n.get("support.admin.ai_suggest_error", "AI suggestion failed"));
+                    }
                     aiSuggestBtn.setDisable(false);
                 }));
                 AppThreadPool.execute(aiTask);
@@ -775,6 +830,25 @@ public class SupportAdminController implements Initializable {
         outerScroll.getStyleClass().add("bg-transparent");
         VBox.setVgrow(outerScroll, Priority.ALWAYS);
         contentPane.getChildren().add(outerScroll);
+    }
+
+    /**
+     * Builds a plain-text conversation thread for the AI (subject + description + messages).
+     * Excludes internal notes so the suggestion is appropriate for a user-visible reply.
+     */
+    private String buildConversationThreadForAI(List<TicketMessage> messages, int ticketUserId) {
+        if (messages == null || messages.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (TicketMessage m : messages) {
+            if (m.isInternal()) continue;
+            String who = (ticketUserId > 0 && m.getSenderId() == ticketUserId)
+                    ? "User"
+                    : (m.getSenderName() != null ? "Support (" + m.getSenderName() + ")" : "Support");
+            String text = m.getMessage() != null ? m.getMessage().trim() : "";
+            if (text.isEmpty()) continue;
+            sb.append(who).append(": ").append(text).append("\n");
+        }
+        return sb.toString().trim();
     }
 
     private VBox createMessageBubble(TicketMessage msg, List<TicketAttachment> attachments) {
@@ -1653,6 +1727,72 @@ public class SupportAdminController implements Initializable {
             case "URGENT" -> TLBadge.Variant.DESTRUCTIVE;
             default -> TLBadge.Variant.DEFAULT;
         };
+    }
+
+    // ===== Ticket Card Helper Methods =====
+
+    private TLBadge createTicketStatusBadge(String status) {
+        String label;
+        TLBadge.Variant variant;
+
+        if (status == null) {
+            label = "OPEN";
+            variant = TLBadge.Variant.DEFAULT;
+        } else {
+            label = status;
+            variant = getTicketBadgeVariant(status);
+        }
+
+        TLBadge badge = new TLBadge(label, variant);
+        badge.getStyleClass().add("ticket-status-badge");
+        return badge;
+    }
+
+    private TLBadge createTicketPriorityBadge(String priority) {
+        String label = priority != null ? priority : "MEDIUM";
+        TLBadge.Variant variant = getPriorityBadgeVariant(priority);
+
+        TLBadge badge = new TLBadge(label, variant);
+        badge.getStyleClass().add("ticket-priority-badge");
+        return badge;
+    }
+
+    private HBox createTicketMetadataItem(String iconSvg, String text) {
+        HBox box = new HBox(6);
+        box.setAlignment(Pos.CENTER_LEFT);
+        box.getStyleClass().add("ticket-metadata-item");
+
+        javafx.scene.Node icon = SvgIcons.icon(iconSvg, 12, "-fx-muted-foreground");
+        Label label = new Label(text);
+        label.getStyleClass().addAll("text-xs", "text-muted");
+
+        box.getChildren().addAll(icon, label);
+        return box;
+    }
+
+    private HBox createSLAMetadataItem(String iconSvg, String text, String colorStyle, boolean bold) {
+        HBox box = new HBox(6);
+        box.setAlignment(Pos.CENTER_LEFT);
+        box.getStyleClass().add("ticket-sla-item");
+
+        javafx.scene.Node icon = SvgIcons.icon(iconSvg, 12, colorStyle);
+        Label label = new Label(text);
+        label.getStyleClass().addAll("text-xs");
+        if (bold) {
+            label.setStyle("-fx-text-fill: " + colorStyle.replace("-fx-", "") + "; -fx-font-weight: bold;");
+        } else {
+            label.setStyle("-fx-text-fill: " + colorStyle.replace("-fx-", "") + ";");
+        }
+
+        box.getChildren().addAll(icon, label);
+        return box;
+    }
+
+    private void showAssignTicketDialog(SupportTicket ticket) {
+        // TODO: Implement assign ticket dialog
+        TLToast.info(contentPane.getScene(),
+            I18n.get("support.admin.ticket.assign"),
+            I18n.get("support.admin.ticket.assign.message", ticket.getId()));
     }
 
     private record TicketThreadData(List<TicketMessage> messages, Map<Integer, List<TicketAttachment>> attachmentsByMessage) {}

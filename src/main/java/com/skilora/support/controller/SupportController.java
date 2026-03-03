@@ -1250,7 +1250,13 @@ public class SupportController implements Initializable {
                 if (currentConversationId > 0 && currentUser != null) {
                     chatbotService.addMessage(new ChatbotMessage(currentConversationId, "USER", userMessage));
                 }
+                // 1) Try rule-based auto-responses first (FAQ keywords)
                 String response = chatbotService.getAutoResponse(userMessage);
+                // 2) If no match, use AI with app-only system prompt (Centre d'aide assistant)
+                if (response == null && geminiService.isAiAvailable()) {
+                    List<String> history = buildChatHistoryForAi();
+                    response = geminiService.replyHelpCenter(userMessage, history);
+                }
                 if (currentConversationId > 0) {
                     String botReply = response != null ? response : I18n.get("chatbot.no_match");
                     chatbotService.addMessage(new ChatbotMessage(currentConversationId, "BOT", botReply));
@@ -1267,6 +1273,27 @@ public class SupportController implements Initializable {
             addBotMessage(I18n.get("chatbot.no_match"));
         }));
         AppThreadPool.execute(task);
+    }
+
+    /** Builds conversation history for the AI (User: / AI: lines), excluding the last message (current user input passed separately). */
+    private List<String> buildChatHistoryForAi() {
+        if (currentConversationId <= 0) return List.of();
+        List<ChatbotMessage> messages = chatbotService.getMessages(currentConversationId);
+        if (messages == null || messages.isEmpty()) return List.of();
+        int end = messages.size();
+        if (end > 0 && "USER".equals(messages.get(end - 1).getSender())) {
+            end--; // exclude the current user message (we pass it as userMessage to replyHelpCenter)
+        }
+        List<String> lines = new ArrayList<>();
+        for (int i = 0; i < end; i++) {
+            ChatbotMessage m = messages.get(i);
+            String sender = "USER".equals(m.getSender()) ? "User" : "AI";
+            String text = m.getMessage() != null ? m.getMessage().trim() : "";
+            if (!text.isEmpty()) {
+                lines.add(sender + ": " + text);
+            }
+        }
+        return lines;
     }
 
     private void escalateChatToTicket() {

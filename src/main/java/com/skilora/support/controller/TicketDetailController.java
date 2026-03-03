@@ -226,14 +226,19 @@ public class TicketDetailController {
     private void handleAISuggestion() {
         new Thread(() -> {
             try {
-                String suggestion = GeminiAIService.getInstance().suggestReply(
-                        ticket.getSubject(), ticket.getDescription());
+                List<TicketMessage> messages = messageService.findByTicketId(ticket.getId());
+                String convThread = buildConversationThreadForAI(messages, ticket.getUserId());
+                String suggestion = GeminiAIService.getInstance().suggestReplyWithContext(
+                        ticket.getSubject() != null ? ticket.getSubject() : "",
+                        ticket.getDescription() != null ? ticket.getDescription() : "",
+                        ticket.getCategory(),
+                        convThread);
                 Platform.runLater(() -> {
-                    if (suggestion != null && !suggestion.startsWith("Error")) {
+                    if (suggestion != null && !suggestion.isBlank() && !suggestion.startsWith("Error")) {
                         aiSuggestionBox.setVisible(true);
                         aiSuggestionBox.setManaged(true);
                         aiSuggestionLabel.setText(suggestion);
-                    } else {
+                    } else if (suggestion != null && suggestion.startsWith("Error")) {
                         System.err.println("Gemini Suggestion Error: " + suggestion);
                     }
                 });
@@ -241,6 +246,19 @@ public class TicketDetailController {
                 e.printStackTrace();
             }
         }).start();
+    }
+
+    private String buildConversationThreadForAI(List<TicketMessage> messages, int ticketUserId) {
+        if (messages == null || messages.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (TicketMessage m : messages) {
+            if (m.isInternal()) continue;
+            String who = (ticketUserId > 0 && m.getSenderId() == ticketUserId) ? "User" : "Support";
+            String text = m.getMessage() != null ? m.getMessage().trim() : "";
+            if (text.isEmpty()) continue;
+            sb.append(who).append(": ").append(text).append("\n");
+        }
+        return sb.toString().trim();
     }
 
     @FXML
