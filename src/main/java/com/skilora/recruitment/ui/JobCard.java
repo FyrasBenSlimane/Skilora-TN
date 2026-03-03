@@ -14,13 +14,19 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.layout.*;
 import javafx.scene.shape.SVGPath;
 import javafx.scene.Cursor;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static javafx.scene.input.MouseEvent.MOUSE_PRESSED;
 
 import java.awt.Desktop;
 import java.net.URI;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -42,45 +48,55 @@ public class JobCard extends VBox {
 
     private final JobOpportunity job;
     private final Integer userId;
+    private final Consumer<JobOpportunity> onCardClick;
+    private final Consumer<JobOpportunity> onApplyClick;
     private final SavedJobService savedJobService;
     private ToggleButton bookmarkBtn;
 
+    private static final DateTimeFormatter DATE_DISPLAY = DateTimeFormatter.ofPattern("dd MMM yyyy");
+
     public JobCard(JobOpportunity job) {
-        this(job, null, null);
+        this(job, null, null, null);
     }
 
     public JobCard(JobOpportunity job, Consumer<JobOpportunity> onCardClick) {
-        this(job, onCardClick, null);
+        this(job, onCardClick, null, null);
     }
 
     public JobCard(JobOpportunity job, Consumer<JobOpportunity> onCardClick, Integer userId) {
+        this(job, onCardClick, userId, null);
+    }
+
+    /** Same as src 2: optional apply callback to open application dialog instead of external URL. */
+    public JobCard(JobOpportunity job, Consumer<JobOpportunity> onCardClick, Integer userId, Consumer<JobOpportunity> onApplyClick) {
         this.job = job;
         this.userId = userId;
+        this.onCardClick = onCardClick;
+        this.onApplyClick = onApplyClick;
         this.savedJobService = SavedJobService.getInstance();
         getStyleClass().add("job-card");
-        setPadding(new Insets(20));
-        setSpacing(12);
+        setPadding(new Insets(18));
+        setSpacing(10);
         setPrefWidth(340);
         setMinWidth(260);
         setMaxWidth(Double.MAX_VALUE);
         
-        // Make card clickable
+        // Make card clickable. Filter MOUSE_PRESSED (not CLICKED) so we run before ListView selection;
+        // consuming press prevents the list from selecting the cell (which can hide/obscure text on first click).
         if (onCardClick != null) {
             getStyleClass().add("job-card-clickable");
             setCursor(Cursor.HAND);
-            setOnMouseClicked(e -> {
-                if (e.getClickCount() == 1) {
-                    onCardClick.accept(job);
-                }
-            });
+            addEventFilter(MOUSE_PRESSED, this::handleCardClick);
         }
 
         // ── Company avatar + title row ──
         HBox headerRow = new HBox(12);
         headerRow.setAlignment(Pos.TOP_LEFT);
 
-        // Company initial avatar circle
-        String companyInitial = extractInitial(job != null ? job.getSource() : null);
+        // Company initial — prefer company field, fallback to source
+        String companyForAvatar = (job != null && job.getCompany() != null && !job.getCompany().isBlank())
+                ? job.getCompany() : (job != null ? job.getSource() : null);
+        String companyInitial = extractInitial(companyForAvatar);
         Label avatarLabel = new Label(companyInitial);
         avatarLabel.setMinSize(40, 40);
         avatarLabel.setMaxSize(40, 40);
@@ -96,7 +112,11 @@ public class JobCard extends VBox {
         title.getStyleClass().add("job-card-title");
         title.setWrapText(true);
 
-        String safeSource = job != null && job.getSource() != null ? job.getSource() : "";
+        // Company name label — prefer company field, fallback to source
+        String safeSource = job != null
+                ? (job.getCompany() != null && !job.getCompany().isBlank() ? job.getCompany()
+                   : (job.getSource() != null ? job.getSource() : ""))
+                : "";
         Label source = new Label(safeSource);
         source.getStyleClass().add("job-card-source");
 
@@ -135,16 +155,22 @@ public class JobCard extends VBox {
             badgeRow.getChildren().add(workTypeBadge);
         }
 
-        // Tags / Metadata
-        HBox meta = new HBox(12);
+        // Tags / Metadata — location + posted date
+        HBox meta = new HBox(8);
         meta.setAlignment(Pos.CENTER_LEFT);
 
         String safeLocation = job != null && job.getLocation() != null ? job.getLocation().trim() : "";
         String safePosted = job != null && job.getPostedDate() != null ? job.getPostedDate().trim() : "";
-        Label locLabel = createBadge(safeLocation.isEmpty() ? I18n.get("jobdetails.remote") : safeLocation);
-        Label dateLabel = createBadge(safePosted.isEmpty() ? "\u2014" : safePosted);
 
-        meta.getChildren().addAll(locLabel, dateLabel);
+        if (!safeLocation.isEmpty()) {
+            Label locLabel = createBadge("📍 " + safeLocation);
+            meta.getChildren().add(locLabel);
+        }
+        String formattedDate = formatPostedDate(safePosted);
+        if (!formattedDate.isEmpty()) {
+            Label dateLabel = createBadge(formattedDate);
+            meta.getChildren().add(dateLabel);
+        }
 
         // Skills preview (max 3 tags)
         HBox skillsRow = new HBox(6);
@@ -180,24 +206,41 @@ public class JobCard extends VBox {
             buttonRow.getChildren().add(viewBtn);
         }
 
-        TLButton applyBtn = new TLButton(I18n.get("feed.open_listing"), ButtonVariant.PRIMARY);
-        applyBtn.setMaxWidth(Double.MAX_VALUE);
-        HBox.setHgrow(applyBtn, Priority.ALWAYS);
-        applyBtn.setOnAction(e -> {
-            e.consume();
-            try {
-                if (Desktop.isDesktopSupported()) {
-                    String targetUrl = job != null && job.getApplyUrl() != null && !job.getApplyUrl().isBlank()
-                            ? job.getApplyUrl()
-                            : (job != null ? job.getUrl() : null);
-                    if (targetUrl != null && !targetUrl.isBlank()) {
-                        Desktop.getDesktop().browse(new URI(targetUrl));
+        boolean isClosed = job != null && "CLOSED".equalsIgnoreCase(job.getStatus());
+        TLButton applyBtn;
+        if (onApplyClick != null && !isClosed) {
+            applyBtn = new TLButton(I18n.get("feed.apply", "Postuler"), ButtonVariant.PRIMARY);
+            applyBtn.setMaxWidth(Double.MAX_VALUE);
+            HBox.setHgrow(applyBtn, Priority.ALWAYS);
+            applyBtn.setOnAction(e -> {
+                e.consume();
+                onApplyClick.accept(job);
+            });
+        } else if (onApplyClick != null && isClosed) {
+            applyBtn = new TLButton(I18n.get("feed.closed", "Fermée"), ButtonVariant.DANGER);
+            applyBtn.setMaxWidth(Double.MAX_VALUE);
+            applyBtn.setDisable(true);
+            HBox.setHgrow(applyBtn, Priority.ALWAYS);
+        } else {
+            applyBtn = new TLButton(I18n.get("feed.open_listing"), ButtonVariant.PRIMARY);
+            applyBtn.setMaxWidth(Double.MAX_VALUE);
+            HBox.setHgrow(applyBtn, Priority.ALWAYS);
+            applyBtn.setOnAction(e -> {
+                e.consume();
+                try {
+                    if (Desktop.isDesktopSupported()) {
+                        String targetUrl = job != null && job.getApplyUrl() != null && !job.getApplyUrl().isBlank()
+                                ? job.getApplyUrl()
+                                : (job != null ? job.getUrl() : null);
+                        if (targetUrl != null && !targetUrl.isBlank()) {
+                            Desktop.getDesktop().browse(new URI(targetUrl));
+                        }
                     }
+                } catch (Exception ex) {
+                    logger.error("Failed to open job URL", ex);
                 }
-            } catch (Exception ex) {
-                logger.error("Failed to open job URL", ex);
-            }
-        });
+            });
+        }
         buttonRow.getChildren().add(applyBtn);
 
         getChildren().add(headerRow);
@@ -205,6 +248,18 @@ public class JobCard extends VBox {
         getChildren().addAll(meta);
         if (!skillsRow.getChildren().isEmpty()) getChildren().add(skillsRow);
         getChildren().addAll(desc, spacer, buttonRow);
+    }
+
+    /** Capture-phase handler on press so we run before ListCell/ListView selection. */
+    private void handleCardClick(MouseEvent e) {
+        if (e.getButton() != MouseButton.PRIMARY || e.isConsumed()) return;
+        javafx.scene.Node target = (javafx.scene.Node) e.getTarget();
+        // Don't open details when pressing on buttons/links
+        if (target instanceof javafx.scene.control.ButtonBase
+                || target instanceof javafx.scene.control.TextInputControl
+                || target instanceof javafx.scene.control.Hyperlink) return;
+        e.consume();
+        if (onCardClick != null) onCardClick.accept(job);
     }
 
     private String extractInitial(String source) {
@@ -258,6 +313,23 @@ public class JobCard extends VBox {
             return !posted.isBefore(LocalDate.now().minusDays(withinDays));
         } catch (DateTimeParseException e) {
             return false; // unparsable date — not "new"
+        }
+    }
+
+    /** Formats an ISO date string to a human-friendly label. */
+    private String formatPostedDate(String dateStr) {
+        if (dateStr == null || dateStr.isEmpty()) return "";
+        try {
+            LocalDate posted = LocalDate.parse(dateStr);
+            long days = ChronoUnit.DAYS.between(posted, LocalDate.now());
+            if (days == 0) return "Aujourd'hui";
+            if (days == 1) return "Hier";
+            if (days < 7)  return "Il y a " + days + "j";
+            if (days < 30) return "Il y a " + (days / 7) + " sem.";
+            if (days < 365) return "Il y a " + (days / 30) + " mois";
+            return posted.format(DATE_DISPLAY);
+        } catch (DateTimeParseException e) {
+            return dateStr; // fallback: show raw
         }
     }
 

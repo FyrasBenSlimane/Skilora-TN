@@ -44,6 +44,10 @@ public class ApplicationService {
      * @return the generated application ID, or -1 on failure
      */
     public int apply(int jobOfferId, int candidateProfileId, String coverLetter, String cvUrl) throws SQLException {
+        // Link application to an employer-owned offer when possible (same title), so it appears in employer inbox
+        jobOfferId = JobService.getInstance().resolveEmployerJobOfferId(jobOfferId);
+        if (jobOfferId <= 0) return -1;
+
         try (Connection conn = DatabaseConfig.getInstance().getConnection()) {
             conn.setAutoCommit(false);
             try {
@@ -167,18 +171,52 @@ public class ApplicationService {
     }
 
     /**
+     * Get all applications for job offers belonging to a specific company (Employer inbox).
+     * Uses application -> job_offer -> company_id so retrieval does not depend on companies.owner_id.
+     * Use this with the company id from JobService.getOrCreateEmployerCompanyId(ownerUserId, ...).
+     */
+    public List<Application> getApplicationsByCompanyId(int companyId) throws SQLException {
+        if (companyId <= 0) return new ArrayList<>();
+        String sql = "SELECT a.*, jo.title AS job_title, jo.location AS job_location, " +
+                "COALESCE(NULLIF(TRIM(CONCAT(IFNULL(p.first_name,''), ' ', IFNULL(p.last_name,''))), ''), CONCAT('Candidat #', a.candidate_profile_id)) AS candidate_name, " +
+                "c.name AS company_name " +
+                "FROM applications a " +
+                "INNER JOIN job_offers jo ON a.job_offer_id = jo.id AND jo.company_id = ? " +
+                "LEFT JOIN companies c ON jo.company_id = c.id " +
+                "LEFT JOIN profiles p ON a.candidate_profile_id = p.id " +
+                "ORDER BY a.applied_date DESC";
+
+        List<Application> apps = new ArrayList<>();
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, companyId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Application app = mapResultSet(rs);
+                    app.setJobTitle(rs.getString("job_title"));
+                    app.setJobLocation(rs.getString("job_location"));
+                    String candidateName = rs.getString("candidate_name");
+                    app.setCandidateName(candidateName != null && !candidateName.isBlank() ? candidateName : "Candidat #" + app.getCandidateProfileId());
+                    app.setCompanyName(rs.getString("company_name"));
+                    apps.add(app);
+                }
+            }
+        }
+        return apps;
+    }
+
+    /**
      * Get all applications for all jobs owned by a specific company (Employer inbox).
-     * Includes candidate name and job title via JOINs.
+     * Filters by companies.owner_id; prefer getApplicationsByCompanyId with resolved company id for robustness.
      */
     public List<Application> getApplicationsByCompanyOwner(int ownerUserId) throws SQLException {
         String sql = "SELECT a.*, jo.title AS job_title, jo.location AS job_location, " +
-                "CONCAT(p.first_name, ' ', p.last_name) AS candidate_name, " +
+                "COALESCE(NULLIF(TRIM(CONCAT(IFNULL(p.first_name,''), ' ', IFNULL(p.last_name,''))), ''), CONCAT('Candidat #', a.candidate_profile_id)) AS candidate_name, " +
                 "c.name AS company_name " +
                 "FROM applications a " +
-                "JOIN job_offers jo ON a.job_offer_id = jo.id " +
-                "JOIN companies c ON jo.company_id = c.id " +
-                "JOIN profiles p ON a.candidate_profile_id = p.id " +
-                "WHERE c.owner_id = ? " +
+                "INNER JOIN job_offers jo ON a.job_offer_id = jo.id " +
+                "INNER JOIN companies c ON jo.company_id = c.id AND c.owner_id = ? " +
+                "LEFT JOIN profiles p ON a.candidate_profile_id = p.id " +
                 "ORDER BY a.applied_date DESC";
 
         List<Application> apps = new ArrayList<>();
@@ -190,7 +228,8 @@ public class ApplicationService {
                     Application app = mapResultSet(rs);
                     app.setJobTitle(rs.getString("job_title"));
                     app.setJobLocation(rs.getString("job_location"));
-                    app.setCandidateName(rs.getString("candidate_name"));
+                    String candidateName = rs.getString("candidate_name");
+                    app.setCandidateName(candidateName != null && !candidateName.isBlank() ? candidateName : "Candidat #" + app.getCandidateProfileId());
                     app.setCompanyName(rs.getString("company_name"));
                     apps.add(app);
                 }

@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.*;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,22 +34,26 @@ public class InterviewService {
         if (interview == null) throw new IllegalArgumentException("Interview cannot be null");
         if (interview.getScheduledDate() == null) throw new IllegalArgumentException("Scheduled date is required");
         if (interview.getApplicationId() <= 0) throw new IllegalArgumentException("Valid application ID is required");
+        // Support both interview_date (legacy) and scheduled_date so INSERT works on either schema
         String sql = """
-            INSERT INTO interviews (application_id, scheduled_date, duration_minutes, type,
-                location, video_link, notes, status, timezone)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO interviews (application_id, interview_date, scheduled_date, duration_minutes, type,
+                location, video_link, notes, status, timezone, created_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
+        java.sql.Timestamp scheduledTs = Timestamp.valueOf(interview.getScheduledDate());
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             stmt.setInt(1, interview.getApplicationId());
-            stmt.setTimestamp(2, Timestamp.valueOf(interview.getScheduledDate()));
-            stmt.setInt(3, interview.getDurationMinutes());
-            stmt.setString(4, interview.getType());
-            stmt.setString(5, interview.getLocation());
-            stmt.setString(6, interview.getVideoLink());
-            stmt.setString(7, interview.getNotes());
-            stmt.setString(8, interview.getStatus());
-            stmt.setString(9, interview.getTimezone());
+            stmt.setTimestamp(2, scheduledTs);
+            stmt.setTimestamp(3, scheduledTs);
+            stmt.setInt(4, interview.getDurationMinutes());
+            stmt.setString(5, interview.getType() != null ? interview.getType() : "VIDEO");
+            stmt.setString(6, interview.getLocation());
+            stmt.setString(7, interview.getVideoLink());
+            stmt.setString(8, interview.getNotes());
+            stmt.setString(9, interview.getStatus() != null ? interview.getStatus() : "SCHEDULED");
+            stmt.setString(10, interview.getTimezone() != null ? interview.getTimezone() : "Africa/Tunis");
+            stmt.setTimestamp(11, Timestamp.valueOf(LocalDateTime.now()));
             stmt.executeUpdate();
             ResultSet rs = stmt.getGeneratedKeys();
             if (rs.next()) {
@@ -186,6 +191,29 @@ public class InterviewService {
         return false;
     }
 
+    /** Update interview date/time, type, location, duration, notes. */
+    public boolean update(Interview interview) {
+        if (interview == null || interview.getId() <= 0) return false;
+        String sql = """
+            UPDATE interviews SET scheduled_date = ?, duration_minutes = ?, type = ?,
+                location = ?, notes = ?, status = ? WHERE id = ?
+            """;
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setTimestamp(1, interview.getScheduledDate() != null ? Timestamp.valueOf(interview.getScheduledDate()) : null);
+            stmt.setInt(2, interview.getDurationMinutes());
+            stmt.setString(3, interview.getType());
+            stmt.setString(4, interview.getLocation());
+            stmt.setString(5, interview.getNotes());
+            stmt.setString(6, interview.getStatus() != null ? interview.getStatus() : InterviewStatus.SCHEDULED.name());
+            stmt.setInt(7, interview.getId());
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            logger.error("Error updating interview: {}", e.getMessage(), e);
+        }
+        return false;
+    }
+
     public boolean delete(int id) {
         String sql = "DELETE FROM interviews WHERE id = ?";
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
@@ -227,6 +255,9 @@ public class InterviewService {
         i.setId(rs.getInt("id"));
         i.setApplicationId(rs.getInt("application_id"));
         Timestamp scheduled = rs.getTimestamp("scheduled_date");
+        if (scheduled == null) {
+            try { scheduled = rs.getTimestamp("interview_date"); } catch (SQLException ignored) { /* column may not exist */ }
+        }
         if (scheduled != null) i.setScheduledDate(scheduled.toLocalDateTime());
         i.setDurationMinutes(rs.getInt("duration_minutes"));
         i.setType(rs.getString("type"));

@@ -123,6 +123,43 @@ public class JobService {
     }
 
     /**
+     * Resolves the job offer ID so that applications are linked to an employer-owned offer when possible.
+     * If the given job is from a company with no owner (e.g. crawler/aggregator), looks for an
+     * employer-owned job with the same title and returns that ID so the application appears in the employer inbox.
+     */
+    public int resolveEmployerJobOfferId(int jobOfferId) throws SQLException {
+        if (jobOfferId <= 0) return jobOfferId;
+        String sql = "SELECT jo.id, jo.title, c.owner_id FROM job_offers jo " +
+                "LEFT JOIN companies c ON jo.company_id = c.id WHERE jo.id = ?";
+        try (Connection conn = DatabaseConfig.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, jobOfferId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (!rs.next()) return jobOfferId;
+                String title = rs.getString("title");
+                Integer ownerId = null;
+                try { ownerId = (Integer) rs.getObject("owner_id"); } catch (Exception ignored) {}
+                if (title != null && (ownerId == null || ownerId <= 0)) {
+                    String findSql = "SELECT jo.id FROM job_offers jo " +
+                            "JOIN companies c ON jo.company_id = c.id WHERE c.owner_id IS NOT NULL AND c.owner_id > 0 " +
+                            "AND TRIM(LOWER(jo.title)) = TRIM(LOWER(?)) LIMIT 1";
+                    try (PreparedStatement findStmt = conn.prepareStatement(findSql)) {
+                        findStmt.setString(1, title);
+                        try (ResultSet frs = findStmt.executeQuery()) {
+                            if (frs.next()) {
+                                int resolved = frs.getInt("id");
+                                if (resolved != jobOfferId) logger.info("Resolved application job_offer_id {} -> {} (employer offer, same title)", jobOfferId, resolved);
+                                return resolved;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return jobOfferId;
+    }
+
+    /**
      * Finds a job offer by its ID.
      */
     public JobOffer findJobOfferById(int id) throws SQLException {
@@ -441,34 +478,58 @@ public class JobService {
 
     /**
      * Gets or creates a company for an employer user.
+     * If the user already has a company (owner_id = user), returns it.
+     * If exactly one company has owner_id NULL (legacy), assigns it to this user and returns it
+     * so that existing job_offers and their applications are visible in the employer inbox.
+     * Otherwise creates a new company.
      */
     public int getOrCreateEmployerCompanyId(int ownerUserId, String companyName) {
-        // First check if user already owns a company
-        String checkSql = "SELECT id FROM companies WHERE owner_id = ? LIMIT 1";
-        try (Connection conn = DatabaseConfig.getInstance().getConnection();
-                PreparedStatement stmt = conn.prepareStatement(checkSql)) {
-            stmt.setInt(1, ownerUserId);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt("id");
+        try (Connection conn = DatabaseConfig.getInstance().getConnection()) {
+            // 1) User already owns a company
+            String checkSql = "SELECT id FROM companies WHERE owner_id = ? LIMIT 1";
+            try (PreparedStatement stmt = conn.prepareStatement(checkSql)) {
+                stmt.setInt(1, ownerUserId);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) return rs.getInt("id");
+                }
+            }
+
+            // 2) One company with owner_id NULL (legacy): assign to this employer so their job_offers/applications show
+            String orphanSql = "SELECT id FROM companies WHERE owner_id IS NULL LIMIT 2";
+            try (PreparedStatement stmt = conn.prepareStatement(orphanSql);
+                 ResultSet rs = stmt.executeQuery()) {
+                int orphanId = -1;
+                int count = 0;
+                while (rs.next()) {
+                    orphanId = rs.getInt("id");
+                    count++;
+                }
+                if (count == 1 && orphanId > 0) {
+                    String updateSql = "UPDATE companies SET owner_id = ?, name = COALESCE(NULLIF(TRIM(name),''), ?) WHERE id = ?";
+                    try (PreparedStatement up = conn.prepareStatement(updateSql)) {
+                        up.setInt(1, ownerUserId);
+                        up.setString(2, companyName != null ? companyName : "Entreprise");
+                        up.setInt(3, orphanId);
+                        if (up.executeUpdate() > 0) {
+                            logger.info("Assigned orphan company id {} to employer user {}", orphanId, ownerUserId);
+                            return orphanId;
+                        }
+                    }
+                }
+            }
+
+            // 3) Create new company
+            String createSql = "INSERT INTO companies (owner_id, name, country) VALUES (?, ?, 'Tunisia')";
+            try (PreparedStatement stmt = conn.prepareStatement(createSql, Statement.RETURN_GENERATED_KEYS)) {
+                stmt.setInt(1, ownerUserId);
+                stmt.setString(2, companyName != null ? companyName : "Entreprise");
+                stmt.executeUpdate();
+                try (ResultSet keys = stmt.getGeneratedKeys()) {
+                    if (keys.next()) return keys.getInt(1);
                 }
             }
         } catch (SQLException e) {
-            logger.error("Failed to check existing company for owner user ID: {}", ownerUserId, e);
-        }
-
-        // Create new company for this employer
-        String createSql = "INSERT INTO companies (owner_id, name, country) VALUES (?, ?, 'Tunisia')";
-        try (Connection conn = DatabaseConfig.getInstance().getConnection();
-                PreparedStatement stmt = conn.prepareStatement(createSql, Statement.RETURN_GENERATED_KEYS)) {
-            stmt.setInt(1, ownerUserId);
-            stmt.setString(2, companyName != null ? companyName : "Entreprise");
-            stmt.executeUpdate();
-            try (ResultSet keys = stmt.getGeneratedKeys()) {
-                if (keys.next()) return keys.getInt(1);
-            }
-        } catch (SQLException e) {
-            logger.error("Failed to create company for owner user ID: {}", ownerUserId, e);
+            logger.error("Failed to get or create company for owner user ID: {}", ownerUserId, e);
         }
         return -1;
     }
