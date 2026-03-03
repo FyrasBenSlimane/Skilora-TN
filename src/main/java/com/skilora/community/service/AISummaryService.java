@@ -10,7 +10,12 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -41,6 +46,11 @@ public class AISummaryService {
     // ── URL de l'API Gemini ──
     private static final String GEMINI_API_URL =
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + GEMINI_API_KEY;
+
+    // ── OpenAI Fallback ──
+    private static final String OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+    private static final String OPENAI_MODEL = "gpt-4.1-mini";
+    private static final String OPENAI_API_KEY = com.skilora.config.EnvConfig.get("openai.api.key", "");
 
     // ── Retry config ──
     private static final int MAX_RETRIES = 3;
@@ -74,14 +84,24 @@ public class AISummaryService {
             return "Aucun message à résumer.";
         }
 
-        // 1. Tenter l'API Gemini avec retry
-        String aiResult = callGeminiWithRetry(messages);
-        if (aiResult != null) {
-            return aiResult;
+        // 1. Tenter l'API Gemini avec retry (if key is configured)
+        if (GEMINI_API_KEY != null && !GEMINI_API_KEY.isBlank() && !"PLACEHOLDER".equals(GEMINI_API_KEY)) {
+            String aiResult = callGeminiWithRetry(messages);
+            if (aiResult != null) {
+                return aiResult;
+            }
         }
 
-        // 2. Fallback : résumé local algorithmique
-        logger.info("Gemini API unavailable, using local summary fallback");
+        // 2. Fallback : OpenAI (if key is configured)
+        if (OPENAI_API_KEY != null && !OPENAI_API_KEY.isBlank() && OPENAI_API_KEY.startsWith("sk-")) {
+            String openaiResult = callOpenAIFallback(messages);
+            if (openaiResult != null) {
+                return openaiResult;
+            }
+        }
+
+        // 3. Fallback : résumé local algorithmique
+        logger.info("All AI APIs unavailable, using local summary fallback");
         return generateLocalSummary(messages);
     }
 
@@ -189,6 +209,67 @@ public class AISummaryService {
             }
         }
         return null; // All retries exhausted
+    }
+
+    /**
+     * Call OpenAI chat completions as a fallback when Gemini is unavailable.
+     */
+    private String callOpenAIFallback(List<String> messages) {
+        try {
+            StringBuilder conversationText = new StringBuilder();
+            for (String msg : messages) {
+                conversationText.append(msg).append("\n");
+            }
+
+            String prompt = "Tu es un assistant intelligent. Résume la conversation suivante de manière concise et structurée en français. "
+                    + "Identifie les points clés, les décisions prises et les sujets abordés. "
+                    + "Format le résumé avec des puces (•) pour chaque point important.\n\n"
+                    + "=== CONVERSATION ===\n"
+                    + conversationText
+                    + "\n=== FIN DE LA CONVERSATION ===\n\n"
+                    + "Résumé :";
+
+            JSONObject body = new JSONObject();
+            body.put("model", OPENAI_MODEL);
+            body.put("max_tokens", 800);
+            body.put("temperature", 0.4);
+
+            JSONArray msgArray = new JSONArray();
+            JSONObject userMsg = new JSONObject();
+            userMsg.put("role", "user");
+            userMsg.put("content", prompt);
+            msgArray.put(userMsg);
+            body.put("messages", msgArray);
+
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(15))
+                    .build();
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(OPENAI_URL))
+                    .timeout(Duration.ofSeconds(30))
+                    .header("Authorization", "Bearer " + OPENAI_API_KEY)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(body.toString(), StandardCharsets.UTF_8))
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+
+            if (response.statusCode() == 200) {
+                JSONObject jsonResponse = new JSONObject(response.body());
+                String summary = jsonResponse.getJSONArray("choices")
+                        .getJSONObject(0)
+                        .getJSONObject("message")
+                        .getString("content").trim();
+                logger.info("OpenAI summary generated ({} chars)", summary.length());
+                return summary;
+            } else {
+                logger.error("OpenAI fallback error {}: {}", response.statusCode(), response.body());
+            }
+        } catch (Exception e) {
+            logger.error("OpenAI fallback call failed", e);
+        }
+        return null;
     }
 
     /**

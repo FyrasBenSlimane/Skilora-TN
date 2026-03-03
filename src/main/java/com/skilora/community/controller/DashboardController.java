@@ -180,7 +180,10 @@ public class DashboardController {
                                 onNavigateToProfile),
                         createQuickAction(I18n.get("dashboard.action.explore_offers"),
                                 SvgIcons.GLOBE,
-                                onNavigateToFeed));
+                                onNavigateToFeed),
+                        createQuickAction(I18n.get("dashboard.action.browse_formations"),
+                                SvgIcons.GRADUATION_CAP,
+                                onNavigateToFormations));
                 break;
         }
 

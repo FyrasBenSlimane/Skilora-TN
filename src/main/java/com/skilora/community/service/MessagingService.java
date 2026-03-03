@@ -193,7 +193,7 @@ public class MessagingService {
             try (PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
                 stmt.setInt(1, conversationId);
                 stmt.setInt(2, senderId);
-                stmt.setString(3, content);
+                stmt.setString(3, content != null ? content : "");
                 stmt.setString(4, messageType != null ? messageType : "TEXT");
                 stmt.setString(5, mediaUrl);
                 stmt.setString(6, fileName);

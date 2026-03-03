@@ -6,6 +6,7 @@ import com.skilora.user.entity.*;
 import com.skilora.community.entity.*;
 import com.skilora.community.enums.*;
 import com.skilora.community.service.*;
+import com.skilora.user.enums.Role;
 import com.skilora.utils.DialogUtils;
 import com.skilora.utils.I18n;
 import com.skilora.utils.SvgIcons;
@@ -21,6 +22,8 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
@@ -28,16 +31,25 @@ import javafx.animation.FadeTransition;
 import javafx.animation.TranslateTransition;
 import javafx.animation.Timeline;
 import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
 import javafx.animation.Animation;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
 import javafx.stage.Popup;
 import javafx.util.Duration;
 import com.skilora.utils.AppThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.Desktop;
+import java.io.File;
+import java.net.URI;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.ResourceBundle;
 
@@ -60,6 +72,16 @@ public class CommunityController implements Initializable {
     private TLTabs communityTabs;
     private CommunityNotificationService communityNotificationService;
     private Timeline messagePollingTimeline;
+    private Timeline typingPollTimeline;
+    private Timeline conversationDotAnimation;
+    private Timeline conversationRecordTimerTimeline;
+    private int openConversationId = -1;
+
+    /** Feed tab: current posts (for client-side sort/filter), container and controls refs */
+    private List<Post> currentFeedPosts = new ArrayList<>();
+    private VBox feedPostsContainer;
+    private TLSelect<String> feedSortSelect;
+    private TLTextField feedSearchField;
 
     // New feature services
     private final TranslationService translationService = TranslationService.getInstance();
@@ -85,25 +107,40 @@ public class CommunityController implements Initializable {
         this.currentUser = user;
         titleLabel.setText(I18n.get("community.title"));
         subtitleLabel.setText(I18n.get("community.subtitle"));
+        // Start real-time notifications (poller for messages/invitations)
+        startRealTimeNotifications();
+        // Heartbeat for online presence
+        OnlineStatusService.getInstance().startHeartbeat(currentUser.getId());
         loadFeedTab();
     }
 
     private void setupTabs() {
-        TLTabs tabs = new TLTabs();
-        tabs.addTab("feed", I18n.get("community.tab.feed"), (javafx.scene.Node) null);
-        tabs.addTab("connections", I18n.get("community.tab.connections"), (javafx.scene.Node) null);
-        tabs.addTab("messages", I18n.get("community.tab.messages"), (javafx.scene.Node) null);
-        tabs.addTab("events", I18n.get("community.tab.events"), (javafx.scene.Node) null);
-        tabs.addTab("groups", I18n.get("community.tab.groups"), (javafx.scene.Node) null);
-        tabs.addTab("blog", I18n.get("community.tab.blog"), (javafx.scene.Node) null);
-        tabs.setOnTabChanged(this::onTabChanged);
-        tabBox.getChildren().add(tabs);
-        HBox.setHgrow(tabs, Priority.ALWAYS);
+        communityTabs = new TLTabs();
+        communityTabs.addTab("feed", I18n.get("community.tab.feed"), (javafx.scene.Node) null);
+        communityTabs.addTab("connections", I18n.get("community.tab.connections"), (javafx.scene.Node) null);
+        communityTabs.addTab("messages", I18n.get("community.tab.messages"), (javafx.scene.Node) null);
+        communityTabs.addTab("events", I18n.get("community.tab.events"), (javafx.scene.Node) null);
+        communityTabs.addTab("groups", I18n.get("community.tab.groups"), (javafx.scene.Node) null);
+        communityTabs.addTab("blog", I18n.get("community.tab.blog"), (javafx.scene.Node) null);
+        communityTabs.setOnTabChanged(this::onTabChanged);
+        tabBox.getChildren().add(communityTabs);
+        HBox.setHgrow(communityTabs, Priority.ALWAYS);
+    }
+
+    private boolean isAdmin() {
+        return currentUser != null && currentUser.getRole() == Role.ADMIN;
+    }
+
+    private boolean canEditOrDelete(int authorId) {
+        if (currentUser == null) return false;
+        return isAdmin() || currentUser.getId() == authorId;
     }
 
     private void onTabChanged(String tabId) {
-        if (!"messages".equals(tabId) && messagePollingTimeline != null) {
-            messagePollingTimeline.stop();
+        activeTab = tabId;
+        if (!"messages".equals(tabId)) {
+            if (messagePollingTimeline != null) messagePollingTimeline.stop();
+            if (typingPollTimeline != null) typingPollTimeline.stop();
         }
         configureHeaderForTab(tabId);
         switch (tabId) {
@@ -211,6 +248,84 @@ public class CommunityController implements Initializable {
         dialog.show();
     }
 
+    private void showPostDialog(Post existingPost) {
+        if (currentUser == null || existingPost == null) return;
+        TLDialog<Void> dialog = new TLDialog<>();
+        dialog.setDialogTitle(I18n.get("post.edit"));
+        dialog.setDescription(I18n.get("post.new.description"));
+
+        VBox content = new VBox(12);
+        TLTextarea textArea = new TLTextarea("", I18n.get("post.placeholder"));
+        textArea.getControl().setPrefRowCount(5);
+        textArea.setText(existingPost.getContent() != null ? existingPost.getContent() : "");
+
+        Label imageLabel = new Label();
+        imageLabel.setStyle("-fx-text-fill: -fx-muted-foreground;");
+        final String[] selectedImageUrl = {existingPost.getImageUrl()};
+        if (existingPost.getImageUrl() != null && !existingPost.getImageUrl().isBlank()) {
+            imageLabel.setText("Image attachée");
+        }
+
+        TLButton attachImageBtn = new TLButton();
+        attachImageBtn.setText("Attach Image");
+        attachImageBtn.setVariant(TLButton.ButtonVariant.SECONDARY);
+        attachImageBtn.setOnAction(e -> {
+            javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+            fileChooser.setTitle("Select Image");
+            fileChooser.getExtensionFilters().addAll(
+                new javafx.stage.FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.gif")
+            );
+            java.io.File selectedFile = fileChooser.showOpenDialog(contentPane.getScene().getWindow());
+            if (selectedFile != null) {
+                if (selectedFile.length() > 5 * 1024 * 1024) {
+                    TLToast.error(contentPane.getScene(), "Error", "Image must be under 5 MB");
+                    return;
+                }
+                try {
+                    String home = System.getProperty("user.home");
+                    java.io.File uploadsDir = new java.io.File(home, ".skilora/uploads");
+                    if (!uploadsDir.exists()) uploadsDir.mkdirs();
+                    String safeName = selectedFile.getName().replaceAll("[^a-zA-Z0-9._-]", "_");
+                    String fileName = System.currentTimeMillis() + "_" + safeName;
+                    java.io.File destFile = new java.io.File(uploadsDir, fileName);
+                    java.nio.file.Files.copy(selectedFile.toPath(), destFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    selectedImageUrl[0] = destFile.toURI().toString();
+                    imageLabel.setText(selectedFile.getName());
+                } catch (java.io.IOException ex) {
+                    logger.error("Failed to copy image", ex);
+                    TLToast.error(contentPane.getScene(), "Error", "Failed to attach image");
+                }
+            }
+        });
+
+        HBox buttons = new HBox(8);
+        buttons.setAlignment(Pos.CENTER_RIGHT);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        TLButton cancelBtn = new TLButton();
+        cancelBtn.setText(I18n.get("common.cancel"));
+        cancelBtn.setVariant(TLButton.ButtonVariant.SECONDARY);
+        cancelBtn.setOnAction(e -> dialog.close());
+        TLButton saveBtn = new TLButton();
+        saveBtn.setText(I18n.get("common.save"));
+        saveBtn.setVariant(TLButton.ButtonVariant.PRIMARY);
+        saveBtn.setOnAction(e -> {
+            String text = textArea.getText();
+            if (text == null || text.trim().isEmpty()) {
+                DialogUtils.showError(I18n.get("message.error"), I18n.get("error.validation.required", I18n.get("post.content")));
+                return;
+            }
+            existingPost.setContent(text.trim());
+            existingPost.setImageUrl(selectedImageUrl[0]);
+            updatePost(existingPost);
+            dialog.close();
+        });
+        buttons.getChildren().addAll(attachImageBtn, imageLabel, spacer, cancelBtn, saveBtn);
+        content.getChildren().addAll(textArea, buttons);
+        dialog.setContent(content);
+        dialog.show();
+    }
+
     private void createPost(String content, String imageUrl) {
         Task<Integer> task = new Task<>() {
             @Override
@@ -239,10 +354,43 @@ public class CommunityController implements Initializable {
     private void loadFeedTab() {
         contentPane.getChildren().clear();
         if (currentUser == null) return;
+
+        // Search bar
+        feedSearchField = new TLTextField("", "Rechercher");
+        HBox.setHgrow(feedSearchField, Priority.ALWAYS);
+        feedSearchField.getControl().setOnAction(e -> applyFeedFilterAndSort());
+        feedSearchField.getControl().textProperty().addListener((o, oldVal, newVal) -> applyFeedFilterAndSort());
+
+        // Sort bar
+        HBox sortBar = new HBox(10);
+        sortBar.setAlignment(Pos.CENTER_LEFT);
+        sortBar.setPadding(new Insets(0, 0, 8, 0));
+        Label sortLabel = new Label("Trier par :");
+        sortLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: -fx-muted-foreground;");
+        feedSortSelect = new TLSelect<>("", "Plus récent", "Plus ancien");
+        feedSortSelect.setValue("Plus récent");
+        feedSortSelect.valueProperty().addListener((obs, oldVal, newVal) -> applyFeedFilterAndSort());
+        sortBar.getChildren().addAll(sortLabel, feedSortSelect);
+
+        // Role badge
+        String roleDisplay = currentUser.getRole() != null ? currentUser.getRole().getDisplayName() : "";
+        Label roleBadge = new Label(roleDisplay);
+        roleBadge.getStyleClass().add("badge");
+        roleBadge.setStyle("-fx-font-size: 12px; -fx-padding: 4 8; -fx-background-radius: 4; -fx-background-color: -fx-primary; -fx-text-fill: white;");
+
+        contentPane.getChildren().add(feedSearchField);
+        sortBar.getChildren().add(roleBadge);
+        contentPane.getChildren().add(sortBar);
+
+        feedPostsContainer = new VBox(12);
+        feedPostsContainer.setPadding(new Insets(8, 0, 0, 0));
+        contentPane.getChildren().add(feedPostsContainer);
+
         contentPane.getChildren().add(new TLLoadingState());
         currentPage = 1;
+        currentFeedPosts.clear();
         isLoading = true;
-        
+
         Task<List<Post>> task = new Task<>() {
             @Override
             protected List<Post> call() {
@@ -251,34 +399,75 @@ public class CommunityController implements Initializable {
         };
 
         task.setOnSucceeded(e -> {
-            contentPane.getChildren().clear();
+            contentPane.getChildren().removeIf(n -> n instanceof TLLoadingState);
             List<Post> posts = task.getValue();
-            if (posts.isEmpty()) {
-                Label empty = new Label(I18n.get("post.empty"));
-                empty.getStyleClass().add("text-muted");
-                contentPane.getChildren().add(empty);
-            } else {
-                for (Post post : posts) {
-                    contentPane.getChildren().add(createPostCard(post));
-                }
-            }
+            currentFeedPosts = new ArrayList<>(posts != null ? posts : List.of());
+            displaySortedPosts(feedPostsContainer, currentFeedPosts, feedSortSelect.getValue(), feedSearchField.getText());
             isLoading = false;
         });
         task.setOnFailed(e -> {
-            contentPane.getChildren().clear();
+            contentPane.getChildren().removeIf(n -> n instanceof TLLoadingState);
             isLoading = false;
             logger.error("Failed to load feed", task.getException());
         });
         AppThreadPool.execute(task);
     }
 
+    private void applyFeedFilterAndSort() {
+        if (feedPostsContainer != null && feedSortSelect != null && feedSearchField != null) {
+            displaySortedPosts(feedPostsContainer, currentFeedPosts, feedSortSelect.getValue(), feedSearchField.getText());
+        }
+    }
+
+    /**
+     * Displays posts in the container with optional keyword filter and sort (Plus récent / Plus ancien).
+     */
+    private void displaySortedPosts(VBox container, List<Post> posts, String sortVal, String keyword) {
+        container.getChildren().clear();
+        if (posts == null || posts.isEmpty()) {
+            Label empty = new Label(I18n.get("post.empty"));
+            empty.getStyleClass().add("text-muted");
+            container.getChildren().add(empty);
+            return;
+        }
+        List<Post> filtered = keyword != null && !keyword.isBlank()
+                ? posts.stream()
+                .filter(p -> (p.getContent() != null && p.getContent().toLowerCase().contains(keyword.toLowerCase()))
+                        || (p.getAuthorName() != null && p.getAuthorName().toLowerCase().contains(keyword.toLowerCase())))
+                .toList()
+                : new ArrayList<>(posts);
+        if (filtered.isEmpty()) {
+            Label noMatch = new Label("Aucun résultat");
+            noMatch.getStyleClass().add("text-muted");
+            container.getChildren().add(noMatch);
+            return;
+        }
+        boolean ascending = "Plus ancien".equals(sortVal);
+        List<Post> sorted = new ArrayList<>(filtered);
+        sorted.sort((a, b) -> {
+            LocalDateTime da = a.getCreatedDate();
+            LocalDateTime db = b.getCreatedDate();
+            if (da == null && db == null) return 0;
+            if (da == null) return 1;
+            if (db == null) return -1;
+            return ascending ? da.compareTo(db) : db.compareTo(da);
+        });
+        int delay = 0;
+        for (Post post : sorted) {
+            TLCard card = createPostCard(post);
+            container.getChildren().add(card);
+            animateCardEntry(card, delay);
+            delay += 80;
+        }
+    }
+
     private void loadNextPage() {
-        if (currentUser == null || isLoading) return;
+        if (currentUser == null || isLoading || !"feed".equals(activeTab) || feedPostsContainer == null) return;
         isLoading = true;
         currentPage++;
-        
+
         TLLoadingState loadingState = new TLLoadingState();
-        contentPane.getChildren().add(loadingState);
+        feedPostsContainer.getChildren().add(loadingState);
 
         Task<List<Post>> task = new Task<>() {
             @Override
@@ -288,17 +477,16 @@ public class CommunityController implements Initializable {
         };
 
         task.setOnSucceeded(e -> {
-            contentPane.getChildren().remove(loadingState);
+            feedPostsContainer.getChildren().removeIf(n -> n instanceof TLLoadingState);
             List<Post> posts = task.getValue();
-            if (!posts.isEmpty()) {
-                for (Post post : posts) {
-                    contentPane.getChildren().add(createPostCard(post));
-                }
+            if (posts != null && !posts.isEmpty()) {
+                currentFeedPosts.addAll(posts);
+                displaySortedPosts(feedPostsContainer, currentFeedPosts, feedSortSelect != null ? feedSortSelect.getValue() : "Plus récent", feedSearchField != null ? feedSearchField.getText() : null);
             }
             isLoading = false;
         });
         task.setOnFailed(e -> {
-            contentPane.getChildren().remove(loadingState);
+            feedPostsContainer.getChildren().removeIf(n -> n instanceof TLLoadingState);
             isLoading = false;
             logger.error("Failed to load next page", task.getException());
         });
@@ -316,26 +504,10 @@ public class CommunityController implements Initializable {
         // Author Header
         HBox header = new HBox(12);
         header.setAlignment(Pos.CENTER_LEFT);
-        
-        // Avatar
-        StackPane avatarPane = new StackPane();
-        avatarPane.setPrefSize(40, 40);
-        avatarPane.setMinSize(40, 40);
-        avatarPane.setMaxSize(40, 40);
-        avatarPane.setStyle("-fx-background-color: -fx-primary; -fx-background-radius: 20;");
-        
-        String initials = "";
-        if (post.getAuthorName() != null && !post.getAuthorName().isEmpty()) {
-            String[] parts = post.getAuthorName().split(" ");
-            initials += parts[0].charAt(0);
-            if (parts.length > 1) {
-                initials += parts[parts.length - 1].charAt(0);
-            }
-        }
-        Label avatarLabel = new Label(initials.toUpperCase());
-        avatarLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px;");
-        avatarPane.getChildren().add(avatarLabel);
-        
+
+        String authorName = post.getAuthorName() != null ? post.getAuthorName() : "Unknown";
+        StackPane avatarPane = createAvatar(authorName, 40);
+
         VBox authorInfo = new VBox(2);
         Label author = new Label(post.getAuthorName());
         author.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
@@ -356,17 +528,26 @@ public class CommunityController implements Initializable {
         
         content.getChildren().addAll(header, contentLabel);
         
-        // Image
-        if (post.getImageUrl() != null && !post.getImageUrl().isEmpty()) {
+        // Image with rounded clip
+        if (post.getImageUrl() != null && !post.getImageUrl().isBlank()) {
             try {
-                javafx.scene.image.ImageView imageView = new javafx.scene.image.ImageView(new javafx.scene.image.Image(post.getImageUrl(), true));
+                Image image = new Image(post.getImageUrl(), 500, 0, true, true, true);
+                ImageView imageView = new ImageView(image);
                 imageView.setPreserveRatio(true);
                 imageView.setFitWidth(500);
-                imageView.fitWidthProperty().bind(content.widthProperty().subtract(32));
-                
-                StackPane imageContainer = new StackPane(imageView);
-                imageContainer.setStyle("-fx-background-radius: 8; -fx-border-radius: 8; -fx-overflow: hidden;");
-                content.getChildren().add(imageContainer);
+                imageView.setSmooth(true);
+                Rectangle clip = new Rectangle(500, 350);
+                clip.setArcWidth(16);
+                clip.setArcHeight(16);
+                imageView.setClip(clip);
+                image.progressProperty().addListener((obs, oldVal, newVal) -> {
+                    if (newVal.doubleValue() >= 1.0 && image.getHeight() > 0) {
+                        double ratio = 500.0 / image.getWidth();
+                        double displayHeight = Math.min(image.getHeight() * ratio, 350);
+                        clip.setHeight(displayHeight);
+                    }
+                });
+                content.getChildren().add(imageView);
             } catch (Exception e) {
                 logger.error("Failed to load image for post " + post.getId(), e);
             }
@@ -378,15 +559,43 @@ public class CommunityController implements Initializable {
         actions.setPadding(new Insets(8, 0, 0, 0));
         
         TLButton likeBtn = new TLButton();
-        likeBtn.setText(I18n.get("post.like") + " (" + post.getLikesCount() + ")");
-        likeBtn.setVariant(TLButton.ButtonVariant.GHOST);
-        likeBtn.setGraphic(SvgIcons.icon(SvgIcons.HEART, 16));
-        likeBtn.setOnAction(e -> toggleLike(post));
+        likeBtn.setText("♥ " + post.getLikesCount());
+        likeBtn.setVariant(post.isLikedByCurrentUser() ? TLButton.ButtonVariant.PRIMARY : TLButton.ButtonVariant.GHOST);
+        likeBtn.setSize(TLButton.ButtonSize.SM);
+        likeBtn.setOnAction(e -> {
+            Task<Boolean> likeTask = new Task<>() {
+                @Override
+                protected Boolean call() {
+                    return PostService.getInstance().toggleLike(post.getId(), currentUser.getId());
+                }
+            };
+            likeTask.setOnSucceeded(ev -> {
+                Boolean success = likeTask.getValue();
+                if (Boolean.TRUE.equals(success)) {
+                    boolean wasLiked = post.isLikedByCurrentUser();
+                    boolean nowLiked = !wasLiked;
+                    int newCount = post.getLikesCount() + (nowLiked ? 1 : -1);
+                    post.setLikesCount(newCount);
+                    post.setLikedByCurrentUser(nowLiked);
+                    Platform.runLater(() -> {
+                        likeBtn.setText("♥ " + newCount);
+                        likeBtn.setVariant(nowLiked ? TLButton.ButtonVariant.PRIMARY : TLButton.ButtonVariant.GHOST);
+                    });
+                }
+            });
+            AppThreadPool.execute(likeTask);
+        });
         
         TLButton commentBtn = new TLButton();
         commentBtn.setText(I18n.get("post.comment") + " (" + post.getCommentsCount() + ")");
         commentBtn.setVariant(TLButton.ButtonVariant.GHOST);
         commentBtn.setGraphic(SvgIcons.icon(SvgIcons.MESSAGE_CIRCLE, 16));
+
+        TLButton translateBtn = new TLButton();
+        translateBtn.setText("Traduire");
+        translateBtn.setVariant(TLButton.ButtonVariant.GHOST);
+        translateBtn.setSize(TLButton.ButtonSize.SM);
+        translateBtn.setOnAction(ev -> showTranslationMenu(translateBtn, contentLabel, post.getContent()));
         
         TLButton shareBtn = new TLButton();
         shareBtn.setText("Share");
@@ -414,9 +623,21 @@ public class CommunityController implements Initializable {
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        actions.getChildren().addAll(likeBtn, commentBtn, shareBtn, spacer);
+        actions.getChildren().addAll(likeBtn, commentBtn, translateBtn, shareBtn, spacer);
 
-        if (currentUser != null && post.getAuthorId() != currentUser.getId()) {
+        if (canEditOrDelete(post.getAuthorId())) {
+            TLButton editBtn = new TLButton();
+            editBtn.setText(I18n.get("post.edit"));
+            editBtn.setVariant(TLButton.ButtonVariant.OUTLINE);
+            editBtn.setSize(TLButton.ButtonSize.SM);
+            editBtn.setOnAction(ev -> showPostDialog(post));
+            TLButton deleteBtn = new TLButton();
+            deleteBtn.setText(I18n.get("post.delete"));
+            deleteBtn.setVariant(TLButton.ButtonVariant.DANGER);
+            deleteBtn.setSize(TLButton.ButtonSize.SM);
+            deleteBtn.setOnAction(ev -> deletePost(post));
+            actions.getChildren().addAll(editBtn, deleteBtn);
+        } else if (currentUser != null && post.getAuthorId() != currentUser.getId()) {
             TLButton reportBtn = new TLButton();
             reportBtn.setGraphic(SvgIcons.icon(SvgIcons.FLAG, 14, "-fx-muted-foreground"));
             reportBtn.setVariant(TLButton.ButtonVariant.GHOST);
@@ -480,6 +701,7 @@ public class CommunityController implements Initializable {
             
             TLTextField commentField = new TLTextField("", I18n.get("post.comment.placeholder"));
             HBox.setHgrow(commentField, Priority.ALWAYS);
+            setupMentionDetectionForTextField(commentField);
             
             TLButton addBtn = new TLButton(I18n.get("message.send"));
             addBtn.setVariant(TLButton.ButtonVariant.PRIMARY);
@@ -543,7 +765,16 @@ public class CommunityController implements Initializable {
                 return PostService.getInstance().toggleLike(post.getId(), currentUser.getId());
             }
         };
-        task.setOnSucceeded(e -> loadFeedTab());
+        task.setOnSucceeded(e -> {
+            if (Boolean.TRUE.equals(task.getValue())) {
+                boolean wasLiked = post.isLikedByCurrentUser();
+                boolean nowLiked = !wasLiked;
+                int newCount = post.getLikesCount() + (nowLiked ? 1 : -1);
+                post.setLikesCount(newCount);
+                post.setLikedByCurrentUser(nowLiked);
+                Platform.runLater(() -> displaySortedPosts(feedPostsContainer, currentFeedPosts, feedSortSelect != null ? feedSortSelect.getValue() : "Plus récent", feedSearchField != null ? feedSearchField.getText() : null));
+            }
+        });
         AppThreadPool.execute(task);
     }
 
@@ -954,7 +1185,31 @@ public class CommunityController implements Initializable {
 
         Label headerLabel = new Label(I18n.get("community.tab.messages"));
         headerLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-padding: 16;");
-        
+
+        // Right side: Active chat (declared early so filter lambda can reference it)
+        VBox rightSide = new VBox();
+        HBox.setHgrow(rightSide, Priority.ALWAYS);
+        rightSide.setAlignment(Pos.CENTER);
+        Label emptyState = new Label("Select a conversation");
+        emptyState.setStyle("-fx-text-fill: -fx-muted-foreground; -fx-font-size: 16px;");
+        rightSide.getChildren().add(emptyState);
+
+        // Filter bar: Toutes / Non lues + sort
+        final String[] messagesFilterRef = new String[]{"all"};
+        final String[] messagesSortRef = new String[]{"recent"};
+        TLButton filterAllBtn = new TLButton("Toutes");
+        filterAllBtn.setVariant(TLButton.ButtonVariant.PRIMARY);
+        filterAllBtn.setSize(TLButton.ButtonSize.SM);
+        TLButton filterUnreadBtn = new TLButton("Non lues");
+        filterUnreadBtn.setVariant(TLButton.ButtonVariant.GHOST);
+        filterUnreadBtn.setSize(TLButton.ButtonSize.SM);
+        TLSelect<String> messagesSortSelect = new TLSelect<>("Tri", "Plus récent", "Plus ancien");
+        messagesSortSelect.setValue("Plus récent");
+        HBox filterBar = new HBox(8);
+        filterBar.setAlignment(Pos.CENTER_LEFT);
+        filterBar.setPadding(new Insets(0, 16, 8, 16));
+        filterBar.getChildren().addAll(filterAllBtn, filterUnreadBtn, messagesSortSelect);
+
         ScrollPane leftScroll = new ScrollPane();
         leftScroll.setFitToWidth(true);
         leftScroll.setStyle("-fx-background-color: transparent; -fx-control-inner-background: transparent;");
@@ -962,16 +1217,43 @@ public class CommunityController implements Initializable {
         
         VBox conversationsList = new VBox(0);
         leftScroll.setContent(conversationsList);
-        leftSide.getChildren().addAll(headerLabel, leftScroll);
+        leftSide.getChildren().addAll(headerLabel, filterBar, leftScroll);
 
-        // Right side: Active chat
-        VBox rightSide = new VBox();
-        HBox.setHgrow(rightSide, Priority.ALWAYS);
-        rightSide.setAlignment(Pos.CENTER);
-        
-        Label emptyState = new Label("Select a conversation");
-        emptyState.setStyle("-fx-text-fill: -fx-muted-foreground; -fx-font-size: 16px;");
-        rightSide.getChildren().add(emptyState);
+        final List<Conversation>[] allConversationsRef = new List[]{null};
+        java.util.function.Consumer<java.util.List<Conversation>> applyMessagesFilterAndSort = all -> {
+            if (all == null) return;
+            List<Conversation> filtered = "unread".equals(messagesFilterRef[0])
+                    ? all.stream().filter(c -> c.getUnreadCount() > 0).toList()
+                    : new ArrayList<>(all);
+            String sort = messagesSortRef[0];
+            filtered = new ArrayList<>(filtered);
+            filtered.sort((a, b) -> {
+                LocalDateTime da = a.getLastMessageDate() != null ? a.getLastMessageDate() : LocalDateTime.MIN;
+                LocalDateTime db = b.getLastMessageDate() != null ? b.getLastMessageDate() : LocalDateTime.MIN;
+                return "old".equals(sort) ? da.compareTo(db) : db.compareTo(da);
+            });
+            conversationsList.getChildren().clear();
+            for (Conversation conv : filtered) {
+                conversationsList.getChildren().add(createConversationCard(conv, rightSide));
+            }
+        };
+
+        filterAllBtn.setOnAction(e -> {
+            messagesFilterRef[0] = "all";
+            filterAllBtn.setVariant(TLButton.ButtonVariant.PRIMARY);
+            filterUnreadBtn.setVariant(TLButton.ButtonVariant.GHOST);
+            applyMessagesFilterAndSort.accept(allConversationsRef[0]);
+        });
+        filterUnreadBtn.setOnAction(e -> {
+            messagesFilterRef[0] = "unread";
+            filterUnreadBtn.setVariant(TLButton.ButtonVariant.PRIMARY);
+            filterAllBtn.setVariant(TLButton.ButtonVariant.GHOST);
+            applyMessagesFilterAndSort.accept(allConversationsRef[0]);
+        });
+        messagesSortSelect.valueProperty().addListener((obs, oldVal, newVal) -> {
+            messagesSortRef[0] = "Plus ancien".equals(newVal) ? "old" : "recent";
+            applyMessagesFilterAndSort.accept(allConversationsRef[0]);
+        });
 
         splitView.getChildren().addAll(leftSide, rightSide);
         contentPane.getChildren().add(splitView);
@@ -986,16 +1268,15 @@ public class CommunityController implements Initializable {
         };
 
         task.setOnSucceeded(e -> {
-            conversationsList.getChildren().clear();
             List<Conversation> conversations = task.getValue();
-            if (conversations.isEmpty()) {
+            allConversationsRef[0] = conversations != null ? conversations : new ArrayList<>();
+            conversationsList.getChildren().clear();
+            if (allConversationsRef[0].isEmpty()) {
                 Label empty = new Label(I18n.get("message.empty"));
                 empty.setStyle("-fx-text-fill: -fx-muted-foreground; -fx-padding: 16;");
                 conversationsList.getChildren().add(empty);
             } else {
-                for (Conversation conv : conversations) {
-                    conversationsList.getChildren().add(createConversationCard(conv, rightSide));
-                }
+                applyMessagesFilterAndSort.accept(allConversationsRef[0]);
             }
         });
         task.setOnFailed(e -> {
@@ -1006,22 +1287,41 @@ public class CommunityController implements Initializable {
     }
 
     private javafx.scene.Node createConversationCard(Conversation conv, VBox rightSide) {
+        int otherUserId = (conv.getParticipant1() == currentUser.getId()) ? conv.getParticipant2() : conv.getParticipant1();
+        boolean unread = conv.getUnreadCount() > 0;
+        String baseStyle = "-fx-cursor: hand; -fx-background-color: transparent;";
+        String unreadBorder = " -fx-border-color: transparent transparent transparent -fx-primary; -fx-border-width: 0 0 0 3;";
+        String cardStyle = baseStyle + (unread ? unreadBorder : "");
+        String hoverStyle = "-fx-cursor: hand; -fx-background-color: -fx-muted;" + (unread ? unreadBorder : "");
+
         HBox card = new HBox(12);
         card.setAlignment(Pos.CENTER_LEFT);
         card.setPadding(new Insets(12, 16, 12, 16));
-        card.setStyle("-fx-cursor: hand; -fx-background-color: transparent;");
-        
-        // Hover effect
-        card.setOnMouseEntered(e -> card.setStyle("-fx-cursor: hand; -fx-background-color: -fx-muted;"));
-        card.setOnMouseExited(e -> card.setStyle("-fx-cursor: hand; -fx-background-color: transparent;"));
+        card.setStyle(cardStyle);
 
-        // Avatar
+        card.setOnMouseEntered(e -> card.setStyle(hoverStyle));
+        card.setOnMouseExited(e -> card.setStyle(cardStyle));
+
+        // Online indicator + Avatar
+        Circle onlineDot = new Circle(6);
+        onlineDot.setStyle("-fx-fill: #9ca3af;");
+        Task<Boolean> onlineTask = new Task<>() {
+            @Override
+            protected Boolean call() {
+                return OnlineStatusService.getInstance().isUserOnline(otherUserId);
+            }
+        };
+        onlineTask.setOnSucceeded(ev -> Platform.runLater(() -> {
+            onlineDot.setStyle(Boolean.TRUE.equals(onlineTask.getValue()) ? "-fx-fill: #22c55e;" : "-fx-fill: #9ca3af;");
+        }));
+        AppThreadPool.execute(onlineTask);
+
         StackPane avatarPane = new StackPane();
         avatarPane.setPrefSize(48, 48);
         avatarPane.setMinSize(48, 48);
         avatarPane.setMaxSize(48, 48);
         avatarPane.setStyle("-fx-background-color: -fx-primary; -fx-background-radius: 24;");
-        
+
         String initials = "";
         if (conv.getOtherUserName() != null && !conv.getOtherUserName().isEmpty()) {
             String[] parts = conv.getOtherUserName().split(" ");
@@ -1034,6 +1334,10 @@ public class CommunityController implements Initializable {
         avatarLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16px;");
         avatarPane.getChildren().add(avatarLabel);
 
+        HBox avatarWithDot = new HBox(6);
+        avatarWithDot.setAlignment(Pos.CENTER_LEFT);
+        avatarWithDot.getChildren().addAll(onlineDot, avatarPane);
+
         VBox textBox = new VBox(4);
         Label name = new Label(conv.getOtherUserName());
         name.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
@@ -1041,9 +1345,8 @@ public class CommunityController implements Initializable {
         Label preview = new Label(conv.getLastMessagePreview() != null ? conv.getLastMessagePreview() : "");
         preview.setStyle("-fx-text-fill: -fx-muted-foreground; -fx-font-size: 13px;");
         preview.setMaxWidth(180);
-        // Ellipsis for long text
         preview.setWrapText(false);
-        
+
         textBox.getChildren().addAll(name, preview);
 
         Region spacer = new Region();
@@ -1051,22 +1354,24 @@ public class CommunityController implements Initializable {
 
         VBox rightBox = new VBox(4);
         rightBox.setAlignment(Pos.CENTER_RIGHT);
+        Label timeLabel = new Label(formatConversationTime(conv.getLastMessageDate()));
+        timeLabel.setStyle("-fx-text-fill: -fx-muted-foreground; -fx-font-size: 12px;");
+        rightBox.getChildren().add(timeLabel);
         if (conv.getUnreadCount() > 0) {
-            TLBadge unread = new TLBadge(String.valueOf(conv.getUnreadCount()), TLBadge.Variant.DESTRUCTIVE);
-            rightBox.getChildren().add(unread);
+            TLBadge unreadBadge = new TLBadge(String.valueOf(conv.getUnreadCount()), TLBadge.Variant.DESTRUCTIVE);
+            rightBox.getChildren().add(unreadBadge);
         }
 
-        card.getChildren().addAll(avatarPane, textBox, spacer, rightBox);
+        card.getChildren().addAll(avatarWithDot, textBox, spacer, rightBox);
 
-        // Click to open conversation
         card.setOnMouseClicked(e -> openConversation(conv, rightSide));
         return card;
     }
 
     private void openConversation(Conversation conv, VBox rightSide) {
-        if (messagePollingTimeline != null) {
-            messagePollingTimeline.stop();
-        }
+        if (messagePollingTimeline != null) messagePollingTimeline.stop();
+        if (typingPollTimeline != null) typingPollTimeline.stop();
+        MessagingService.getInstance().clearTypingStatus(conv.getId(), currentUser.getId());
         rightSide.getChildren().clear();
         rightSide.setAlignment(Pos.TOP_CENTER);
 
@@ -1175,23 +1480,224 @@ public class CommunityController implements Initializable {
         messagePollingTimeline.setCycleCount(Animation.INDEFINITE);
         messagePollingTimeline.play();
 
+        String otherName = conv.getOtherUserName() != null ? conv.getOtherUserName() : "";
+
+        // Typing indicator row (avatar + 3 animated dots + "X est en train d'écrire")
+        HBox typingIndicatorRow = new HBox(8);
+        typingIndicatorRow.setAlignment(Pos.CENTER_LEFT);
+        typingIndicatorRow.setPadding(new Insets(2, 16, 2, 16));
+        typingIndicatorRow.setVisible(false);
+        typingIndicatorRow.setManaged(false);
+        StackPane typingAvatar = createAvatar(otherName, 24);
+        HBox typingBubble = new HBox(4);
+        typingBubble.setAlignment(Pos.CENTER);
+        typingBubble.setStyle("-fx-background-color: -fx-muted; -fx-background-radius: 12; -fx-padding: 6 10;");
+        Label dot1 = new Label("\u25CF");
+        Label dot2 = new Label("\u25CF");
+        Label dot3 = new Label("\u25CF");
+        dot1.setStyle("-fx-text-fill: -fx-muted-foreground; -fx-font-size: 10px;");
+        dot2.setStyle("-fx-text-fill: -fx-muted-foreground; -fx-font-size: 10px;");
+        dot3.setStyle("-fx-text-fill: -fx-muted-foreground; -fx-font-size: 10px;");
+        typingBubble.getChildren().addAll(dot1, dot2, dot3);
+        conversationDotAnimation = new Timeline(
+                new KeyFrame(Duration.ZERO,
+                        new KeyValue(dot1.opacityProperty(), 0.3),
+                        new KeyValue(dot2.opacityProperty(), 0.3),
+                        new KeyValue(dot3.opacityProperty(), 0.3)),
+                new KeyFrame(Duration.millis(300), new KeyValue(dot1.opacityProperty(), 1.0)),
+                new KeyFrame(Duration.millis(600), new KeyValue(dot1.opacityProperty(), 0.3), new KeyValue(dot2.opacityProperty(), 1.0)),
+                new KeyFrame(Duration.millis(900), new KeyValue(dot2.opacityProperty(), 0.3), new KeyValue(dot3.opacityProperty(), 1.0)),
+                new KeyFrame(Duration.millis(1200), new KeyValue(dot3.opacityProperty(), 0.3)));
+        conversationDotAnimation.setCycleCount(Animation.INDEFINITE);
+        Label typingText = new Label(otherName + " " + I18n.get("message.typing"));
+        typingText.setStyle("-fx-font-size: 12px; -fx-text-fill: -fx-muted-foreground;");
+        typingIndicatorRow.getChildren().addAll(typingAvatar, typingBubble, typingText);
+
+        typingPollTimeline = new Timeline(new KeyFrame(Duration.millis(1500), ev -> {
+            AppThreadPool.execute(() -> {
+                boolean isTyping = MessagingService.getInstance().isUserTyping(conv.getId(), otherUserId);
+                Platform.runLater(() -> {
+                    if (isTyping && !typingIndicatorRow.isVisible()) {
+                        typingIndicatorRow.setVisible(true);
+                        typingIndicatorRow.setManaged(true);
+                        conversationDotAnimation.play();
+                        scrollPane.setVvalue(1.0);
+                    } else if (!isTyping && typingIndicatorRow.isVisible()) {
+                        typingIndicatorRow.setVisible(false);
+                        typingIndicatorRow.setManaged(false);
+                        conversationDotAnimation.stop();
+                    }
+                });
+            });
+        }));
+        typingPollTimeline.setCycleCount(Animation.INDEFINITE);
+        typingPollTimeline.play();
+
         // Send box
         HBox sendBox = new HBox(12);
         sendBox.setAlignment(Pos.CENTER_LEFT);
         sendBox.setPadding(new Insets(16));
         sendBox.setStyle("-fx-border-color: -fx-border transparent transparent transparent; -fx-border-width: 1 0 0 0; -fx-background-color: -fx-background;");
-        
+
         TLTextField msgField = new TLTextField("", I18n.get("message.placeholder"));
         HBox.setHgrow(msgField, Priority.ALWAYS);
-        
+
+        msgField.getControl().textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && !newVal.trim().isEmpty()) {
+                AppThreadPool.execute(() -> MessagingService.getInstance().updateTypingStatus(conv.getId(), currentUser.getId()));
+            }
+        });
+
+        // Attach button (image/video)
+        TLButton attachBtn = new TLButton("\uD83D\uDCCE", TLButton.ButtonVariant.GHOST);
+        attachBtn.setSize(TLButton.ButtonSize.SM);
+        attachBtn.setStyle("-fx-font-size: 16px; -fx-cursor: hand;");
+        attachBtn.setOnAction(ev -> {
+            javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+            fileChooser.setTitle(I18n.get("message.attach.media"));
+            String[] mediaPatterns = cloudinaryService.getAllowedMediaExtensionPatterns();
+            fileChooser.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter(I18n.get("message.attach.media"), mediaPatterns));
+            fileChooser.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter(I18n.get("message.attach.images"), cloudinaryService.getAllowedExtensionPatterns()));
+            fileChooser.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter(I18n.get("message.attach.videos"), cloudinaryService.getAllowedVideoExtensionPatterns()));
+            File file = fileChooser.showOpenDialog(contentPane.getScene().getWindow());
+            if (file != null) {
+                String caption = msgField.getText();
+                msgField.setText("");
+                attachBtn.setText("\u23F3");
+                attachBtn.setDisable(true);
+                AppThreadPool.execute(() -> {
+                    try {
+                        String mediaType = cloudinaryService.detectMediaType(file);
+                        String mediaUrl = "VIDEO".equals(mediaType) ? cloudinaryService.uploadVideo(file) : cloudinaryService.uploadImage(file);
+                        MessagingService.getInstance().clearTypingStatus(conv.getId(), currentUser.getId());
+                        int newId = MessagingService.getInstance().sendMessage(conv.getId(), currentUser.getId(),
+                                (caption != null && !caption.trim().isEmpty()) ? caption.trim() : null,
+                                mediaType, mediaUrl, file.getName());
+                        Platform.runLater(() -> {
+                            attachBtn.setText("\uD83D\uDCCE");
+                            attachBtn.setDisable(false);
+                            if (newId > 0) fetchMessages.run();
+                            if (newId == -2 && msgField.getScene() != null)
+                                TLToast.error(msgField.getScene(), I18n.get("message.block"), I18n.get("message.blocked_error"));
+                        });
+                    } catch (Exception ex) {
+                        Platform.runLater(() -> {
+                            attachBtn.setText("\uD83D\uDCCE");
+                            attachBtn.setDisable(false);
+                            DialogUtils.showError(I18n.get("message.attach.error"), ex.getMessage());
+                        });
+                    }
+                });
+            }
+        });
+
+        AudioRecorderService audioRecorder = AudioRecorderService.getInstance();
+        TLButton micBtn = new TLButton("\uD83C\uDFA4", TLButton.ButtonVariant.GHOST);
+        micBtn.setSize(TLButton.ButtonSize.SM);
+        micBtn.setStyle("-fx-font-size: 16px; -fx-cursor: hand;");
+        HBox recordingIndicator = new HBox(8);
+        recordingIndicator.setAlignment(Pos.CENTER_LEFT);
+        recordingIndicator.setVisible(false);
+        recordingIndicator.setManaged(false);
+        Label recordDot = new Label("\uD83D\uDD34");
+        recordDot.setStyle("-fx-font-size: 12px;");
+        Label recordTimer = new Label("0:00");
+        recordTimer.setStyle("-fx-font-size: 13px; -fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+        Label recordHint = new Label(I18n.get("message.recording"));
+        recordHint.setStyle("-fx-font-size: 11px; -fx-text-fill: -fx-muted-foreground;");
+        TLButton cancelRecordBtn = new TLButton("\u2716", TLButton.ButtonVariant.GHOST);
+        cancelRecordBtn.setSize(TLButton.ButtonSize.SM);
+        cancelRecordBtn.setStyle("-fx-text-fill: #e74c3c; -fx-cursor: hand;");
+        recordingIndicator.getChildren().addAll(recordDot, recordTimer, recordHint, cancelRecordBtn);
+        conversationRecordTimerTimeline = new Timeline(new KeyFrame(Duration.seconds(1), ev -> {
+            if (audioRecorder.isRecording()) {
+                int elapsed = audioRecorder.getElapsedSeconds();
+                recordTimer.setText(AudioRecorderService.formatDuration(elapsed));
+                if (elapsed >= 300) micBtn.fire();
+            }
+        }));
+        conversationRecordTimerTimeline.setCycleCount(Animation.INDEFINITE);
+        cancelRecordBtn.setOnAction(ev -> {
+            audioRecorder.cancelRecording();
+            conversationRecordTimerTimeline.stop();
+            recordingIndicator.setVisible(false);
+            recordingIndicator.setManaged(false);
+            msgField.setVisible(true);
+            msgField.setManaged(true);
+            micBtn.setText("\uD83C\uDFA4");
+            micBtn.setStyle("-fx-font-size: 16px; -fx-cursor: hand;");
+        });
+        micBtn.setOnAction(ev -> {
+            if (!audioRecorder.isRecording()) {
+                try {
+                    audioRecorder.startRecording();
+                    micBtn.setText("\u23F9");
+                    micBtn.setStyle("-fx-font-size: 16px; -fx-cursor: hand; -fx-text-fill: #e74c3c;");
+                    recordTimer.setText("0:00");
+                    recordingIndicator.setVisible(true);
+                    recordingIndicator.setManaged(true);
+                    msgField.setVisible(false);
+                    msgField.setManaged(false);
+                    conversationRecordTimerTimeline.play();
+                } catch (Exception ex) {
+                    DialogUtils.showError("Microphone", ex.getMessage());
+                }
+            } else {
+                conversationRecordTimerTimeline.stop();
+                recordingIndicator.setVisible(false);
+                recordingIndicator.setManaged(false);
+                msgField.setVisible(true);
+                msgField.setManaged(true);
+                micBtn.setText("\u23F3");
+                micBtn.setDisable(true);
+                File wavFile = audioRecorder.stopRecording();
+                if (wavFile == null) {
+                    micBtn.setText("\uD83C\uDFA4");
+                    micBtn.setDisable(false);
+                    micBtn.setStyle("-fx-font-size: 16px; -fx-cursor: hand;");
+                    return;
+                }
+                int durationSec = AudioRecorderService.getWavDurationSeconds(wavFile);
+                AppThreadPool.execute(() -> {
+                    try {
+                        String audioUrl = cloudinaryService.uploadAudio(wavFile);
+                        MessagingService.getInstance().clearTypingStatus(conv.getId(), currentUser.getId());
+                        MessagingService.getInstance().sendMessage(conv.getId(), currentUser.getId(), null, "VOCAL", audioUrl, wavFile.getName(), durationSec);
+                        Platform.runLater(() -> {
+                            micBtn.setText("\uD83C\uDFA4");
+                            micBtn.setDisable(false);
+                            micBtn.setStyle("-fx-font-size: 16px; -fx-cursor: hand;");
+                            fetchMessages.run();
+                        });
+                    } catch (Exception ex) {
+                        Platform.runLater(() -> {
+                            micBtn.setText("\uD83C\uDFA4");
+                            micBtn.setDisable(false);
+                            micBtn.setStyle("-fx-font-size: 16px; -fx-cursor: hand;");
+                            DialogUtils.showError(I18n.get("message.vocal.error"), ex.getMessage());
+                        });
+                    }
+                });
+            }
+        });
+
+        TLButton emojiBtn = new TLButton("\uD83D\uDE00", TLButton.ButtonVariant.GHOST);
+        emojiBtn.setSize(TLButton.ButtonSize.SM);
+        emojiBtn.setOnAction(e -> showEmojiPickerForTextField(emojiBtn, msgField));
+
         TLButton sendBtn = new TLButton(I18n.get("message.send"));
         sendBtn.setVariant(TLButton.ButtonVariant.PRIMARY);
         sendBtn.setGraphic(SvgIcons.icon(SvgIcons.SEND, 16));
         sendBtn.setOnAction(e -> {
+            if (audioRecorder.isRecording()) {
+                micBtn.fire();
+                return;
+            }
             String text = msgField.getText();
             if (text != null && !text.trim().isEmpty()) {
                 String finalText = text.trim();
                 msgField.setText("");
+                MessagingService.getInstance().clearTypingStatus(conv.getId(), currentUser.getId());
                 sendBtn.setDisable(true);
                 Task<Integer> sendTask = new Task<>() {
                     @Override
@@ -1203,10 +1709,8 @@ public class CommunityController implements Initializable {
                     sendBtn.setDisable(false);
                     int newMsgId = sendTask.getValue();
                     if (newMsgId == -2) {
-                        // Blocked
                         if (msgField.getScene() != null) {
-                            TLToast.error(msgField.getScene(), I18n.get("message.block"),
-                                    I18n.get("message.blocked_error"));
+                            TLToast.error(msgField.getScene(), I18n.get("message.block"), I18n.get("message.blocked_error"));
                         }
                         return;
                     }
@@ -1218,57 +1722,219 @@ public class CommunityController implements Initializable {
                         newMsg.setRead(false);
                         HBox row = createMessageBubble(newMsg, true);
                         messageNodes.put(newMsgId, row);
-                    messagesBox.getChildren().add(row);
-                    Platform.runLater(() -> scrollPane.setVvalue(1.0));
+                        messagesBox.getChildren().add(row);
+                        Platform.runLater(() -> scrollPane.setVvalue(1.0));
                     }
                 });
                 AppThreadPool.execute(sendTask);
             }
         });
-        sendBox.getChildren().addAll(msgField, sendBtn);
+        sendBox.getChildren().addAll(msgField, recordingIndicator, attachBtn, micBtn, emojiBtn, sendBtn);
 
-        rightSide.getChildren().addAll(header, scrollPane, sendBox);
+        rightSide.getChildren().addAll(header, scrollPane, typingIndicatorRow, sendBox);
+
+        // Clear typing and stop timelines when leaving the conversation view
+        rightSide.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene == null) {
+                if (openConversationId >= 0) {
+                    MessagingService.getInstance().clearTypingStatus(openConversationId, currentUser.getId());
+                    openConversationId = -1;
+                }
+                if (messagePollingTimeline != null) messagePollingTimeline.stop();
+                if (typingPollTimeline != null) typingPollTimeline.stop();
+                if (conversationDotAnimation != null) conversationDotAnimation.stop();
+                if (conversationRecordTimerTimeline != null) conversationRecordTimerTimeline.stop();
+                if (audioRecorder.isRecording()) audioRecorder.cancelRecording();
+            }
+        });
     }
 
     private HBox createMessageBubble(Message msg, boolean isMine) {
         HBox row = new HBox();
         row.setAlignment(isMine ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
-        
-        Label msgLabel = new Label(msg.getContent());
-        msgLabel.setWrapText(true);
-        msgLabel.setMaxWidth(450);
-        msgLabel.setPadding(new Insets(10, 14, 10, 14));
-        
-        if (isMine) {
-            msgLabel.setStyle("-fx-background-color: -fx-primary; -fx-text-fill: white; -fx-background-radius: 16 16 4 16; -fx-font-size: 14px;");
-        } else {
-            msgLabel.setStyle("-fx-background-color: -fx-muted; -fx-text-fill: -fx-foreground; -fx-background-radius: 16 16 16 4; -fx-font-size: 14px;");
-        }
-        
+
+        String bubbleStyle = isMine
+                ? "-fx-background-color: -fx-primary; -fx-background-radius: 16 16 4 16;"
+                : "-fx-background-color: -fx-muted; -fx-background-radius: 16 16 16 4;";
         VBox bubbleBox = new VBox(4);
         bubbleBox.setAlignment(isMine ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
-        bubbleBox.getChildren().add(msgLabel);
-        
+        bubbleBox.setMaxWidth(450);
+        bubbleBox.setStyle(bubbleStyle + " -fx-padding: 10 14 10 14;");
+
+        if (msg.isImage() && msg.hasMedia()) {
+            try {
+                ImageView imageView = new ImageView();
+                imageView.setFitWidth(280);
+                imageView.setFitHeight(200);
+                imageView.setPreserveRatio(true);
+                imageView.setSmooth(true);
+                String url = msg.getMediaUrl();
+                if (url != null && !url.isBlank()) {
+                    if (!url.startsWith("http") && !url.startsWith("file:")) url = "file:" + url;
+                    imageView.setImage(new Image(url, true));
+                }
+                bubbleBox.getChildren().add(imageView);
+                if (msg.getContent() != null && !msg.getContent().isBlank()) {
+                    Label captionLabel = new Label(msg.getContent());
+                    captionLabel.setWrapText(true);
+                    captionLabel.setStyle(isMine ? "-fx-text-fill: -fx-primary-foreground; -fx-font-size: 12px; -fx-padding: 4 0 0 0;"
+                            : "-fx-text-fill: -fx-foreground; -fx-font-size: 12px; -fx-padding: 4 0 0 0;");
+                    bubbleBox.getChildren().add(captionLabel);
+                }
+            } catch (Exception imgEx) {
+                Label fallback = new Label("\uD83D\uDCF7 " + (msg.getFileName() != null ? msg.getFileName() : "Image"));
+                fallback.setWrapText(true);
+                fallback.setStyle(isMine ? "-fx-text-fill: -fx-primary-foreground; -fx-font-size: 13px;"
+                        : "-fx-text-fill: -fx-foreground; -fx-font-size: 13px;");
+                bubbleBox.getChildren().add(fallback);
+            }
+        } else if (msg.isVideo() && msg.hasMedia()) {
+            VBox videoBox = new VBox(4);
+            videoBox.setAlignment(Pos.CENTER);
+            Label videoIcon = new Label("\uD83C\uDFAC");
+            videoIcon.setStyle("-fx-font-size: 36px;");
+            Label videoName = new Label(msg.getFileName() != null ? msg.getFileName() : "Vid\u00E9o");
+            videoName.setWrapText(true);
+            videoName.setStyle(isMine ? "-fx-text-fill: -fx-primary-foreground; -fx-font-size: 12px;"
+                    : "-fx-text-fill: -fx-foreground; -fx-font-size: 12px;");
+            Label playHint = new Label("\u25B6 Cliquer pour ouvrir");
+            playHint.setStyle("-fx-font-size: 10px; -fx-text-fill: " + (isMine ? "-fx-primary-foreground;" : "-fx-muted-foreground;"));
+            videoBox.getChildren().addAll(videoIcon, videoName, playHint);
+            videoBox.setStyle("-fx-cursor: hand; -fx-padding: 12;");
+            videoBox.setOnMouseClicked(vidEv -> {
+                try {
+                    String mediaUrl = msg.getMediaUrl();
+                    if (mediaUrl != null) {
+                        if (mediaUrl.startsWith("file:")) {
+                            Desktop.getDesktop().open(new File(URI.create(mediaUrl)));
+                        } else {
+                            Desktop.getDesktop().browse(URI.create(mediaUrl));
+                        }
+                    }
+                } catch (Exception ex) {
+                    logger.warn("Cannot open video: {}", ex.getMessage());
+                }
+            });
+            bubbleBox.getChildren().add(videoBox);
+            if (msg.getContent() != null && !msg.getContent().isBlank()) {
+                Label captionLabel = new Label(msg.getContent());
+                captionLabel.setWrapText(true);
+                captionLabel.setStyle(isMine ? "-fx-text-fill: -fx-primary-foreground; -fx-font-size: 12px; -fx-padding: 4 0 0 0;"
+                        : "-fx-text-fill: -fx-foreground; -fx-font-size: 12px; -fx-padding: 4 0 0 0;");
+                bubbleBox.getChildren().add(captionLabel);
+            }
+        } else if (msg.isVocal() && msg.hasMedia()) {
+            HBox vocalBox = new HBox(8);
+            vocalBox.setAlignment(Pos.CENTER_LEFT);
+            Label playPauseIcon = new Label("\u25B6");
+            playPauseIcon.setStyle("-fx-font-size: 20px; -fx-cursor: hand; -fx-text-fill: " + (isMine ? "-fx-primary-foreground;" : "-fx-primary;"));
+            ProgressBar progressBar = new ProgressBar(0);
+            progressBar.setPrefWidth(150);
+            progressBar.setPrefHeight(6);
+            int durationSecs = msg.getDuration() > 0 ? msg.getDuration() : 0;
+            String durationText = AudioRecorderService.formatDuration(durationSecs);
+            Label durationLabel = new Label(durationText);
+            durationLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: " + (isMine ? "-fx-primary-foreground;" : "-fx-muted-foreground;"));
+            final MediaPlayer[] playerHolder = { null };
+            final boolean[] isPlaying = { false };
+            playPauseIcon.setOnMouseClicked(playEv -> {
+                if (isPlaying[0] && playerHolder[0] != null) {
+                    playerHolder[0].pause();
+                    playPauseIcon.setText("\u25B6");
+                    isPlaying[0] = false;
+                    return;
+                }
+                if (playerHolder[0] == null) {
+                    String mediaUrl = msg.getMediaUrl();
+                    if (mediaUrl == null || mediaUrl.isBlank()) return;
+                    if (!mediaUrl.startsWith("http") && !mediaUrl.startsWith("file:")) {
+                        mediaUrl = mediaUrl.startsWith("/") ? "file:" + mediaUrl : "file:///" + mediaUrl;
+                    }
+                    try {
+                        Media media = new Media(mediaUrl);
+                        MediaPlayer player = new MediaPlayer(media);
+                        playerHolder[0] = player;
+                        player.currentTimeProperty().addListener((obsT, oldT, newT) -> {
+                            MediaPlayer p = playerHolder[0];
+                            if (p == null) return;
+                            javafx.util.Duration total = p.getTotalDuration();
+                            if (total == null || total.toMillis() <= 0) return;
+                            double progress = Math.min(1.0, newT.toMillis() / total.toMillis());
+                            double secs = newT.toSeconds();
+                            Platform.runLater(() -> {
+                                if (playerHolder[0] == null) return;
+                                progressBar.setProgress(progress);
+                                durationLabel.setText(AudioRecorderService.formatDuration((int) secs));
+                            });
+                        });
+                        player.setOnEndOfMedia(() -> Platform.runLater(() -> {
+                            playPauseIcon.setText("\u25B6");
+                            progressBar.setProgress(0);
+                            durationLabel.setText(durationText);
+                            isPlaying[0] = false;
+                            MediaPlayer p = playerHolder[0];
+                            if (p != null) {
+                                try { p.stop(); } catch (Exception ignored) { }
+                                try { p.dispose(); } catch (Exception ignored) { }
+                                playerHolder[0] = null;
+                            }
+                        }));
+                        player.setOnError(() -> Platform.runLater(() -> {
+                            playPauseIcon.setText("\u25B6");
+                            isPlaying[0] = false;
+                            MediaPlayer p = playerHolder[0];
+                            logger.warn("Audio playback error: {}", p != null ? p.getError() : "player null");
+                            if (p != null) {
+                                try { p.dispose(); } catch (Exception ignored) { }
+                                playerHolder[0] = null;
+                            }
+                        }));
+                        player.play();
+                        playPauseIcon.setText("\u23F8");
+                        isPlaying[0] = true;
+                    } catch (Exception audioEx) {
+                        logger.warn("Cannot create audio player for vocal: {}", audioEx.getMessage());
+                        return;
+                    }
+                } else {
+                    if (playerHolder[0] != null) {
+                        playerHolder[0].play();
+                        playPauseIcon.setText("\u23F8");
+                        isPlaying[0] = true;
+                    }
+                }
+            });
+            vocalBox.getChildren().addAll(playPauseIcon, progressBar, durationLabel);
+            bubbleBox.getChildren().add(vocalBox);
+        } else {
+            String content = msg.getContent() != null ? msg.getContent() : "";
+            Label msgLabel = new Label(content);
+            msgLabel.setWrapText(true);
+            msgLabel.setStyle(isMine ? "-fx-text-fill: white; -fx-font-size: 14px;" : "-fx-text-fill: -fx-foreground; -fx-font-size: 14px;");
+            bubbleBox.getChildren().add(msgLabel);
+        }
+
         if (isMine && msg.isRead()) {
             Label readLabel = new Label("Read");
             readLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: -fx-muted-foreground;");
             readLabel.setGraphic(SvgIcons.icon(SvgIcons.CHECK_DOUBLE, 12, "-fx-primary"));
             bubbleBox.getChildren().add(readLabel);
         }
-        
+
         row.getChildren().add(bubbleBox);
         return row;
     }
 
     private void updateMessageBubble(HBox row, Message msg, boolean isMine) {
-        if (!isMine) return;
-        VBox bubbleBox = (VBox) row.getChildren().get(0);
-        if (msg.isRead() && bubbleBox.getChildren().size() == 1) {
-            Label readLabel = new Label("Read");
-            readLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: -fx-muted-foreground;");
-            readLabel.setGraphic(SvgIcons.icon(SvgIcons.CHECK_DOUBLE, 12, "-fx-primary"));
-            bubbleBox.getChildren().add(readLabel);
-        }
+        if (!isMine || !msg.isRead()) return;
+        VBox bubble = (VBox) row.getChildren().get(0);
+        if (bubble.getChildren().isEmpty()) return;
+        Node last = bubble.getChildren().get(bubble.getChildren().size() - 1);
+        if (last instanceof Label l && "Read".equals(l.getText())) return;
+        Label readLabel = new Label("Read");
+        readLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: -fx-muted-foreground;");
+        readLabel.setGraphic(SvgIcons.icon(SvgIcons.CHECK_DOUBLE, 12, "-fx-primary"));
+        bubble.getChildren().add(readLabel);
     }
 
     private void loadEventsTab() {
@@ -2114,6 +2780,16 @@ public class CommunityController implements Initializable {
         return dateTime.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
     }
 
+    /** Short time for conversation list: HH:mm today, dd/MM otherwise */
+    private String formatConversationTime(LocalDateTime dateTime) {
+        if (dateTime == null) return "";
+        LocalDateTime now = LocalDateTime.now();
+        if (dateTime.toLocalDate().equals(now.toLocalDate())) {
+            return dateTime.format(DateTimeFormatter.ofPattern("HH:mm"));
+        }
+        return dateTime.format(DateTimeFormatter.ofPattern("dd/MM"));
+    }
+
     // ═══════════════════════════════════════════════════════════
     //  REAL-TIME NOTIFICATIONS — Polling service
     // ═══════════════════════════════════════════════════════════
@@ -2123,12 +2799,9 @@ public class CommunityController implements Initializable {
      * Updates tab badges and shows toasts when new messages/invitations arrive.
      */
     private void startRealTimeNotifications() {
-        if (communityNotificationService != null) {
-            communityNotificationService.stop();
-        }
-        communityNotificationService = new CommunityNotificationService(currentUser.getId(), 6);
-
-        communityNotificationService.setOnUnreadMessagesChanged((oldCount, newCount) -> {
+        if (communityNotificationService == null) {
+            communityNotificationService = new CommunityNotificationService(currentUser.getId(), 6);
+            communityNotificationService.setOnUnreadMessagesChanged((oldCount, newCount) -> {
             if (communityTabs != null) {
                 // TODO: Add setTabBadge to TLTabs when framework supports it
                 logger.debug("Unread messages badge: {}", newCount);
@@ -2155,7 +2828,7 @@ public class CommunityController implements Initializable {
                 }
             }
         });
-
+        }
         communityNotificationService.start();
         logger.info("Real-time notifications started for user {}", currentUser.getId());
     }
@@ -2441,6 +3114,10 @@ public class CommunityController implements Initializable {
             "#3b82f6", "#22c55e", "#a855f7", "#f97316",
             "#ec4899", "#06b6d4", "#ef4444", "#6366f1"
     };
+
+    private StackPane createAvatar(String name, int size) {
+        return createAvatar(name, (double) size);
+    }
 
     private StackPane createAvatar(String name, double size) {
         String initials = getInitials(name);
@@ -2995,7 +3672,7 @@ public class CommunityController implements Initializable {
 
     private void animateCardEntry(Node node, int delay) {
         node.setOpacity(0);
-        node.setTranslateY(30);
+        node.setTranslateY(10);
 
         FadeTransition fade = new FadeTransition(Duration.millis(400), node);
         fade.setFromValue(0.0);
@@ -3003,7 +3680,7 @@ public class CommunityController implements Initializable {
         fade.setDelay(Duration.millis(delay));
 
         TranslateTransition slide = new TranslateTransition(Duration.millis(400), node);
-        slide.setFromY(30);
+        slide.setFromY(10);
         slide.setToY(0);
         slide.setDelay(Duration.millis(delay));
 

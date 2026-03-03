@@ -46,6 +46,8 @@ public class NotificationsController implements Initializable {
     private static final Logger logger = LoggerFactory.getLogger(NotificationsController.class);
     private final NotificationService notificationService = NotificationService.getInstance();
 
+    @FXML private Label titleLabel;
+    @FXML private Label subtitleLabel;
     @FXML private Label statsLabel;
     @FXML private TLButton markAllBtn;
     @FXML private TLButton clearBtn;
@@ -61,6 +63,8 @@ public class NotificationsController implements Initializable {
     
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+        if (titleLabel != null) titleLabel.setText(I18n.get("notif.title"));
+        if (subtitleLabel != null) subtitleLabel.setText(I18n.get("notif.subtitle"));
         markAllBtn.setText(I18n.get("notif.mark_all_read"));
         markAllBtn.setGraphic(SvgIcons.icon(SvgIcons.CHECK, 14));
         clearBtn.setText(I18n.get("notif.clear_all"));
