@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<!--
+  Vue Paiement — Stripe TEST
+  Nom Bénéficiaire → ComboBox chargé depuis la BD
+-->
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.skilora.finance.controller.PaiementController"
+      spacing="16"
+      style="-fx-background-color: -fx-background; -fx-padding: 24;">
+
+    <HBox alignment="CENTER_LEFT" spacing="12">
+        <VBox spacing="4" HBox.hgrow="ALWAYS">
+            <Label text="Paiement Avance Projet"
+                   style="-fx-font-size: 22px; -fx-font-weight: 800; -fx-text-fill: -fx-foreground;"/>
+            <Label text="Stripe (mode TEST) — Carte 4242 4242 4242 4242"
+                   style="-fx-font-size: 12px; -fx-text-fill: -fx-muted-foreground;"/>
+        </VBox>
+        <ProgressIndicator fx:id="progressIndicator" visible="false" managed="false" prefWidth="28" prefHeight="28"/>
+    </HBox>
+
+    <VBox spacing="12"
+          style="-fx-background-color: -fx-card; -fx-padding: 18; -fx-background-radius: 16; -fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 16;">
+
+        <GridPane hgap="12" vgap="12">
+            <columnConstraints>
+                <ColumnConstraints percentWidth="40"/>
+                <ColumnConstraints percentWidth="60"/>
+            </columnConstraints>
+
+            <Label text="Montant" GridPane.columnIndex="0" GridPane.rowIndex="0"
+                   style="-fx-text-fill: -fx-foreground;"/>
+            <TextField fx:id="txtMontant" promptText="Ex: 50.00" GridPane.columnIndex="1" GridPane.rowIndex="0"
+                       style="-fx-text-fill: -fx-foreground; -fx-text-inner-color: -fx-foreground; -fx-prompt-text-fill: -fx-muted-foreground;"/>
+
+            <Label text="Référence Projet" GridPane.columnIndex="0" GridPane.rowIndex="1"
+                   style="-fx-text-fill: -fx-foreground;"/>
+            <TextField fx:id="txtReferenceProjet" promptText="Ex: PROJ-2026-001" GridPane.columnIndex="1" GridPane.rowIndex="1"
+                       style="-fx-text-fill: -fx-foreground; -fx-text-inner-color: -fx-foreground; -fx-prompt-text-fill: -fx-muted-foreground;"/>
+
+            <Label text="Nom Bénéficiaire" GridPane.columnIndex="0" GridPane.rowIndex="2"
+                   style="-fx-text-fill: -fx-foreground;"/>
+            <!-- ComboBox chargé depuis la BD (utilisateurs) -->
+            <ComboBox fx:id="cmbNomBeneficiaire"
+                      promptText="Sélectionnez un bénéficiaire..."
+                      GridPane.columnIndex="1" GridPane.rowIndex="2"
+                      maxWidth="Infinity"
+                      style="-fx-text-fill: -fx-foreground; -fx-background-color: -fx-control-inner-background; -fx-border-color: -fx-border; -fx-border-radius: 6; -fx-background-radius: 6;"/>
+
+            <Separator GridPane.columnIndex="0" GridPane.rowIndex="3" GridPane.columnSpan="2" />
+
+            <Label text="Numéro de carte" GridPane.columnIndex="0" GridPane.rowIndex="4"
+                   style="-fx-text-fill: -fx-foreground;"/>
+            <TextField fx:id="txtNumeroCarte" promptText="XXXX XXXX XXXX XXXX" GridPane.columnIndex="1" GridPane.rowIndex="4"
+                       style="-fx-text-fill: -fx-foreground; -fx-text-inner-color: -fx-foreground; -fx-prompt-text-fill: -fx-muted-foreground;"/>
+
+            <Label text="Date expiration" GridPane.columnIndex="0" GridPane.rowIndex="5"
+                   style="-fx-text-fill: -fx-foreground;"/>
+            <TextField fx:id="txtExpiration" promptText="MM/YY" GridPane.columnIndex="1" GridPane.rowIndex="5"
+                       style="-fx-text-fill: -fx-foreground; -fx-text-inner-color: -fx-foreground; -fx-prompt-text-fill: -fx-muted-foreground;"/>
+
+            <Label text="CVV" GridPane.columnIndex="0" GridPane.rowIndex="6"
+                   style="-fx-text-fill: -fx-foreground;"/>
+            <PasswordField fx:id="txtCvv" promptText="123" GridPane.columnIndex="1" GridPane.rowIndex="6"
+                           style="-fx-text-fill: -fx-foreground; -fx-text-inner-color: -fx-foreground; -fx-prompt-text-fill: -fx-muted-foreground;"/>
+        </GridPane>
+
+        <Label text="Carte test: 4242 4242 4242 4242 | 12/26 | 123"
+               style="-fx-text-fill: -fx-muted-foreground; -fx-font-size: 11px;"/>
+
+        <HBox alignment="CENTER_RIGHT" spacing="12">
+            <Button fx:id="btnPayer" text="Payer Maintenant" onAction="#onPayer"
+                    style="-fx-background-color: #00c4a7; -fx-text-fill: white; -fx-background-radius: 10; -fx-padding: 10 22; -fx-font-weight: bold; -fx-cursor: hand;"/>
+        </HBox>
+    </VBox>
+
+    <Label fx:id="lblResultat" text=""
+           style="-fx-font-size: 13px; -fx-font-weight: 600; -fx-text-fill: -fx-foreground;"
+           wrapText="true"/>
+
+</VBox>
