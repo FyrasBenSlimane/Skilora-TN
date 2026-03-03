@@ -61,24 +61,14 @@ import com.skilora.finance.entity.BankAccount;
 import com.skilora.finance.entity.PaymentTransaction;
 import com.skilora.finance.service.BankAccountService;
 import com.skilora.finance.service.PaymentTransactionService;
-import com.skilora.formation.service.CertificateVerificationServer;
 import com.skilora.framework.components.FormationChatbotWidget;
 import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.I18n;
 import com.skilora.utils.SvgIcons;
 
-import javafx.embed.swing.SwingFXUtils;
-import javafx.scene.SnapshotParameters;
-import javafx.scene.image.ImageView;
-import javafx.scene.image.WritableImage;
 import javafx.scene.layout.StackPane;
-import javafx.scene.paint.Color;
-import javafx.stage.FileChooser;
 
-import java.awt.image.BufferedImage;
-import java.io.File;
 import java.math.BigDecimal;
-import javax.imageio.ImageIO;
 
 /**
  * FormationsController - Training/Courses view for job seekers.
@@ -1139,10 +1129,6 @@ public class FormationsController implements Initializable {
         courseDetailContainer.getChildren().addAll(backRow, certWrapper, actions, infoCard);
     }
 
-    private static String sanitizeFileName(String name) {
-        if (name == null) return "Unknown";
-        return name.replaceAll("[<>:\"/\\\\|?*]", "_").replaceAll("\\s+", "_").trim();
-    }
 
     /**
      * Marks a module complete using LessonProgressService for proper per-module tracking,

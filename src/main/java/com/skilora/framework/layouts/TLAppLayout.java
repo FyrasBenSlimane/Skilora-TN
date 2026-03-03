@@ -40,6 +40,7 @@ public class TLAppLayout extends BorderPane {
     private static final String STYLESHEET_CARD = "/com/skilora/framework/styles/tl-card.css";
     private static final String STYLESHEET_SELECT = "/com/skilora/framework/styles/tl-select.css";
     private static final String STYLESHEET_SWITCH = "/com/skilora/framework/styles/tl-switch.css";
+    private static final String STYLESHEET_TABS = "/com/skilora/framework/styles/tl-tabs.css";
 
     private final HBox topBar;
     private final VBox sidebar;
@@ -344,7 +345,8 @@ public class TLAppLayout extends BorderPane {
             TLAppLayout.class.getResource(STYLESHEET_BADGE).toExternalForm(),
             TLAppLayout.class.getResource(STYLESHEET_CARD).toExternalForm(),
             TLAppLayout.class.getResource(STYLESHEET_SELECT).toExternalForm(),
-            TLAppLayout.class.getResource(STYLESHEET_SWITCH).toExternalForm()
+            TLAppLayout.class.getResource(STYLESHEET_SWITCH).toExternalForm(),
+            TLAppLayout.class.getResource(STYLESHEET_TABS).toExternalForm()
         );
     }
 

@@ -5,10 +5,6 @@ import com.skilora.formation.entity.*;
 import com.skilora.formation.enums.*;
 import com.skilora.formation.service.*;
 
-// === User entity (needed for role checks) ===
-import com.skilora.user.entity.User;
-import com.skilora.user.enums.Role;
-
 // === Config ===
 import com.skilora.config.DatabaseConfig;
 
@@ -20,7 +16,6 @@ import org.junit.jupiter.params.provider.*;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -319,7 +314,7 @@ class FormationModuleTests {
         @DisplayName("LessonProgress updateLastAccessed")
         void lpUpdateLastAccessed() {
             LessonProgress lp = new LessonProgress();
-            LocalDateTime before = lp.getLastAccessedAt();
+            assertNotNull(lp.getLastAccessedAt());
             lp.updateLastAccessed();
             assertNotNull(lp.getLastAccessedAt());
         }

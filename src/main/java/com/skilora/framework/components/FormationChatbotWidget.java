@@ -18,9 +18,6 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,8 +26,6 @@ import java.util.List;
  * Matches Gestion_FormCertif branch behavior: visible as overlay on the formations page.
  */
 public class FormationChatbotWidget extends StackPane {
-
-    private static final Logger logger = LoggerFactory.getLogger(FormationChatbotWidget.class);
 
     private final List<Formation> formations;
     private final FormationAIService aiService;

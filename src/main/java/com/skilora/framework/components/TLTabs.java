@@ -1,8 +1,9 @@
 package com.skilora.framework.components;
 
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
-import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
@@ -26,23 +27,17 @@ import java.util.function.Consumer;
  */
 public class TLTabs extends VBox {
 
-    private static final String STYLESHEET =
-            TLTabs.class.getResource("/com/skilora/framework/styles/tl-tabs.css").toExternalForm();
-
-    private final FlowPane tabsList;
+    private final HBox tabsList;
     private final StackPane contentContainer;
     private final Map<String, TabEntry> tabs = new LinkedHashMap<>();
     private String activeTabId;
     private Consumer<String> onTabChanged;
 
     public TLTabs() {
-        getStylesheets().add(STYLESHEET);
         getStyleClass().add("tabs");
 
-        tabsList = new FlowPane();
+        tabsList = new HBox();
         tabsList.getStyleClass().add("tabs-list");
-        tabsList.setHgap(4);
-        tabsList.setVgap(4);
 
         contentContainer = new StackPane();
         contentContainer.getStyleClass().add("tabs-content-container");
@@ -57,11 +52,15 @@ public class TLTabs extends VBox {
     public TLTabs addTab(String tabId, String label, Node content) {
         Label trigger = new Label(label);
         trigger.getStyleClass().add("tabs-trigger");
-        trigger.setOnMouseClicked(e -> selectTab(tabId));
 
-        TabEntry entry = new TabEntry(tabId, trigger, content);
+        HBox triggerContainer = new HBox(4);
+        triggerContainer.setAlignment(Pos.CENTER);
+        triggerContainer.getChildren().add(trigger);
+        triggerContainer.setOnMouseClicked(e -> selectTab(tabId));
+
+        TabEntry entry = new TabEntry(tabId, trigger, triggerContainer, content);
         tabs.put(tabId, entry);
-        tabsList.getChildren().add(trigger);
+        tabsList.getChildren().add(triggerContainer);
 
         // First tab is auto-selected
         if (tabs.size() == 1) {
@@ -78,11 +77,15 @@ public class TLTabs extends VBox {
     public TLTabs addTab(String tabId, String label, java.util.function.Supplier<Node> contentSupplier) {
         Label trigger = new Label(label);
         trigger.getStyleClass().add("tabs-trigger");
-        trigger.setOnMouseClicked(e -> selectTab(tabId));
 
-        TabEntry entry = new TabEntry(tabId, trigger, contentSupplier);
+        HBox triggerContainer = new HBox(4);
+        triggerContainer.setAlignment(Pos.CENTER);
+        triggerContainer.getChildren().add(trigger);
+        triggerContainer.setOnMouseClicked(e -> selectTab(tabId));
+
+        TabEntry entry = new TabEntry(tabId, trigger, triggerContainer, contentSupplier);
         tabs.put(tabId, entry);
-        tabsList.getChildren().add(trigger);
+        tabsList.getChildren().add(triggerContainer);
 
         if (tabs.size() == 1) {
             selectTab(tabId);
@@ -152,20 +155,53 @@ public class TLTabs extends VBox {
     }
 
     /**
+     * Set a numeric badge on a tab trigger. Pass 0 to hide the badge.
+     * The badge is displayed as a small red circle with count next to the tab label.
+     */
+    public void setTabBadge(String tabId, int count) {
+        TabEntry entry = tabs.get(tabId);
+        if (entry == null) return;
+
+        // Remove existing badge if any
+        if (entry.badgeLabel != null) {
+            entry.triggerContainer.getChildren().remove(entry.badgeLabel);
+            entry.badgeLabel = null;
+        }
+
+        if (count > 0) {
+            Label badge = new Label(count > 99 ? "99+" : String.valueOf(count));
+            badge.setStyle(
+                "-fx-background-color: #ef4444; -fx-background-radius: 999; " +
+                "-fx-text-fill: white; -fx-font-size: 10px; -fx-font-weight: bold; " +
+                "-fx-padding: 1 5 1 5; -fx-min-width: 18; -fx-alignment: center;"
+            );
+            entry.badgeLabel = badge;
+            entry.triggerContainer.getChildren().add(badge);
+        }
+    }
+
+    /**
      * Internal tab data holder.
      */
     private static class TabEntry {
+        final String id;
         final Label trigger;
+        final HBox triggerContainer;
         Node content;
         java.util.function.Supplier<Node> contentSupplier;
+        Label badgeLabel;
 
-        TabEntry(String id, Label trigger, Node content) {
+        TabEntry(String id, Label trigger, HBox triggerContainer, Node content) {
+            this.id = id;
             this.trigger = trigger;
+            this.triggerContainer = triggerContainer;
             this.content = content;
         }
 
-        TabEntry(String id, Label trigger, java.util.function.Supplier<Node> contentSupplier) {
+        TabEntry(String id, Label trigger, HBox triggerContainer, java.util.function.Supplier<Node> contentSupplier) {
+            this.id = id;
             this.trigger = trigger;
+            this.triggerContainer = triggerContainer;
             this.contentSupplier = contentSupplier;
         }
 
