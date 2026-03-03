@@ -26,6 +26,7 @@ public class PreferencesService {
     public static final String KEY_NOTIFICATIONS = "notifications";
     public static final String KEY_SOUND_NOTIFICATIONS = "sound_notifications";
     public static final String KEY_EMAIL_NOTIFICATIONS = "email_notifications";
+    public static final String KEY_2FA_METHOD = "2fa_method"; // "email" or "whatsapp"
 
     private PreferencesService() {}
 

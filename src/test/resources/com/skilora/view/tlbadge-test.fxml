@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.VBox?>
+<?import com.skilora.framework.components.TLBadge?>
+
+<VBox xmlns:fx="http://javafx.com/fxml/1" spacing="8">
+    <TLBadge fx:id="badge" text="VERIFIED" variant="SUCCESS" />
+</VBox>

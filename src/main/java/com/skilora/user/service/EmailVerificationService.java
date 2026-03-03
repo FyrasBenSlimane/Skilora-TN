@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory;
 import java.security.SecureRandom;
 import java.sql.*;
 import java.time.LocalDateTime;
-import java.util.Optional;
 
 /**
  * Service for email verification during registration.

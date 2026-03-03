@@ -3,15 +3,19 @@ package com.skilora.user.controller;
 import com.skilora.user.entity.User;
 import com.skilora.user.enums.Role;
 import com.skilora.user.service.AuthService;
+import com.skilora.user.service.EmailVerificationService;
 import com.skilora.framework.layouts.TLWindow;
 import com.skilora.framework.components.TLTextField;
 import com.skilora.framework.components.TLPasswordField;
 import com.skilora.framework.components.TLButton;
 import com.skilora.framework.components.TLToast;
+import com.skilora.framework.components.TLDialog;
+import com.skilora.framework.components.TLSwitch;
 import com.skilora.user.service.MediaCache;
 import com.skilora.utils.Validators;
 import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.I18n;
+import com.skilora.utils.SvgIcons;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,18 +24,25 @@ import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.VBox;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.MediaView;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.SVGPath;
 import javafx.stage.Stage;
 
 import java.net.URL;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -64,6 +75,8 @@ public class RegisterController implements Initializable {
     @FXML
     private TLButton loginLink;
     @FXML
+    private TLButton verifyEmailBtn;
+    @FXML
     private HBox roleToggle;
     @FXML
     private TLButton freelancerBtn;
@@ -83,13 +96,19 @@ public class RegisterController implements Initializable {
     private Label dividerLabel;
     @FXML
     private Label alreadyAccountLabel;
+    @FXML
+    private Label emailVerifiedLabel;
 
     private Stage stage;
     private final AuthService authService;
+    private final EmailVerificationService emailVerificationService;
     private Role selectedRole = Role.USER;
+    private boolean emailVerified = false;
+    private String verifiedEmail = null;
 
     public RegisterController() {
         this.authService = AuthService.getInstance();
+        this.emailVerificationService = EmailVerificationService.getInstance();
     }
 
     public void setStage(Stage stage) {
@@ -274,6 +293,13 @@ public class RegisterController implements Initializable {
             showError(emailError);
             return;
         }
+
+        // Check if email has been verified
+        if (!emailVerified || verifiedEmail == null || !verifiedEmail.equalsIgnoreCase(email)) {
+            showError(I18n.get("register.error.email_not_verified"));
+            return;
+        }
+
         // Password strength validation
         String passwordError = Validators.validatePasswordStrength(password);
         if (passwordError != null) {
@@ -286,6 +312,17 @@ public class RegisterController implements Initializable {
             return;
         }
 
+        // Show Terms of Service dialog
+        showTermsOfServiceDialog(() -> {
+            // User accepted terms, proceed with registration
+            completeRegistration(fullName, username, email, password);
+        });
+    }
+
+    /**
+     * Complete the registration after terms are accepted.
+     */
+    private void completeRegistration(String fullName, String username, String email, String password) {
         registerBtn.setDisable(true);
         registerBtn.setText(I18n.get("register.creating_account"));
 
@@ -294,7 +331,7 @@ public class RegisterController implements Initializable {
                 User newUser = new User(username, password, selectedRole, fullName);
                 newUser.setEmail(email);
                 authService.register(newUser);
-                Platform.runLater(() -> openLoginWithSuccess(username));
+                Platform.runLater(() -> showAccountCreatedDialog(username));
             } catch (Exception e) {
                 Platform.runLater(() -> {
                     showError(e.getMessage());
@@ -303,6 +340,276 @@ public class RegisterController implements Initializable {
                 });
             }
         });
+    }
+
+    /**
+     * Show Terms of Service dialog.
+     */
+    private void showTermsOfServiceDialog(Runnable onAccept) {
+        TLDialog<ButtonType> dialog = new TLDialog<>();
+        dialog.initOwner(stage);
+        dialog.setDialogTitle(I18n.get("register.terms.title"));
+        dialog.setDescription(I18n.get("register.terms.description"));
+
+        // Terms content
+        VBox contentBox = new VBox(12);
+        contentBox.setAlignment(Pos.CENTER_LEFT);
+        contentBox.setPadding(new Insets(8, 0, 8, 0));
+
+        Label termsText = new Label(I18n.get("register.terms.content"));
+        termsText.setWrapText(true);
+        termsText.getStyleClass().add("text-sm");
+
+        ScrollPane scrollPane = new ScrollPane(termsText);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setPrefHeight(200);
+        scrollPane.setStyle("-fx-background-color: -fx-muted; -fx-background-radius: 8px;");
+
+        // Agreement switch
+        HBox agreementBox = new HBox(12);
+        agreementBox.setAlignment(Pos.CENTER_LEFT);
+        Label agreementLabel = new Label(I18n.get("register.terms.agree_label"));
+        agreementLabel.getStyleClass().add("text-sm");
+        TLSwitch agreementSwitch = new TLSwitch();
+        agreementBox.getChildren().addAll(agreementLabel, agreementSwitch);
+
+        contentBox.getChildren().addAll(scrollPane, agreementBox);
+        dialog.setDialogContent(contentBox);
+
+        ButtonType acceptBtn = new ButtonType(I18n.get("register.terms.accept"), javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
+        ButtonType declineBtn = new ButtonType(I18n.get("register.terms.decline"), javafx.scene.control.ButtonBar.ButtonData.CANCEL_CLOSE);
+        dialog.addButton(declineBtn);
+        dialog.addButton(acceptBtn);
+
+        // Disable accept button until switch is on
+        javafx.scene.Node acceptButton = dialog.getDialogPane().lookupButton(acceptBtn);
+        acceptButton.setDisable(true);
+        agreementSwitch.selectedProperty().addListener((obs, old, newVal) -> {
+            acceptButton.setDisable(!newVal);
+        });
+
+        dialog.showAndWait().ifPresent(result -> {
+            if (result == acceptBtn && agreementSwitch.isSelected()) {
+                onAccept.run();
+            } else {
+                // User declined terms, re-enable register button
+                registerBtn.setDisable(false);
+            }
+        });
+    }
+
+    /**
+     * Show Account Created success dialog with login button.
+     */
+    private void showAccountCreatedDialog(String username) {
+        TLDialog<ButtonType> dialog = new TLDialog<>();
+        dialog.initOwner(stage);
+        dialog.setDialogTitle(I18n.get("register.success.title"));
+
+        // Success content
+        VBox contentBox = new VBox(16);
+        contentBox.setAlignment(Pos.CENTER);
+        contentBox.setPadding(new Insets(16, 0, 16, 0));
+
+        // Success icon
+        SVGPath successIcon = new SVGPath();
+        successIcon.setContent(SvgIcons.CHECK_CIRCLE);
+        successIcon.getStyleClass().add("svg-path");
+        successIcon.setScaleX(3.0);
+        successIcon.setScaleY(3.0);
+        successIcon.setStyle("-fx-fill: -fx-success;");
+
+        HBox iconBox = new HBox(successIcon);
+        iconBox.setAlignment(Pos.CENTER);
+        iconBox.setPadding(new Insets(16));
+
+        Label successMessage = new Label(I18n.get("register.success.message"));
+        successMessage.setWrapText(true);
+        successMessage.getStyleClass().addAll("text-base", "text-center");
+
+        contentBox.getChildren().addAll(iconBox, successMessage);
+        dialog.setDialogContent(contentBox);
+
+        ButtonType loginBtn = new ButtonType(I18n.get("register.success.login_button"), javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
+        dialog.addButton(loginBtn);
+
+        dialog.showAndWait().ifPresent(result -> {
+            openLoginWithSuccess(username);
+        });
+    }
+
+    /**
+     * Handle email verification button click.
+     */
+    @FXML
+    private void handleVerifyEmail() {
+        String email = emailField.getText();
+
+        // Validate email format
+        String emailError = Validators.validateEmail(email);
+        if (emailError != null) {
+            showError(emailError);
+            return;
+        }
+
+        // Check if already verified
+        if (emailVerified && verifiedEmail != null && verifiedEmail.equalsIgnoreCase(email)) {
+            TLToast.success(getScene(), I18n.get("register.email.already_verified"), "");
+            return;
+        }
+
+        // Generate and send OTP
+        String otp = emailVerificationService.generateOTP();
+        emailVerificationService.storeVerificationOTP(email, otp);
+
+        // Show OTP dialog
+        showEmailVerificationDialog(email, otp);
+    }
+
+    /**
+     * Show email verification dialog with OTP input.
+     */
+    private void showEmailVerificationDialog(String email, String expectedOtp) {
+        TLDialog<String> dialog = new TLDialog<>();
+        dialog.initOwner(stage);
+        dialog.setDialogTitle(I18n.get("register.email.verify_title"));
+        dialog.setDescription(I18n.get("register.email.verify_description", email));
+
+        // OTP input
+        VBox formBox = new VBox(16);
+        formBox.setAlignment(Pos.CENTER);
+
+        TLTextField otpField = new TLTextField();
+        otpField.setPromptText(I18n.get("register.email.otp_prompt"));
+        otpField.setMaxWidth(200);
+
+        Label timerLabel = new Label();
+        timerLabel.getStyleClass().add("text-sm, text-muted");
+
+        Label attemptsLabel = new Label();
+        attemptsLabel.getStyleClass().add("text-sm");
+
+        formBox.getChildren().addAll(otpField, timerLabel, attemptsLabel);
+        dialog.setDialogContent(formBox);
+
+        dialog.addButton(ButtonType.CANCEL);
+        ButtonType verifyBtn = new ButtonType(I18n.get("register.email.verify_button"), javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
+        dialog.addButton(verifyBtn);
+
+        // Setup countdown timer
+        final int[] remainingSeconds = {emailVerificationService.getExpirySeconds()};
+        final int[] remainingAttempts = {emailVerificationService.getMaxAttempts()};
+
+        Timer timer = new Timer(true);
+        TimerTask timerTask = new TimerTask() {
+            @Override
+            public void run() {
+                Platform.runLater(() -> {
+                    remainingSeconds[0]--;
+                    if (remainingSeconds[0] <= 0) {
+                        timer.cancel();
+                        timerLabel.setText(I18n.get("register.email.otp_expired"));
+                        dialog.getDialogPane().lookupButton(verifyBtn).setDisable(true);
+                    } else {
+                        int minutes = remainingSeconds[0] / 60;
+                        int seconds = remainingSeconds[0] % 60;
+                        timerLabel.setText(String.format("%s: %02d:%02d", 
+                            I18n.get("register.email.time_remaining"), minutes, seconds));
+                    }
+                });
+            }
+        };
+        timer.scheduleAtFixedRate(timerTask, 0, 1000);
+
+        // Update attempts label
+        remainingAttempts[0] = emailVerificationService.getRemainingAttempts(email);
+        attemptsLabel.setText(I18n.get("register.email.attempts_remaining", remainingAttempts[0]));
+
+        // Validate OTP on verify
+        dialog.getDialogPane().lookupButton(verifyBtn).addEventFilter(
+            javafx.event.ActionEvent.ACTION, event -> {
+                String enteredOtp = otpField.getText();
+                if (enteredOtp == null || enteredOtp.isEmpty()) {
+                    otpField.setError(I18n.get("register.email.otp_required"));
+                    event.consume();
+                    return;
+                }
+
+                boolean verified = emailVerificationService.verifyOTP(email, enteredOtp);
+                if (!verified) {
+                    remainingAttempts[0] = emailVerificationService.getRemainingAttempts(email);
+                    attemptsLabel.setText(I18n.get("register.email.attempts_remaining", remainingAttempts[0]));
+
+                    if (emailVerificationService.isVerificationLocked(email)) {
+                        otpField.setError(I18n.get("register.email.max_attempts_reached"));
+                        timer.cancel();
+                        dialog.getDialogPane().lookupButton(verifyBtn).setDisable(true);
+                    } else {
+                        otpField.setError(I18n.get("register.email.otp_invalid"));
+                    }
+                    event.consume();
+                }
+            }
+        );
+
+        dialog.setResultConverter(bt -> {
+            if (bt == verifyBtn) {
+                return otpField.getText();
+            }
+            return null;
+        });
+
+        Optional<String> result = dialog.showAndWait();
+        timer.cancel();
+
+        result.ifPresent(enteredOtp -> {
+            boolean verified = emailVerificationService.verifyOTP(email, enteredOtp);
+            if (verified) {
+                emailVerified = true;
+                verifiedEmail = email;
+                updateEmailVerificationStatus();
+                TLToast.success(getScene(), I18n.get("register.email.verified_success"), "");
+            }
+        });
+    }
+
+    /**
+     * Update UI to show email verification status.
+     */
+    private void updateEmailVerificationStatus() {
+        if (emailVerifiedLabel != null) {
+            emailVerifiedLabel.setText(I18n.get("register.email.verified"));
+            emailVerifiedLabel.getStyleClass().add("text-success");
+            emailVerifiedLabel.setVisible(true);
+            emailVerifiedLabel.setManaged(true);
+        }
+        if (verifyEmailBtn != null) {
+            verifyEmailBtn.setText(I18n.get("register.email.verified_button"));
+            verifyEmailBtn.setVariant(TLButton.ButtonVariant.SUCCESS);
+        }
+        updateRegisterButtonState();
+    }
+
+    /**
+     * Update register button state based on email verification.
+     */
+    private void updateRegisterButtonState() {
+        if (registerBtn != null) {
+            registerBtn.setDisable(!emailVerified);
+        }
+    }
+
+    /**
+     * Get current scene from any control.
+     */
+    private javafx.scene.Scene getScene() {
+        if (registerBtn != null && registerBtn.getScene() != null) {
+            return registerBtn.getScene();
+        }
+        if (emailField != null && emailField.getScene() != null) {
+            return emailField.getScene();
+        }
+        return null;
     }
 
     private void showError(String message) {

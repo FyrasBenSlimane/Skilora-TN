@@ -78,6 +78,44 @@
             </HBox>
             <Label fx:id="twoFactorAuthStatusLabel" text="" styleClass="text-sm"/>
             <Label fx:id="twoFactorAuthDescription" text="Add an extra layer of security to your account" styleClass="text-sm, text-muted" wrapText="true"/>
+            
+            <!-- WhatsApp 2FA Option -->
+            <VBox fx:id="whatsApp2FAContainer" spacing="8" style="-fx-padding: 12 0 0 20;" managed="false" visible="false">
+                <HBox spacing="12" alignment="CENTER_LEFT">
+                    <Label fx:id="whatsApp2FALabel" text="Send codes via WhatsApp" minWidth="180" styleClass="text-sm"/>
+                    <TLSwitch fx:id="whatsApp2FASwitch"/>
+                </HBox>
+                <Label fx:id="whatsApp2FAPhoneLabel" text="" styleClass="text-xs, text-muted"/>
+            </VBox>
+        </VBox>
+    </VBox>
+
+    <!-- Account Activity Section -->
+    <VBox fx:id="activityStatsCard" spacing="16" styleClass="card" style="-fx-padding: 24;">
+        <Label fx:id="activitySectionLabel" text="Account Activity" styleClass="h3"/>
+        <TLSeparator/>
+        <HBox spacing="24" alignment="CENTER_LEFT">
+            <VBox spacing="4" minWidth="150">
+                <Label text="Member Since" styleClass="text-xs, text-muted"/>
+                <Label fx:id="memberSinceLabel" text="-" styleClass="text-sm"/>
+            </VBox>
+            <VBox spacing="4" minWidth="150">
+                <Label text="Last Login" styleClass="text-xs, text-muted"/>
+                <Label fx:id="lastLoginLabel" text="-" styleClass="text-sm"/>
+            </VBox>
+            <VBox spacing="4" minWidth="100">
+                <Label text="Total Logins" styleClass="text-xs, text-muted"/>
+                <Label fx:id="totalLoginsLabel" text="-" styleClass="text-sm"/>
+            </VBox>
+            <VBox spacing="4" minWidth="100">
+                <Label text="Success Rate" styleClass="text-xs, text-muted"/>
+                <Label fx:id="loginSuccessRateLabel" text="-" styleClass="text-sm"/>
+            </VBox>
+        </HBox>
+        <TLSeparator/>
+        <Label text="Recent Login History" styleClass="text-sm, text-muted"/>
+        <VBox fx:id="loginHistoryContainer" spacing="4">
+            <!-- Login history items will be added programmatically -->
         </VBox>
     </VBox>
 
@@ -94,7 +132,7 @@
         </HBox>
     </VBox>
 
-    <VBox spacing="16" styleClass="card" style="-fx-padding: 24;">
+    <VBox fx:id="dangerZoneCard" spacing="16" styleClass="card" style="-fx-padding: 24;">
         <Label fx:id="dangerZoneLabel" text="" styleClass="h3"/>
         <TLSeparator/>
         <HBox spacing="12" alignment="CENTER_LEFT">

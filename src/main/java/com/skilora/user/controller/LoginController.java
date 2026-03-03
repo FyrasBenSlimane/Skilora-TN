@@ -2,6 +2,9 @@ package com.skilora.user.controller;
 
 import com.skilora.user.entity.User;
 import com.skilora.user.service.AuthService;
+import com.skilora.user.service.TwoFactorAuthService;
+import com.skilora.user.service.UserWhatsAppService;
+import com.skilora.user.service.UserActivityService;
 import com.skilora.security.LoginSecurityService;
 import com.skilora.ui.MainView;
 import com.skilora.framework.layouts.TLWindow;
@@ -9,7 +12,10 @@ import com.skilora.framework.utils.WindowConfig;
 import com.skilora.framework.components.TLTextField;
 import com.skilora.framework.components.TLPasswordField;
 import com.skilora.framework.components.TLButton;
+import com.skilora.framework.components.TLDialog;
+import com.skilora.framework.components.TLToast;
 import com.skilora.user.service.MediaCache;
+import com.skilora.community.service.EmailService;
 import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.I18n;
 import com.skilora.utils.SvgIcons;
@@ -40,6 +46,8 @@ import javafx.stage.Stage;
 import java.net.URL;
 import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * LoginController - Handles interaction for LoginView.fxml
@@ -69,9 +77,11 @@ public class LoginController implements Initializable {
 
     private Stage stage;
     private final AuthService authService;
+    private final TwoFactorAuthService twoFactorAuthService;
 
     public LoginController() {
         this.authService = AuthService.getInstance();
+        this.twoFactorAuthService = TwoFactorAuthService.getInstance();
     }
 
     public void setStage(Stage stage) {
@@ -186,7 +196,18 @@ public class LoginController implements Initializable {
 
                 Platform.runLater(() -> {
                     if (user.isPresent()) {
-                        openDashboard(user.get());
+                        User loggedInUser = user.get();
+
+                        // Check if 2FA is enabled for this user
+                        boolean twoFAEnabled = twoFactorAuthService.is2FAEnabled(loggedInUser.getId());
+
+                        if (twoFAEnabled) {
+                            // Show 2FA dialog
+                            show2FAVerificationDialog(loggedInUser);
+                        } else {
+                            // No 2FA, proceed to dashboard
+                            openDashboard(loggedInUser);
+                        }
                     } else {
                         if (lockedAfterAttempt) {
                             showError(I18n.get("login.error.too_many_attempts").replace("{0}", String.valueOf(lockMinutes)));
@@ -206,6 +227,183 @@ public class LoginController implements Initializable {
                 });
             }
         });
+    }
+
+    /**
+     * Show 2FA verification dialog after successful credentials.
+     */
+    private void show2FAVerificationDialog(User user) {
+        // Generate and store 2FA OTP
+        String otp = twoFactorAuthService.generateOTP();
+        twoFactorAuthService.store2FAOTP(user.getId(), otp);
+
+        // Check user's preferred 2FA method
+        String method = twoFactorAuthService.get2FAMethod(user.getId());
+        boolean useWhatsApp = TwoFactorAuthService.METHOD_WHATSAPP.equals(method) 
+                && twoFactorAuthService.canUseWhatsApp2FA(user.getId());
+        
+        String deliveryDestination;
+        
+        if (useWhatsApp) {
+            // Send via WhatsApp
+            String phoneNumber = twoFactorAuthService.getUserPhoneNumber(user.getId());
+            deliveryDestination = phoneNumber;
+            UserWhatsAppService.getInstance().send2FAOTP(phoneNumber, otp).thenAccept(success -> {
+                if (!success) {
+                    logger.warn("Failed to send 2FA OTP via WhatsApp to {}", phoneNumber);
+                    Platform.runLater(() -> {
+                        if (stage != null && stage.getScene() != null) {
+                            TLToast.warning(stage.getScene(), I18n.get("login.2fa.whatsapp_send_failed_title"), I18n.get("login.2fa.whatsapp_send_failed"));
+                        }
+                    });
+                }
+            });
+        } else {
+            // Send via Email (default)
+            String userEmail = user.getEmail();
+            deliveryDestination = userEmail;
+            if (userEmail != null && !userEmail.isBlank()) {
+                EmailService.getInstance().sendOtpEmail(userEmail, otp).thenAccept(success -> {
+                    if (!success) {
+                        logger.warn("Failed to send 2FA OTP email to {}", userEmail);
+                        Platform.runLater(() -> {
+                            if (stage != null && stage.getScene() != null) {
+                                TLToast.warning(stage.getScene(), I18n.get("login.2fa.email_send_failed_title"), I18n.get("login.2fa.email_send_failed"));
+                            }
+                        });
+                    }
+                });
+            } else {
+                logger.warn("Cannot send 2FA OTP: user {} has no email", user.getId());
+            }
+        }
+
+        TLDialog<String> dialog = new TLDialog<>();
+        dialog.initOwner(stage);
+        dialog.setDialogTitle(I18n.get("login.2fa.title"));
+        dialog.setDescription(useWhatsApp 
+                ? I18n.get("login.2fa.description_whatsapp", deliveryDestination)
+                : I18n.get("login.2fa.description", deliveryDestination));
+
+        // OTP input
+        VBox formBox = new VBox(16);
+        formBox.setAlignment(Pos.CENTER);
+
+        TLTextField otpField = new TLTextField();
+        otpField.setPromptText(I18n.get("login.2fa.otp_prompt"));
+        otpField.setMaxWidth(200);
+
+        Label timerLabel = new Label();
+        timerLabel.getStyleClass().add("text-sm, text-muted");
+
+        Label attemptsLabel = new Label();
+        attemptsLabel.getStyleClass().add("text-sm");
+
+        Label lockoutWarning = new Label();
+        lockoutWarning.getStyleClass().add("text-sm, text-destructive");
+        lockoutWarning.setVisible(false);
+
+        formBox.getChildren().addAll(otpField, timerLabel, attemptsLabel, lockoutWarning);
+        dialog.setDialogContent(formBox);
+
+        dialog.addButton(ButtonType.CANCEL);
+        ButtonType verifyBtn = new ButtonType(I18n.get("login.2fa.verify_button"), javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
+        dialog.addButton(verifyBtn);
+
+        // Setup countdown timer
+        final int[] remainingSeconds = {twoFactorAuthService.getExpirySeconds()};
+        final int[] remainingAttempts = {twoFactorAuthService.getRemainingAttempts(user.getId())};
+
+        Timer timer = new Timer(true);
+        TimerTask timerTask = new TimerTask() {
+            @Override
+            public void run() {
+                Platform.runLater(() -> {
+                    remainingSeconds[0]--;
+                    if (remainingSeconds[0] <= 0) {
+                        timer.cancel();
+                        timerLabel.setText(I18n.get("login.2fa.otp_expired"));
+                        dialog.getDialogPane().lookupButton(verifyBtn).setDisable(true);
+                    } else {
+                        int minutes = remainingSeconds[0] / 60;
+                        int seconds = remainingSeconds[0] % 60;
+                        timerLabel.setText(String.format("%s: %02d:%02d",
+                            I18n.get("login.2fa.time_remaining"), minutes, seconds));
+                    }
+                });
+            }
+        };
+        timer.scheduleAtFixedRate(timerTask, 0, 1000);
+
+        // Update attempts label
+        remainingAttempts[0] = twoFactorAuthService.getRemainingAttempts(user.getId());
+        attemptsLabel.setText(I18n.get("login.2fa.attempts_remaining", remainingAttempts[0]));
+
+        // Track verification result (avoid double verification)
+        final boolean[] verificationSuccess = {false};
+
+        // Validate OTP on verify
+        dialog.getDialogPane().lookupButton(verifyBtn).addEventFilter(
+            javafx.event.ActionEvent.ACTION, event -> {
+                String enteredOtp = otpField.getText();
+                if (enteredOtp == null || enteredOtp.isEmpty()) {
+                    otpField.setError(I18n.get("login.2fa.otp_required"));
+                    event.consume();
+                    return;
+                }
+
+                boolean verified = twoFactorAuthService.verify2FAOTP(user.getId(), enteredOtp);
+                if (!verified) {
+                    remainingAttempts[0] = twoFactorAuthService.getRemainingAttempts(user.getId());
+                    attemptsLabel.setText(I18n.get("login.2fa.attempts_remaining", remainingAttempts[0]));
+
+                    // Check if account is now locked
+                    if (twoFactorAuthService.isAccountLocked(user.getId())) {
+                        int lockMinutes = twoFactorAuthService.getRemainingLockoutMinutes(user.getId());
+                        lockoutWarning.setText(I18n.get("login.2fa.account_locked", lockMinutes));
+                        lockoutWarning.setVisible(true);
+                        timer.cancel();
+                        dialog.getDialogPane().lookupButton(verifyBtn).setDisable(true);
+                        otpField.setError(I18n.get("login.2fa.account_locked_short"));
+                    } else {
+                        otpField.setError(I18n.get("login.2fa.otp_invalid"));
+                    }
+                    event.consume();
+                } else {
+                    // OTP verified successfully - mark for redirect
+                    verificationSuccess[0] = true;
+                }
+            }
+        );
+
+        dialog.setResultConverter(bt -> {
+            if (bt == verifyBtn) {
+                return otpField.getText();
+            }
+            return null;
+        });
+
+        Optional<String> result = dialog.showAndWait();
+        timer.cancel();
+
+        if (result.isPresent()) {
+            // Use tracked result instead of verifying again (OTP already marked as used)
+            if (verificationSuccess[0]) {
+                openDashboard(user);
+            } else {
+                // Failed 2FA, reset login button
+                loginBtn.setDisable(false);
+                loginBtn.setText(I18n.get("login.sign_in"));
+                if (twoFactorAuthService.isAccountLocked(user.getId())) {
+                    int lockMinutes = twoFactorAuthService.getRemainingLockoutMinutes(user.getId());
+                    showError(I18n.get("login.2fa.account_locked", lockMinutes));
+                }
+            }
+        } else {
+            // Dialog was cancelled, reset login button
+            loginBtn.setDisable(false);
+            loginBtn.setText(I18n.get("login.sign_in"));
+        }
     }
 
     @FXML
@@ -311,6 +509,10 @@ public class LoginController implements Initializable {
         if (stage == null) {
             stage = (Stage) loginBtn.getScene().getWindow();
         }
+
+        // Log successful login
+        UserActivityService.getInstance().logActivity(user.getId(), 
+            UserActivityService.ACTIVITY_LOGIN, "Successful login");
 
         // Dispose media player to free native resources
         if (activeMediaPlayer != null) {

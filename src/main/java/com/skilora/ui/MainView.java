@@ -87,6 +87,9 @@ public class MainView extends TLAppLayout {
     private Node cachedSupportAdminView;
     private Node cachedCommunityView;
     private Node cachedFinanceView;
+    private Node cachedEmployeurFinanceView;
+    private Node cachedEmployeeDashboardView;
+    private Node cachedPaiementView;
 
     // Support notification dot
     private Circle supportNotificationDot;
@@ -286,6 +289,8 @@ public class MainView extends TLAppLayout {
                                 SvgIcons.GRADUATION_CAP, this::showFormationAdminView),
                         createNavButton(I18n.get("nav.finance"),
                                 SvgIcons.DOLLAR_SIGN, this::showFinanceView),
+                        createNavButton(I18n.get("nav.paiement_projet"),
+                                SvgIcons.SEND, this::showPaiementView),
                         createSupportNavButton());
                 break;
             case EMPLOYER:
@@ -304,6 +309,8 @@ public class MainView extends TLAppLayout {
                                 SvgIcons.USERS, this::showCommunityView),
                         createNavButton(I18n.get("nav.finance"),
                                 SvgIcons.DOLLAR_SIGN, this::showFinanceView),
+                        createNavButton(I18n.get("nav.paiement_projet"),
+                                SvgIcons.SEND, this::showPaiementView),
                         createSupportNavButton());
                 break;
             case TRAINER:
@@ -620,6 +627,9 @@ public class MainView extends TLAppLayout {
         cachedSupportAdminView = null;
         cachedCommunityView = null;
         cachedFinanceView = null;
+        cachedEmployeurFinanceView = null;
+        cachedEmployeeDashboardView = null;
+        cachedPaiementView = null;
 
         // Clear navigation history to prevent stale state on re-login
         navigationHistory.clear();
@@ -845,6 +855,9 @@ public class MainView extends TLAppLayout {
                     cachedSupportView = null;
                     cachedSupportAdminView = null;
                     cachedFinanceView = null;
+                    cachedEmployeurFinanceView = null;
+                    cachedEmployeeDashboardView = null;
+                    cachedPaiementView = null;
 
                     // Update topbar labels in-place (no duplication)
                     refreshTopBarLabels();
@@ -889,13 +902,9 @@ public class MainView extends TLAppLayout {
                 if (controller != null) {
                     controller.setCurrentUser(currentUser);
                 }
-                
-                TLScrollArea scrollArea = new TLScrollArea(applicationsContent);
-                scrollArea.setFitToWidth(true);
-                scrollArea.setFitToHeight(true);
-                scrollArea.getStyleClass().add("transparent-bg");
-                
-                cachedApplicationsView = scrollArea;
+                // ApplicationsView FXML has its own ScrollPane for the list; header stays fixed
+                applicationsContent.getStyleClass().add("transparent-bg");
+                cachedApplicationsView = applicationsContent;
                 
             } catch (Exception e) {
                 logger.error("Failed to load ApplicationsView", e);
@@ -944,10 +953,7 @@ public class MainView extends TLAppLayout {
                 controller.setJob(job);
                 controller.setCallbacks(
                     this::showFeedView,
-                    () -> {
-                        // Handle application submission
-                        logger.info("Application submitted for: {}", job.getTitle());
-                    }
+                    () -> openApplicationDialog(job)
                 );
             }
             
@@ -960,6 +966,49 @@ public class MainView extends TLAppLayout {
             
         } catch (Exception e) {
             logger.error("Failed to load JobDetailsView", e);
+        }
+    }
+
+    /**
+     * Opens the ApplicationDialog (CV upload + cover letter wizard) for a job offer.
+     * Only works for offers stored in our DB (id > 0). External jobs open the apply URL instead.
+     */
+    private void openApplicationDialog(com.skilora.recruitment.entity.JobOpportunity job) {
+        if (job == null) return;
+        if (job.getId() <= 0) {
+            com.skilora.utils.DialogUtils.showError(
+                I18n.get("application.not_applicable", "Candidature externe"),
+                I18n.get("application.external_message", "La candidature en ligne n'est pas disponible pour cette offre externe."));
+            return;
+        }
+        try {
+            FXMLLoader loader = new FXMLLoader(
+                getClass().getResource("/com/skilora/view/recruitment/ApplicationDialogView.fxml"));
+            javafx.scene.Parent root = loader.load();
+            com.skilora.recruitment.controller.ApplicationDialogController controller = loader.getController();
+
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle(I18n.get("application.dialog_title", "Postuler à l'offre"));
+            dialogStage.initModality(javafx.stage.Modality.WINDOW_MODAL);
+            if (getScene() != null && getScene().getWindow() != null) {
+                dialogStage.initOwner(getScene().getWindow());
+            }
+            dialogStage.setScene(new javafx.scene.Scene(root));
+            dialogStage.setResizable(false);
+
+            if (controller != null) {
+                controller.setup(job.getId(), currentUser, () -> {
+                    // Refresh job details to reflect "already applied" state
+                    javafx.application.Platform.runLater(() -> showJobDetails(job));
+                }, dialogStage);
+            }
+
+            dialogStage.showAndWait();
+        } catch (Exception e) {
+            logger.error("Failed to open ApplicationDialog for job {}", job.getId(), e);
+            com.skilora.utils.DialogUtils.showError(
+                I18n.get("error.generic", "Erreur"),
+                I18n.get("application.dialog_error", "Impossible d'ouvrir le formulaire de candidature."));
         }
     }
 
@@ -1179,6 +1228,7 @@ public class MainView extends TLAppLayout {
             if (controller != null) {
                 controller.setCurrentUser(currentUser);
                 controller.setOnNewOffer(this::showPostJobView);
+                controller.setOnViewApplications(this::showApplicationInboxForOffer);
             }
 
             TLScrollArea scrollArea = new TLScrollArea(myOffersContent);
@@ -1191,6 +1241,37 @@ public class MainView extends TLAppLayout {
 
         } catch (Exception e) {
             logger.error("Failed to load MyOffersView", e);
+        }
+    }
+
+    /**
+     * Open the employer applications inbox filtered by a specific job offer
+     * (called from "Voir les candidatures" in MyOffersController).
+     */
+    private void showApplicationInboxForOffer(com.skilora.recruitment.entity.JobOffer offer) {
+        pushNavigation(() -> showApplicationInboxForOffer(offer));
+        if (!requireCapability("ApplicationInbox", Capability.VIEW_APPLICATION_INBOX)) return;
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/recruitment/ApplicationInboxView.fxml"));
+            VBox inboxContent = loader.load();
+
+            com.skilora.recruitment.controller.ApplicationInboxController controller = loader.getController();
+            if (controller != null) {
+                controller.setCurrentUser(currentUser);
+                controller.setOfferFilter(offer != null ? offer.getId() : null,
+                        offer != null ? offer.getTitle() : null);
+            }
+
+            TLScrollArea scrollArea = new TLScrollArea(inboxContent);
+            scrollArea.setFitToWidth(true);
+            scrollArea.setFitToHeight(true);
+            scrollArea.getStyleClass().add("transparent-bg");
+
+            cachedApplicationInboxView = scrollArea;
+            switchContent(cachedApplicationInboxView);
+
+        } catch (Exception e) {
+            logger.error("Failed to load ApplicationInboxView for offer {}", offer != null ? offer.getId() : "null", e);
         }
     }
 
@@ -1232,20 +1313,72 @@ public class MainView extends TLAppLayout {
         if (cachedFormationsView == null) {
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/formation/FormationsView.fxml"));
-                VBox formationsContent = loader.load();
-                
-                // Pass current user to the controller
-                FormationsController controller = loader.getController();
+                StackPane formationsRoot = loader.load();
+
+                final FormationsController controller = loader.getController();
                 if (controller != null && currentUser != null) {
                     controller.setCurrentUser(currentUser);
                 }
 
-                TLScrollArea scrollArea = new TLScrollArea(formationsContent);
+                // Extract chatbot container so it stays visible as overlay (outside scroll)
+                javafx.scene.layout.StackPane chatbotContainer = null;
+                if (controller != null) {
+                    chatbotContainer = controller.getChatbotContainer();
+                    if (chatbotContainer == null) {
+                        try {
+                            java.lang.reflect.Field field = controller.getClass().getDeclaredField("chatbotContainer");
+                            field.setAccessible(true);
+                            chatbotContainer = (javafx.scene.layout.StackPane) field.get(controller);
+                        } catch (Exception e) {
+                            logger.debug("Could not get chatbotContainer via reflection: {}", e.getMessage());
+                        }
+                    }
+                }
+                if (chatbotContainer == null) {
+                    chatbotContainer = (javafx.scene.layout.StackPane) formationsRoot.lookup("#chatbotContainer");
+                }
+
+                if (chatbotContainer != null && chatbotContainer.getParent() == formationsRoot) {
+                    formationsRoot.getChildren().remove(chatbotContainer);
+                }
+
+                Node scrollableContent = formationsRoot.getChildren().isEmpty() ? null : formationsRoot.getChildren().get(0);
+                if (scrollableContent == null) scrollableContent = formationsRoot;
+
+                TLScrollArea scrollArea = new TLScrollArea(scrollableContent);
                 scrollArea.setFitToWidth(true);
                 scrollArea.setFitToHeight(true);
                 scrollArea.getStyleClass().add("transparent-bg");
 
-                cachedFormationsView = scrollArea;
+                StackPane containerWithChatbot = new StackPane();
+                containerWithChatbot.getChildren().add(scrollArea);
+
+                if (chatbotContainer != null) {
+                    final javafx.scene.layout.StackPane finalChatbotContainer = chatbotContainer;
+                    chatbotContainer.setAlignment(javafx.geometry.Pos.BOTTOM_RIGHT);
+                    chatbotContainer.setPickOnBounds(false);
+                    chatbotContainer.setMouseTransparent(false);
+                    chatbotContainer.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+                    chatbotContainer.setPrefSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
+                    containerWithChatbot.getChildren().add(chatbotContainer);
+                    chatbotContainer.setVisible(true);
+                    chatbotContainer.setManaged(true);
+                    javafx.scene.layout.StackPane.setAlignment(chatbotContainer, javafx.geometry.Pos.BOTTOM_RIGHT);
+                    javafx.application.Platform.runLater(() -> {
+                        finalChatbotContainer.toFront();
+                        if (controller != null && finalChatbotContainer.getChildren().isEmpty()) {
+                            try {
+                                java.lang.reflect.Method m = controller.getClass().getDeclaredMethod("setupChatbot");
+                                m.setAccessible(true);
+                                m.invoke(controller);
+                            } catch (Exception ex) {
+                                logger.debug("Could not invoke setupChatbot: {}", ex.getMessage());
+                            }
+                        }
+                    });
+                }
+
+                cachedFormationsView = containerWithChatbot;
 
             } catch (Exception e) {
                 logger.error("Failed to load FormationsView", e);
@@ -1418,40 +1551,89 @@ public class MainView extends TLAppLayout {
 
     private void showFinanceView() {
         pushNavigation(this::showFinanceView);
-        if (cachedFinanceView == null) {
+        try {
+            com.skilora.user.enums.Role role = currentUser != null ? currentUser.getRole() : com.skilora.user.enums.Role.USER;
+            Node toShow = null;
+
+            if (role == com.skilora.user.enums.Role.ADMIN) {
+                if (cachedFinanceView == null) {
+                    FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/finance/FinanceAdminView.fxml"));
+                    VBox financeContent = loader.load();
+                    Object controller = loader.getController();
+                    if (controller instanceof com.skilora.finance.controller.FinanceAdminController fac) {
+                        fac.setCurrentUser(currentUser);
+                    }
+                    TLScrollArea scrollArea = new TLScrollArea(financeContent);
+                    scrollArea.setFitToWidth(true);
+                    scrollArea.setFitToHeight(true);
+                    scrollArea.getStyleClass().add("transparent-bg");
+                    cachedFinanceView = scrollArea;
+                }
+                toShow = cachedFinanceView;
+            } else if (role == com.skilora.user.enums.Role.EMPLOYER) {
+                if (cachedEmployeurFinanceView == null) {
+                    FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/finance/EmployeurFinanceView.fxml"));
+                    VBox content = loader.load();
+                    Object controller = loader.getController();
+                    if (controller instanceof com.skilora.finance.controller.EmployeurFinanceController efc) {
+                        efc.setEmployeeId(currentUser.getId(), currentUser.getFullName());
+                    }
+                    TLScrollArea scrollArea = new TLScrollArea(content);
+                    scrollArea.setFitToWidth(true);
+                    scrollArea.setFitToHeight(true);
+                    scrollArea.getStyleClass().add("transparent-bg");
+                    cachedEmployeurFinanceView = scrollArea;
+                }
+                toShow = cachedEmployeurFinanceView;
+            } else {
+                if (cachedEmployeeDashboardView == null) {
+                    FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/finance/EmployeeDashboardView.fxml"));
+                    Node content = loader.load();
+                    Object controller = loader.getController();
+                    if (controller instanceof com.skilora.finance.controller.EmployeeDashboardController edc) {
+                        edc.initializeWithUser(currentUser.getId(), currentUser.getFullName());
+                    }
+                    // FXML root is already a ScrollPane, wrap in TLScrollArea for consistency
+                    if (content instanceof javafx.scene.control.ScrollPane sp) {
+                        sp.setFitToWidth(true);
+                        sp.getStyleClass().add("transparent-bg");
+                        cachedEmployeeDashboardView = sp;
+                    } else {
+                        TLScrollArea scrollArea = new TLScrollArea(content);
+                        scrollArea.setFitToWidth(true);
+                        scrollArea.setFitToHeight(true);
+                        scrollArea.getStyleClass().add("transparent-bg");
+                        cachedEmployeeDashboardView = scrollArea;
+                    }
+                }
+                toShow = cachedEmployeeDashboardView;
+            }
+
+            if (toShow != null) {
+                switchContent(toShow);
+            }
+        } catch (Exception e) {
+            logger.error("Failed to load Finance view", e);
+        }
+    }
+
+    private void showPaiementView() {
+        pushNavigation(this::showPaiementView);
+        if (cachedPaiementView == null) {
             try {
-                // Admin/Employer see FinanceAdminView, others see FinanceView
-                String fxmlPath;
-                if (currentUser.getRole() == com.skilora.user.enums.Role.ADMIN
-                        || currentUser.getRole() == com.skilora.user.enums.Role.EMPLOYER) {
-                    fxmlPath = "/com/skilora/view/finance/FinanceAdminView.fxml";
-                } else {
-                    fxmlPath = "/com/skilora/view/finance/FinanceView.fxml";
-                }
-
-                FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
-                VBox financeContent = loader.load();
-
-                Object controller = loader.getController();
-                if (controller instanceof com.skilora.finance.controller.FinanceController fc) {
-                    fc.setCurrentUser(currentUser);
-                } else if (controller instanceof com.skilora.finance.controller.FinanceAdminController fac) {
-                    fac.setCurrentUser(currentUser);
-                }
-
-                TLScrollArea scrollArea = new TLScrollArea(financeContent);
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/skilora/view/finance/PaiementView.fxml"));
+                VBox content = loader.load();
+                TLScrollArea scrollArea = new TLScrollArea(content);
                 scrollArea.setFitToWidth(true);
                 scrollArea.setFitToHeight(true);
                 scrollArea.getStyleClass().add("transparent-bg");
-
-                cachedFinanceView = scrollArea;
-
+                cachedPaiementView = scrollArea;
             } catch (Exception e) {
-                logger.error("Failed to load FinanceView", e);
+                logger.error("Failed to load PaiementView", e);
                 return;
             }
         }
-        switchContent(cachedFinanceView);
+        switchContent(cachedPaiementView);
     }
 
     private void showInterviewsView() {

@@ -201,7 +201,8 @@ public final class ImageUtils {
         try {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g.setClip(new java.awt.geom.Ellipse2D.Double(0, 0, d, d));
-            g.drawImage(source, -(x0 - (centerX - radius)), -(y0 - (centerY - radius)), null);
+            // Draw source so that pixel (centerX-radius, centerY-radius) maps to output (0,0)
+            g.drawImage(source, -(centerX - radius), -(centerY - radius), null);
         } finally {
             g.dispose();
         }

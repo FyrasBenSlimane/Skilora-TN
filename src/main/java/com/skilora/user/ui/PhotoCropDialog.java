@@ -150,9 +150,10 @@ public final class PhotoCropDialog {
         overlay.setMouseTransparent(true);
 
         // Dark vignette: a rectangle with the crop circle punched out
+        // Circle must be centered at (PREVIEW_SIZE/2, PREVIEW_SIZE/2) to align with the rectangle's center
         javafx.scene.shape.Shape vignette = javafx.scene.shape.Shape.subtract(
             new javafx.scene.shape.Rectangle(PREVIEW_SIZE, PREVIEW_SIZE),
-            new Circle(CROP_RADIUS));
+            new Circle(PREVIEW_SIZE / 2, PREVIEW_SIZE / 2, CROP_RADIUS));
         vignette.setFill(javafx.scene.paint.Color.color(0, 0, 0, 0.48));
         vignette.setMouseTransparent(true);
 

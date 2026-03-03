@@ -528,7 +528,6 @@ class ComprehensiveValidationTests {
         @DisplayName("No double-scroll: ScrollPane FXMLs not wrapped in TLScrollArea")
         void noDoubleScrollInMainView() throws Exception {
             // Read MainView source
-            Class<?> mainView = Class.forName("com.skilora.ui.MainView");
             String sourceFile = "src/main/java/com/skilora/ui/MainView.java";
             Path sourcePath = Paths.get(sourceFile);
 

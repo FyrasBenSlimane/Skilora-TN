@@ -12,6 +12,7 @@ import com.skilora.user.entity.Review;
 import com.skilora.user.entity.Skill;
 import com.skilora.user.entity.User;
 import com.skilora.user.service.PortfolioService;
+import com.skilora.user.service.ProfilePdfExportService;
 import com.skilora.user.service.ProfileService;
 import com.skilora.user.service.ReviewService;
 import com.skilora.user.service.AuthService;
@@ -39,6 +40,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Rectangle;
+import javafx.stage.FileChooser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,6 +62,7 @@ public class PublicProfileController {
 
     @FXML private Label coverPlaceholder;
     @FXML private TLButton shareBtn;
+    @FXML private TLButton exportPdfBtn;
     @FXML private TLAvatar profileAvatar;
     @FXML private Label nameLabel;
     @FXML private TLBadge verifiedBadge;
@@ -140,6 +143,7 @@ public class PublicProfileController {
         // Setup buttons
         hireBtn.setOnAction(e -> handleHire());
         messageBtn.setOnAction(e -> handleMessage());
+        exportPdfBtn.setOnAction(e -> handleExportPdf());
     }
 
     @SuppressWarnings("unchecked")
@@ -545,5 +549,46 @@ public class PublicProfileController {
     private void handleMessage() {
         // TODO: Navigate to Chat with this user
         TLToast.info(nameLabel.getScene(), "Info", "Features coming soon!");
+    }
+
+    private void handleExportPdf() {
+        if (targetUser == null) {
+            TLToast.error(nameLabel.getScene(), "Error", "No profile data to export");
+            return;
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Export Profile as PDF");
+        fileChooser.setInitialFileName(targetUser.getFullName().replace(" ", "_") + "_Profile.pdf");
+        fileChooser.getExtensionFilters().add(
+            new FileChooser.ExtensionFilter("PDF Files", "*.pdf")
+        );
+
+        java.io.File file = fileChooser.showSaveDialog(nameLabel.getScene().getWindow());
+        if (file != null) {
+            exportPdfBtn.setDisable(true);
+            exportPdfBtn.setText("Exporting...");
+
+            ProfilePdfExportService.getInstance().exportToPdf(targetUser, file)
+                .thenAccept(success -> Platform.runLater(() -> {
+                    exportPdfBtn.setDisable(false);
+                    exportPdfBtn.setText("Export PDF");
+                    if (success) {
+                        TLToast.success(nameLabel.getScene(), "Export Complete", 
+                            "Profile exported to " + file.getName());
+                    } else {
+                        TLToast.error(nameLabel.getScene(), "Export Failed", 
+                            "Could not export profile to PDF");
+                    }
+                }))
+                .exceptionally(ex -> {
+                    Platform.runLater(() -> {
+                        exportPdfBtn.setDisable(false);
+                        exportPdfBtn.setText("Export PDF");
+                        TLToast.error(nameLabel.getScene(), "Export Error", ex.getMessage());
+                    });
+                    return null;
+                });
+        }
     }
 }

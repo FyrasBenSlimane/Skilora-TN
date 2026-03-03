@@ -17,6 +17,7 @@ import com.skilora.user.service.PreferencesService;
 import com.skilora.user.service.RoleUpgradeService;
 import com.skilora.user.service.TwoFactorAuthService;
 import com.skilora.user.service.UserService;
+import com.skilora.user.service.UserActivityService;
 import com.skilora.finance.service.UserCurrencyService;
 import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.DialogUtils;
@@ -79,6 +80,7 @@ public class SettingsController {
     @FXML private Label trainerUpgradeLabel;
     @FXML private TLButton trainerUpgradeBtn;
 
+    @FXML private VBox dangerZoneCard;
     @FXML private Label dangerZoneLabel;
     @FXML private Label deleteAccountLabel;
     @FXML private TLButton deleteAccountBtn;
@@ -88,6 +90,19 @@ public class SettingsController {
     @FXML private Label twoFactorAuthStatusLabel;
     @FXML private TLSwitch twoFactorAuthSwitch;
     @FXML private Label twoFactorAuthDescription;
+    @FXML private Label whatsApp2FALabel;
+    @FXML private TLSwitch whatsApp2FASwitch;
+    @FXML private Label whatsApp2FAPhoneLabel;
+    @FXML private VBox whatsApp2FAContainer;
+
+    // Activity stats fields
+    @FXML private VBox activityStatsCard;
+    @FXML private Label activitySectionLabel;
+    @FXML private Label memberSinceLabel;
+    @FXML private Label lastLoginLabel;
+    @FXML private Label totalLoginsLabel;
+    @FXML private Label loginSuccessRateLabel;
+    @FXML private VBox loginHistoryContainer;
 
     private Runnable onSave;
     private Runnable onCancel;
@@ -105,6 +120,7 @@ public class SettingsController {
         });
 
         applyI18n();
+        initialize2FASettings();
     }
 
     private void applyI18n() {
@@ -188,16 +204,15 @@ public class SettingsController {
             updateTrainerButtonState();
         }
 
-        // Hide delete account UI for Admin
+        // Hide delete account UI for Admin (hide entire card)
         boolean canDelete = (user != null && user.getRole() != Role.ADMIN);
-        if (deleteAccountBtn != null) {
-            deleteAccountBtn.setVisible(canDelete);
-            deleteAccountBtn.setManaged(canDelete);
+        if (dangerZoneCard != null) {
+            dangerZoneCard.setVisible(canDelete);
+            dangerZoneCard.setManaged(canDelete);
         }
-        if (deleteAccountLabel != null) {
-            deleteAccountLabel.setVisible(canDelete);
-            deleteAccountLabel.setManaged(canDelete);
-        }
+        
+        // Load activity stats
+        loadActivityStats();
     }
 
     public void setCallbacks(Runnable onSave, Runnable onCancel) {
@@ -379,6 +394,8 @@ public class SettingsController {
                     changePasswordBtn.setText(I18n.get("settings.change_password"));
                     if (updated) {
                         currentUser.setPassword(UserService.hashPassword(newPass));
+                        UserActivityService.getInstance().logActivity(currentUser.getId(),
+                            UserActivityService.ACTIVITY_PASSWORD_CHANGE, "Password changed successfully");
                         TLToast.success(scene, I18n.get("settings.password.success"), I18n.get("settings.password.success_desc"));
                         logger.info("Password changed for user {}", currentUser.getUsername());
                     } else {
@@ -520,24 +537,142 @@ public class SettingsController {
                 }
             });
         }
+        
+        // WhatsApp 2FA toggle
+        if (whatsApp2FASwitch != null) {
+            whatsApp2FASwitch.selectedProperty().addListener((obs, old, newVal) -> {
+                if (currentUser == null) return;
+                
+                if (newVal) {
+                    // Enable WhatsApp 2FA
+                    if (!twoFactorAuthService.canUseWhatsApp2FA(currentUser.getId())) {
+                        // No phone number in profile
+                        Platform.runLater(() -> {
+                            whatsApp2FASwitch.setSelected(false);
+                            TLToast.warning(saveBtn.getScene(), 
+                                I18n.get("settings.2fa.whatsapp_no_phone_title"),
+                                I18n.get("settings.2fa.whatsapp_no_phone"));
+                        });
+                        return;
+                    }
+                    twoFactorAuthService.set2FAMethod(currentUser.getId(), TwoFactorAuthService.METHOD_WHATSAPP);
+                    TLToast.success(saveBtn.getScene(), 
+                        I18n.get("settings.2fa.whatsapp_enabled_title"),
+                        I18n.get("settings.2fa.whatsapp_enabled_message"));
+                } else {
+                    // Disable WhatsApp 2FA (revert to email)
+                    twoFactorAuthService.set2FAMethod(currentUser.getId(), TwoFactorAuthService.METHOD_EMAIL);
+                    TLToast.info(saveBtn.getScene(), 
+                        I18n.get("settings.2fa.email_restored_title"),
+                        I18n.get("settings.2fa.email_restored_message"));
+                }
+            });
+        }
+        
         update2FAStatus();
     }
 
     /**
-     * Update 2FA status label.
+     * Update 2FA status label and WhatsApp 2FA status.
      */
     private void update2FAStatus() {
         if (currentUser == null || twoFactorAuthStatusLabel == null) return;
 
         AppThreadPool.execute(() -> {
             boolean enabled = twoFactorAuthService.is2FAEnabled(currentUser.getId());
+            boolean whatsAppEnabled = twoFactorAuthService.isWhatsApp2FAEnabled(currentUser.getId());
+            boolean canUseWhatsApp = twoFactorAuthService.canUseWhatsApp2FA(currentUser.getId());
+            String phoneNumber = twoFactorAuthService.getUserPhoneNumber(currentUser.getId());
+            
             Platform.runLater(() -> {
+                // Update main 2FA status
                 twoFactorAuthStatusLabel.setText(enabled ?
                     I18n.get("settings.2fa.enabled") : I18n.get("settings.2fa.disabled"));
                 twoFactorAuthStatusLabel.getStyleClass().removeAll("text-success", "text-muted");
                 twoFactorAuthStatusLabel.getStyleClass().add(enabled ? "text-success" : "text-muted");
                 if (twoFactorAuthSwitch != null) {
                     twoFactorAuthSwitch.setSelected(enabled);
+                }
+                
+                // Update WhatsApp 2FA section
+                if (whatsApp2FAContainer != null) {
+                    whatsApp2FAContainer.setVisible(enabled);
+                    whatsApp2FAContainer.setManaged(enabled);
+                }
+                
+                if (whatsApp2FASwitch != null) {
+                    whatsApp2FASwitch.setDisable(!canUseWhatsApp);
+                    whatsApp2FASwitch.setSelected(whatsAppEnabled && enabled);
+                }
+                
+                if (whatsApp2FAPhoneLabel != null) {
+                    if (phoneNumber != null && !phoneNumber.isBlank()) {
+                        whatsApp2FAPhoneLabel.setText(I18n.get("settings.2fa.phone_number", phoneNumber));
+                        whatsApp2FAPhoneLabel.getStyleClass().removeAll("text-muted", "text-destructive");
+                        whatsApp2FAPhoneLabel.getStyleClass().add("text-muted");
+                    } else {
+                        whatsApp2FAPhoneLabel.setText(I18n.get("settings.2fa.no_phone"));
+                        whatsApp2FAPhoneLabel.getStyleClass().removeAll("text-muted", "text-destructive");
+                        whatsApp2FAPhoneLabel.getStyleClass().add("text-destructive");
+                    }
+                }
+            });
+        });
+    }
+
+    /**
+     * Load and display user activity stats.
+     */
+    private void loadActivityStats() {
+        if (currentUser == null) return;
+
+        AppThreadPool.execute(() -> {
+            UserActivityService.UserActivityStats stats = UserActivityService.getInstance()
+                    .getActivityStats(currentUser.getId());
+            java.util.List<UserActivityService.LoginRecord> loginHistory = UserActivityService.getInstance()
+                    .getLoginHistory(currentUser.getId(), 5);
+
+            Platform.runLater(() -> {
+                if (memberSinceLabel != null) {
+                    memberSinceLabel.setText(stats.getFormattedAccountCreatedAt());
+                }
+                if (lastLoginLabel != null) {
+                    lastLoginLabel.setText(stats.getFormattedLastLoginAt());
+                }
+                if (totalLoginsLabel != null) {
+                    totalLoginsLabel.setText(String.valueOf(stats.getSuccessfulLogins()));
+                }
+                if (loginSuccessRateLabel != null) {
+                    loginSuccessRateLabel.setText(String.format("%.1f%%", stats.getLoginSuccessRate()));
+                }
+
+                // Populate login history
+                if (loginHistoryContainer != null) {
+                    loginHistoryContainer.getChildren().clear();
+                    for (UserActivityService.LoginRecord record : loginHistory) {
+                        javafx.scene.layout.HBox row = new javafx.scene.layout.HBox(12);
+                        row.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+                        
+                        Label statusIcon = new Label(record.isSuccess() ? "✓" : "✗");
+                        statusIcon.setStyle(record.isSuccess() 
+                                ? "-fx-text-fill: #22c55e;" 
+                                : "-fx-text-fill: #ef4444;");
+                        
+                        Label timeLabel = new Label(record.getFormattedTime());
+                        timeLabel.getStyleClass().add("text-xs");
+                        
+                        Label statusLabel = new Label(record.isSuccess() ? "Successful" : "Failed");
+                        statusLabel.getStyleClass().addAll("text-xs", "text-muted");
+                        
+                        row.getChildren().addAll(statusIcon, timeLabel, statusLabel);
+                        loginHistoryContainer.getChildren().add(row);
+                    }
+                    
+                    if (loginHistory.isEmpty()) {
+                        Label emptyLabel = new Label("No login history yet");
+                        emptyLabel.getStyleClass().addAll("text-xs", "text-muted");
+                        loginHistoryContainer.getChildren().add(emptyLabel);
+                    }
                 }
             });
         });
@@ -558,6 +693,8 @@ public class SettingsController {
         if (confirmed) {
             AppThreadPool.execute(() -> {
                 twoFactorAuthService.enable2FA(currentUser.getId());
+                UserActivityService.getInstance().logActivity(currentUser.getId(),
+                    UserActivityService.ACTIVITY_2FA_ENABLED, "Two-Factor Authentication enabled");
                 Platform.runLater(() -> {
                     update2FAStatus();
                     TLToast.success(saveBtn.getScene(),
@@ -586,6 +723,8 @@ public class SettingsController {
         if (confirmed) {
             AppThreadPool.execute(() -> {
                 twoFactorAuthService.disable2FA(currentUser.getId());
+                UserActivityService.getInstance().logActivity(currentUser.getId(),
+                    UserActivityService.ACTIVITY_2FA_DISABLED, "Two-Factor Authentication disabled");
                 Platform.runLater(() -> {
                     update2FAStatus();
                     TLToast.success(saveBtn.getScene(),

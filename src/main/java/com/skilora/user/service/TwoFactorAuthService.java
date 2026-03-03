@@ -1,17 +1,18 @@
 package com.skilora.user.service;
 
 import com.skilora.config.DatabaseConfig;
+import com.skilora.user.entity.Profile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.security.SecureRandom;
 import java.sql.*;
 import java.time.LocalDateTime;
-import java.util.Optional;
 
 /**
  * Service for Two-Factor Authentication (2FA) management.
  * Handles 2FA enablement/disablement and OTP verification during login.
+ * Supports both Email and WhatsApp delivery methods.
  */
 public class TwoFactorAuthService {
 
@@ -20,6 +21,9 @@ public class TwoFactorAuthService {
     private static final int MAX_OTP_ATTEMPTS = 3;
     private static final int ACCOUNT_LOCKOUT_MINUTES = 30;
     private final SecureRandom secureRandom = new SecureRandom();
+
+    public static final String METHOD_EMAIL = "email";
+    public static final String METHOD_WHATSAPP = "whatsapp";
 
     private static volatile TwoFactorAuthService instance;
 
@@ -383,5 +387,60 @@ public class TwoFactorAuthService {
      */
     public int getLockoutMinutes() {
         return ACCOUNT_LOCKOUT_MINUTES;
+    }
+
+    /**
+     * Get the 2FA delivery method for a user (email or whatsapp).
+     * Defaults to email if not set.
+     */
+    public String get2FAMethod(int userId) {
+        return PreferencesService.getInstance()
+                .get(userId, PreferencesService.KEY_2FA_METHOD)
+                .orElse(METHOD_EMAIL);
+    }
+
+    /**
+     * Set the 2FA delivery method for a user.
+     * @param userId The user ID
+     * @param method "email" or "whatsapp"
+     */
+    public void set2FAMethod(int userId, String method) {
+        if (!METHOD_EMAIL.equals(method) && !METHOD_WHATSAPP.equals(method)) {
+            logger.warn("Invalid 2FA method: {}, defaulting to email", method);
+            method = METHOD_EMAIL;
+        }
+        PreferencesService.getInstance().set(userId, PreferencesService.KEY_2FA_METHOD, method);
+        logger.info("2FA method set to {} for user: {}", method, userId);
+    }
+
+    /**
+     * Check if user has WhatsApp 2FA enabled.
+     */
+    public boolean isWhatsApp2FAEnabled(int userId) {
+        return METHOD_WHATSAPP.equals(get2FAMethod(userId));
+    }
+
+    /**
+     * Get user's phone number from their profile.
+     * Returns null if not available.
+     */
+    public String getUserPhoneNumber(int userId) {
+        try {
+            Profile profile = ProfileService.getInstance().findProfileByUserId(userId);
+            if (profile != null && profile.getPhone() != null && !profile.getPhone().isBlank()) {
+                return profile.getPhone();
+            }
+        } catch (Exception e) {
+            logger.error("Failed to get phone number for user: {}", userId, e);
+        }
+        return null;
+    }
+
+    /**
+     * Check if user can use WhatsApp 2FA (has phone number in profile).
+     */
+    public boolean canUseWhatsApp2FA(int userId) {
+        String phone = getUserPhoneNumber(userId);
+        return phone != null && !phone.isBlank() && UserWhatsAppService.getInstance().isConfigured();
     }
 }
