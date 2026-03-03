@@ -1962,7 +1962,7 @@ class SupportTests {
         @DisplayName("Find by ticket ID returns null for non-existent")
         void testFindByTicketId() {
             UserFeedbackService svc = UserFeedbackService.getInstance();
-            UserFeedback fb = svc.findByTicketId(999999);
+            svc.findByTicketId(999999);
             // May be null for non-existent ticket
             // This tests that it doesn't throw
         }
