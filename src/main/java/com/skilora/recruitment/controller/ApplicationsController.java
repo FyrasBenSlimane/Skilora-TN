@@ -1,44 +1,33 @@
 package com.skilora.recruitment.controller;
 
-import com.skilora.framework.components.InterviewCountdownWidget;
-import com.skilora.framework.components.TLBadge;
-import com.skilora.framework.components.TLButton;
+import com.skilora.framework.components.*;
 import com.skilora.recruitment.entity.Application;
 import com.skilora.recruitment.entity.Interview;
+import com.skilora.user.entity.Profile;
+import com.skilora.user.entity.User;
+import com.skilora.user.service.ProfileService;
 import com.skilora.recruitment.service.ApplicationService;
 import com.skilora.recruitment.service.InterviewService;
 import com.skilora.recruitment.service.RecruitmentIntelligenceService;
-import com.skilora.user.entity.User;
-import com.skilora.user.service.ProfileService;
-import com.skilora.utils.I18n;
-import javafx.animation.FadeTransition;
-import javafx.animation.TranslateTransition;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressIndicator;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.Tooltip;
-import javafx.scene.layout.*;
-import javafx.scene.shape.Arc;
-import javafx.scene.shape.ArcType;
-import javafx.scene.shape.Circle;
-import javafx.util.Duration;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URL;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.ResourceBundle;
 
+import com.skilora.utils.I18n;
+
 /**
- * ApplicationsController - Grid-based candidate applications view with AI scoring.
+ * ApplicationsController - Kanban board for tracking job applications (Job Seeker view)
  */
 public class ApplicationsController implements Initializable {
 
@@ -46,103 +35,66 @@ public class ApplicationsController implements Initializable {
 
     @FXML private Label statsLabel;
     @FXML private TLButton refreshBtn;
-    @FXML private FlowPane applicationsList;
-    @FXML private ScrollPane scrollPane;
+    
+    @FXML private VBox applicationsList;
 
     private User currentUser;
     private final ApplicationService applicationService = ApplicationService.getInstance();
     private final InterviewService interviewService = InterviewService.getInstance();
-    private final RecruitmentIntelligenceService intelligenceService = RecruitmentIntelligenceService.getInstance();
-    private boolean isLoading = false;
-    private static final DateTimeFormatter DATE_TIME_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
-    private static final DateTimeFormatter DATE_SHORT_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy");
-
-    private static final double CARD_GAP = 14;
-    private static final double CARD_MIN_WIDTH = 340;
-
+    private boolean isLoading = false; // Prevent multiple simultaneous loads
+    private static final java.time.format.DateTimeFormatter DATE_TIME_FMT = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+    
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        // Dynamically resize cards when container width changes
-        if (scrollPane != null) {
-            scrollPane.viewportBoundsProperty().addListener((obs, oldBounds, newBounds) -> {
-                if (newBounds != null && applicationsList != null) {
-                    resizeCards(newBounds.getWidth());
-                }
-            });
-        }
-    }
-
-    /** Recompute card widths so they fill rows evenly. */
-    private void resizeCards(double containerWidth) {
-        if (containerWidth <= 0) return;
-        double usable = containerWidth - 8; // padding
-        int cols = Math.max(1, (int) ((usable + CARD_GAP) / (CARD_MIN_WIDTH + CARD_GAP)));
-        double cardWidth = (usable - (cols - 1) * CARD_GAP) / cols;
-        for (var node : applicationsList.getChildren()) {
-            if (node instanceof VBox) {
-                ((VBox) node).setPrefWidth(cardWidth);
-                ((VBox) node).setMaxWidth(cardWidth);
-            }
-        }
+        // Data loads after setCurrentUser is called
     }
 
     public void setCurrentUser(User user) {
+        // Only reload if user changed or is null (to prevent duplicate loads)
         if (this.currentUser != null && user != null && this.currentUser.getId() == user.getId()) {
+            // Same user, just refresh the data
             loadApplications();
             return;
         }
+        
         this.currentUser = user;
         loadApplications();
     }
-
+    
     private void loadApplications() {
-        if (isLoading) return;
-        isLoading = true;
-        if (applicationsList != null) applicationsList.getChildren().clear();
-        if (currentUser == null) {
-            isLoading = false;
-            if (statsLabel != null) statsLabel.setText(I18n.get("applications.error"));
+        // Prevent multiple simultaneous loads
+        if (isLoading) {
+            logger.debug("Load already in progress, skipping duplicate call");
             return;
         }
-        if (statsLabel != null) statsLabel.setText(I18n.get("common.loading"));
-
-        // Loading spinner
+        
+        isLoading = true;
+        
+        // Always clear existing data first to prevent duplicates
         if (applicationsList != null) {
-            ProgressIndicator spinner = new ProgressIndicator();
-            spinner.setMaxSize(36, 36);
-            HBox spinnerBox = new HBox(spinner);
-            spinnerBox.setAlignment(Pos.CENTER);
-            spinnerBox.setPadding(new Insets(40));
-            spinnerBox.setPrefWidth(600);
-            applicationsList.getChildren().add(spinnerBox);
+            applicationsList.getChildren().clear();
+        }
+        
+        if (currentUser == null) {
+            isLoading = false;
+            if (statsLabel != null) {
+                statsLabel.setText(I18n.get("applications.error"));
+            }
+            return;
+        }
+        
+        if (statsLabel != null) {
+            statsLabel.setText(I18n.get("common.loading"));
         }
 
         Task<List<Application>> task = new Task<>() {
             @Override
             protected List<Application> call() throws Exception {
-                var profile = ProfileService.getInstance().findProfileByUserId(currentUser.getId());
+                // Get profile ID for this user
+                Profile profile = ProfileService.getInstance()
+                        .findProfileByUserId(currentUser.getId());
                 if (profile == null) return List.of();
-                List<Application> apps = applicationService.getApplicationsByProfile(profile.getId());
-                for (Application app : apps) {
-                    try {
-                        if (app.getMatchPercentage() <= 0) {
-                            int match = intelligenceService.calculateCompatibility(
-                                    app.getCandidateProfileId(), app.getJobOfferId()).join();
-                            app.setMatchPercentage(match);
-                        }
-                        if (app.getCandidateScore() <= 0) {
-                            int score = intelligenceService.scoreCandidate(
-                                    app.getCandidateProfileId()).join();
-                            app.setCandidateScore(score);
-                        }
-                    } catch (Exception ex) {
-                        logger.warn("AI score failed for app {}: {}", app.getId(), ex.getMessage());
-                    }
-                }
-                apps.sort((a, b) -> Integer.compare(
-                        (b.getMatchPercentage() + b.getCandidateScore()),
-                        (a.getMatchPercentage() + a.getCandidateScore())));
-                return apps;
+                return applicationService.getApplicationsByProfile(profile.getId());
             }
         };
 
@@ -150,394 +102,244 @@ public class ApplicationsController implements Initializable {
             isLoading = false;
             List<Application> apps = task.getValue();
             if (applicationsList != null) {
+                // Ensure list is still clear (in case of multiple rapid calls)
                 applicationsList.getChildren().clear();
-                if (apps != null && !apps.isEmpty()) {
-                    int idx = 0;
+                
+                if (apps != null) {
                     for (Application app : apps) {
+                        // Load interview info for this application if it exists
                         Interview interview = null;
-                        if (app.getStatus() == Application.Status.ACCEPTED || app.getStatus() == Application.Status.INTERVIEW) {
+                        if (app.getStatus() == Application.Status.ACCEPTED) {
                             try {
-                                var list = interviewService.findByApplication(app.getId());
-                                if (list != null && !list.isEmpty()) interview = list.get(0);
+                                var interviews = interviewService.findByApplication(app.getId());
+                                if (interviews != null && !interviews.isEmpty()) {
+                                    interview = interviews.get(0);
+                                }
                             } catch (Exception ex) {
-                                logger.error("Interview load error for app {}", app.getId(), ex);
+                                logger.error("Error loading interview for application {}", app.getId(), ex);
                             }
                         }
-                        VBox card = createCard(app,
+                        
+                        // Create line with name, status, interview info, and delete button
+                        HBox line = createApplicationLine(
+                                app,
                                 app.getJobTitle() != null ? app.getJobTitle() : I18n.get("applications.offer_num", app.getJobOfferId()),
                                 interview);
-                        // Stagger animation
-                        card.setOpacity(0);
-                        card.setTranslateY(16);
-                        FadeTransition ft = new FadeTransition(Duration.millis(250), card);
-                        ft.setFromValue(0); ft.setToValue(1); ft.setDelay(Duration.millis(idx * 50));
-                        TranslateTransition tt = new TranslateTransition(Duration.millis(250), card);
-                        tt.setFromY(16); tt.setToY(0); tt.setDelay(Duration.millis(idx * 50));
-                        applicationsList.getChildren().add(card);
-                        ft.play(); tt.play();
-                        idx++;
+                        applicationsList.getChildren().add(line);
                     }
-                    // Trigger initial sizing
-                    if (scrollPane != null && scrollPane.getViewportBounds() != null) {
-                        resizeCards(scrollPane.getViewportBounds().getWidth());
-                    }
-                } else {
-                    applicationsList.getChildren().add(createEmptyState());
                 }
             }
+
             updateCounts(apps != null ? apps.size() : 0);
         });
 
         task.setOnFailed(e -> {
             isLoading = false;
-            if (statsLabel != null) statsLabel.setText(I18n.get("applications.error"));
+            if (statsLabel != null) {
+                statsLabel.setText(I18n.get("applications.error"));
+            }
             logger.error("Failed to load applications", task.getException());
         });
 
-        Thread t = new Thread(task, "LoadApplications");
-        t.setDaemon(true);
-        t.start();
+        new Thread(task).start();
     }
 
     private void updateCounts(int total) {
-        if (statsLabel != null) statsLabel.setText(I18n.get("applications.count", total));
+        statsLabel.setText(I18n.get("applications.count", total));
     }
-
-    // ════════════════════════════════════════════════════════════════════
-    //  CARD — Self-contained tile with border, accent, scores, info
-    // ════════════════════════════════════════════════════════════════════
-
-    private VBox createCard(Application app, String title, Interview interview) {
-        VBox card = new VBox(0);
-        card.getStyleClass().addAll("app-card", getStatusCardClass(app.getStatus()));
-        card.setMinWidth(CARD_MIN_WIDTH);
-
-        // ── Force inline styles — guarantees border/bg even if CSS fails ──
-        String accentColor = getStatusAccentColor(app.getStatus());
-        boolean light = card.getScene() != null
-                && card.getScene().getRoot() != null
-                && card.getScene().getRoot().getStyleClass().contains("light");
-        String bg      = light ? "#ffffff"  : "#18181b";
-        String border  = light ? "#e4e4e7"  : "#2a2b2e";
-        String shadow  = light ? "rgba(0,0,0,0.06)" : "rgba(0,0,0,0.10)";
-        card.setStyle(
-            "-fx-background-color: " + bg + ";" +
-            "-fx-background-radius: 12;" +
-            "-fx-border-color: " + border + " " + border + " " + border + " " + accentColor + ";" +
-            "-fx-border-width: 1 1 1 3;" +
-            "-fx-border-radius: 12;" +
-            "-fx-effect: dropshadow(gaussian, " + shadow + ", 8, 0, 0, 2);"
-        );
-
-        // ── Top section: accent + header ──
-        VBox topSection = new VBox(10);
-        topSection.getStyleClass().add("app-card-top");
-        topSection.setPadding(new Insets(16, 16, 12, 16));
-
-        // Row 1: badge + delete
-        HBox topBar = new HBox(8);
-        topBar.setAlignment(Pos.CENTER_RIGHT);
-        TLBadge statusBadge = createStatusBadge(app.getStatus());
-        Region topSpacer = new Region();
-        HBox.setHgrow(topSpacer, Priority.ALWAYS);
-        Label dateLabel = new Label(formatTimeAgo(app.getAppliedDate()));
-        dateLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #a1a1aa;");
-        TLButton deleteBtn = new TLButton("", TLButton.ButtonVariant.GHOST);
-        deleteBtn.setText("✕");
-        deleteBtn.getStyleClass().add("app-card-delete-btn");
-        deleteBtn.setStyle("-fx-text-fill: #71717a; -fx-font-size: 13px; -fx-min-width: 28; -fx-max-width: 28; -fx-min-height: 28; -fx-max-height: 28; -fx-padding: 0; -fx-cursor: hand;");
-        deleteBtn.setTooltip(new Tooltip(I18n.get("applications.delete_tooltip", "Supprimer")));
-        deleteBtn.setOnAction(e -> handleDeleteApplication(app.getId()));
-        topBar.getChildren().addAll(dateLabel, topSpacer, statusBadge, deleteBtn);
-        topSection.getChildren().add(topBar);
-
-        // Row 2: Job title
+    
+    private HBox createApplicationLine(Application app, String title, Interview interview) {
+        VBox container = new VBox(8);
+        container.setPadding(new Insets(12, 16, 12, 16));
+        container.setStyle("-fx-background-color: rgba(255, 255, 255, 0.02); -fx-background-radius: 4;");
+        
+        // Top row: Title, Status, and Delete button
+        HBox topRow = new HBox(16);
+        topRow.setAlignment(Pos.CENTER_LEFT);
+        
+        // Title - takes most of the space
         Label titleLabel = new Label(title);
-        titleLabel.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #fafafa;");
+        titleLabel.getStyleClass().add("text-base");
         titleLabel.setWrapText(true);
         titleLabel.setMaxWidth(Double.MAX_VALUE);
-        topSection.getChildren().add(titleLabel);
+        HBox.setHgrow(titleLabel, javafx.scene.layout.Priority.ALWAYS);
+        
+        // Status badge
+        TLBadge statusBadge = createStatusBadge(app.getStatus());
+        
+        // Delete button
+        TLButton deleteBtn = new TLButton("🗑️", TLButton.ButtonVariant.GHOST);
+        deleteBtn.setTooltip(new javafx.scene.control.Tooltip(I18n.get("applications.delete_tooltip", "Supprimer cette candidature")));
+        deleteBtn.setOnAction(e -> handleDeleteApplication(app.getId()));
+        
+        topRow.getChildren().addAll(titleLabel, statusBadge, deleteBtn);
+        
+        container.getChildren().add(topRow);
 
-        // Row 3: company + location
-        Label subtitleLabel = new Label(buildSubtitle(app));
-        subtitleLabel.setStyle("-fx-font-size: 12.5px; -fx-text-fill: #a1a1aa;");
-        topSection.getChildren().add(subtitleLabel);
+        // Calculate scores on-the-fly if not stored (for legacy applications)
+        int matchPct = app.getMatchPercentage();
+        int candScore = app.getCandidateScore();
+        if (matchPct <= 0 || candScore <= 0) {
+            try {
+                RecruitmentIntelligenceService intelligence = RecruitmentIntelligenceService.getInstance();
+                if (matchPct <= 0) {
+                    matchPct = intelligence
+                            .calculateCompatibility(app.getCandidateProfileId(), app.getJobOfferId())
+                            .join();
+                }
+                if (candScore <= 0) {
+                    candScore = intelligence
+                            .scoreCandidate(app.getCandidateProfileId())
+                            .join();
+                }
+            } catch (Exception e) {
+                logger.debug("Could not calculate match scores for application {}", app.getId(), e);
+            }
+        }
 
-        card.getChildren().add(topSection);
-
-        // ── Divider ──
-        Region divider = new Region();
-        divider.setStyle("-fx-background-color: #2a2b2e;");
-        divider.setMinHeight(1); divider.setMaxHeight(1);
-        card.getChildren().add(divider);
-
-        // ── Bottom section: scores + date ──
-        HBox bottomSection = new HBox(12);
-        bottomSection.getStyleClass().add("app-card-bottom");
-        bottomSection.setPadding(new Insets(12, 16, 14, 16));
-        bottomSection.setAlignment(Pos.CENTER);
-
-        // Match score
-        VBox matchBlock = createScoreBlock(app.getMatchPercentage(), "AI Match", getMatchColor(app.getMatchPercentage()));
-        // Score block
-        VBox scoreBlock = createScoreBlock(app.getCandidateScore(), "Score", getScoreColor(app.getCandidateScore()));
-
-        Region midSpacer = new Region();
-        HBox.setHgrow(midSpacer, Priority.ALWAYS);
-
-        // Applied date
-        VBox dateBlock = new VBox(2);
-        dateBlock.setAlignment(Pos.CENTER_RIGHT);
-        Label appliedLabel = new Label("Postulé le");
-        appliedLabel.setStyle("-fx-font-size: 10.5px; -fx-text-fill: #71717a;");
-        Label appliedDate = new Label(formatAppliedDate(app.getAppliedDate()));
-        appliedDate.setStyle("-fx-font-size: 12.5px; -fx-font-weight: bold; -fx-text-fill: #e4e4e7;");
-        dateBlock.getChildren().addAll(appliedLabel, appliedDate);
-
-        bottomSection.getChildren().addAll(matchBlock, scoreBlock, midSpacer, dateBlock);
-        card.getChildren().add(bottomSection);
-
-        // ── Interview section ──
+        Label aiLabel = new Label("AI Match: " +
+                (matchPct > 0 ? matchPct + "%" : "-")
+                + " | Score: " +
+                (candScore > 0 ? candScore : "-"));
+        aiLabel.getStyleClass().add("text-muted");
+        aiLabel.setStyle("-fx-font-size: 0.85em;");
+        container.getChildren().add(aiLabel);
+        
+        // Interview info row (if interview is scheduled)
         if (interview != null && interview.getScheduledDate() != null) {
-            Region div2 = new Region();
-            div2.setStyle("-fx-background-color: #2a2b2e;");
-            div2.setMinHeight(1); div2.setMaxHeight(1);
-            card.getChildren().add(div2);
-
-            HBox interviewRow = new HBox(8);
-            interviewRow.setStyle("-fx-background-color: #1e1e22; -fx-background-radius: 0 0 12 12;");
-            interviewRow.setPadding(new Insets(10, 16, 12, 16));
+            HBox interviewRow = new HBox(12);
             interviewRow.setAlignment(Pos.CENTER_LEFT);
-
-            Label interviewIcon = new Label("🎯");
-            interviewIcon.setStyle("-fx-font-size: 15px;");
-
-            VBox interviewInfo = new VBox(2);
-            Label schedLabel = new Label(interview.getScheduledDate().format(DATE_TIME_FMT));
-            schedLabel.setStyle("-fx-font-size: 12.5px; -fx-font-weight: bold; -fx-text-fill: #fafafa;");
-            HBox interviewTags = new HBox(6);
+            interviewRow.setPadding(new Insets(4, 0, 0, 0));
+            
+            Label interviewLabel = new Label();
+            interviewLabel.getStyleClass().add("text-muted");
+            interviewLabel.setStyle("-fx-font-size: 0.875em;");
+            
+            String interviewText = "📅 " + I18n.get("interviews.interview_scheduled") + ": " + 
+                interview.getScheduledDate().format(DATE_TIME_FMT);
+            
             if (interview.getLocation() != null && !interview.getLocation().isEmpty()) {
-                Label loc = new Label("📍 " + interview.getLocation());
-                loc.setStyle("-fx-font-size: 11px; -fx-text-fill: #a1a1aa;");
-                interviewTags.getChildren().add(loc);
+                interviewText += " | 📍 " + interview.getLocation();
             }
-            if (interview.getType() != null && !interview.getType().isEmpty()) {
-                Label type = new Label(interview.getType());
-                type.setStyle("-fx-font-size: 11px; -fx-text-fill: #a1a1aa;");
-                interviewTags.getChildren().add(type);
+            
+            if (interview.getType() != null) {
+                interviewText += " | " + interview.getType();
             }
-            interviewInfo.getChildren().add(schedLabel);
-            if (!interviewTags.getChildren().isEmpty()) interviewInfo.getChildren().add(interviewTags);
-
-            Region iSpacer = new Region();
-            HBox.setHgrow(iSpacer, Priority.ALWAYS);
-
-            interviewRow.getChildren().addAll(interviewIcon, interviewInfo, iSpacer);
-
-            InterviewCountdownWidget countdown = InterviewCountdownWidget.of(interview.getScheduledDate());
-            if (countdown != null) interviewRow.getChildren().add(countdown);
-
-            card.getChildren().add(interviewRow);
+            
+            interviewLabel.setText(interviewText);
+            interviewRow.getChildren().add(interviewLabel);
+            
+            container.getChildren().add(interviewRow);
         }
-
-        return card;
+        
+        // Wrap in HBox for compatibility
+        HBox line = new HBox();
+        line.getChildren().add(container);
+        HBox.setHgrow(container, javafx.scene.layout.Priority.ALWAYS);
+        
+        return line;
     }
-
-    // ──────── Score block (ring + label) ────────
-
-    private VBox createScoreBlock(int value, String label, String color) {
-        VBox block = new VBox(3);
-        block.setAlignment(Pos.CENTER);
-        block.setMinWidth(56);
-
-        StackPane ring = createScoreRing(value, color);
-        Label nameLabel = new Label(label);
-        nameLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #a1a1aa; -fx-font-weight: 600;");
-
-        block.getChildren().addAll(ring, nameLabel);
-        return block;
-    }
-
-    private StackPane createScoreRing(int value, String color) {
-        double size = 48;
-        double stroke = 3.5;
-        double radius = (size - stroke) / 2;
-
-        StackPane ring = new StackPane();
-        ring.setMinSize(size, size);
-        ring.setMaxSize(size, size);
-
-        Circle bg = new Circle(radius);
-        bg.setStyle("-fx-fill: transparent; -fx-stroke: #3f3f46; -fx-stroke-width: " + stroke + ";");
-
-        if (value > 0) {
-            double angle = (value / 100.0) * 360.0;
-            Arc arc = new Arc(0, 0, radius, radius, 90, -angle);
-            arc.setType(ArcType.OPEN);
-            arc.setStyle("-fx-fill: transparent; -fx-stroke: " + color + "; -fx-stroke-width: " + (stroke + 0.5)
-                    + "; -fx-stroke-line-cap: round;");
-
-            Label val = new Label(value + "%");
-            val.setStyle("-fx-font-size: 11.5px; -fx-font-weight: bold; -fx-text-fill: " + color + ";");
-            ring.getChildren().addAll(bg, arc, val);
-        } else {
-            Label dash = new Label("—");
-            dash.setStyle("-fx-font-size: 13px; -fx-text-fill: #71717a;");
-            ring.getChildren().addAll(bg, dash);
-        }
-        return ring;
-    }
-
-    // ──────── Empty state ────────
-
-    private VBox createEmptyState() {
-        VBox box = new VBox(12);
-        box.setAlignment(Pos.CENTER);
-        box.setPadding(new Insets(60, 24, 60, 24));
-        box.setStyle("-fx-background-color: #18181b; -fx-background-radius: 12; -fx-border-color: #2a2b2e; -fx-border-width: 1; -fx-border-radius: 12;");
-        box.setPrefWidth(600);
-
-        Label emptyIcon = new Label("📭");
-        emptyIcon.setStyle("-fx-font-size: 42px;");
-        Label emptyTitle = new Label("Aucune candidature");
-        emptyTitle.setStyle("-fx-font-size: 17px; -fx-font-weight: bold; -fx-text-fill: #fafafa;");
-        Label emptyDesc = new Label("Explorez les offres et postulez pour commencer.");
-        emptyDesc.setStyle("-fx-font-size: 13px; -fx-text-fill: #a1a1aa;");
-
-        box.getChildren().addAll(emptyIcon, emptyTitle, emptyDesc);
-        return box;
-    }
-
-    // ──────── Status helpers ────────
-
+    
     private TLBadge createStatusBadge(Application.Status status) {
-        String text; TLBadge.Variant variant;
+        String text;
+        TLBadge.Variant variant;
+        
         switch (status) {
-            case PENDING:    text = I18n.get("inbox.status.pending");   variant = TLBadge.Variant.SECONDARY;    break;
-            case REVIEWING:  text = I18n.get("inbox.status.review");    variant = TLBadge.Variant.SUCCESS;      break;
-            case INTERVIEW:  text = I18n.get("inbox.status.interview"); variant = TLBadge.Variant.INFO;         break;
-            case OFFER:      text = I18n.get("inbox.status.offer");     variant = TLBadge.Variant.SUCCESS;      break;
-            case ACCEPTED:   text = I18n.get("inbox.status.accepted");  variant = TLBadge.Variant.SUCCESS;      break;
-            case REJECTED:   text = I18n.get("inbox.status.rejected");  variant = TLBadge.Variant.DESTRUCTIVE;  break;
-            default:         text = I18n.get("inbox.status.pending");   variant = TLBadge.Variant.DEFAULT;      break;
+            case PENDING:
+                text = I18n.get("inbox.status.pending");
+                variant = TLBadge.Variant.DEFAULT;
+                break;
+            case REVIEWING:
+                text = I18n.get("inbox.status.review");
+                variant = TLBadge.Variant.SUCCESS; // Vert
+                break;
+            case INTERVIEW:
+                text = I18n.get("inbox.status.interview");
+                variant = TLBadge.Variant.OUTLINE;
+                break;
+            case OFFER:
+                text = I18n.get("inbox.status.offer");
+                variant = TLBadge.Variant.OUTLINE;
+                break;
+            case ACCEPTED:
+                text = I18n.get("inbox.status.accepted");
+                variant = TLBadge.Variant.INFO; // Bleu
+                break;
+            case REJECTED:
+                text = I18n.get("inbox.status.rejected");
+                variant = TLBadge.Variant.DESTRUCTIVE; // Rouge
+                break;
+            default:
+                text = I18n.get("inbox.status.pending");
+                variant = TLBadge.Variant.DEFAULT;
+                break;
         }
+        
         return new TLBadge(text, variant);
     }
-
-    private String getStatusCardClass(Application.Status status) {
-        switch (status) {
-            case PENDING:    return "app-card-pending";
-            case REVIEWING:  return "app-card-reviewing";
-            case INTERVIEW:  return "app-card-interview";
-            case OFFER:      return "app-card-offer";
-            case ACCEPTED:   return "app-card-accepted";
-            case REJECTED:   return "app-card-rejected";
-            default:         return "app-card-pending";
-        }
-    }
-
-    /** Left-border accent color per status (hex). */
-    private String getStatusAccentColor(Application.Status status) {
-        switch (status) {
-            case PENDING:    return "#71717a";
-            case REVIEWING:  return "#3b82f6";
-            case INTERVIEW:  return "#8b5cf6";
-            case OFFER:      return "#f59e0b";
-            case ACCEPTED:   return "#22c55e";
-            case REJECTED:   return "#ef4444";
-            default:         return "#71717a";
-        }
-    }
-
-    // ──────── Color helpers ────────
-
-    private String getMatchColor(int pct) {
-        if (pct >= 80) return "#22c55e";
-        if (pct >= 60) return "#3b82f6";
-        if (pct >= 40) return "#f59e0b";
-        if (pct > 0)   return "#ef4444";
-        return "#71717a";
-    }
-
-    private String getScoreColor(int score) {
-        if (score >= 75) return "#22c55e";
-        if (score >= 50) return "#3b82f6";
-        if (score >= 25) return "#f59e0b";
-        if (score > 0)   return "#ef4444";
-        return "#71717a";
-    }
-
-    private String buildSubtitle(Application app) {
-        StringBuilder sb = new StringBuilder();
-        if (app.getCompanyName() != null && !app.getCompanyName().isEmpty()) sb.append(app.getCompanyName());
-        if (app.getJobLocation() != null && !app.getJobLocation().isEmpty()) {
-            if (sb.length() > 0) sb.append("  •  ");
-            sb.append(app.getJobLocation());
-        }
-        if (sb.length() == 0) sb.append("Offre #" + app.getJobOfferId());
-        return sb.toString();
-    }
-
-    private String formatAppliedDate(LocalDateTime dt) {
-        return dt != null ? dt.format(DATE_SHORT_FMT) : "";
-    }
-
-    private String formatTimeAgo(LocalDateTime dt) {
-        if (dt == null) return "";
-        long days = ChronoUnit.DAYS.between(dt, LocalDateTime.now());
-        if (days == 0) return "Aujourd'hui";
-        if (days == 1) return "Hier";
-        if (days < 7)  return "Il y a " + days + "j";
-        if (days < 30) return "Il y a " + (days / 7) + " sem.";
-        if (days < 365) return "Il y a " + (days / 30) + " mois";
-        return "Il y a " + (days / 365) + " an(s)";
-    }
-
+    
     @FXML
     private void handleRefresh() {
-        if (currentUser != null) loadApplications();
+        if (currentUser != null) {
+            loadApplications();
+        }
     }
-
+    
+    // Make sure applications view refreshes when status changes
+    // This will be called when user navigates back to this view
     public void refreshIfNeeded() {
-        if (currentUser != null) loadApplications();
+        if (currentUser != null) {
+            loadApplications();
+        }
     }
-
+    
+    /**
+     * Handle deletion of an application by the candidate.
+     */
     private void handleDeleteApplication(int applicationId) {
+        // Confirm deletion
         java.util.Optional<javafx.scene.control.ButtonType> result = com.skilora.utils.DialogUtils.showConfirmation(
             I18n.get("applications.delete_confirm_title", "Supprimer la candidature"),
-            I18n.get("applications.delete_confirm_message", "Êtes-vous sûr de vouloir supprimer cette candidature ?")
+            I18n.get("applications.delete_confirm_message", "Êtes-vous sûr de vouloir supprimer cette candidature ? Cette action est irréversible.")
         );
-        if (result.isEmpty() || result.get() != javafx.scene.control.ButtonType.OK) return;
-
+        
+        if (result.isEmpty() || result.get() != javafx.scene.control.ButtonType.OK) {
+            return;
+        }
+        
+        // Delete in background thread
         Task<Boolean> deleteTask = new Task<>() {
             @Override
             protected Boolean call() throws Exception {
                 return applicationService.delete(applicationId);
             }
         };
+        
         deleteTask.setOnSucceeded(e -> {
-            if (Boolean.TRUE.equals(deleteTask.getValue())) {
+            boolean success = deleteTask.getValue();
+            if (success) {
                 com.skilora.utils.DialogUtils.showInfo(
                     I18n.get("applications.delete_success_title", "Candidature supprimée"),
-                    I18n.get("applications.delete_success_message", "Votre candidature a été supprimée.")
+                    I18n.get("applications.delete_success_message", "Votre candidature a été supprimée avec succès.")
                 );
+                // Reload applications list
                 loadApplications();
             } else {
                 com.skilora.utils.DialogUtils.showError(
                     I18n.get("applications.delete_error_title", "Erreur"),
-                    I18n.get("applications.delete_error_message", "Impossible de supprimer la candidature.")
+                    I18n.get("applications.delete_error_message", "Impossible de supprimer la candidature. Veuillez réessayer.")
                 );
             }
         });
+        
         deleteTask.setOnFailed(e -> {
             logger.error("Failed to delete application {}", applicationId, deleteTask.getException());
             com.skilora.utils.DialogUtils.showError(
                 I18n.get("applications.delete_error_title", "Erreur"),
-                I18n.get("applications.delete_error_message", "Une erreur est survenue.")
+                I18n.get("applications.delete_error_message", "Une erreur est survenue lors de la suppression de la candidature.")
             );
         });
-        Thread t = new Thread(deleteTask, "DeleteApplication");
-        t.setDaemon(true);
-        t.start();
+        
+        new Thread(deleteTask, "DeleteApplication").start();
     }
 }

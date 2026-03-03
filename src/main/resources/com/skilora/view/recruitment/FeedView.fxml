@@ -14,5 +14,9 @@
         <TLButton fx:id="refreshBtn" text="Actualiser" onAction="#handleRefresh"/>
     </HBox>
     <FlowPane fx:id="tabsBox" hgap="8" vgap="8"/>
-    <ListView fx:id="jobList" styleClass="feed-job-list" VBox.vgrow="ALWAYS"/>
+    <!-- fitToHeight="false" so the FlowPane can grow taller and the ScrollPane actually scrolls -->
+    <ScrollPane fx:id="scrollPane" fitToWidth="true" fitToHeight="false"
+                VBox.vgrow="ALWAYS" pannable="false">
+        <FlowPane fx:id="grid" hgap="16" vgap="16" prefWrapLength="800"/>
+    </ScrollPane>
 </VBox>

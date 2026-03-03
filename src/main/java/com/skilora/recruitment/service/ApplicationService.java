@@ -3,6 +3,9 @@ package com.skilora.recruitment.service;
 import com.skilora.config.DatabaseConfig;
 import com.skilora.recruitment.entity.Application;
 import com.skilora.recruitment.entity.Application.Status;
+import com.skilora.recruitment.entity.MatchingScore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.time.LocalDateTime;
@@ -18,6 +21,7 @@ import java.util.Optional;
  */
 public class ApplicationService {
 
+    private static final Logger logger = LoggerFactory.getLogger(ApplicationService.class);
     private static ApplicationService instance;
 
     private ApplicationService() {}
@@ -48,6 +52,22 @@ public class ApplicationService {
         jobOfferId = JobService.getInstance().resolveEmployerJobOfferId(jobOfferId);
         if (jobOfferId <= 0) return -1;
 
+        // Calculate match scores
+        int matchPercentage = 0;
+        int candidateScore = 0;
+        try {
+            var jobOffer = JobService.getInstance().getById(jobOfferId);
+            if (jobOffer != null && jobOffer.isPresent()) {
+                MatchingScore score = MatchingService.getInstance().calculateMatch(candidateProfileId, jobOffer.get());
+                if (score != null) {
+                    matchPercentage = (int) score.getTotalScore();
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to calculate match scores for profile {} and job {}: {}", 
+                candidateProfileId, jobOfferId, e.getMessage());
+        }
+
         try (Connection conn = DatabaseConfig.getInstance().getConnection()) {
             conn.setAutoCommit(false);
             try {
@@ -64,8 +84,8 @@ public class ApplicationService {
                     }
                 }
 
-                String sql = "INSERT INTO applications (job_offer_id, candidate_profile_id, status, applied_date, cover_letter, custom_cv_url) " +
-                        "VALUES (?, ?, ?, ?, ?, ?)";
+                String sql = "INSERT INTO applications (job_offer_id, candidate_profile_id, status, applied_date, cover_letter, custom_cv_url, match_percentage, candidate_score) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
                 try (PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
                     stmt.setInt(1, jobOfferId);
                     stmt.setInt(2, candidateProfileId);
@@ -73,6 +93,8 @@ public class ApplicationService {
                     stmt.setTimestamp(4, Timestamp.valueOf(LocalDateTime.now()));
                     stmt.setString(5, coverLetter);
                     stmt.setString(6, cvUrl);
+                    stmt.setInt(7, matchPercentage);
+                    stmt.setInt(8, candidateScore);
 
                     int rows = stmt.executeUpdate();
                     if (rows > 0) {
@@ -323,6 +345,10 @@ public class ApplicationService {
         app.setCandidateProfileId(rs.getInt("candidate_profile_id"));
         app.setCoverLetter(rs.getString("cover_letter"));
         app.setCustomCvUrl(rs.getString("custom_cv_url"));
+        
+        // Read AI match scores
+        app.setMatchPercentage((int) rs.getDouble("match_percentage"));
+        app.setCandidateScore(rs.getInt("candidate_score"));
 
         String statusStr = rs.getString("status");
         if (statusStr != null) {

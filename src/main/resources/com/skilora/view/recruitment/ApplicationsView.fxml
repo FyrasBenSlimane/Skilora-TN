@@ -1,24 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.*?>
 <?import com.skilora.framework.components.TLButton?>
 
 <VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.skilora.recruitment.controller.ApplicationsController"
-      styleClass="page-container, applications-page" spacing="20">
-    <padding><Insets top="28" right="28" bottom="28" left="28"/></padding>
-    <!-- Header row -->
-    <HBox styleClass="applications-header" spacing="12" alignment="CENTER_LEFT">
-        <VBox spacing="2">
-            <Label text="Mes Candidatures" styleClass="page-title"/>
-            <Label fx:id="statsLabel" styleClass="applications-stats, text-muted"/>
-        </VBox>
+      styleClass="page-container" spacing="16">
+    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+    <HBox spacing="12" alignment="CENTER_LEFT">
+        <Label fx:id="statsLabel" styleClass="text-muted"/>
         <Region HBox.hgrow="ALWAYS"/>
-        <TLButton fx:id="refreshBtn" text="⟳  Actualiser" onAction="#handleRefresh" variant="SECONDARY"/>
+        <TLButton fx:id="refreshBtn" text="Actualiser" onAction="#handleRefresh"/>
     </HBox>
-    <!-- Scrollable grid of cards -->
-    <ScrollPane fx:id="scrollPane" fitToWidth="true" styleClass="applications-scroll" VBox.vgrow="ALWAYS">
-        <FlowPane fx:id="applicationsList" styleClass="applications-grid" hgap="14" vgap="14"/>
-    </ScrollPane>
+    <VBox fx:id="applicationsList" spacing="12" VBox.vgrow="ALWAYS"/>
 </VBox>

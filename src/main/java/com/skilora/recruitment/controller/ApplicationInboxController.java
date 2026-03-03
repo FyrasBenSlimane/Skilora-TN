@@ -90,6 +90,9 @@ public class ApplicationInboxController implements Initializable {
     private HBox statusFilterBox;
 
     private User currentUser;
+    // Optional filter: when set, restrict inbox to a single job offer
+    private Integer filterJobOfferId;
+    private String filterJobTitle;
     private ObservableList<ApplicationRow> applications;
     private ObservableList<ApplicationRow> allApplications;
     private final ApplicationService applicationService = ApplicationService.getInstance();
@@ -104,6 +107,19 @@ public class ApplicationInboxController implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         setupTable();
         setupFilters();
+    }
+
+    /**
+     * Limit the inbox to applications for a specific job offer.
+     * If jobOfferId is null, the controller will show all applications
+     * for the employer's company (default behavior).
+     */
+    public void setOfferFilter(Integer jobOfferId, String jobTitle) {
+        this.filterJobOfferId = jobOfferId;
+        this.filterJobTitle = jobTitle;
+        if (currentUser != null) {
+            loadApplications();
+        }
     }
 
     private void setupFilters() {
@@ -325,6 +341,26 @@ public class ApplicationInboxController implements Initializable {
         Task<List<Application>> task = new Task<>() {
             @Override
             protected List<Application> call() throws Exception {
+                // If a specific job offer is selected (from "Voir les candidatures"),
+                // only load applications for that offer.
+                if (filterJobOfferId != null && filterJobOfferId > 0) {
+                    List<Application> apps = applicationService.getApplicationsByJobOffer(filterJobOfferId);
+                    for (Application app : apps) {
+                        if (app.getMatchPercentage() <= 0) {
+                            int match = intelligenceService.calculateCompatibility(app.getCandidateProfileId(), app.getJobOfferId()).join();
+                            app.setMatchPercentage(match);
+                        }
+                        if (app.getCandidateScore() <= 0) {
+                            int score = intelligenceService.scoreCandidate(app.getCandidateProfileId()).join();
+                            app.setCandidateScore(score);
+                        }
+                    }
+                    apps.sort((a, b) -> Integer.compare(
+                            (b.getMatchPercentage() + b.getCandidateScore()),
+                            (a.getMatchPercentage() + a.getCandidateScore())));
+                    return apps;
+                }
+
                 int companyId = jobService.getOrCreateEmployerCompanyId(currentUser.getId(), "Entreprise");
                 if (companyId <= 0) return java.util.Collections.emptyList();
                 com.skilora.utils.DataFixer.fixApplicationsForEmployer(currentUser.getId());
@@ -339,7 +375,9 @@ public class ApplicationInboxController implements Initializable {
                         app.setCandidateScore(score);
                     }
                 }
-                apps.sort((a, b) -> Integer.compare((b.getMatchPercentage() + b.getCandidateScore()), (a.getMatchPercentage() + a.getCandidateScore())));
+                apps.sort((a, b) -> Integer.compare(
+                        (b.getMatchPercentage() + b.getCandidateScore()),
+                        (a.getMatchPercentage() + a.getCandidateScore())));
                 return apps;
             }
         };

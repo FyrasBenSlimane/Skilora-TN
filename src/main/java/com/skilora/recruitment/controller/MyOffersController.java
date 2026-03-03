@@ -12,7 +12,6 @@ import com.skilora.framework.components.TLLoadingState;
 import com.skilora.framework.components.TLTextField;
 import com.skilora.framework.components.TLTextarea;
 import com.skilora.framework.components.TLSelect;
-import com.skilora.framework.components.TLSeparator;
 import com.skilora.framework.components.TLTabs;
 import com.skilora.framework.components.TLToast;
 import com.skilora.framework.components.TLDialog;
@@ -65,6 +64,8 @@ public class MyOffersController implements Initializable {
     private final JobService jobService = JobService.getInstance();
     private User currentUser;
     private Runnable onNewOffer;
+    // Callback to open the applications inbox for a given offer (wired from MainView)
+    private java.util.function.Consumer<JobOffer> onViewApplications;
     private List<JobOffer> allOffers;
     private String currentFilter = "ALL";
 
@@ -84,6 +85,10 @@ public class MyOffersController implements Initializable {
 
     public void setOnNewOffer(Runnable onNewOffer) {
         this.onNewOffer = onNewOffer;
+    }
+
+    public void setOnViewApplications(java.util.function.Consumer<JobOffer> onViewApplications) {
+        this.onViewApplications = onViewApplications;
     }
 
     private void setupFilters() {
@@ -582,12 +587,15 @@ public class MyOffersController implements Initializable {
     }
 
     private void handleViewApplications(JobOffer offer) {
-        // Navigate to applications view filtered by this offer
+        if (onViewApplications != null) {
+            onViewApplications.accept(offer);
+            return;
+        }
+        // Fallback: simple toast if callback not wired
         if (offersContainer.getScene() != null) {
             TLToast.info(offersContainer.getScene(),
-                I18n.get("myoffers.applications.title"),
-                I18n.get("myoffers.applications.message", offer.getTitle()));
+                    I18n.get("myoffers.applications.title"),
+                    I18n.get("myoffers.applications.message", offer.getTitle()));
         }
-        // TODO: Implement navigation to applications inbox filtered by offer
     }
 }

@@ -13,6 +13,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.layout.*;
 
 import java.net.URL;
@@ -36,9 +37,9 @@ public class PostJobController implements Initializable {
     @FXML private VBox step1Indicator;
     @FXML private VBox step2Indicator;
     @FXML private VBox step3Indicator;
-    @FXML private TLProgress progress1;
-    @FXML private TLProgress progress2;
-    @FXML private TLProgress progress3;
+    @FXML private ProgressBar progress1;
+    @FXML private ProgressBar progress2;
+    @FXML private ProgressBar progress3;
     @FXML private StackPane contentStack;
     @FXML private TLButton cancelBtn;
     @FXML private TLButton prevBtn;

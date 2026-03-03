@@ -306,9 +306,12 @@ public class JobService {
      */
     public List<JobOffer> findAllJobOffersForCandidates() throws SQLException {
         List<JobOffer> jobOffers = new ArrayList<>();
+        // Employer-owned offers (company has an owner_id) are surfaced first,
+        // then all others sorted by posted_date DESC so employer jobs are never
+        // buried below thousands of crawler-imported entries.
         String sql = "SELECT jo.*, c.name AS company_name FROM job_offers jo " +
                 "LEFT JOIN companies c ON jo.company_id = c.id " +
-                "ORDER BY jo.posted_date DESC";
+                "ORDER BY CASE WHEN c.owner_id IS NOT NULL THEN 0 ELSE 1 END ASC, jo.posted_date DESC";
 
         try (Connection connection = DatabaseConfig.getInstance().getConnection();
                 PreparedStatement stmt = connection.prepareStatement(sql)) {
