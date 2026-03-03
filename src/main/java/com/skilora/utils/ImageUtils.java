@@ -2,6 +2,9 @@ package com.skilora.utils;
 
 import javafx.scene.image.Image;
 
+import javax.imageio.ImageIO;
+import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.file.Files;
 import java.util.Base64;
@@ -173,5 +176,41 @@ public final class ImageUtils {
         if (bytes < 1024) return bytes + " B";
         if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
         return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
+    }
+
+    /**
+     * Crops the image to a circle and returns a Base64 data URI (PNG).
+     * Pixels outside the circle are made transparent.
+     *
+     * @param source   source image (will not be modified)
+     * @param centerX  center X in source image pixels
+     * @param centerY  center Y in source image pixels
+     * @param radius   radius of the circle in source image pixels
+     * @return data:image/png;base64,... or null on failure
+     */
+    public static String cropToCircleToBase64(BufferedImage source, int centerX, int centerY, int radius) {
+        if (source == null || radius <= 0) return null;
+        int d = radius * 2;
+        int x0 = Math.max(0, centerX - radius);
+        int y0 = Math.max(0, centerY - radius);
+        int w = Math.min(d, source.getWidth() - x0);
+        int h = Math.min(d, source.getHeight() - y0);
+        if (w <= 0 || h <= 0) return null;
+        BufferedImage out = new BufferedImage(d, d, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = out.createGraphics();
+        try {
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setClip(new java.awt.geom.Ellipse2D.Double(0, 0, d, d));
+            g.drawImage(source, -(x0 - (centerX - radius)), -(y0 - (centerY - radius)), null);
+        } finally {
+            g.dispose();
+        }
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            ImageIO.write(out, "PNG", baos);
+            String base64 = Base64.getEncoder().encodeToString(baos.toByteArray());
+            return "data:image/png;base64," + base64;
+        } catch (IOException e) {
+            return null;
+        }
     }
 }
