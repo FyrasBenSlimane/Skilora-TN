@@ -21,24 +21,19 @@ public class ReviewService {
     }
 
     public void create(Review review) throws SQLException {
-        String sql = "INSERT INTO reviews (job_id, reviewer_id, target_user_id, rating, comment, created_at) VALUES (?, ?, ?, ?, ?, ?)";
+        // Schema (DatabaseInitializer): reviews(reviewer_id, reviewed_user_id, rating, comment, is_anonymous, created_date)
+        String sql = "INSERT INTO reviews (reviewer_id, reviewed_user_id, rating, comment, created_date) VALUES (?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            
-            if (review.getJobId() > 0) {
-                stmt.setInt(1, review.getJobId());
-            } else {
-                stmt.setNull(1, Types.INTEGER);
-            }
-            
-            stmt.setInt(2, review.getReviewerId());
-            stmt.setInt(3, review.getTargetUserId());
-            stmt.setInt(4, review.getRating());
-            stmt.setString(5, review.getComment());
-            stmt.setTimestamp(6, Timestamp.valueOf(java.time.LocalDateTime.now()));
-            
+
+            stmt.setInt(1, review.getReviewerId());
+            stmt.setInt(2, review.getTargetUserId());
+            stmt.setInt(3, review.getRating());
+            stmt.setString(4, review.getComment());
+            stmt.setTimestamp(5, Timestamp.valueOf(java.time.LocalDateTime.now()));
+
             stmt.executeUpdate();
-            
+
             try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
                 if (generatedKeys.next()) {
                     review.setId(generatedKeys.getInt(1));
@@ -49,9 +44,10 @@ public class ReviewService {
 
     public List<Review> findByTargetUserId(int targetUserId) throws SQLException {
         List<Review> reviews = new ArrayList<>();
+        // Schema uses reviewed_user_id + created_date; map reviewed_user_id -> targetUserId in entity
         String sql = "SELECT r.*, u.full_name, u.photo_url " +
                      "FROM reviews r JOIN users u ON r.reviewer_id = u.id " +
-                     "WHERE r.target_user_id = ? ORDER BY r.created_at DESC";
+                     "WHERE r.reviewed_user_id = ? ORDER BY r.created_date DESC";
         
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -68,14 +64,14 @@ public class ReviewService {
     private Review mapResultSetToReview(ResultSet rs) throws SQLException {
         Review r = new Review();
         r.setId(rs.getInt("id"));
-        r.setJobId(rs.getInt("job_id"));
+        // job_id column is not present in current schema; keep jobId at default 0
         r.setReviewerId(rs.getInt("reviewer_id"));
-        r.setTargetUserId(rs.getInt("target_user_id"));
+        r.setTargetUserId(rs.getInt("reviewed_user_id"));
         r.setRating(rs.getInt("rating"));
         r.setComment(rs.getString("comment"));
-        Timestamp ts = rs.getTimestamp("created_at");
+        Timestamp ts = rs.getTimestamp("created_date");
         if (ts != null) r.setCreatedAt(ts.toLocalDateTime());
-        
+
         r.setReviewerName(rs.getString("full_name"));
         r.setReviewerPhotoUrl(rs.getString("photo_url"));
         return r;

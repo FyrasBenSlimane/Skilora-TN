@@ -328,4 +328,24 @@ public class UserService {
         }
         return user;
     }
+
+    public void seedAdminUser() {
+        Optional<User> adminOpt = findByUsername("admin");
+        if (adminOpt.isEmpty()) {
+            User admin = new User();
+            admin.setUsername("admin");
+            admin.setEmail("admin@skilora.com");
+            admin.setPassword("admin123");
+            admin.setRole(Role.ADMIN);
+            admin.setFullName("System Admin");
+            admin.setActive(true);
+            admin.setVerified(true);
+            try {
+                create(admin);
+                logger.info("Admin user 'admin' with default password 'admin123' seeded successfully.");
+            } catch (Exception e) {
+                logger.error("Failed to seed admin user: {}", e.getMessage());
+            }
+        }
+    }
 }

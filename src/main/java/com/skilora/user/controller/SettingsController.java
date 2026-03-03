@@ -15,6 +15,7 @@ import com.skilora.user.entity.User;
 import com.skilora.user.enums.Role;
 import com.skilora.user.service.PreferencesService;
 import com.skilora.user.service.RoleUpgradeService;
+import com.skilora.user.service.TwoFactorAuthService;
 import com.skilora.user.service.UserService;
 import com.skilora.finance.service.UserCurrencyService;
 import com.skilora.utils.AppThreadPool;
@@ -34,6 +35,11 @@ public class SettingsController {
 
     private static final Logger logger = LoggerFactory.getLogger(SettingsController.class);
     private final PreferencesService prefService = PreferencesService.getInstance();
+    private final TwoFactorAuthService twoFactorAuthService;
+
+    public SettingsController() {
+        this.twoFactorAuthService = TwoFactorAuthService.getInstance();
+    }
 
     @FXML
     private TLSwitch darkModeCheckbox;
@@ -76,6 +82,12 @@ public class SettingsController {
     @FXML private Label dangerZoneLabel;
     @FXML private Label deleteAccountLabel;
     @FXML private TLButton deleteAccountBtn;
+
+    // 2FA fields
+    @FXML private Label twoFactorAuthLabel;
+    @FXML private Label twoFactorAuthStatusLabel;
+    @FXML private TLSwitch twoFactorAuthSwitch;
+    @FXML private Label twoFactorAuthDescription;
 
     private Runnable onSave;
     private Runnable onCancel;
@@ -174,6 +186,17 @@ public class SettingsController {
         // If user already has a pending request, disable button and show pending text
         if (showTrainerUpgrade) {
             updateTrainerButtonState();
+        }
+
+        // Hide delete account UI for Admin
+        boolean canDelete = (user != null && user.getRole() != Role.ADMIN);
+        if (deleteAccountBtn != null) {
+            deleteAccountBtn.setVisible(canDelete);
+            deleteAccountBtn.setManaged(canDelete);
+        }
+        if (deleteAccountLabel != null) {
+            deleteAccountLabel.setVisible(canDelete);
+            deleteAccountLabel.setManaged(canDelete);
         }
     }
 
@@ -482,5 +505,97 @@ public class SettingsController {
         label.getStyleClass().add("text-sm");
         box.getChildren().addAll(label, field);
         return box;
+    }
+
+    /**
+     * Initialize 2FA settings UI.
+     */
+    private void initialize2FASettings() {
+        if (twoFactorAuthSwitch != null) {
+            twoFactorAuthSwitch.selectedProperty().addListener((obs, old, newVal) -> {
+                if (newVal) {
+                    handleEnable2FA();
+                } else {
+                    handleDisable2FA();
+                }
+            });
+        }
+        update2FAStatus();
+    }
+
+    /**
+     * Update 2FA status label.
+     */
+    private void update2FAStatus() {
+        if (currentUser == null || twoFactorAuthStatusLabel == null) return;
+
+        AppThreadPool.execute(() -> {
+            boolean enabled = twoFactorAuthService.is2FAEnabled(currentUser.getId());
+            Platform.runLater(() -> {
+                twoFactorAuthStatusLabel.setText(enabled ?
+                    I18n.get("settings.2fa.enabled") : I18n.get("settings.2fa.disabled"));
+                twoFactorAuthStatusLabel.getStyleClass().removeAll("text-success", "text-muted");
+                twoFactorAuthStatusLabel.getStyleClass().add(enabled ? "text-success" : "text-muted");
+                if (twoFactorAuthSwitch != null) {
+                    twoFactorAuthSwitch.setSelected(enabled);
+                }
+            });
+        });
+    }
+
+    /**
+     * Handle enabling 2FA - show confirmation dialog.
+     */
+    @FXML
+    private void handleEnable2FA() {
+        if (currentUser == null) return;
+
+        boolean confirmed = DialogUtils.showConfirmation(
+            I18n.get("settings.2fa.enable_title"),
+            I18n.get("settings.2fa.enable_message"))
+            .orElse(ButtonType.CANCEL) == ButtonType.OK;
+
+        if (confirmed) {
+            AppThreadPool.execute(() -> {
+                twoFactorAuthService.enable2FA(currentUser.getId());
+                Platform.runLater(() -> {
+                    update2FAStatus();
+                    TLToast.success(saveBtn.getScene(),
+                        I18n.get("settings.2fa.enabled_title"),
+                        I18n.get("settings.2fa.enabled_message"));
+                });
+            });
+        } else {
+            // Revert switch if cancelled
+            twoFactorAuthSwitch.setSelected(false);
+        }
+    }
+
+    /**
+     * Handle disabling 2FA - show confirmation dialog.
+     */
+    @FXML
+    private void handleDisable2FA() {
+        if (currentUser == null) return;
+
+        boolean confirmed = DialogUtils.showConfirmation(
+            I18n.get("settings.2fa.disable_title"),
+            I18n.get("settings.2fa.disable_message"))
+            .orElse(ButtonType.CANCEL) == ButtonType.OK;
+
+        if (confirmed) {
+            AppThreadPool.execute(() -> {
+                twoFactorAuthService.disable2FA(currentUser.getId());
+                Platform.runLater(() -> {
+                    update2FAStatus();
+                    TLToast.success(saveBtn.getScene(),
+                        I18n.get("settings.2fa.disabled_title"),
+                        I18n.get("settings.2fa.disabled_message"));
+                });
+            });
+        } else {
+            // Revert switch if cancelled
+            twoFactorAuthSwitch.setSelected(true);
+        }
     }
 }

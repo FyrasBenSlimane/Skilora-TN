@@ -28,6 +28,7 @@ import com.skilora.utils.Validators;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.skilora.user.ui.PhotoCropDialog;
 import com.skilora.utils.I18n;
 
 import javafx.fxml.FXML;
@@ -52,6 +53,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import java.io.File;
+import java.util.Base64;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -69,6 +71,14 @@ public class ProfileWizardController {
     private TLButton removePhotoBtn;
     @FXML
     private Label photoStatusLabel;
+    @FXML
+    private Label cvSectionLabel;
+    @FXML
+    private TLButton uploadCvBtn;
+    @FXML
+    private TLButton removeCvBtn;
+    @FXML
+    private Label cvStatusLabel;
 
     @FXML
     private TLTextField firstNameField;
@@ -181,6 +191,11 @@ public class ProfileWizardController {
         if (uploadPhotoBtn != null) uploadPhotoBtn.setText(I18n.get("profile.photo.change"));
         if (removePhotoBtn != null) removePhotoBtn.setText(I18n.get("profile.photo.remove"));
         if (photoStatusLabel != null) photoStatusLabel.setText(I18n.get("profile.photo.formats"));
+        if (cvSectionLabel != null) cvSectionLabel.setText(I18n.get("profile.cv.title"));
+        if (uploadCvBtn != null) uploadCvBtn.setText(I18n.get("profile.cv.upload"));
+        if (removeCvBtn != null) removeCvBtn.setText(I18n.get("profile.cv.remove"));
+        if (cvStatusLabel != null) cvStatusLabel.setText(I18n.get("profile.cv.formats"));
+        updateCvUi();
         if (personalInfoLabel != null) personalInfoLabel.setText(I18n.get("profile.personal_info"));
         if (firstNameField != null) { firstNameField.setLabel(I18n.get("profile.first_name")); firstNameField.setPromptText(I18n.get("profile.first_name.placeholder")); }
         if (lastNameField != null) { lastNameField.setLabel(I18n.get("profile.last_name")); lastNameField.setPromptText(I18n.get("profile.last_name.placeholder")); }
@@ -351,6 +366,7 @@ public class ProfileWizardController {
 
         // Load profile photo
         loadProfilePhoto();
+        updateCvUi();
 
         // Check biometric status
         updateBiometricStatus();
@@ -765,47 +781,25 @@ public class ProfileWizardController {
     private void handleUploadPhoto() {
         if (currentUser == null) return;
 
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle(I18n.get("profile.photo.choose_title"));
-        fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter(
-                        I18n.get("profile.photo.filter_images"),
-                        "*.png", "*.jpg", "*.jpeg", "*.gif", "*.webp", "*.bmp")
-        );
-
         Stage stage = (Stage) uploadPhotoBtn.getScene().getWindow();
-        File selectedFile = fileChooser.showOpenDialog(stage);
+        java.util.Optional<String> croppedDataUri = PhotoCropDialog.chooseAndCrop(stage);
 
-        if (selectedFile == null) return;
-
-        // Validate file
-        String validationError = ImageUtils.validateImageFile(selectedFile);
-        if (validationError != null) {
-            photoStatusLabel.setText(I18n.get(validationError));
-            photoStatusLabel.getStyleClass().removeAll("text-success", "text-muted");
-            photoStatusLabel.getStyleClass().add("text-destructive");
-            return;
-        }
+        if (croppedDataUri.isEmpty()) return;
 
         try {
-            // Encode to Base64 data URI
-            String base64DataUri = ImageUtils.encodeToBase64DataUri(selectedFile);
-
-            // Update the user model
+            String base64DataUri = croppedDataUri.get();
             currentUser.setPhotoUrl(base64DataUri);
 
-            // Preview the image
             Image img = ImageUtils.decodeBase64ToImage(base64DataUri, 96, 96);
             if (img != null) {
                 photoAvatar.setImage(img);
                 removePhotoBtn.setVisible(true);
-                photoStatusLabel.setText(I18n.get("profile.photo.uploaded",
-                        ImageUtils.formatFileSize(selectedFile.length())));
+                photoStatusLabel.setText(I18n.get("profile.photo.uploaded_cropped", "Photo recadrée et enregistrée."));
                 photoStatusLabel.getStyleClass().removeAll("text-destructive", "text-muted");
                 photoStatusLabel.getStyleClass().add("text-success");
             }
         } catch (Exception e) {
-            logger.error("Failed to encode image to Base64", e);
+            logger.error("Failed to set cropped photo", e);
             photoStatusLabel.setText(I18n.get("profile.photo.error.encode_failed"));
             photoStatusLabel.getStyleClass().removeAll("text-success", "text-muted");
             photoStatusLabel.getStyleClass().add("text-destructive");
@@ -820,6 +814,75 @@ public class ProfileWizardController {
         photoStatusLabel.setText(I18n.get("profile.photo.removed"));
         photoStatusLabel.getStyleClass().removeAll("text-destructive", "text-success");
         photoStatusLabel.getStyleClass().add("text-muted");
+    }
+
+    private static final long MAX_CV_SIZE_BYTES = 10L * 1024 * 1024;
+
+    private void updateCvUi() {
+        if (cvStatusLabel == null || removeCvBtn == null) return;
+        boolean hasCv = currentProfile != null && currentProfile.getCvUrl() != null && !currentProfile.getCvUrl().isBlank();
+        removeCvBtn.setVisible(hasCv);
+        if (hasCv) {
+            cvStatusLabel.setText(I18n.get("profile.cv.uploaded", "—"));
+            cvStatusLabel.getStyleClass().removeAll("text-destructive", "text-muted");
+            cvStatusLabel.getStyleClass().add("text-success");
+        } else {
+            cvStatusLabel.setText(I18n.get("profile.cv.formats"));
+            cvStatusLabel.getStyleClass().removeAll("text-success", "text-destructive");
+            cvStatusLabel.getStyleClass().add("text-muted");
+        }
+    }
+
+    @FXML
+    private void handleUploadCv() {
+        if (currentProfile == null) return;
+        FileChooser fc = new FileChooser();
+        fc.setTitle(I18n.get("profile.cv.upload"));
+        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF, DOC, DOCX", "*.pdf", "*.doc", "*.docx"));
+        Stage stage = uploadCvBtn != null && uploadCvBtn.getScene() != null ? (Stage) uploadCvBtn.getScene().getWindow() : null;
+        File file = fc.showOpenDialog(stage);
+        if (file == null) return;
+        if (file.length() > MAX_CV_SIZE_BYTES) {
+            if (cvStatusLabel != null) {
+                cvStatusLabel.setText(I18n.get("profile.cv.error.too_large"));
+                cvStatusLabel.getStyleClass().removeAll("text-success", "text-muted");
+                cvStatusLabel.getStyleClass().add("text-destructive");
+            }
+            return;
+        }
+        String name = file.getName().toLowerCase();
+        if (!name.endsWith(".pdf") && !name.endsWith(".doc") && !name.endsWith(".docx")) {
+            if (cvStatusLabel != null) {
+                cvStatusLabel.setText(I18n.get("profile.cv.error.invalid_format"));
+                cvStatusLabel.getStyleClass().removeAll("text-success", "text-muted");
+                cvStatusLabel.getStyleClass().add("text-destructive");
+            }
+            return;
+        }
+        try {
+            byte[] bytes = java.nio.file.Files.readAllBytes(file.toPath());
+            String mime = name.endsWith(".pdf") ? "application/pdf" : "application/msword";
+            if (name.endsWith(".docx")) mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            String base64 = Base64.getEncoder().encodeToString(bytes);
+            currentProfile.setCvUrl("data:" + mime + ";base64," + base64);
+            markDirty();
+            updateCvUi();
+        } catch (Exception e) {
+            logger.error("Failed to read CV file", e);
+            if (cvStatusLabel != null) {
+                cvStatusLabel.setText(I18n.get("profile.photo.error.encode_failed"));
+                cvStatusLabel.getStyleClass().removeAll("text-success", "text-muted");
+                cvStatusLabel.getStyleClass().add("text-destructive");
+            }
+        }
+    }
+
+    @FXML
+    private void handleRemoveCv() {
+        if (currentProfile == null) return;
+        currentProfile.setCvUrl(null);
+        markDirty();
+        updateCvUi();
     }
 
     private void updateBiometricStatus() {
@@ -933,8 +996,9 @@ public class ProfileWizardController {
                     currentProfile.setWebsite(w != null && !w.isBlank() ? w.trim() : null);
                 }
 
-                // Sync photo URL to profile as well
+                // Sync photo URL and CV to profile
                 currentProfile.setPhotoUrl(currentUser.getPhotoUrl());
+                // cvUrl is already on currentProfile (set by handleUploadCv/handleRemoveCv)
 
                 profileService.updateProfile(currentProfile);
                 return null;

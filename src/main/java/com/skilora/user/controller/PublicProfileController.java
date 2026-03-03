@@ -15,6 +15,11 @@ import com.skilora.user.service.PortfolioService;
 import com.skilora.user.service.ProfileService;
 import com.skilora.user.service.ReviewService;
 import com.skilora.user.service.AuthService;
+import com.skilora.formation.entity.Certificate;
+import com.skilora.formation.entity.Formation;
+import com.skilora.formation.service.CertificateService;
+import com.skilora.formation.service.FormationService;
+import com.skilora.formation.controller.CertificateViewController;
 import com.skilora.framework.components.TLDialog;
 import com.skilora.framework.components.TLTextarea;
 import com.skilora.utils.AppThreadPool;
@@ -48,6 +53,8 @@ public class PublicProfileController {
     private final ProfileService profileService = ProfileService.getInstance();
     private final PortfolioService portfolioService = PortfolioService.getInstance();
     private final ReviewService reviewService = ReviewService.getInstance();
+    private final CertificateService certificateService = CertificateService.getInstance();
+    private final FormationService formationService = FormationService.getInstance();
     
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("MMM yyyy");
 
@@ -74,6 +81,9 @@ public class PublicProfileController {
     
     @FXML private VBox reviewsContainer;
     @FXML private Label emptyReviewsLabel;
+    
+    @FXML private VBox certificatesContainer;
+    @FXML private Label emptyCertificatesLabel;
     
     // Stats Placeholders
     @FXML private Label rateLabel;
@@ -111,6 +121,7 @@ public class PublicProfileController {
         
         loadPortfolio();
         loadReviews();
+        loadCertificates();
     }
 
     private void updateUIBasic() {
@@ -257,6 +268,100 @@ public class PublicProfileController {
                 logger.error("Failed to load reviews", e);
             }
         });
+    }
+
+    private void loadCertificates() {
+        if (certificatesContainer == null) return;
+        AppThreadPool.execute(() -> {
+            List<Certificate> certs = certificateService.findByUser(targetUser.getId());
+            Platform.runLater(() -> {
+                certificatesContainer.getChildren().clear();
+                if (certs.isEmpty()) {
+                    emptyCertificatesLabel.setVisible(true);
+                } else {
+                    emptyCertificatesLabel.setVisible(false);
+                    for (Certificate cert : certs) {
+                        certificatesContainer.getChildren().add(createCertificateCard(cert));
+                    }
+                }
+            });
+        });
+    }
+
+    private TLCard createCertificateCard(Certificate cert) {
+        TLCard card = new TLCard();
+        VBox content = new VBox(8);
+        content.setPadding(new javafx.geometry.Insets(12));
+
+        Label titleLabel = new Label("Loading...");
+        titleLabel.getStyleClass().add("text-strong");
+        titleLabel.setWrapText(true);
+
+        Label certNumber = new Label("N° Certificat " + cert.getCertificateNumber());
+        certNumber.getStyleClass().add("text-muted");
+
+        String dateStr = cert.getIssuedDate() != null
+                ? "Délivré le " + cert.getIssuedDate().toLocalDate().toString()
+                : "";
+        Label dateLabel = new Label(dateStr);
+        dateLabel.getStyleClass().addAll("text-small-muted");
+
+        HBox actions = new HBox(8);
+        actions.setAlignment(Pos.CENTER_LEFT);
+        actions.setPadding(new javafx.geometry.Insets(4, 0, 0, 0));
+
+        TLButton viewBtn = new TLButton("View", TLButton.ButtonVariant.OUTLINE, TLButton.ButtonSize.SM);
+        viewBtn.setOnAction(e -> {
+            AppThreadPool.execute(() -> {
+                Formation formation = resolveFormationForCert(cert);
+                String formationTitle = formation != null ? formation.getTitle() : resolveFormationTitle(cert);
+                String directorSignature = formation != null ? formation.getDirectorSignature() : null;
+                String recipientName = targetUser.getFullName();
+                final String sig = directorSignature;
+                Platform.runLater(() -> {
+                    if (nameLabel.getScene() != null) {
+                        javafx.stage.Stage stage = (javafx.stage.Stage) nameLabel.getScene().getWindow();
+                        CertificateViewController.show(stage, cert, recipientName, formationTitle, sig);
+                    }
+                });
+            });
+        });
+
+        actions.getChildren().add(viewBtn);
+        content.getChildren().addAll(titleLabel, certNumber, dateLabel, actions);
+        card.getChildren().add(content);
+
+        // Resolve formation title asynchronously
+        AppThreadPool.execute(() -> {
+            String fTitle = resolveFormationTitle(cert);
+            Platform.runLater(() -> titleLabel.setText(fTitle));
+        });
+
+        return card;
+    }
+
+    private Formation resolveFormationForCert(Certificate cert) {
+        try {
+            if (cert.getFormationId() > 0) {
+                Formation f = formationService.findById(cert.getFormationId());
+                if (f != null) return f;
+            }
+            if (cert.getEnrollmentId() > 0) {
+                com.skilora.formation.entity.Enrollment enrollment =
+                        com.skilora.formation.service.EnrollmentService.getInstance().findById(cert.getEnrollmentId());
+                if (enrollment != null) {
+                    return formationService.findById(enrollment.getFormationId());
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Could not resolve formation for cert {}: {}", cert.getCertificateNumber(), e.getMessage());
+        }
+        return null;
+    }
+
+    private String resolveFormationTitle(Certificate cert) {
+        Formation f = resolveFormationForCert(cert);
+        return f != null ? f.getTitle() : "Unknown Formation";
     }
 
     private void handleWriteReview(User currentUser) {
