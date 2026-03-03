@@ -18,6 +18,16 @@
 /* ========== LOGIN VIEW ========== */
 .login-card { -fx-background-color: transparent; -fx-effect: null; }
 /* ========== NOTIFICATIONS ========== */
+.notifications-page-title {
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -fx-foreground;
+}
+.notifications-page-subtitle {
+    -fx-font-size: 14px;
+    -fx-text-fill: -fx-muted-foreground;
+    -fx-padding: 0 0 4 0;
+}
 .notification-unread {
     -fx-border-color: -fx-primary;
     -fx-border-width: 0 0 0 3px;
@@ -299,6 +309,23 @@
     -fx-padding: 4 8;
     -fx-background-radius: 6;
     -fx-font-size: 11px;
+}
+
+/* Virtualized job feed list – no cell chrome, full-width cards */
+.feed-job-list {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+.feed-job-list .list-cell {
+    -fx-background-color: transparent;
+    -fx-padding: 0 0 16 0;
+    -fx-border-width: 0;
+}
+.feed-job-list .list-cell:filled {
+    -fx-background-color: transparent;
+}
+.feed-job-list .list-cell .job-card {
+    -fx-max-width: infinity;
 }
 
 /* Bookmark toggle button (R-05) */
@@ -636,25 +663,52 @@
 }
 
 /* ========== PUBLIC PROFILE VIEW ========== */
+.main-scroll-pane {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+    -fx-padding: 0;
+}
+.main-scroll-pane > .viewport {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+}
+.main-scroll-pane .scroll-bar:horizontal {
+    -fx-pref-height: 0;
+    -fx-min-height: 0;
+    -fx-max-height: 0;
+    -fx-opacity: 0;
+    -fx-managed: false;
+}
+
+.content-container {
+    -fx-background-color: -fx-background;
+    -fx-max-width: infinity;
+    -fx-pref-width: infinity;
+}
+
 .profile-header-card {
     -fx-padding: 0;
     -fx-background-color: -fx-card;
     -fx-background-radius: 12px;
     -fx-effect: dropshadow(gaussian, -fx-shadow-color, 12, 0, 0, 4);
     -fx-min-height: 380px;
+    -fx-max-width: infinity;
 }
 
 .profile-cover {
     -fx-background-radius: 12 12 0 0;
     -fx-min-height: 180px;
+    -fx-pref-width: infinity;
+    -fx-max-width: infinity;
 }
 
 .profile-cover-placeholder {
     -fx-background-color: linear-gradient(to right, -fx-primary, -fx-primary-foreground);
     -fx-opacity: 0.15;
     -fx-background-radius: 12 12 0 0;
-    -fx-min-width: 1000px; /* Ensure fills width */
     -fx-min-height: 180px;
+    -fx-max-width: infinity;
+    -fx-pref-width: infinity;
 }
 
 .profile-avatar-large {
@@ -718,6 +772,49 @@
 .stat-label {
     -fx-font-size: 12px;
     -fx-text-fill: -fx-muted-foreground;
+}
+
+.text-strong {
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -fx-foreground;
+}
+.text-small-muted {
+    -fx-font-size: 12px;
+    -fx-text-fill: -fx-muted-foreground;
+}
+
+/* Profile tab strip — compact, no overflow */
+.profile-tabs {
+    -fx-background-color: transparent;
+    -fx-padding: 0 0 8 0;
+}
+.profile-tabs .tab-header-area {
+    -fx-padding: 0 0 4 0;
+}
+.profile-tabs .tab-header-background {
+    -fx-background-color: transparent;
+}
+.profile-tabs .tab-content-area {
+    -fx-padding: 16 0 0 0;
+    -fx-background-color: transparent;
+}
+.profile-tabs .tab {
+    -fx-padding: 8 16;
+    -fx-background-color: transparent;
+}
+.profile-tabs .tab:selected {
+    -fx-background-color: -fx-muted;
+    -fx-background-radius: 8;
+}
+.profile-tabs .tab-label {
+    -fx-font-size: 14px;
+    -fx-font-weight: 500;
+    -fx-text-fill: -fx-muted-foreground;
+}
+.profile-tabs .tab:selected .tab-label {
+    -fx-text-fill: -fx-foreground;
+    -fx-font-weight: 600;
 }
 
 /* Icons */

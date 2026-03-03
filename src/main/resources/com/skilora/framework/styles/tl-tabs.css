@@ -1,31 +1,32 @@
 /* TLTabs Component Styles */
-/* ========== TABS ========== */
+/* ========== TABS (pixel-perfect: rounded pills, 8px gap, two-row wrap) ========== */
 .tabs { -fx-spacing: 8px; }
 .tabs-list {
     -fx-background-insets: 0;
     -fx-background-color: -fx-muted;
-    -fx-background-radius: 6px;
-    -fx-padding: 4px;
-    -fx-hgap: 4px;
-    -fx-vgap: 4px;
+    -fx-background-radius: 8px;
+    -fx-padding: 6px;
+    -fx-hgap: 8px;
+    -fx-vgap: 8px;
     -fx-alignment: center-left;
 }
 .tabs-trigger {
     -fx-background-insets: 0;
     -fx-background-color: transparent;
     -fx-text-fill: -fx-muted-foreground;
-    -fx-background-radius: 6px;
-    -fx-padding: 6px 12px;
+    -fx-background-radius: 8px;
+    -fx-padding: 8px 14px;
     -fx-font-size: 13px;
     -fx-font-weight: 500;
     -fx-cursor: hand;
 }
-.tabs-trigger:hover { -fx-background-color: -fx-muted; }
+.tabs-trigger:hover { -fx-background-color: rgba(0,0,0,0.04); }
 .tabs-trigger-active {
     -fx-background-color: -fx-background;
     -fx-text-fill: -fx-foreground;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 2, 0, 0, 1);
+    -fx-font-weight: 600;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 2, 0, 0, 1);
 }
-.tabs-content-container { -fx-padding: 16px 0; }
+.tabs-content-container { -fx-padding: 0; -fx-min-height: 0; }
 .tabs-content { -fx-spacing: 8px; }
 

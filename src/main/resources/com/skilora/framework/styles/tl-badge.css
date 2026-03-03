@@ -27,4 +27,6 @@
 .badge-outline .label { -fx-text-fill: -fx-foreground; }
 .badge-success { -fx-background-color: -fx-success; }
 .badge-success .label { -fx-text-fill: -fx-success-foreground; }
+.badge-info { -fx-background-color: #2563eb; }
+.badge-info .label { -fx-text-fill: white; }
 

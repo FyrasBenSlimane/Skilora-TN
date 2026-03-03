@@ -1256,6 +1256,119 @@
     -fx-padding: 16px;
 }
 
+/* ========== FINANCE ADMIN (pixel-perfect) ========== */
+.finance-admin-page { -fx-spacing: 24px; }
+.finance-admin-title { -fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: -fx-foreground; }
+.finance-admin-subtitle { -fx-font-size: 14px; -fx-text-fill: -fx-muted-foreground; }
+
+.finance-admin-content {
+    -fx-spacing: 12px;
+    -fx-background-color: -fx-background;
+}
+
+.finance-titled-pane-add,
+.finance-titled-pane-list {
+    -fx-background-color: -fx-card;
+    -fx-background-radius: 8px;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+}
+.finance-titled-pane-add > .title,
+.finance-titled-pane-list > .title {
+    -fx-background-color: transparent;
+    -fx-padding: 12px 16px;
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
+    -fx-background-radius: 8px 8px 0 0;
+}
+.finance-titled-pane-add > .content,
+.finance-titled-pane-list > .content {
+    -fx-background-color: -fx-background;
+    -fx-padding: 12px;
+    -fx-background-radius: 0 0 8px 8px;
+}
+
+/* ========== FINANCE TABLE (theme-aligned: Contracts, Bank, Bonuses, Payslips) ========== */
+.finance-contracts-table,
+.finance-table {
+    -fx-background-color: -fx-card;
+    -fx-background-radius: 8px;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+.finance-contracts-table .table-cell,
+.finance-table .table-cell {
+    -fx-padding: 10px 16px;
+    -fx-text-fill: -fx-foreground;
+    -fx-border-color: transparent;
+    -fx-alignment: center-left;
+}
+
+.finance-contracts-table .column-header-background,
+.finance-contracts-table .column-header,
+.finance-table .column-header-background,
+.finance-table .column-header {
+    -fx-background-color: -fx-muted;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 0 0 1px 0;
+}
+.finance-contracts-table .column-header .label,
+.finance-table .column-header .label {
+    -fx-text-fill: -fx-foreground;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-padding: 12px 16px;
+}
+.finance-contracts-table .table-row-cell,
+.finance-table .table-row-cell {
+    -fx-background-color: -fx-card;
+    -fx-border-color: transparent transparent -fx-border transparent;
+    -fx-border-width: 0 0 1px 0;
+    -fx-font-size: 14px;
+}
+.finance-contracts-table .table-row-cell:odd,
+.finance-table .table-row-cell:odd {
+    -fx-background-color: -fx-card;
+}
+.finance-contracts-table .table-row-cell:even,
+.finance-table .table-row-cell:even {
+    -fx-background-color: derive(-fx-card, 2%);
+}
+.finance-contracts-table .table-row-cell:hover,
+.finance-table .table-row-cell:hover {
+    -fx-background-color: -fx-muted;
+}
+.finance-contracts-table .table-row-cell:selected,
+.finance-table .table-row-cell:selected {
+    -fx-background-color: -fx-muted;
+    -fx-table-cell-border-color: transparent;
+}
+.finance-contracts-table .table-row-cell .text,
+.finance-table .table-row-cell .text {
+    -fx-fill: -fx-foreground;
+}
+.finance-contracts-table .table-row-cell:selected .text,
+.finance-table .table-row-cell:selected .text {
+    -fx-fill: -fx-foreground;
+}
+.finance-contracts-table .table-row-cell:empty,
+.finance-table .table-row-cell:empty {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+.finance-table .placeholder .label,
+.finance-contracts-table .placeholder .label {
+    -fx-text-fill: -fx-muted-foreground;
+}
+.finance-table .corner,
+.finance-contracts-table .corner {
+    -fx-background-color: transparent;
+}
+
 .accordion { -fx-spacing: 1px; }
 .accordion-item {
     -fx-background-color: transparent;
@@ -2418,9 +2531,96 @@
 /* ── Offer Card Detail Chips ── */
 .offer-card {
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 6, 0, 0, 2);
+    -fx-background-radius: 12px;
+    -fx-border-radius: 12px;
 }
 .offer-card:hover {
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 8, 0, 0, 3);
+    -fx-border-color: -fx-primary;
+}
+
+/* ── Job Offer Card Improvements ── */
+.job-card-title {
+    -fx-font-size: 17px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -fx-foreground;
+    -fx-padding: 0 4 0 4;
+}
+
+.metadata-item {
+    -fx-padding: 4 8 4 8;
+    -fx-background-color: -fx-muted;
+    -fx-background-radius: 6px;
+    -fx-border-radius: 6px;
+}
+
+.metadata-item .label {
+    -fx-font-size: 12px;
+    -fx-font-weight: 500;
+}
+
+.status-badge {
+    -fx-font-size: 11px;
+    -fx-font-weight: 600;
+    -fx-padding: 3 8 3 8;
+    -fx-background-radius: 4px;
+}
+
+/* ── Support Ticket Card Improvements ── */
+.ticket-card {
+    -fx-background-radius: 10px;
+    -fx-border-radius: 10px;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+}
+
+.ticket-card:hover {
+    -fx-border-color: -fx-primary;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.10), 10, 0, 0, 3);
+}
+
+.ticket-subject {
+    -fx-font-size: 15px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -fx-foreground;
+    -fx-padding: 0 8 0 4;
+}
+
+.ticket-description {
+    -fx-font-size: 13px;
+    -fx-line-spacing: 1.2;
+    -fx-padding: 2 0 4 0;
+}
+
+.ticket-status-badge {
+    -fx-font-size: 10px;
+    -fx-font-weight: 700;
+    -fx-padding: 2 8 2 8;
+    -fx-background-radius: 4px;
+}
+
+.ticket-priority-badge {
+    -fx-font-size: 10px;
+    -fx-font-weight: 700;
+    -fx-padding: 2 8 2 8;
+    -fx-background-radius: 4px;
+}
+
+.ticket-metadata-item {
+    -fx-padding: 3 8 3 8;
+    -fx-background-color: transparent;
+    -fx-background-radius: 4px;
+    -fx-border-radius: 4px;
+}
+
+.ticket-metadata-item:hover {
+    -fx-background-color: -fx-muted;
+}
+
+.ticket-sla-item {
+    -fx-padding: 3 8 3 8;
+    -fx-background-color: transparent;
+    -fx-background-radius: 4px;
 }
 
 /* ── Quick Action buttons icon color (dashboard) ── */
@@ -2431,3 +2631,218 @@
     -fx-fill: -fx-primary-foreground;
 }
 
+/* ========== APPLICATIONS PAGE (Mes propositions) ========== */
+.applications-page {
+    -fx-background-color: -fx-background;
+}
+.root.light .applications-page {
+    -fx-background-color: #f5f5f5;
+}
+.applications-header {
+    -fx-padding: 0 0 8 0;
+    -fx-alignment: center-left;
+}
+.page-title {
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -fx-foreground;
+}
+.applications-stats {
+    -fx-font-size: 13px;
+    -fx-font-weight: normal;
+    -fx-text-fill: -fx-muted-foreground;
+}
+/* ── Scroll + Grid container ─────────────────────────────── */
+.applications-scroll {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+.applications-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+.applications-grid {
+    -fx-padding: 4;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   APPLICATION CARD — Grid tile layout (self-contained card)
+   ══════════════════════════════════════════════════════════════ */
+.app-card {
+    -fx-background-color: #18181b;
+    -fx-background-radius: 12;
+    -fx-border-color: #2a2b2e;
+    -fx-border-width: 1;
+    -fx-border-radius: 12;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.10), 8, 0, 0, 2);
+}
+.root.light .app-card {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #e4e4e7;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 6, 0, 0, 2);
+}
+.app-card:hover {
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.22), 16, 0, 0, 4);
+    -fx-border-color: #52525b;
+}
+.root.light .app-card:hover {
+    -fx-border-color: #a1a1aa;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 14, 0, 0, 3);
+}
+
+/* ── Status left-border accent per status ── */
+/* NOTE: JavaFX CSS cannot resolve lookup tokens inside multi-value properties,
+   so we use hardcoded hex colors. Dark border=#2a2b2e, Light border=#e4e4e7 */
+.app-card.app-card-pending   { -fx-border-color: #2a2b2e #2a2b2e #2a2b2e #71717a; -fx-border-width: 1 1 1 3; }
+.app-card.app-card-reviewing { -fx-border-color: #2a2b2e #2a2b2e #2a2b2e #3b82f6; -fx-border-width: 1 1 1 3; }
+.app-card.app-card-interview { -fx-border-color: #2a2b2e #2a2b2e #2a2b2e #8b5cf6; -fx-border-width: 1 1 1 3; }
+.app-card.app-card-offer     { -fx-border-color: #2a2b2e #2a2b2e #2a2b2e #f59e0b; -fx-border-width: 1 1 1 3; }
+.app-card.app-card-accepted  { -fx-border-color: #2a2b2e #2a2b2e #2a2b2e #22c55e; -fx-border-width: 1 1 1 3; }
+.app-card.app-card-rejected  { -fx-border-color: #2a2b2e #2a2b2e #2a2b2e #ef4444; -fx-border-width: 1 1 1 3; }
+.root.light .app-card.app-card-pending   { -fx-border-color: #e4e4e7 #e4e4e7 #e4e4e7 #71717a; -fx-border-width: 1 1 1 3; }
+.root.light .app-card.app-card-reviewing { -fx-border-color: #e4e4e7 #e4e4e7 #e4e4e7 #3b82f6; -fx-border-width: 1 1 1 3; }
+.root.light .app-card.app-card-interview { -fx-border-color: #e4e4e7 #e4e4e7 #e4e4e7 #8b5cf6; -fx-border-width: 1 1 1 3; }
+.root.light .app-card.app-card-offer     { -fx-border-color: #e4e4e7 #e4e4e7 #e4e4e7 #f59e0b; -fx-border-width: 1 1 1 3; }
+.root.light .app-card.app-card-accepted  { -fx-border-color: #e4e4e7 #e4e4e7 #e4e4e7 #22c55e; -fx-border-width: 1 1 1 3; }
+.root.light .app-card.app-card-rejected  { -fx-border-color: #e4e4e7 #e4e4e7 #e4e4e7 #ef4444; -fx-border-width: 1 1 1 3; }
+
+/* ── Card top section ── */
+.app-card-top {
+    -fx-background-color: transparent;
+}
+.app-card-timeago {
+    -fx-font-size: 10.5px;
+    -fx-text-fill: -fx-muted-foreground;
+    -fx-opacity: 0.75;
+}
+
+/* ── Card divider ── */
+.app-card-divider {
+    -fx-background-color: -fx-border;
+}
+.root.light .app-card-divider {
+    -fx-background-color: #e4e4e7;
+}
+
+/* ── Title ── */
+.app-card-title {
+    -fx-font-size: 14.5px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -fx-foreground;
+}
+
+/* ── Subtitle (company + location) ── */
+.app-card-subtitle {
+    -fx-font-size: 12px;
+    -fx-text-fill: -fx-muted-foreground;
+}
+
+/* ── Bottom section ── */
+.app-card-bottom {
+    -fx-background-color: transparent;
+}
+.app-card-applied-label {
+    -fx-font-size: 10px;
+    -fx-text-fill: -fx-muted-foreground;
+}
+.app-card-applied-date {
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -fx-foreground;
+}
+
+/* ── Score block (ring + label below) ── */
+.app-card-score-block {
+    -fx-alignment: center;
+    -fx-min-width: 52px;
+}
+.app-card-score-label {
+    -fx-font-size: 9.5px;
+    -fx-text-fill: -fx-muted-foreground;
+    -fx-font-weight: 500;
+    -fx-padding: 1 0 0 0;
+}
+
+/* ── Delete button ── */
+.app-card-delete-btn {
+    -fx-min-width: 26px;
+    -fx-max-width: 26px;
+    -fx-min-height: 26px;
+    -fx-max-height: 26px;
+    -fx-padding: 0;
+    -fx-alignment: center;
+    -fx-font-size: 11px;
+    -fx-text-fill: -fx-muted-foreground;
+    -fx-background-radius: 6px;
+    -fx-cursor: hand;
+}
+.app-card-delete-btn:hover {
+    -fx-background-color: -fx-destructive-bg;
+    -fx-text-fill: -fx-destructive;
+}
+
+/* ── Interview row ── */
+.app-card-interview-row {
+    -fx-background-color: derive(-fx-card, 4%);
+    -fx-background-radius: 0 0 12 12;
+}
+.root.light .app-card-interview-row {
+    -fx-background-color: #f8f9fb;
+}
+.app-card-interview-date {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -fx-foreground;
+}
+.app-card-interview-tag {
+    -fx-font-size: 10.5px;
+    -fx-text-fill: -fx-muted-foreground;
+}
+
+/* ── Status badge in card ── */
+.app-card .badge {
+    -fx-min-height: 24px;
+    -fx-padding: 3px 10px;
+    -fx-background-radius: 6px;
+    -fx-border-radius: 6px;
+    -fx-font-size: 11px;
+}
+
+/* ── Empty state ── */
+.app-card-empty {
+    -fx-background-color: -fx-card;
+    -fx-background-radius: 12px;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-border-radius: 12px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 6, 0, 0, 2);
+}
+
+/* ──── Legacy compat (keep old classes for other views) ──── */
+.application-line-card {
+    -fx-background-color: -fx-card;
+    -fx-background-radius: 8px;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 6, 0, 0, 2);
+}
+.root.light .application-line-card {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #e5e5e5;
+}
+.application-line-card:hover {
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 8, 0, 0, 2);
+}
+.application-line-top-row {
+    -fx-alignment: center-left;
+}
+.application-line-title {
+    -fx-font-size: 17px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -fx-foreground;
+}
+.application-line-meta {
+    -fx-font-size: 13px;
+    -fx-text-fill: -fx-muted-foreground;
+}
