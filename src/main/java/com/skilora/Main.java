@@ -13,6 +13,7 @@ import com.skilora.ui.AppFontLoader;
 import com.skilora.ui.SplashScreen;
 import com.skilora.config.DatabaseInitializer;
 import com.skilora.recruitment.service.JobService;
+import com.skilora.formation.service.CertificateVerificationServer;
 import com.skilora.framework.layouts.TLWindow;
 import com.skilora.framework.utils.WindowConfig;
 import com.skilora.utils.AppThreadPool;
@@ -42,6 +43,7 @@ public class Main extends Application {
 
         // Register shutdown hook to close database connections
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            CertificateVerificationServer.stop();
             AppThreadPool.shutdown();
             try {
                 com.skilora.config.DatabaseConfig.getInstance().closeConnection();
@@ -89,6 +91,8 @@ public class Main extends Application {
 
         Future<?> dbInitFuture = AppThreadPool.submit(() -> {
             DatabaseInitializer.initialize();
+            // Start certificate verification server after DB is ready
+            CertificateVerificationServer.start();
             Platform.runLater(() -> splash.setProgress(0.5, "Database ready."));
             return null;
         });

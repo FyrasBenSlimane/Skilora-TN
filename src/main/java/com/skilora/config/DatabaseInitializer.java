@@ -1371,6 +1371,8 @@ public class DatabaseInitializer {
                 logger.error("Error creating employment_contracts table: {}", e.getMessage(), e);
             }
         }
+        addColumnIfMissing(stmt, "employment_contracts", "company_name", "VARCHAR(255)");
+        addColumnIfMissing(stmt, "employment_contracts", "position", "VARCHAR(255)");
 
         if (!tableExists(stmt, "payslips")) {
             try {
@@ -2172,7 +2174,62 @@ public class DatabaseInitializer {
             stmt.execute("UPDATE payslips SET base_salary = gross_salary WHERE (base_salary IS NULL OR base_salary = 0) AND gross_salary > 0");
         } catch (SQLException e) { /* ignore */ }
 
+        // ---------- User: 2FA and Email Verification tables ----------
+        // Add columns to users table for 2FA
+        addColumnIfMissing(stmt, "users", "two_factor_enabled", "BOOLEAN DEFAULT FALSE");
+        addColumnIfMissing(stmt, "users", "two_factor_enabled_at", "DATETIME");
+        addColumnIfMissing(stmt, "users", "two_factor_locked_until", "DATETIME");
+        addColumnIfMissing(stmt, "users", "terms_accepted", "BOOLEAN DEFAULT FALSE");
+        addColumnIfMissing(stmt, "users", "terms_accepted_at", "DATETIME");
+
+        // Email verification table for registration
+        if (!tableExists(stmt, "email_verifications")) {
+            try {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS email_verifications (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        email VARCHAR(255) NOT NULL,
+                        otp_code VARCHAR(6) NOT NULL,
+                        attempts INT DEFAULT 0,
+                        used BOOLEAN DEFAULT FALSE,
+                        expired BOOLEAN DEFAULT FALSE,
+                        verified BOOLEAN DEFAULT FALSE,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        expires_at DATETIME NOT NULL,
+                        verified_at DATETIME,
+                        INDEX idx_email_verifications_email (email),
+                        INDEX idx_email_verifications_otp (otp_code)
+                    )
+                    """);
+                logger.info("Created 'email_verifications' table.");
+            } catch (SQLException e) { logger.debug("email_verifications: {}", e.getMessage()); }
+        }
+
+        // Two-factor authentication table for login
+        if (!tableExists(stmt, "two_factor_verifications")) {
+            try {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS two_factor_verifications (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT NOT NULL,
+                        otp_code VARCHAR(6) NOT NULL,
+                        attempts INT DEFAULT 0,
+                        used BOOLEAN DEFAULT FALSE,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        expires_at DATETIME NOT NULL,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                        INDEX idx_2fa_user_id (user_id),
+                        INDEX idx_2fa_otp (otp_code)
+                    )
+                    """);
+                logger.info("Created 'two_factor_verifications' table.");
+            } catch (SQLException e) { logger.debug("two_factor_verifications: {}", e.getMessage()); }
+        }
+
         logger.info("Integration v2 schema migration complete.");
+        
+        // Seed admin user
+        com.skilora.user.service.UserService.getInstance().seedAdminUser();
     }
 
     /**
