@@ -1,38 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
-<?import javafx.scene.layout.*?>
-<?import javafx.scene.control.*?>
 <?import javafx.geometry.Insets?>
-<?import com.skilora.framework.components.TLTextField?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 <?import com.skilora.framework.components.TLButton?>
+<?import com.skilora.framework.components.TLTextField?>
 
-<VBox xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.skilora.recruitment.controller.FeedController"
-      spacing="24"
-      styleClass="transparent-bg">
-    <padding><Insets top="32" right="32" bottom="32" left="32"/></padding>
-    
-    <!-- Header -->
-    <HBox spacing="24" alignment="CENTER_LEFT">
-        <VBox spacing="4">
-            <Label fx:id="feedTitle" text="" styleClass="h2"/>
-            <Label fx:id="feedSubtitle" text="" styleClass="text-muted"/>
-        </VBox>
-        
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.skilora.recruitment.controller.FeedController"
+      styleClass="page-container" spacing="16">
+    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+    <HBox spacing="12" alignment="CENTER_LEFT">
+        <TLTextField fx:id="searchField" promptText="Rechercher une offre..." prefWidth="300"/>
         <Region HBox.hgrow="ALWAYS"/>
-        
-        <TLButton fx:id="refreshBtn" text="" variant="GHOST" onAction="#handleRefresh"/>
-        <TLTextField fx:id="searchField" label="" promptText="" prefWidth="300"/>
+        <TLButton fx:id="refreshBtn" text="Actualiser" onAction="#handleRefresh"/>
     </HBox>
-    
-    <!-- Filter Tabs -->
-    <VBox fx:id="tabsBox" spacing="8" styleClass="pb-8"/>
-    
-    <!-- Grid Content -->
-    <ScrollPane fx:id="scrollPane" fitToWidth="true" 
-                styleClass="bg-transparent"
-                hbarPolicy="NEVER" VBox.vgrow="ALWAYS">
-        <FlowPane fx:id="grid" hgap="20" vgap="20" 
-                  styleClass="transparent-bg"/>
-    </ScrollPane>
+    <FlowPane fx:id="tabsBox" hgap="8" vgap="8"/>
+    <ListView fx:id="jobList" styleClass="feed-job-list" VBox.vgrow="ALWAYS"/>
 </VBox>

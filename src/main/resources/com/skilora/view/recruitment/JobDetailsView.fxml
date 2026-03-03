@@ -1,91 +1,75 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
-<?import javafx.scene.layout.*?>
-<?import javafx.scene.control.*?>
 <?import javafx.geometry.Insets?>
-<?import com.skilora.framework.components.*?>
-<?import com.skilora.framework.components.TLSeparator?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.*?>
+<?import com.skilora.framework.components.TLButton?>
 
-<VBox xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.skilora.recruitment.controller.JobDetailsController"
-      spacing="24"
-      styleClass="transparent-bg">
-    <padding><Insets top="32" right="32" bottom="32" left="32"/></padding>
-    
-    <HBox spacing="12" alignment="CENTER_LEFT">
-        <TLButton fx:id="backBtn" text="" variant="GHOST" onAction="#handleBack"/>
-    </HBox>
-    
-    <HBox spacing="24" alignment="TOP_LEFT">
-        <VBox alignment="CENTER" styleClass="bg-muted-rounded">
-            <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
-            <Label fx:id="companyInitials" text="" styleClass="h2"/>
-        </VBox>
-        
-        <VBox spacing="8" HBox.hgrow="ALWAYS">
-            <Label fx:id="jobTitle" text="" styleClass="h2"/>
-            <Label fx:id="companyName" text="" styleClass="h4"/>
-            <HBox spacing="12">
-                <Label fx:id="jobLocation" text="" styleClass="text-muted"/>
-                <Label fx:id="jobType" text="" styleClass="text-muted"/>
-                <Label fx:id="postedDate" text="" styleClass="text-muted"/>
+<ScrollPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.skilora.recruitment.controller.JobDetailsController" fitToWidth="true" style="-fx-background-color: transparent; -fx-padding: 0;">
+    <VBox styleClass="page-container" spacing="16">
+        <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+        <!-- Back button -->
+        <HBox spacing="12" alignment="CENTER_LEFT">
+            <TLButton fx:id="backBtn" text="← Retour" variant="OUTLINE" onAction="#handleBack"/>
+        </HBox>
+
+        <VBox spacing="16" styleClass="card" style="-fx-padding: 24;">
+            <!-- Header -->
+            <HBox spacing="16" alignment="CENTER_LEFT">
+                <Label fx:id="companyInitials" styleClass="h2" minWidth="64" minHeight="64"
+                       style="-fx-background-color:-fx-primary; -fx-text-fill: white; -fx-background-radius:8; -fx-alignment:center;"/>
+                <VBox spacing="4">
+                    <Label fx:id="jobTitle" styleClass="page-title" wrapText="true"/>
+                    <Label fx:id="companyName" styleClass="text-muted, h3"/>
+                </VBox>
             </HBox>
+            <!-- Meta row -->
+            <FlowPane hgap="24" vgap="12">
+                <Label fx:id="jobLocation" styleClass="badge, badge-outline"/>
+                <Label fx:id="jobType" styleClass="badge, badge-outline"/>
+                <Label fx:id="postedDate" styleClass="text-muted"/>
+                <Label fx:id="salaryRange" styleClass="text-muted"/>
+            </FlowPane>
         </VBox>
-        
-        <VBox spacing="12" alignment="TOP_RIGHT">
-            <TLButton fx:id="applyBtn" text="" variant="PRIMARY" onAction="#handleApply"/>
-            <TLButton fx:id="saveBtn" text="" variant="OUTLINE" onAction="#handleSave"/>
+
+        <VBox spacing="16" styleClass="card" style="-fx-padding: 24;">
+            <!-- AI insights -->
+            <HBox spacing="16">
+                <Label fx:id="matchScoreLabel" styleClass="badge, badge-info"/>
+                <Label fx:id="candidateScoreLabel" styleClass="badge, badge-warning"/>
+                <Label fx:id="applicantCount" styleClass="text-muted"/>
+                <Label fx:id="viewCount" styleClass="text-muted"/>
+            </HBox>
+            <Label fx:id="recommendationLabel" wrapText="true" visible="false" managed="false" styleClass="alert, alert-info"/>
         </VBox>
-    </HBox>
-    
-    <TLSeparator/>
-    
-    <ScrollPane fitToWidth="true" styleClass="transparent-bg" VBox.vgrow="ALWAYS">
-        <VBox spacing="24">
-            <padding><Insets top="0" right="16" bottom="0" left="0"/></padding>
-            
-            <VBox spacing="12">
-                <Label fx:id="descriptionHeader" text="" styleClass="h3"/>
-                <Label fx:id="jobDescription" wrapText="true" styleClass="text-muted" text=""/>
+
+        <VBox spacing="16" styleClass="card" style="-fx-padding: 24;">
+            <!-- Description -->
+            <VBox spacing="8">
+                <Label text="Description" styleClass="h3"/>
+                <Label fx:id="jobDescription" wrapText="true" maxWidth="Infinity" style="-fx-font-size: 14px; -fx-line-spacing: 4px;"/>
             </VBox>
             
-            <VBox spacing="12">
-                <Label fx:id="skillsHeader" text="" styleClass="h3"/>
+            <Separator style="-fx-padding: 8 0 8 0;"/>
+
+            <!-- Skills -->
+            <VBox spacing="8">
+                <Label text="Compétences requises" styleClass="h3"/>
                 <FlowPane fx:id="skillsContainer" hgap="8" vgap="8"/>
             </VBox>
-            
-            <VBox spacing="12">
-                <Label fx:id="salaryHeader" text="" styleClass="h3"/>
-                <Label fx:id="salaryRange" text="" styleClass="h4"/>
-            </VBox>
-            
-            <VBox spacing="12">
-                <Label fx:id="benefitsHeader" text="" styleClass="h3"/>
-                <VBox fx:id="benefitsList" spacing="8"/>
-            </VBox>
-            
-            <!-- AI Insights -->
-            <VBox spacing="8">
-                <HBox spacing="16">
-                    <Label fx:id="matchScoreLabel" styleClass="text-muted" text="Match: -"/>
-                    <Label fx:id="candidateScoreLabel" styleClass="text-muted" text="Score candidat: -"/>
-                </HBox>
-                <Label fx:id="recommendationLabel" wrapText="true" styleClass="text-muted" text="Recommandations: -"/>
-            </VBox>
 
-            <VBox spacing="12">
-                <Label fx:id="statsHeader" text="" styleClass="h3"/>
-                <HBox spacing="24">
-                    <VBox spacing="4">
-                        <Label fx:id="applicantCount" text="0" styleClass="h3"/>
-                        <Label fx:id="applicantCountLabel" text="" styleClass="text-muted"/>
-                    </VBox>
-                    <VBox spacing="4">
-                        <Label fx:id="viewCount" text="0" styleClass="h3"/>
-                        <Label fx:id="viewCountLabel" text="" styleClass="text-muted"/>
-                    </VBox>
-                </HBox>
+            <!-- Benefits -->
+            <VBox spacing="8">
+                <Label text="Avantages" styleClass="h3"/>
+                <VBox fx:id="benefitsList" spacing="4"/>
             </VBox>
         </VBox>
-    </ScrollPane>
-</VBox>
+
+        <!-- Actions -->
+        <VBox spacing="16" styleClass="card" style="-fx-padding: 24;">
+            <HBox spacing="12" alignment="CENTER_RIGHT">
+                <TLButton fx:id="saveBtn" text="Sauvegarder" variant="OUTLINE" onAction="#handleSave"/>
+                <TLButton fx:id="applyBtn" text="Postuler" variant="PRIMARY" onAction="#handleApply"/>
+            </HBox>
+        </VBox>
+    </VBox>
+</ScrollPane>

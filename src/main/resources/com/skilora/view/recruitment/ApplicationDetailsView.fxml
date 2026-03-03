@@ -18,12 +18,16 @@
             fx:controller="com.skilora.recruitment.controller.ApplicationDetailsController"
             minWidth="900" minHeight="640" prefWidth="960" prefHeight="720">
 
-    <!-- Persistent header -->
+    <!-- ── Persistent header ─────────────────────────────────── -->
     <top>
         <VBox styleClass="app-topbar" spacing="0">
             <padding><Insets top="16" right="24" bottom="16" left="24"/></padding>
             <HBox spacing="18" alignment="CENTER_LEFT">
+
+                <!-- Avatar -->
                 <TLAvatar fx:id="candidateAvatar"/>
+
+                <!-- Name + job meta -->
                 <VBox spacing="4" HBox.hgrow="ALWAYS">
                     <Label fx:id="candidateNameLabel" styleClass="page-title"/>
                     <Label fx:id="jobInfoLabel"       styleClass="text-muted"/>
@@ -33,6 +37,8 @@
                         <Label fx:id="appliedDateLabel" styleClass="text-muted"/>
                     </HBox>
                 </VBox>
+
+                <!-- Match + Status badges (right side) -->
                 <VBox spacing="6" alignment="CENTER_RIGHT" minWidth="140">
                     <Label fx:id="matchBadgeLabel"/>
                     <Label fx:id="statusBadgeLabel"/>
@@ -42,9 +48,11 @@
         </VBox>
     </top>
 
-    <!-- Tabbed content -->
+    <!-- ── Tabbed content ────────────────────────────────────── -->
     <center>
         <TabPane fx:id="mainTabPane" tabClosingPolicy="UNAVAILABLE">
+
+            <!-- ─── TAB 1 : Profil candidat ─── -->
             <Tab text="👤  Profil candidat">
                 <ScrollPane fitToWidth="true" styleClass="transparent-bg">
                     <VBox fx:id="profileTabContent" spacing="20">
@@ -52,6 +60,8 @@
                     </VBox>
                 </ScrollPane>
             </Tab>
+
+            <!-- ─── TAB 2 : Candidature ─── -->
             <Tab text="📄  Candidature">
                 <ScrollPane fitToWidth="true" styleClass="transparent-bg">
                     <VBox fx:id="applicationTabContent" spacing="20">
@@ -59,6 +69,8 @@
                     </VBox>
                 </ScrollPane>
             </Tab>
+
+            <!-- ─── TAB 3 : Matching ─── -->
             <Tab text="🎯  Analyse matching">
                 <ScrollPane fitToWidth="true" styleClass="transparent-bg">
                     <VBox fx:id="matchingTabContent" spacing="20">
@@ -66,6 +78,8 @@
                     </VBox>
                 </ScrollPane>
             </Tab>
+
+            <!-- ─── TAB 4 : Offre d'emploi ─── -->
             <Tab text="💼  Offre d'emploi">
                 <ScrollPane fitToWidth="true" styleClass="transparent-bg">
                     <VBox fx:id="offerTabContent" spacing="20">
@@ -73,21 +87,25 @@
                     </VBox>
                 </ScrollPane>
             </Tab>
+
         </TabPane>
     </center>
 
-    <!-- Action bar -->
+    <!-- ── Persistent action bar ─────────────────────────────── -->
     <bottom>
         <HBox spacing="10" alignment="CENTER_LEFT">
             <padding><Insets top="12" right="20" bottom="12" left="20"/></padding>
             <style>-fx-background-color: -fx-card; -fx-border-color: -fx-border; -fx-border-width: 1 0 0 0;</style>
+
             <Button fx:id="acceptBtn"    text="✓ Accepter"              onAction="#handleAccept"/>
             <Button fx:id="reviewBtn"    text="🔍 En révision"           onAction="#handleReview"/>
             <Button fx:id="interviewBtn" text="📅 Programmer entretien"  onAction="#handleScheduleInterview"/>
             <Button fx:id="rejectBtn"    text="✗ Refuser"               onAction="#handleReject"/>
+
             <Region HBox.hgrow="ALWAYS"/>
             <Label fx:id="actionFeedbackLabel" styleClass="text-muted"/>
             <Button fx:id="closeBtn" text="Fermer" onAction="#handleClose"/>
         </HBox>
     </bottom>
+
 </BorderPane>
