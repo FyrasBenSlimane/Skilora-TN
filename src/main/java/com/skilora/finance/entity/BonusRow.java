@@ -33,4 +33,5 @@ public class BonusRow {
     public void setReason(String reason) { this.reason = reason; }
 
     public String getDateAwarded() { return dateAwarded; }
+    public void setDateAwarded(String dateAwarded) { this.dateAwarded = dateAwarded; }
 }

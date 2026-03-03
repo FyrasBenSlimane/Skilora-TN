@@ -6,7 +6,7 @@ package com.skilora.finance.entity;
  * Includes auto-calculated CNSS, IRPP, and net pay.
  */
 public class PayslipRow {
-    private int id, userId, month, year;
+    private int id, userId, contractId, month, year;
     private String employeeName, currency, status;
     private double baseSalary, overtime, overtimeTotal, bonuses, gross, cnss, irpp, otherDeductions, totalDeductions, net;
 
@@ -39,6 +39,9 @@ public class PayslipRow {
 
     public int getUserId() { return userId; }
     public void setUserId(int userId) { this.userId = userId; }
+
+    public int getContractId() { return contractId; }
+    public void setContractId(int contractId) { this.contractId = contractId; }
 
     public String getEmployeeName() { return employeeName; }
     public void setEmployeeName(String employeeName) { this.employeeName = employeeName; }

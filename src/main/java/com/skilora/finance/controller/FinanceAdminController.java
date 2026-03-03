@@ -4,11 +4,15 @@ import com.skilora.framework.components.*;
 import com.skilora.user.entity.*;
 import com.skilora.finance.entity.*;
 import com.skilora.finance.service.*;
+import com.skilora.user.service.UserService;
 import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.DialogUtils;
 import com.skilora.utils.I18n;
 import com.skilora.utils.SvgIcons;
 import javafx.application.Platform;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -19,27 +23,156 @@ import javafx.scene.layout.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.skilora.finance.utils.PDFGenerator;
+import javafx.stage.FileChooser;
+import javafx.stage.Stage;
+
+import java.io.File;
 import java.math.BigDecimal;
 import java.net.URL;
+import java.text.NumberFormat;
 import java.time.LocalDate;
+import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
- * FinanceAdminController - Admin/employer view for managing contracts, payroll, and payments.
- * Tab-based interface with full CRUD and payroll generation capabilities.
+ * FinanceAdminController - Admin finance view (branch layout: TabPane + forms/tables in FXML).
+ * Pixel-perfect copy from GestionFinance branch: Contracts, Bank Accounts, Bonuses, Payslips, Reports.
  */
 public class FinanceAdminController implements Initializable {
 
     private static final Logger logger = LoggerFactory.getLogger(FinanceAdminController.class);
 
-    @FXML private Label titleLabel;
-    @FXML private Label subtitleLabel;
-    @FXML private HBox tabBox;
-    @FXML private VBox contentPane;
-    @FXML private TLButton headerActionBtn;
+    @FXML private TLTextField mainSearchField;
+
+    // Contract tab (FXML-injected)
+    @FXML private TLComboBox<String> contract_userIdCombo;
+    @FXML private TLTextField contract_companyIdField;
+    @FXML private TLComboBox<String> contract_typeCombo;
+    @FXML private TLTextField contract_positionField;
+    @FXML private TLTextField contract_salaryField;
+    @FXML private TLDatePicker contract_startDatePicker;
+    @FXML private TLDatePicker contract_endDatePicker;
+    @FXML private TLComboBox<String> contract_statusCombo;
+    @FXML private Label contract_seniorityLabel;
+    @FXML private Label contract_errorLabel;
+    @FXML private TableView<EmploymentContract> contractTable;
+    @FXML private TableColumn<EmploymentContract, String> contract_userCol;
+    @FXML private TableColumn<EmploymentContract, String> contract_companyCol;
+    @FXML private TableColumn<EmploymentContract, String> contract_typeCol;
+    @FXML private TableColumn<EmploymentContract, String> contract_positionCol;
+    @FXML private TableColumn<EmploymentContract, String> contract_salaryCol;
+    @FXML private TableColumn<EmploymentContract, String> contract_startCol;
+    @FXML private TableColumn<EmploymentContract, String> contract_endCol;
+    @FXML private TableColumn<EmploymentContract, String> contract_statusCol;
+    @FXML private Label contract_countLabel;
+    @FXML private TLButton contract_addBtn;
+    @FXML private TLButton contract_updateBtn;
+    @FXML private TLButton contract_clearBtn;
+    @FXML private TLButton contract_deleteBtn;
+    @FXML private TableColumn<EmploymentContract, ?> contract_idCol;
+
+    // Bank tab
+    @FXML private TLComboBox<String> bank_userIdCombo;
+    @FXML private TLTextField bank_nameField;
+    @FXML private TLTextField bank_ibanField;
+    @FXML private TLTextField bank_swiftField;
+    @FXML private TLComboBox<String> bank_currencyCombo;
+    @FXML private TLComboBox<String> bank_primaryCombo;
+    @FXML private TLComboBox<String> bank_verifiedCombo;
+    @FXML private Label bank_errorLabel;
+    @FXML private TableView<com.skilora.finance.entity.BankAccountRow> bankAccountTable;
+    @FXML private TableColumn<com.skilora.finance.entity.BankAccountRow, String> bank_userCol;
+    @FXML private TableColumn<com.skilora.finance.entity.BankAccountRow, String> bank_nameCol;
+    @FXML private TableColumn<com.skilora.finance.entity.BankAccountRow, String> bank_ibanCol;
+    @FXML private TableColumn<com.skilora.finance.entity.BankAccountRow, String> bank_swiftCol;
+    @FXML private TableColumn<com.skilora.finance.entity.BankAccountRow, String> bank_currencyCol;
+    @FXML private TableColumn<com.skilora.finance.entity.BankAccountRow, String> bank_primaryCol;
+    @FXML private TableColumn<com.skilora.finance.entity.BankAccountRow, String> bank_verifiedCol;
+    @FXML private Label bank_countLabel;
+    @FXML private TLButton bank_addBtn;
+    @FXML private TLButton bank_updateBtn;
+    @FXML private TLButton bank_clearBtn;
+    @FXML private TLButton bank_deleteBtn;
+    @FXML private TableColumn<com.skilora.finance.entity.BankAccountRow, ?> bank_idCol;
+
+    // Bonus tab
+    @FXML private TLComboBox<String> bonus_userIdCombo;
+    @FXML private TLTextField bonus_amountField;
+    @FXML private TLTextField bonus_reasonField;
+    @FXML private Label bonus_errorLabel;
+    @FXML private TableView<com.skilora.finance.entity.BonusRow> bonusTable;
+    @FXML private TableColumn<com.skilora.finance.entity.BonusRow, String> bonus_userCol;
+    @FXML private TableColumn<com.skilora.finance.entity.BonusRow, String> bonus_amountCol;
+    @FXML private TableColumn<com.skilora.finance.entity.BonusRow, String> bonus_reasonCol;
+    @FXML private TableColumn<com.skilora.finance.entity.BonusRow, String> bonus_dateCol;
+    @FXML private Label bonus_countLabel;
+    @FXML private TLButton bonus_addBtn;
+    @FXML private TLButton bonus_updateBtn;
+    @FXML private TLButton bonus_clearBtn;
+    @FXML private TLButton bonus_deleteBtn;
+    @FXML private TableColumn<com.skilora.finance.entity.BonusRow, ?> bonus_idCol;
+
+    // Payslip tab
+    @FXML private TLComboBox<String> payslip_userIdCombo;
+    @FXML private TLComboBox<Integer> payslip_monthCombo;
+    @FXML private TLComboBox<Integer> payslip_yearCombo;
+    @FXML private TLComboBox<String> payslip_currencyCombo;
+    @FXML private TLTextField payslip_baseSalaryField;
+    @FXML private TLTextField payslip_overtimeField;
+    @FXML private TLTextField payslip_overtimeRateField;
+    @FXML private TLTextField payslip_bonusesField;
+    @FXML private TLTextField payslip_cnssField;
+    @FXML private TLTextField payslip_irppField;
+    @FXML private TLTextField payslip_otherDeductionsField;
+    @FXML private TLComboBox<String> payslip_statusCombo;
+    @FXML private Label payslip_grossLabel;
+    @FXML private Label payslip_cnssLabel;
+    @FXML private Label payslip_irppLabel;
+    @FXML private Label payslip_totalDeductionsLabel;
+    @FXML private Label payslip_netLabel;
+    @FXML private Label payslip_errorLabel;
+    @FXML private TableView<com.skilora.finance.entity.PayslipRow> payslipTable;
+    @FXML private TableColumn<com.skilora.finance.entity.PayslipRow, String> payslip_userCol;
+    @FXML private TableColumn<com.skilora.finance.entity.PayslipRow, String> payslip_periodCol;
+    @FXML private TableColumn<com.skilora.finance.entity.PayslipRow, String> payslip_baseCol;
+    @FXML private TableColumn<com.skilora.finance.entity.PayslipRow, String> payslip_overtimeCol;
+    @FXML private TableColumn<com.skilora.finance.entity.PayslipRow, String> payslip_bonusCol;
+    @FXML private TableColumn<com.skilora.finance.entity.PayslipRow, String> payslip_grossCol;
+    @FXML private TableColumn<com.skilora.finance.entity.PayslipRow, String> payslip_deductCol;
+    @FXML private TableColumn<com.skilora.finance.entity.PayslipRow, String> payslip_netCol;
+    @FXML private TableColumn<com.skilora.finance.entity.PayslipRow, String> payslip_statusCol;
+    @FXML private Label payslip_countLabel;
+    @FXML private TLButton payslip_calculateBtn;
+    @FXML private TLButton payslip_addBtn;
+    @FXML private TLButton payslip_updateBtn;
+    @FXML private TLButton payslip_pdfBtn;
+    @FXML private TLButton payslip_clearBtn;
+    @FXML private TLButton payslip_deleteBtn;
+    @FXML private TableColumn<com.skilora.finance.entity.PayslipRow, ?> payslip_idCol;
+
+    // Reports tab
+    @FXML private TLComboBox<String> report_employeeCombo;
+    @FXML private TLTextField tax_grossField;
+    @FXML private TLComboBox<String> tax_currencyCombo;
+    @FXML private javafx.scene.layout.VBox tax_resultsBox;
+    @FXML private javafx.scene.layout.VBox tax_hintBox;
+    @FXML private Label tax_grossResult;
+    @FXML private Label tax_cnssResult;
+    @FXML private Label tax_irppResult;
+    @FXML private Label tax_totalDeductResult;
+    @FXML private Label tax_netResult;
+    @FXML private Label tax_rateResult;
+    @FXML private Label tax_summaryLabel;
+    @FXML private Label tax_employeeLabelResult;
+    @FXML private TLButton report_generateBtn;
+    @FXML private TLButton tax_calculateBtn;
+    @FXML private TextArea tax_resultArea;
 
     private User currentUser;
+    private EmploymentContract selectedContract;
+    private final ObservableList<EmploymentContract> contractData = FXCollections.observableArrayList();
 
     private final ContractService contractService = ContractService.getInstance();
     private final PayslipService payslipService = PayslipService.getInstance();
@@ -51,1452 +184,1187 @@ public class FinanceAdminController implements Initializable {
     private final TaxConfigurationService taxConfigurationService = TaxConfigurationService.getInstance();
     private final FinanceDataService financeDataService = FinanceDataService.getInstance();
     private final FinanceChatbotService chatbotService = FinanceChatbotService.getInstance();
+    private final UserService userService = UserService.getInstance();
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        titleLabel.setText(I18n.get("finance.admin.title"));
-        subtitleLabel.setText(I18n.get("finance.admin.subtitle"));
-        createTabs();
+        if (contractTable != null) {
+            initializeContractTab();
+            initializeBankTab();
+            initializeBonusTab();
+            initializePayslipTab();
+            initializeReportsTab();
+        }
     }
 
     public void setCurrentUser(User user) {
         this.currentUser = user;
         if (user == null || (user.getRole() != com.skilora.user.enums.Role.ADMIN
                 && user.getRole() != com.skilora.user.enums.Role.EMPLOYER)) {
-            if (contentPane != null && contentPane.getScene() != null) {
-                TLToast.error(contentPane.getScene(), I18n.get("errorpage.access_denied"),
+            javafx.scene.Node node = mainSearchField != null ? mainSearchField : (contractTable != null ? contractTable : null);
+            if (node != null && node.getScene() != null) {
+                TLToast.error(node.getScene(), I18n.get("errorpage.access_denied"),
                         I18n.get("errorpage.access_denied.desc"));
             }
             return;
         }
-        showContractsTab();
     }
 
-    // ==================== Tab Navigation ====================
+    private javafx.scene.Scene getScene() {
+        if (mainSearchField != null && mainSearchField.getScene() != null) return mainSearchField.getScene();
+        if (contractTable != null && contractTable.getScene() != null) return contractTable.getScene();
+        return null;
+    }
 
-    private void createTabs() {
-        tabBox.getChildren().clear();
-        TLTabs tabs = new TLTabs();
-        tabs.addTab("contracts", I18n.get("finance.admin.tab.contracts"), (javafx.scene.Node) null);
-        tabs.addTab("payroll", I18n.get("finance.admin.tab.payroll"), (javafx.scene.Node) null);
-        tabs.addTab("payments", I18n.get("finance.admin.tab.payments"), (javafx.scene.Node) null);
-        tabs.addTab("transactions", I18n.get("finance.admin.tab.transactions"), (javafx.scene.Node) null);
-        tabs.addTab("escrow", I18n.get("finance.admin.tab.escrow"), (javafx.scene.Node) null);
-        tabs.addTab("tax", I18n.get("finance.admin.tab.tax"), (javafx.scene.Node) null);
-        tabs.addTab("rates", I18n.get("finance.admin.tab.rates"), (javafx.scene.Node) null);
-        tabs.addTab("reports", I18n.get("finance.admin.tab.reports"), (javafx.scene.Node) null);
-        tabs.addTab("team", "Team Overview", (javafx.scene.Node) null);
-        tabs.addTab("chatbot", "Chatbot", (javafx.scene.Node) null);
-        tabs.setOnTabChanged(tabId -> {
-            switch (tabId) {
-                case "contracts" -> showContractsTab();
-                case "payroll" -> showPayrollTab();
-                case "payments" -> showPaymentsTab();
-                case "transactions" -> showTransactionsTab();
-                case "escrow" -> showEscrowTab();
-                case "tax" -> showTaxTab();
-                case "rates" -> showRatesTab();
-                case "reports" -> showReportsTab();
-                case "team" -> showTeamTab();
-                case "chatbot" -> showChatbotTab();
-            }
+    // ==================== Contracts tab (FXML layout) ====================
+
+    private void initializeContractTab() {
+        DateTimeFormatter df = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        contract_userCol.setCellValueFactory(c -> new SimpleStringProperty(
+            c.getValue().getUserName() != null ? c.getValue().getUserName() : "#" + c.getValue().getUserId()));
+        contract_companyCol.setCellValueFactory(c -> new SimpleStringProperty(
+            c.getValue().getCompanyName() != null ? c.getValue().getCompanyName() : (c.getValue().getEmployerName() != null ? c.getValue().getEmployerName() : "")));
+        contract_typeCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getContractType() != null ? c.getValue().getContractType() : ""));
+        contract_positionCol.setCellValueFactory(c -> new SimpleStringProperty(
+            c.getValue().getPosition() != null ? c.getValue().getPosition() : (c.getValue().getJobTitle() != null ? c.getValue().getJobTitle() : "")));
+        contract_salaryCol.setCellValueFactory(c -> {
+            EmploymentContract x = c.getValue();
+            if (x.getSalaryBase() == null) return new SimpleStringProperty("-");
+            String curr = x.getCurrency() != null ? x.getCurrency() : "TND";
+            return new SimpleStringProperty(String.format("%.2f", x.getSalaryBase().doubleValue()) + " " + curr);
         });
-        tabBox.getChildren().add(tabs);
+        contract_startCol.setCellValueFactory(c -> new SimpleStringProperty(
+            c.getValue().getStartDate() != null ? c.getValue().getStartDate().format(df) : ""));
+        contract_endCol.setCellValueFactory(c -> new SimpleStringProperty(
+            c.getValue().getEndDate() != null ? c.getValue().getEndDate().format(df) : ""));
+        contract_statusCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getStatus() != null ? c.getValue().getStatus() : ""));
+
+        contract_typeCombo.getItems().setAll("CDI", "CDD", "SIVP", "STAGE");
+        contract_typeCombo.setValue("CDI");
+        contract_statusCombo.getItems().setAll("DRAFT", "PENDING_SIGNATURE", "ACTIVE", "TERMINATED", "EXPIRED");
+        contract_statusCombo.setValue("ACTIVE");
+
+        if (contract_startDatePicker != null) contract_startDatePicker.valueProperty().addListener((o, a, b) -> updateContractSeniorityLabel());
+        if (contract_endDatePicker != null) contract_endDatePicker.valueProperty().addListener((o, a, b) -> updateContractSeniorityLabel());
+
+        contractTable.setItems(contractData);
+        contractTable.getSelectionModel().selectedItemProperty().addListener((o, a, c) -> onContractSelected());
+
+        loadContractEmployeeCombo();
+        handleRefreshContracts();
     }
 
-    private void hideHeaderAction() {
-        headerActionBtn.setVisible(false);
-        headerActionBtn.setManaged(false);
-    }
-
-    // ==================== Contracts Management Tab ====================
-
-    private void showContractsTab() {
-        contentPane.getChildren().clear();
-        contentPane.getChildren().add(createLoadingIndicator());
-
-        Task<List<EmploymentContract>> task = new Task<>() {
+    private void loadContractEmployeeCombo() {
+        Task<List<User>> task = new Task<>() {
             @Override
-            protected List<EmploymentContract> call() throws Exception {
-                return contractService.findByStatus("ACTIVE");
+            protected List<User> call() {
+                return userService.findAll();
             }
         };
-
         task.setOnSucceeded(e -> {
-            List<EmploymentContract> contracts = task.getValue();
-            Platform.runLater(() -> displayContracts(contracts));
+            List<User> users = task.getValue();
+            if (users != null && contract_userIdCombo != null) {
+                ObservableList<String> items = FXCollections.observableArrayList();
+                for (User u : users) {
+                    String name = u.getFullName() != null ? u.getFullName() : ("User #" + u.getId());
+                    items.add(u.getId() + " - " + name);
+                }
+                contract_userIdCombo.getItems().setAll(items);
+            }
         });
-
-        task.setOnFailed(e -> {
-            logger.error("Failed to load contracts", task.getException());
-            Platform.runLater(() -> {
-                contentPane.getChildren().clear();
-                contentPane.getChildren().add(createEmptyState(I18n.get("finance.admin.contracts.error")));
-            });
-        });
-
         AppThreadPool.execute(task);
     }
 
-    private void displayContracts(List<EmploymentContract> contracts) {
-        contentPane.getChildren().clear();
-
-        // Show Create button in header
-        headerActionBtn.setText(I18n.get("finance.admin.contract.create"));
-        headerActionBtn.setOnAction(e -> showCreateContractDialog());
-        headerActionBtn.setVisible(true);
-        headerActionBtn.setManaged(true);
-
-        if (contracts == null || contracts.isEmpty()) {
-            contentPane.getChildren().add(createEmptyState(SvgIcons.FILE_TEXT, "No contracts found", "Active employment contracts will appear here."));
+    private void updateContractSeniorityLabel() {
+        if (contract_seniorityLabel == null) return;
+        LocalDate start = contract_startDatePicker != null ? contract_startDatePicker.getValue() : null;
+        LocalDate end = contract_endDatePicker != null ? contract_endDatePicker.getValue() : null;
+        if (start == null) {
+            contract_seniorityLabel.setText(I18n.get("finance.admin.contract.seniority") + " : —");
             return;
         }
+        if (end == null) end = LocalDate.now();
+        Period p = Period.between(start, end);
+        String s = p.getYears() + " " + I18n.get("finance.admin.contract.years") + ", " +
+            p.getMonths() + " " + I18n.get("finance.admin.contract.months");
+        contract_seniorityLabel.setText(I18n.get("finance.admin.contract.seniority") + " : " + s);
+    }
 
-        VBox contractList = new VBox(12);
-
-        for (EmploymentContract contract : contracts) {
-            TLCard card = new TLCard();
-
-            VBox content = new VBox(8);
-
-            // Employee name header
-            Label nameLabel = new Label(contract.getUserName() != null
-                    ? contract.getUserName() : I18n.get("finance.admin.contract.user") + " #" + contract.getUserId());
-            nameLabel.getStyleClass().addAll("text-base", "font-bold");
-
-            TLBadge statusBadge = new TLBadge(
-                    contract.getStatus() != null ? contract.getStatus() : "DRAFT",
-                    getContractBadgeVariant(contract.getStatus()));
-
-            HBox header = new HBox(12, nameLabel, statusBadge);
-            header.setAlignment(Pos.CENTER_LEFT);
-
-            content.getChildren().add(header);
-
-            content.getChildren().add(createDetailRow(
-                    I18n.get("finance.contract.type"), contract.getContractType()));
-
-            content.getChildren().add(createDetailRow(
-                    I18n.get("finance.contract.salary"),
-                    contract.getSalaryBase() != null
-                            ? contract.getSalaryBase().toPlainString() + " " + contract.getCurrency()
-                            : "-"));
-
-            content.getChildren().add(createDetailRow(
-                    I18n.get("finance.contract.start_date"),
-                    contract.getStartDate() != null
-                            ? contract.getStartDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-                            : "-"));
-
-            if (contract.getJobTitle() != null) {
-                content.getChildren().add(createDetailRow(
-                        I18n.get("finance.admin.contract.job"), contract.getJobTitle()));
-            }
-
-            card.setContent(content);
-            contractList.getChildren().add(card);
+    private void showContractError(String message) {
+        if (contract_errorLabel != null) {
+            contract_errorLabel.setText(message);
+            contract_errorLabel.setVisible(true);
+            contract_errorLabel.setManaged(true);
         }
-
-        ScrollPane scrollPane = new ScrollPane(contractList);
-        scrollPane.setFitToWidth(true);
-        scrollPane.getStyleClass().add("bg-transparent");
-        VBox.setVgrow(scrollPane, Priority.ALWAYS);
-        contentPane.getChildren().add(scrollPane);
     }
 
-    private void showCreateContractDialog() {
-        TLDialog<ButtonType> dialog = new TLDialog<>();
-        dialog.setDialogTitle(I18n.get("finance.admin.contract.create"));
-        dialog.setDescription(I18n.get("finance.admin.contract.create.description"));
-
-        TLTextField userIdField = new TLTextField(I18n.get("finance.admin.contract.user_id"), I18n.get("finance.admin.contract.user_id.placeholder"));
-        TLTextField salaryField = new TLTextField(I18n.get("finance.contract.salary"), I18n.get("finance.contract.salary.placeholder"));
-
-        TLSelect<String> typeSelect = new TLSelect<>(I18n.get("finance.contract.type"));
-        typeSelect.getItems().addAll("CDI", "CDD", "SIVP", "STAGE");
-        typeSelect.setValue("CDI");
-
-        TLSelect<String> currencySelect = new TLSelect<>(I18n.get("finance.bank.currency"));
-        currencySelect.getItems().addAll("TND", "EUR", "USD");
-        currencySelect.setValue("TND");
-
-        VBox form = new VBox(12);
-        form.getChildren().add(dialog.createFormSection(I18n.get("finance.admin.contract.employee_info"), userIdField));
-        form.getChildren().add(dialog.createFormSection(I18n.get("finance.admin.contract.contract_details"), salaryField, typeSelect, currencySelect));
-        dialog.setContent(form);
-
-        dialog.addButton(ButtonType.CANCEL);
-        dialog.addButton(ButtonType.OK);
-
-        dialog.getDialogPane().lookupButton(ButtonType.OK).addEventFilter(
-            javafx.event.ActionEvent.ACTION, event -> {
-                boolean valid = true;
-                String userIdText = userIdField.getText() != null ? userIdField.getText().trim() : "";
-                String salaryText = salaryField.getText() != null ? salaryField.getText().trim() : "";
-
-                if (userIdText.isEmpty()) {
-                    userIdField.setError(I18n.get("error.validation.required", I18n.get("finance.admin.contract.user_id")));
-                    valid = false;
-                } else {
-                    try { Integer.parseInt(userIdText); userIdField.clearValidation(); }
-                    catch (NumberFormatException ex) { userIdField.setError(I18n.get("error.validation.number")); valid = false; }
-                }
-
-                if (salaryText.isEmpty()) {
-                    salaryField.setError(I18n.get("error.validation.required", I18n.get("finance.contract.salary")));
-                    valid = false;
-                } else {
-                    try {
-                        BigDecimal salary = new BigDecimal(salaryText);
-                        if (salary.compareTo(BigDecimal.ZERO) <= 0) {
-                            salaryField.setError(I18n.get("error.validation.positive_amount"));
-                            valid = false;
-                        } else { salaryField.clearValidation(); }
-                    } catch (NumberFormatException ex) { salaryField.setError(I18n.get("error.validation.number")); valid = false; }
-                }
-
-                if (!valid) event.consume();
-            }
-        );
-
-        dialog.showAndWait().ifPresent(result -> {
-            if (result == ButtonType.OK) {
-                int userId = Integer.parseInt(userIdField.getText().trim());
-                BigDecimal salary = new BigDecimal(salaryField.getText().trim());
-                String type = typeSelect.getValue();
-                String currency = currencySelect.getValue();
-                createContract(userId, salary, type, currency);
-            }
-        });
+    private void clearContractError() {
+        if (contract_errorLabel != null) {
+            contract_errorLabel.setText("");
+            contract_errorLabel.setVisible(false);
+            contract_errorLabel.setManaged(false);
+        }
     }
 
-    private void createContract(int userId, BigDecimal salary, String type, String currency) {
-        // Disable content pane to prevent duplicate contract creation
-        contentPane.setDisable(true);
+    private int extractContractUserId(String comboValue) {
+        if (comboValue == null || !comboValue.contains(" - ")) return -1;
+        try {
+            return Integer.parseInt(comboValue.split(" - ")[0].trim());
+        } catch (NumberFormatException e) { return -1; }
+    }
+
+    @FXML
+    private void handleAddContract() {
+        clearContractError();
+        if (contract_userIdCombo == null || contract_userIdCombo.getValue() == null) {
+            showContractError(I18n.get("finance.admin.contract.select_employee"));
+            return;
+        }
+        String salaryText = contract_salaryField != null ? contract_salaryField.getText() : "";
+        if (salaryText == null || salaryText.trim().isEmpty() || !isValidContractSalary(salaryText.trim())) {
+            showContractError(I18n.get("finance.admin.contract.invalid_salary"));
+            return;
+        }
+        if (contract_startDatePicker == null || contract_startDatePicker.getValue() == null) {
+            showContractError(I18n.get("finance.admin.contract.start_required"));
+            return;
+        }
+        if (contract_typeCombo == null || contract_typeCombo.getValue() == null) {
+            showContractError(I18n.get("finance.admin.contract.type_required"));
+            return;
+        }
+        int userId = extractContractUserId(contract_userIdCombo.getValue());
+        if (userId <= 0) {
+            showContractError(I18n.get("finance.admin.contract.select_employee"));
+            return;
+        }
+        EmploymentContract contract = new EmploymentContract(userId, new BigDecimal(salaryText.trim()), contract_startDatePicker.getValue());
+        contract.setContractType(contract_typeCombo.getValue());
+        contract.setCurrency("TND");
+        contract.setStatus(contract_statusCombo != null && contract_statusCombo.getValue() != null ? contract_statusCombo.getValue() : "ACTIVE");
+        contract.setCompanyName(contract_companyIdField != null && contract_companyIdField.getText() != null ? contract_companyIdField.getText().trim() : null);
+        contract.setPosition(contract_positionField != null && contract_positionField.getText() != null ? contract_positionField.getText().trim() : null);
+        contract.setEndDate(contract_endDatePicker != null ? contract_endDatePicker.getValue() : null);
+        if (currentUser != null) contract.setEmployerId(currentUser.getId());
 
         Task<Integer> task = new Task<>() {
             @Override
             protected Integer call() throws Exception {
-                EmploymentContract contract = new EmploymentContract(userId, salary, LocalDate.now());
-                contract.setContractType(type);
-                contract.setCurrency(currency);
-                contract.setStatus("PENDING_SIGNATURE");
-                if (currentUser != null) {
-                    contract.setEmployerId(currentUser.getId());
-                }
                 return contractService.create(contract);
             }
         };
-
-        task.setOnSucceeded(e -> Platform.runLater(() -> {
-            contentPane.setDisable(false);
-            showContractsTab();
-        }));
-
-        task.setOnFailed(e -> {
-            logger.error("Failed to create contract", task.getException());
-            Platform.runLater(() -> contentPane.setDisable(false));
+        task.setOnSucceeded(e -> {
+            handleClearContractForm();
+            handleRefreshContracts();
+            if (getScene() != null) TLToast.success(getScene(), I18n.get("finance.admin.contract.added"), "");
         });
-
+        task.setOnFailed(e -> showContractError(I18n.get("finance.admin.contracts.error") + ": " + (task.getException() != null ? task.getException().getMessage() : "")));
         AppThreadPool.execute(task);
     }
 
-    // ==================== Payroll Generation Tab ====================
-
-    private void showPayrollTab() {
-        contentPane.getChildren().clear();
-        hideHeaderAction();
-
-        VBox payrollForm = new VBox(16);
-        payrollForm.setPadding(new Insets(16));
-
-        Label formTitle = new Label(I18n.get("finance.admin.payroll.generate"));
-        formTitle.getStyleClass().addAll("text-lg", "font-bold");
-
-        // Month selector
-        TLSelect<Integer> monthSelect = new TLSelect<>(I18n.get("finance.admin.payroll.month"));
-        for (int i = 1; i <= 12; i++) {
-            monthSelect.getItems().add(i);
+    @FXML
+    private void handleUpdateContract() {
+        clearContractError();
+        if (selectedContract == null) {
+            showContractError(I18n.get("finance.admin.contract.select_to_update"));
+            return;
         }
-        monthSelect.setValue(LocalDate.now().getMonthValue());
-
-        // Year selector
-        TLSelect<Integer> yearSelect = new TLSelect<>(I18n.get("finance.admin.payroll.year"));
-        int currentYear = LocalDate.now().getYear();
-        for (int y = currentYear - 2; y <= currentYear + 1; y++) {
-            yearSelect.getItems().add(y);
+        if (contract_userIdCombo == null || contract_userIdCombo.getValue() == null || contract_startDatePicker == null || contract_startDatePicker.getValue() == null) {
+            showContractError(I18n.get("finance.admin.contract.start_required"));
+            return;
         }
-        yearSelect.setValue(currentYear);
+        String salaryText = contract_salaryField != null ? contract_salaryField.getText() : "";
+        if (salaryText == null || salaryText.trim().isEmpty() || !isValidContractSalary(salaryText.trim())) {
+            showContractError(I18n.get("finance.admin.contract.invalid_salary"));
+            return;
+        }
+        int userId = extractContractUserId(contract_userIdCombo.getValue());
+        if (userId <= 0) return;
+        selectedContract.setUserId(userId);
+        selectedContract.setSalaryBase(new BigDecimal(salaryText.trim()));
+        selectedContract.setStartDate(contract_startDatePicker.getValue());
+        selectedContract.setEndDate(contract_endDatePicker != null ? contract_endDatePicker.getValue() : null);
+        selectedContract.setContractType(contract_typeCombo != null && contract_typeCombo.getValue() != null ? contract_typeCombo.getValue() : selectedContract.getContractType());
+        selectedContract.setStatus(contract_statusCombo != null && contract_statusCombo.getValue() != null ? contract_statusCombo.getValue() : selectedContract.getStatus());
+        selectedContract.setCompanyName(contract_companyIdField != null ? contract_companyIdField.getText() : null);
+        selectedContract.setPosition(contract_positionField != null ? contract_positionField.getText() : null);
 
-        // Generate button
-        TLButton generateBtn = new TLButton(I18n.get("finance.admin.payroll.generate_btn"), TLButton.ButtonVariant.PRIMARY);
-
-        // Results area
-        VBox resultsArea = new VBox(12);
-
-        generateBtn.setOnAction(e -> {
-            Integer month = monthSelect.getValue();
-            Integer year = yearSelect.getValue();
-            if (month != null && year != null) {
-                generatePayroll(month, year, resultsArea);
+        Task<Boolean> task = new Task<>() {
+            @Override
+            protected Boolean call() throws Exception {
+                return contractService.update(selectedContract);
             }
+        };
+        task.setOnSucceeded(e -> {
+            handleClearContractForm();
+            handleRefreshContracts();
+            if (getScene() != null) TLToast.success(getScene(), I18n.get("finance.admin.contract.updated"), "");
         });
-
-        payrollForm.getChildren().addAll(formTitle, monthSelect, yearSelect, generateBtn, new TLSeparator(), resultsArea);
-        contentPane.getChildren().add(payrollForm);
+        task.setOnFailed(e -> showContractError(I18n.get("finance.admin.contracts.error") + ": " + (task.getException() != null ? task.getException().getMessage() : "")));
+        AppThreadPool.execute(task);
     }
 
-    private void generatePayroll(int month, int year, VBox resultsArea) {
-        resultsArea.getChildren().clear();
-        resultsArea.getChildren().add(createLoadingIndicator());
+    @FXML
+    private void handleDeleteContract() {
+        clearContractError();
+        if (selectedContract == null) return;
+        Optional<ButtonType> result = DialogUtils.showConfirmation(
+            I18n.get("finance.admin.contract.delete_confirm_title"),
+            I18n.get("finance.admin.contract.delete_confirm_msg", selectedContract.getUserName() != null ? selectedContract.getUserName() : "#" + selectedContract.getUserId()));
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            int id = selectedContract.getId();
+            Task<Boolean> task = new Task<>() {
+                @Override
+                protected Boolean call() throws Exception {
+                    return contractService.delete(id);
+                }
+            };
+            task.setOnSucceeded(e -> {
+                handleClearContractForm();
+                handleRefreshContracts();
+                if (getScene() != null) TLToast.success(getScene(), I18n.get("finance.admin.contract.deleted"), "");
+            });
+            task.setOnFailed(e -> showContractError(I18n.get("finance.admin.contracts.error") + ": " + (task.getException() != null ? task.getException().getMessage() : "")));
+            AppThreadPool.execute(task);
+        }
+    }
 
+    @FXML
+    private void handleClearContractForm() {
+        selectedContract = null;
+        if (contract_userIdCombo != null) contract_userIdCombo.setValue(null);
+        if (contract_companyIdField != null) contract_companyIdField.setText("");
+        if (contract_positionField != null) contract_positionField.setText("");
+        if (contract_salaryField != null) contract_salaryField.setText("");
+        if (contract_startDatePicker != null) contract_startDatePicker.setValue(null);
+        if (contract_endDatePicker != null) contract_endDatePicker.setValue(null);
+        if (contract_typeCombo != null) contract_typeCombo.setValue("CDI");
+        if (contract_statusCombo != null) contract_statusCombo.setValue("ACTIVE");
+        clearContractError();
+        updateContractSeniorityLabel();
+        if (contractTable != null) contractTable.getSelectionModel().clearSelection();
+    }
+
+    @FXML
+    private void handleRefreshContracts() {
         Task<List<EmploymentContract>> task = new Task<>() {
             @Override
             protected List<EmploymentContract> call() throws Exception {
-                return contractService.findByStatus("ACTIVE");
+                return contractService.findAll();
             }
         };
-
         task.setOnSucceeded(e -> {
-            List<EmploymentContract> contracts = task.getValue();
-            Platform.runLater(() -> {
-                resultsArea.getChildren().clear();
-
-                if (contracts == null || contracts.isEmpty()) {
-                    resultsArea.getChildren().add(createEmptyState(SvgIcons.CLIPBOARD, "No active contracts", "Create contracts to generate payroll."));
-                    return;
-                }
-
-                Label infoLabel = new Label(I18n.get("finance.admin.payroll.generating") + " " +
-                        contracts.size() + " " + I18n.get("finance.admin.payroll.employees"));
-                infoLabel.getStyleClass().add("text-sm");
-                resultsArea.getChildren().add(infoLabel);
-
-                // Generate payslips for each active contract
-                for (EmploymentContract contract : contracts) {
-                    generatePayslipForContract(contract.getId(), month, year, resultsArea);
-                }
-            });
+            List<EmploymentContract> list = task.getValue();
+            contractData.setAll(list != null ? list : List.of());
+            updateContractCountLabel();
         });
-
         task.setOnFailed(e -> {
-            logger.error("Failed to load contracts for payroll", task.getException());
-            Platform.runLater(() -> {
-                resultsArea.getChildren().clear();
-                resultsArea.getChildren().add(createEmptyState(I18n.get("finance.admin.payroll.error")));
-            });
+            logger.error("Failed to load contracts", task.getException());
+            showContractError(I18n.get("finance.admin.contracts.error"));
         });
-
         AppThreadPool.execute(task);
     }
 
-    private void generatePayslipForContract(int contractId, int month, int year, VBox resultsArea) {
-        Task<Payslip> task = new Task<>() {
-            @Override
-            protected Payslip call() {
-                return payslipService.generatePayslip(contractId, month, year);
+    private void updateContractCountLabel() {
+        if (contract_countLabel != null) {
+            contract_countLabel.setText(I18n.get("finance.admin.contract.total") + ": " + contractData.size());
+        }
+    }
+
+    private void onContractSelected() {
+        selectedContract = contractTable != null ? contractTable.getSelectionModel().getSelectedItem() : null;
+        if (selectedContract == null) return;
+        contract_userIdCombo.setValue(selectedContract.getUserId() + " - " + (selectedContract.getUserName() != null ? selectedContract.getUserName() : "User #" + selectedContract.getUserId()));
+        contract_companyIdField.setText(selectedContract.getCompanyName() != null ? selectedContract.getCompanyName() : "");
+        contract_positionField.setText(selectedContract.getPosition() != null ? selectedContract.getPosition() : "");
+        contract_salaryField.setText(selectedContract.getSalaryBase() != null ? selectedContract.getSalaryBase().toPlainString() : "");
+        contract_startDatePicker.setValue(selectedContract.getStartDate());
+        if (contract_endDatePicker != null) contract_endDatePicker.setValue(selectedContract.getEndDate());
+        contract_typeCombo.setValue(selectedContract.getContractType() != null ? selectedContract.getContractType() : "CDI");
+        contract_statusCombo.setValue(selectedContract.getStatus() != null ? selectedContract.getStatus() : "ACTIVE");
+        updateContractSeniorityLabel();
+    }
+
+    private boolean isValidContractSalary(String s) {
+        try {
+            BigDecimal b = new BigDecimal(s);
+            return b.compareTo(BigDecimal.ZERO) > 0;
+        } catch (NumberFormatException e) { return false; }
+    }
+
+
+    // ==================== Bank, Bonus, Payslip, Reports tabs ====================
+
+    private void initializeBankTab() {
+        if (bankAccountTable == null) return;
+        bank_userCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getEmployeeName()));
+        bank_nameCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getBankName()));
+        bank_ibanCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getIban()));
+        bank_swiftCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getSwift()));
+        bank_currencyCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getCurrency()));
+        bank_primaryCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getIsPrimary() ? "Yes" : "No"));
+        bank_verifiedCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getIsVerified() ? "Yes" : "No"));
+        ObservableList<BankAccountRow> bankData = FXCollections.observableArrayList();
+        bankAccountTable.setItems(bankData);
+        try {
+            bankData.setAll(financeDataService.getAllBankAccounts());
+            if (bank_countLabel != null) bank_countLabel.setText("Total: " + bankData.size());
+        } catch (Exception e) { logger.error("Load bank accounts", e); }
+        if (bank_currencyCombo != null) bank_currencyCombo.getItems().setAll("TND", "EUR", "USD");
+        if (bank_primaryCombo != null) bank_primaryCombo.getItems().setAll("Yes", "No");
+        if (bank_verifiedCombo != null) bank_verifiedCombo.getItems().setAll("Verified", "Unverified");
+        loadEmployeeComboInto(bank_userIdCombo);
+
+        // Selection listener to populate form
+        bankAccountTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                if (bank_userIdCombo != null) bank_userIdCombo.setValue(newVal.getUserId() + " - " + newVal.getEmployeeName());
+                if (bank_nameField != null) bank_nameField.setText(newVal.getBankName());
+                if (bank_ibanField != null) bank_ibanField.setText(newVal.getIban());
+                if (bank_swiftField != null) bank_swiftField.setText(newVal.getSwift());
+                if (bank_currencyCombo != null) bank_currencyCombo.setValue(newVal.getCurrency());
+                if (bank_primaryCombo != null) bank_primaryCombo.setValue(newVal.getIsPrimary() ? "Yes" : "No");
+                if (bank_verifiedCombo != null) bank_verifiedCombo.setValue(newVal.getIsVerified() ? "Verified" : "Unverified");
             }
+        });
+    }
+
+    private void initializeBonusTab() {
+        if (bonusTable == null) return;
+        bonus_userCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getEmployeeName()));
+        bonus_amountCol.setCellValueFactory(c -> new SimpleStringProperty(String.format("%.2f", c.getValue().getAmount())));
+        bonus_reasonCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getReason()));
+        bonus_dateCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getDateAwarded()));
+        ObservableList<BonusRow> bonusData = FXCollections.observableArrayList();
+        bonusTable.setItems(bonusData);
+        try {
+            bonusData.setAll(financeDataService.getAllBonuses());
+            if (bonus_countLabel != null) bonus_countLabel.setText("Total: " + bonusData.size());
+        } catch (Exception e) { logger.error("Load bonuses", e); }
+        loadEmployeeComboInto(bonus_userIdCombo);
+
+        // Selection listener to populate form
+        bonusTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                if (bonus_userIdCombo != null) bonus_userIdCombo.setValue(newVal.getUserId() + " - " + newVal.getEmployeeName());
+                if (bonus_amountField != null) bonus_amountField.setText(String.format("%.2f", newVal.getAmount()));
+                if (bonus_reasonField != null) bonus_reasonField.setText(newVal.getReason());
+            }
+        });
+    }
+
+    private void initializePayslipTab() {
+        if (payslipTable == null) return;
+        payslip_userCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getEmployeeName()));
+        payslip_periodCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getPeriod()));
+        payslip_baseCol.setCellValueFactory(c -> new SimpleStringProperty(String.format("%.2f", c.getValue().getBaseSalary())));
+        payslip_overtimeCol.setCellValueFactory(c -> new SimpleStringProperty(String.format("%.2f", c.getValue().getOvertimeTotal())));
+        payslip_bonusCol.setCellValueFactory(c -> new SimpleStringProperty(String.format("%.2f", c.getValue().getBonuses())));
+        payslip_grossCol.setCellValueFactory(c -> new SimpleStringProperty(String.format("%.2f", c.getValue().getGross())));
+        payslip_deductCol.setCellValueFactory(c -> new SimpleStringProperty(String.format("%.2f", c.getValue().getTotalDeductions())));
+        payslip_netCol.setCellValueFactory(c -> new SimpleStringProperty(String.format("%.2f", c.getValue().getNet())));
+        payslip_statusCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getStatus()));
+        ObservableList<PayslipRow> payslipData = FXCollections.observableArrayList();
+        payslipTable.setItems(payslipData);
+        try {
+            payslipData.setAll(financeDataService.getAllPayslips());
+            if (payslip_countLabel != null) payslip_countLabel.setText("Total: " + payslipData.size());
+        } catch (Exception e) { logger.error("Load payslips", e); }
+        if (payslip_monthCombo != null) { payslip_monthCombo.getItems().clear(); for (int i = 1; i <= 12; i++) payslip_monthCombo.getItems().add(i); payslip_monthCombo.setValue(LocalDate.now().getMonthValue()); }
+        if (payslip_yearCombo != null) { payslip_yearCombo.getItems().clear(); int y = LocalDate.now().getYear(); for (int i = y - 2; i <= y + 1; i++) payslip_yearCombo.getItems().add(i); payslip_yearCombo.setValue(y); }
+        if (payslip_currencyCombo != null) payslip_currencyCombo.getItems().setAll("TND", "EUR", "USD");
+        if (payslip_statusCombo != null) payslip_statusCombo.getItems().setAll("DRAFT", "PENDING", "PAID", "CANCELLED");
+        loadEmployeeComboInto(payslip_userIdCombo);
+
+        // Selection listener to populate form
+        payslipTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                if (payslip_userIdCombo != null) payslip_userIdCombo.setValue(newVal.getUserId() + " - " + newVal.getEmployeeName());
+                if (payslip_monthCombo != null) payslip_monthCombo.setValue(newVal.getMonth());
+                if (payslip_yearCombo != null) payslip_yearCombo.setValue(newVal.getYear());
+                if (payslip_currencyCombo != null) payslip_currencyCombo.setValue(newVal.getCurrency());
+                if (payslip_statusCombo != null) payslip_statusCombo.setValue(newVal.getStatus());
+                if (payslip_baseSalaryField != null) payslip_baseSalaryField.setText(String.format("%.2f", newVal.getBaseSalary()));
+                if (payslip_overtimeField != null) payslip_overtimeField.setText(String.format("%.2f", newVal.getOvertime()));
+                if (payslip_bonusesField != null) payslip_bonusesField.setText(String.format("%.2f", newVal.getBonuses()));
+                if (payslip_otherDeductionsField != null) payslip_otherDeductionsField.setText(String.format("%.2f", newVal.getOtherDeductions()));
+                handleCalculatePayslip();
+            }
+        });
+    }
+
+    private void initializeReportsTab() {
+        loadEmployeeComboInto(report_employeeCombo);
+        if (tax_currencyCombo != null) tax_currencyCombo.getItems().setAll("TND", "EUR", "USD");
+    }
+
+    private void loadEmployeeComboInto(TLComboBox<String> combo) {
+        if (combo == null) return;
+        Task<List<User>> task = new Task<>() {
+            @Override
+            protected List<User> call() { return userService.findAll(); }
         };
-
         task.setOnSucceeded(e -> {
-            Payslip payslip = task.getValue();
-            Platform.runLater(() -> {
-                if (payslip != null) {
-                    String msg = I18n.get("finance.admin.payroll.generated_for") +
-                            " #" + contractId + " - " + I18n.get("finance.payslip.net") + ": " +
-                            payslip.getNetSalary().toPlainString() + " " + payslip.getCurrency();
-                    resultsArea.getChildren().add(new TLAlert(TLAlert.Variant.SUCCESS, I18n.get("message.success"), msg));
-                } else {
-                    String msg = I18n.get("finance.admin.payroll.failed_for") + " #" + contractId;
-                    resultsArea.getChildren().add(new TLAlert(TLAlert.Variant.DESTRUCTIVE, I18n.get("message.error"), msg));
+            List<User> users = task.getValue();
+            if (users != null) {
+                ObservableList<String> items = FXCollections.observableArrayList();
+                for (User u : users) {
+                    String name = u.getFullName() != null ? u.getFullName() : ("User #" + u.getId());
+                    items.add(u.getId() + " - " + name);
                 }
-            });
+                combo.getItems().setAll(items);
+            }
         });
-
-        task.setOnFailed(e -> {
-            logger.error("Failed to generate payslip for contract {}", contractId, task.getException());
-        });
-
         AppThreadPool.execute(task);
     }
 
-    // ==================== Payment Processing Tab ====================
+    // ==================== Bank Account CRUD ====================
 
-    private void showPaymentsTab() {
-        if (currentUser == null) return;
+    @FXML
+    private void handleAddBankAccount() {
+        if (bank_userIdCombo == null || bank_nameField == null || bank_ibanField == null) return;
+        String selected = bank_userIdCombo.getValue();
+        if (selected == null || !selected.contains(" - ")) {
+            if (getScene() != null) TLToast.warning(getScene(), "Validation", "Select an employee");
+            return;
+        }
+        int userId = Integer.parseInt(selected.substring(0, selected.indexOf(" - ")).trim());
+        String employeeName = selected.substring(selected.indexOf(" - ") + 3).trim();
+        String bankName = bank_nameField.getText() != null ? bank_nameField.getText().trim() : "";
+        String iban = bank_ibanField.getText() != null ? bank_ibanField.getText().trim() : "";
+        String swift = bank_swiftField != null && bank_swiftField.getText() != null ? bank_swiftField.getText().trim() : "";
+        String currency = bank_currencyCombo != null ? bank_currencyCombo.getValue() : "TND";
+        if (currency == null) currency = "TND";
+        boolean isPrimary = bank_primaryCombo != null && "Yes".equals(bank_primaryCombo.getValue());
+        boolean isVerified = bank_verifiedCombo != null && "Verified".equals(bank_verifiedCombo.getValue());
 
-        contentPane.getChildren().clear();
-        hideHeaderAction();
-        contentPane.getChildren().add(createLoadingIndicator());
-
-        // Load all PENDING payslips for employer's contracts
-        Task<List<EmploymentContract>> contractTask = new Task<>() {
-            @Override
-            protected List<EmploymentContract> call() throws Exception {
-                return contractService.findByEmployerId(currentUser.getId());
-            }
-        };
-
-        contractTask.setOnSucceeded(e -> {
-            List<EmploymentContract> contracts = contractTask.getValue();
-            Platform.runLater(() -> loadPendingPayslips(contracts));
-        });
-
-        contractTask.setOnFailed(e -> {
-            logger.error("Failed to load contracts for payments", contractTask.getException());
-            Platform.runLater(() -> {
-                contentPane.getChildren().clear();
-                contentPane.getChildren().add(createEmptyState(I18n.get("finance.admin.payments.error")));
-            });
-        });
-
-        AppThreadPool.execute(contractTask);
-    }
-
-    private void loadPendingPayslips(List<EmploymentContract> contracts) {
-        contentPane.getChildren().clear();
-
-        if (contracts == null || contracts.isEmpty()) {
-            contentPane.getChildren().add(createEmptyState(SvgIcons.DOLLAR_SIGN, "No pending payments", "All payments have been processed."));
+        if (bankName.isEmpty() || iban.isEmpty()) {
+            if (getScene() != null) TLToast.warning(getScene(), "Validation", "Bank name and IBAN are required");
             return;
         }
 
-        Label headerLabel = new Label(I18n.get("finance.admin.payments.title"));
-        headerLabel.getStyleClass().addAll("text-lg", "font-bold");
-        contentPane.getChildren().add(headerLabel);
-
-        VBox payslipList = new VBox(12);
-
-        for (EmploymentContract contract : contracts) {
-            Task<List<Payslip>> task = new Task<>() {
+        BankAccountRow account = new BankAccountRow(0, userId, employeeName, bankName, iban, swift, currency, isPrimary, isVerified);
+        account.setAccountHolder(employeeName);
+        Task<Void> task = new Task<>() {
                 @Override
-                protected List<Payslip> call() throws Exception {
-                    return payslipService.findByContractId(contract.getId());
+            protected Void call() throws Exception {
+                financeDataService.addBankAccount(account);
+                return null;
+            }
+        };
+        task.setOnSucceeded(e -> Platform.runLater(() -> {
+            if (getScene() != null) TLToast.success(getScene(), "Success", "Bank account added");
+            handleClearBankForm();
+            handleRefreshBankAccounts();
+        }));
+        task.setOnFailed(e -> Platform.runLater(() -> {
+            Throwable ex = task.getException();
+            logger.error("Failed to add bank account", ex);
+            String msg = "Failed to add bank account";
+            if (ex != null && ex.getMessage() != null) {
+                if (ex.getMessage().contains("account_holder")) {
+                    msg = "Account holder name is required";
+                } else if (ex.getMessage().contains("Duplicate entry")) {
+                    msg = "This bank account already exists";
                 }
-            };
-
-            task.setOnSucceeded(e -> {
-                List<Payslip> payslips = task.getValue();
-                Platform.runLater(() -> {
-                    if (payslips != null) {
-                        for (Payslip payslip : payslips) {
-                            if ("PENDING".equals(payslip.getPaymentStatus())) {
-                                payslipList.getChildren().add(createPayslipPaymentCard(payslip, contract));
-                            }
-                        }
-                    }
-                });
-            });
-
+            }
+            if (getScene() != null) TLToast.error(getScene(), "Error", msg);
+        }));
             AppThreadPool.execute(task);
         }
 
-        ScrollPane scrollPane = new ScrollPane(payslipList);
-        scrollPane.setFitToWidth(true);
-        scrollPane.getStyleClass().add("bg-transparent");
-        VBox.setVgrow(scrollPane, Priority.ALWAYS);
-        contentPane.getChildren().add(scrollPane);
-    }
+    @FXML
+    private void handleUpdateBankAccount() {
+        BankAccountRow selected = bankAccountTable != null ? bankAccountTable.getSelectionModel().getSelectedItem() : null;
+        if (selected == null) {
+            if (getScene() != null) TLToast.warning(getScene(), "Selection", "Select a bank account to update");
+            return;
+        }
+        if (bank_nameField == null || bank_ibanField == null) return;
 
-    private TLCard createPayslipPaymentCard(Payslip payslip, EmploymentContract contract) {
-        TLCard card = new TLCard();
-
-        VBox content = new VBox(8);
-
-        String period = String.format("%02d/%d", payslip.getPeriodMonth(), payslip.getPeriodYear());
-        Label titleLabel = new Label(
-                (contract.getUserName() != null ? contract.getUserName() : "#" + payslip.getUserId())
-                        + " - " + period);
-        titleLabel.getStyleClass().addAll("text-base", "font-bold");
-
-        content.getChildren().add(titleLabel);
-        content.getChildren().add(createDetailRow(
-                I18n.get("finance.payslip.net"),
-                payslip.getNetSalary() != null
-                        ? payslip.getNetSalary().toPlainString() + " " + payslip.getCurrency()
-                        : "-"));
-
-        TLButton markPaidBtn = new TLButton(I18n.get("finance.admin.payments.mark_paid"), TLButton.ButtonVariant.SUCCESS);
-        markPaidBtn.setOnAction(e -> markAsPaid(payslip));
-
-        HBox btnBox = new HBox(markPaidBtn);
-        btnBox.setAlignment(Pos.CENTER_RIGHT);
-        btnBox.setPadding(new Insets(8, 0, 0, 0));
-        content.getChildren().add(btnBox);
-
-        card.setContent(content);
-        return card;
-    }
-
-    private void markAsPaid(Payslip payslip) {
-        if (payslip == null) return;
-        DialogUtils.showConfirmation(
-            I18n.get("finance.admin.mark_paid.confirm.title"),
-            I18n.get("finance.admin.mark_paid.confirm.message")
-        ).ifPresent(result -> {
-            if (result == ButtonType.OK) {
-                Task<Boolean> task = new Task<>() {
-                    @Override
-                    protected Boolean call() throws Exception {
-                        boolean updated = payslipService.updatePaymentStatus(payslip.getId(), "PAID");
-                        if (!updated) return false;
-
-                        PaymentTransaction tx = new PaymentTransaction();
-                        tx.setPayslipId(payslip.getId());
-                        tx.setAmount(payslip.getNetSalary() != null ? payslip.getNetSalary() : BigDecimal.ZERO);
-                        tx.setCurrency(payslip.getCurrency() != null ? payslip.getCurrency() : "TND");
-                        tx.setTransactionType("SALARY");
-                        tx.setStatus("PAID");
-
-                        Integer toAccountId = null;
-                        try {
-                            List<BankAccount> accounts = bankAccountService.findByUserId(payslip.getUserId());
-                            BankAccount primary = accounts.stream().filter(BankAccount::isPrimary).findFirst().orElse(null);
-                            if (primary != null) toAccountId = primary.getId();
-                        } catch (Exception e) {
-                            logger.warn("Could not resolve bank account for user {}: {}", payslip.getUserId(), e.getMessage());
-                        }
-                        tx.setToAccountId(toAccountId);
-                        tx.setNotes("Payslip " + String.format("%02d/%d", payslip.getPeriodMonth(), payslip.getPeriodYear()));
-
-                        paymentTransactionService.create(tx);
-                        return true;
-                    }
-                };
-
-                task.setOnSucceeded(e -> {
-                    Platform.runLater(() -> {
-                        logger.info("Payslip {} marked as paid", payslip.getId());
-                        showPaymentsTab();
-                    });
-                });
-
-                task.setOnFailed(e -> {
-                    logger.error("Failed to mark payslip {} as paid", payslip.getId(), task.getException());
-                });
-
-                AppThreadPool.execute(task);
-            }
-        });
-    }
-
-    // ==================== Transactions History Tab ====================
-
-    private void showTransactionsTab() {
-        if (currentUser == null) return;
-
-        contentPane.getChildren().clear();
-        hideHeaderAction();
-        contentPane.getChildren().add(createLoadingIndicator());
-
-        Task<List<PaymentTransaction>> task = new Task<>() {
-            @Override
-            protected List<PaymentTransaction> call() throws Exception {
-                if (currentUser.getRole() == com.skilora.user.enums.Role.ADMIN) {
-                    return paymentTransactionService.findRecent(200);
-                }
-                return paymentTransactionService.findByEmployerId(currentUser.getId());
-            }
-        };
-
-        task.setOnSucceeded(e -> Platform.runLater(() -> displayTransactions(task.getValue())));
-        task.setOnFailed(e -> Platform.runLater(() -> {
-            logger.error("Failed to load payment transactions", task.getException());
-            contentPane.getChildren().clear();
-            contentPane.getChildren().add(createEmptyState(I18n.get("finance.admin.transactions.error")));
-        }));
-
-        AppThreadPool.execute(task);
-    }
-
-    private void displayTransactions(List<PaymentTransaction> txs) {
-        contentPane.getChildren().clear();
-        hideHeaderAction();
-
-        if (txs == null || txs.isEmpty()) {
-            contentPane.getChildren().add(createEmptyState(SvgIcons.ACTIVITY, "No transactions", "Transaction history will appear here."));
+        String bankName = bank_nameField.getText() != null ? bank_nameField.getText().trim() : "";
+        String iban = bank_ibanField.getText() != null ? bank_ibanField.getText().trim() : "";
+        if (bankName.isEmpty() || iban.isEmpty()) {
+            if (getScene() != null) TLToast.warning(getScene(), "Validation", "Bank name and IBAN are required");
             return;
         }
 
-        VBox list = new VBox(10);
-        for (PaymentTransaction tx : txs) {
-            TLCard card = new TLCard();
-            VBox content = new VBox(8);
+        selected.setBankName(bankName);
+        selected.setIban(iban);
+        selected.setSwift(bank_swiftField != null && bank_swiftField.getText() != null ? bank_swiftField.getText().trim() : "");
+        selected.setCurrency(bank_currencyCombo != null ? bank_currencyCombo.getValue() : "TND");
+        selected.setIsPrimary(bank_primaryCombo != null && "Yes".equals(bank_primaryCombo.getValue()));
+        selected.setIsVerified(bank_verifiedCombo != null && "Verified".equals(bank_verifiedCombo.getValue()));
 
-            Label ref = new Label(tx.getReference() != null ? tx.getReference() : ("#" + tx.getId()));
-            ref.getStyleClass().addAll("text-base", "font-bold");
-
-            TLBadge status = new TLBadge(
-                    tx.getStatus() != null ? tx.getStatus() : "PENDING",
-                    "PAID".equalsIgnoreCase(tx.getStatus()) ? TLBadge.Variant.SUCCESS : TLBadge.Variant.SECONDARY
-            );
-
-            HBox header = new HBox(12, ref, status);
-            header.setAlignment(Pos.CENTER_LEFT);
-
-            String amount = tx.getAmount() != null ? tx.getAmount().toPlainString() : "-";
-            String currency = tx.getCurrency() != null ? tx.getCurrency() : "TND";
-            content.getChildren().addAll(
-                    header,
-                    createDetailRow(I18n.get("finance.admin.transactions.amount"), amount + " " + currency),
-                    createDetailRow(I18n.get("finance.admin.transactions.type"), tx.getTransactionType()),
-                    createDetailRow(I18n.get("finance.admin.transactions.date"),
-                            tx.getTransactionDate() != null ? tx.getTransactionDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) : "-")
-            );
-
-            if (tx.getNotes() != null && !tx.getNotes().isBlank()) {
-                Label notes = new Label(tx.getNotes());
-                notes.getStyleClass().addAll("text-2xs", "text-muted");
-                notes.setWrapText(true);
-                content.getChildren().add(notes);
-            }
-
-            card.setContent(content);
-            list.getChildren().add(card);
-        }
-
-        ScrollPane scroll = new ScrollPane(list);
-        scroll.setFitToWidth(true);
-        scroll.getStyleClass().add("bg-transparent");
-        VBox.setVgrow(scroll, Priority.ALWAYS);
-        contentPane.getChildren().add(scroll);
-    }
-
-    // ==================== Escrow Admin Tab ====================
-
-    private void showEscrowTab() {
-        if (currentUser == null) return;
-        contentPane.getChildren().clear();
-        hideHeaderAction();
-        contentPane.getChildren().add(createLoadingIndicator());
-
-        Task<List<EscrowAccount>> task = new Task<>() {
+        Task<Void> task = new Task<>() {
             @Override
-            protected List<EscrowAccount> call() throws Exception {
-                return escrowService.findPendingForAdmin();
+            protected Void call() throws Exception {
+                financeDataService.updateBankAccount(selected);
+                return null;
             }
         };
-
-        task.setOnSucceeded(e -> Platform.runLater(() -> displayEscrows(task.getValue())));
-        task.setOnFailed(e -> Platform.runLater(() -> {
-            logger.error("Failed to load escrows", task.getException());
-            contentPane.getChildren().clear();
-            contentPane.getChildren().add(createEmptyState(I18n.get("finance.admin.escrow.error")));
-        }));
-
-        AppThreadPool.execute(task);
-    }
-
-    private void displayEscrows(List<EscrowAccount> escrows) {
-        contentPane.getChildren().clear();
-        hideHeaderAction();
-
-        if (escrows == null || escrows.isEmpty()) {
-            contentPane.getChildren().add(createEmptyState(SvgIcons.SHIELD, "No escrow payments", "Active escrow payments will be listed here."));
-            return;
-        }
-
-        VBox list = new VBox(12);
-        for (EscrowAccount e : escrows) {
-            TLCard card = new TLCard();
-            VBox content = new VBox(10);
-            content.setPadding(new Insets(14));
-
-            Label title = new Label(I18n.get("finance.admin.escrow.hold") + " #" + e.getId());
-            title.getStyleClass().addAll("text-base", "font-bold");
-
-            String who = (e.getUserName() != null ? e.getUserName() : ("#" + e.getContractId()));
-            Label whoLabel = new Label(who);
-            whoLabel.getStyleClass().add("text-muted");
-
-            content.getChildren().addAll(
-                    title,
-                    whoLabel,
-                    createDetailRow(I18n.get("finance.admin.escrow.amount"), (e.getAmount() != null ? e.getAmount().toPlainString() : "0") + " " + (e.getCurrency() != null ? e.getCurrency() : "TND")),
-                    createDetailRow(I18n.get("finance.admin.escrow.contract"), "#" + e.getContractId())
-            );
-
-            if (e.getDescription() != null && !e.getDescription().isBlank()) {
-                Label desc = new Label(e.getDescription());
-                desc.getStyleClass().addAll("text-2xs", "text-muted");
-                desc.setWrapText(true);
-                content.getChildren().add(desc);
-            }
-
-            HBox actions = new HBox(8);
-            actions.setAlignment(Pos.CENTER_LEFT);
-
-            TLButton releaseBtn = new TLButton(I18n.get("finance.admin.escrow.release"), TLButton.ButtonVariant.SUCCESS);
-            releaseBtn.setGraphic(SvgIcons.icon(SvgIcons.CHECK, 14));
-            TLButton refundBtn = new TLButton(I18n.get("finance.admin.escrow.refund"), TLButton.ButtonVariant.OUTLINE);
-            refundBtn.setGraphic(SvgIcons.icon(SvgIcons.REFRESH, 14));
-            TLButton disputeBtn = new TLButton(I18n.get("finance.admin.escrow.dispute"), TLButton.ButtonVariant.DANGER);
-            disputeBtn.setGraphic(SvgIcons.icon(SvgIcons.ALERT_TRIANGLE, 14));
-
-            releaseBtn.setOnAction(ev -> resolveEscrow(e, "RELEASE"));
-            refundBtn.setOnAction(ev -> resolveEscrow(e, "REFUND"));
-            disputeBtn.setOnAction(ev -> resolveEscrow(e, "DISPUTE"));
-
-            actions.getChildren().addAll(releaseBtn, refundBtn, disputeBtn);
-            content.getChildren().add(actions);
-
-            card.setContent(content);
-            list.getChildren().add(card);
-        }
-
-        ScrollPane scroll = new ScrollPane(list);
-        scroll.setFitToWidth(true);
-        scroll.getStyleClass().add("bg-transparent");
-        VBox.setVgrow(scroll, Priority.ALWAYS);
-        contentPane.getChildren().add(scroll);
-    }
-
-    private void resolveEscrow(EscrowAccount escrow, String action) {
-        if (escrow == null || currentUser == null) return;
-
-        TLDialog<ButtonType> dialog = new TLDialog<>();
-        dialog.setDialogTitle(I18n.get("finance.admin.escrow.resolve_title"));
-        dialog.setDescription(I18n.get("finance.admin.escrow.resolve_desc"));
-
-        TLTextarea notes = new TLTextarea(I18n.get("finance.admin.escrow.notes"), I18n.get("finance.admin.escrow.notes.placeholder"));
-        dialog.setContent(notes);
-        dialog.addButton(ButtonType.CANCEL);
-        dialog.addButton(ButtonType.OK);
-
-        dialog.showAndWait().ifPresent(bt -> {
-            if (bt != ButtonType.OK) return;
-            String noteText = notes.getText();
-            AppThreadPool.execute(() -> {
-                try {
-                    boolean ok;
-                    switch (action) {
-                        case "RELEASE" -> ok = escrowService.release(escrow.getId(), currentUser.getId(), noteText);
-                        case "REFUND" -> ok = escrowService.refund(escrow.getId(), currentUser.getId(), noteText);
-                        case "DISPUTE" -> ok = escrowService.dispute(escrow.getId(), noteText);
-                        default -> ok = false;
-                    }
-                    boolean finalOk = ok;
-                    Platform.runLater(() -> {
-                        if (finalOk) {
-                            TLToast.success(contentPane.getScene(), I18n.get("common.success"), I18n.get("finance.admin.escrow.updated"));
-                            showEscrowTab();
-                        } else {
-                            TLToast.error(contentPane.getScene(), I18n.get("common.error"), I18n.get("finance.admin.escrow.update_failed"));
-                        }
-                    });
-                } catch (Exception ex) {
-                    Platform.runLater(() -> TLToast.error(contentPane.getScene(), I18n.get("common.error"), I18n.get("finance.admin.escrow.update_failed")));
-                }
-            });
-        });
-    }
-
-    // ==================== Tax Configuration Tab ====================
-
-    private void showTaxTab() {
-        if (currentUser == null) return;
-        contentPane.getChildren().clear();
-
-        headerActionBtn.setText(I18n.get("finance.admin.tax.add"));
-        headerActionBtn.setOnAction(e -> showAddTaxBracketDialog());
-        headerActionBtn.setVisible(true);
-        headerActionBtn.setManaged(true);
-
-        contentPane.getChildren().add(createLoadingIndicator());
-
-        Task<List<TaxConfiguration>> task = new Task<>() {
-            @Override
-            protected List<TaxConfiguration> call() throws Exception {
-                return taxConfigurationService.findByCountryAndType("Tunisia", "IRPP");
-            }
-        };
-
-        task.setOnSucceeded(e -> Platform.runLater(() -> displayTaxConfigs(task.getValue())));
-        task.setOnFailed(e -> Platform.runLater(() -> {
-            logger.error("Failed to load tax configurations", task.getException());
-            contentPane.getChildren().clear();
-            contentPane.getChildren().add(createEmptyState(I18n.get("finance.admin.tax.error")));
-        }));
-
-        AppThreadPool.execute(task);
-    }
-
-    private void displayTaxConfigs(List<TaxConfiguration> configs) {
-        contentPane.getChildren().clear();
-
-        if (configs == null || configs.isEmpty()) {
-            contentPane.getChildren().add(createEmptyState(SvgIcons.FILE_TEXT, "No tax brackets", "Add tax brackets to configure payroll deductions."));
-            return;
-        }
-
-        VBox list = new VBox(10);
-        for (TaxConfiguration tc : configs) {
-            TLCard card = new TLCard();
-            VBox content = new VBox(8);
-
-            String range = tc.getMinBracket() + " → " + (tc.getMaxBracket() != null ? tc.getMaxBracket() : "∞");
-            Label title = new Label(range);
-            title.getStyleClass().addAll("text-base", "font-bold");
-
-            Label rate = new Label((tc.getRate() != null ? tc.getRate().toPlainString() : "0") + "%");
-            rate.getStyleClass().add("text-muted");
-
-            content.getChildren().addAll(title, rate);
-            if (tc.getDescription() != null && !tc.getDescription().isBlank()) {
-                Label d = new Label(tc.getDescription());
-                d.getStyleClass().addAll("text-2xs", "text-muted");
-                d.setWrapText(true);
-                content.getChildren().add(d);
-            }
-
-            TLButton deleteBtn = new TLButton(I18n.get("common.delete"), TLButton.ButtonVariant.DANGER);
-            deleteBtn.setGraphic(SvgIcons.icon(SvgIcons.TRASH, 14));
-            deleteBtn.setOnAction(e -> deleteTaxConfig(tc.getId()));
-            HBox actions = new HBox(deleteBtn);
-            actions.setAlignment(Pos.CENTER_RIGHT);
-            content.getChildren().add(actions);
-
-            card.setContent(content);
-            list.getChildren().add(card);
-        }
-
-        ScrollPane scroll = new ScrollPane(list);
-        scroll.setFitToWidth(true);
-        scroll.getStyleClass().add("bg-transparent");
-        VBox.setVgrow(scroll, Priority.ALWAYS);
-        contentPane.getChildren().add(scroll);
-    }
-
-    private void showAddTaxBracketDialog() {
-        TLDialog<ButtonType> dialog = new TLDialog<>();
-        dialog.setDialogTitle(I18n.get("finance.admin.tax.add"));
-        dialog.setDescription(I18n.get("finance.admin.tax.add.desc"));
-
-        TLTextField minField = new TLTextField(I18n.get("finance.admin.tax.min"), "0");
-        TLTextField maxField = new TLTextField(I18n.get("finance.admin.tax.max"), "");
-        TLTextField rateField = new TLTextField(I18n.get("finance.admin.tax.rate"), "0");
-        TLTextField descField = new TLTextField(I18n.get("finance.admin.tax.desc"), "");
-
-        VBox form = new VBox(12, minField, maxField, rateField, descField);
-        dialog.setContent(form);
-        dialog.addButton(ButtonType.CANCEL);
-        dialog.addButton(ButtonType.OK);
-
-        dialog.getDialogPane().lookupButton(ButtonType.OK).addEventFilter(
-            javafx.event.ActionEvent.ACTION, event -> {
-                boolean valid = true;
-                String minText = minField.getText() != null ? minField.getText().trim() : "";
-                String rateText = rateField.getText() != null ? rateField.getText().trim() : "";
-
-                if (minText.isEmpty()) {
-                    minField.setError(I18n.get("error.validation.required", I18n.get("finance.admin.tax.min")));
-                    valid = false;
-                } else {
-                    try { new BigDecimal(minText); minField.clearValidation(); }
-                    catch (NumberFormatException ex) { minField.setError(I18n.get("finance.admin.tax.invalid")); valid = false; }
-                }
-
-                if (rateText.isEmpty()) {
-                    rateField.setError(I18n.get("error.validation.required", I18n.get("finance.admin.tax.rate")));
-                    valid = false;
-                } else {
-                    try { new BigDecimal(rateText); rateField.clearValidation(); }
-                    catch (NumberFormatException ex) { rateField.setError(I18n.get("finance.admin.tax.invalid")); valid = false; }
-                }
-
-                String maxText = maxField.getText() != null ? maxField.getText().trim() : "";
-                if (!maxText.isEmpty()) {
-                    try { new BigDecimal(maxText); maxField.clearValidation(); }
-                    catch (NumberFormatException ex) { maxField.setError(I18n.get("finance.admin.tax.invalid")); valid = false; }
-                }
-
-                if (!valid) event.consume();
-            }
-        );
-
-        dialog.showAndWait().ifPresent(bt -> {
-            if (bt != ButtonType.OK) return;
-            TaxConfiguration tc = new TaxConfiguration();
-            tc.setCountry("Tunisia");
-            tc.setTaxType("IRPP");
-            tc.setMinBracket(new BigDecimal(minField.getText().trim()));
-            String max = maxField.getText() != null ? maxField.getText().trim() : "";
-            tc.setMaxBracket(max.isEmpty() ? null : new BigDecimal(max));
-            tc.setRate(new BigDecimal(rateField.getText().trim()));
-            tc.setDescription(descField.getText());
-            tc.setActive(true);
-            tc.setEffectiveDate(LocalDate.now());
-
-            AppThreadPool.execute(() -> {
-                try {
-                    taxConfigurationService.create(tc);
-                    Platform.runLater(() -> {
-                        TLToast.success(contentPane.getScene(), I18n.get("common.success"), I18n.get("finance.admin.tax.saved"));
-                        showTaxTab();
-                    });
-                } catch (Exception ex) {
-                    Platform.runLater(() -> TLToast.error(contentPane.getScene(), I18n.get("common.error"), I18n.get("finance.admin.tax.save_failed")));
-                }
-            });
-        });
-    }
-
-    private void deleteTaxConfig(int id) {
-        DialogUtils.showConfirmation(I18n.get("finance.admin.tax.delete.title"), I18n.get("finance.admin.tax.delete.desc"))
-                .ifPresent(bt -> {
-                    if (bt != ButtonType.OK) return;
-                    AppThreadPool.execute(() -> {
-                        try {
-                            boolean ok = taxConfigurationService.delete(id);
-                            Platform.runLater(() -> {
-                                if (ok) {
-                                    TLToast.success(contentPane.getScene(), I18n.get("common.success"), I18n.get("finance.admin.tax.deleted"));
-                                    showTaxTab();
-                                } else {
-                                    TLToast.error(contentPane.getScene(), I18n.get("common.error"), I18n.get("finance.admin.tax.delete_failed"));
-                                }
-                            });
-                        } catch (Exception ex) {
-                            Platform.runLater(() -> TLToast.error(contentPane.getScene(), I18n.get("common.error"), I18n.get("finance.admin.tax.delete_failed")));
-                        }
-                    });
-                });
-    }
-
-    // ==================== Exchange Rates Tab ====================
-
-    private void showRatesTab() {
-        contentPane.getChildren().clear();
-        hideHeaderAction();
-        contentPane.getChildren().add(createLoadingIndicator());
-
-        Task<List<ExchangeRate>> task = new Task<>() {
-            @Override
-            protected List<ExchangeRate> call() throws Exception {
-                // Load TND to EUR and TND to USD rates for the last 30 days
-                List<ExchangeRate> rates = exchangeRateService.getHistory("TND", "EUR", 30);
-                List<ExchangeRate> usdRates = exchangeRateService.getHistory("TND", "USD", 30);
-                rates.addAll(usdRates);
-                return rates;
-            }
-        };
-
-        task.setOnSucceeded(e -> {
-            List<ExchangeRate> rates = task.getValue();
-            Platform.runLater(() -> displayExchangeRates(rates));
-        });
-
-        task.setOnFailed(e -> {
-            logger.error("Failed to load exchange rates", task.getException());
-            Platform.runLater(() -> {
-                contentPane.getChildren().clear();
-                contentPane.getChildren().add(createEmptyState(I18n.get("finance.admin.rates.error")));
-            });
-        });
-
-        AppThreadPool.execute(task);
-    }
-
-    private void displayExchangeRates(List<ExchangeRate> rates) {
-        contentPane.getChildren().clear();
-
-        HBox headerRow = new HBox(12);
-        headerRow.setAlignment(Pos.CENTER_LEFT);
-        Label headerLabel = new Label(I18n.get("finance.admin.rates.title"));
-        headerLabel.getStyleClass().addAll("text-lg", "font-bold");
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        TLButton refreshRatesBtn = new TLButton(I18n.get("finance.admin.rates.refresh"), TLButton.ButtonVariant.OUTLINE);
-        refreshRatesBtn.setGraphic(SvgIcons.icon(SvgIcons.REFRESH, 14));
-        refreshRatesBtn.setOnAction(e -> {
-            refreshRatesBtn.setDisable(true);
-            AppThreadPool.execute(() -> {
-                currencyApiService.forceUpdateExchangeRates();
-                Platform.runLater(() -> {
-                    refreshRatesBtn.setDisable(false);
-                    showRatesTab();
-                });
-            });
-        });
-        headerRow.getChildren().addAll(headerLabel, spacer, refreshRatesBtn);
-        contentPane.getChildren().add(headerRow);
-
-        if (rates == null || rates.isEmpty()) {
-            contentPane.getChildren().add(createEmptyState(SvgIcons.GLOBE, "No exchange rates", "Refresh to fetch the latest exchange rate data."));
-            return;
-        }
-
-        VBox ratesList = new VBox(8);
-
-        for (ExchangeRate rate : rates) {
-            TLCard card = new TLCard();
-
-            VBox content = new VBox(6);
-
-            String pair = (rate.getFromCurrency() != null ? rate.getFromCurrency() : "?")
-                    + " → " + (rate.getToCurrency() != null ? rate.getToCurrency() : "?");
-            Label pairLabel = new Label(pair);
-            pairLabel.getStyleClass().addAll("text-sm", "font-bold");
-
-            content.getChildren().add(pairLabel);
-
-            content.getChildren().add(createDetailRow(
-                    I18n.get("finance.admin.rates.rate"),
-                    rate.getRate() != null ? rate.getRate().toPlainString() : "-"));
-
-            content.getChildren().add(createDetailRow(
-                    I18n.get("finance.admin.rates.date"),
-                    rate.getRateDate() != null
-                            ? rate.getRateDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-                            : "-"));
-
-            content.getChildren().add(createDetailRow(
-                    I18n.get("finance.admin.rates.source"),
-                    rate.getSource() != null ? rate.getSource() : "-"));
-
-            card.setContent(content);
-            ratesList.getChildren().add(card);
-        }
-
-        ScrollPane scrollPane = new ScrollPane(ratesList);
-        scrollPane.setFitToWidth(true);
-        scrollPane.getStyleClass().add("bg-transparent");
-        VBox.setVgrow(scrollPane, Priority.ALWAYS);
-        contentPane.getChildren().add(scrollPane);
-    }
-
-    // ==================== Reports Tab ====================
-
-    private void showReportsTab() {
-        contentPane.getChildren().clear();
-        hideHeaderAction();
-        contentPane.getChildren().add(createLoadingIndicator());
-
-        Task<ReportData> task = new Task<>() {
-            @Override
-            protected ReportData call() throws Exception {
-                List<EmploymentContract> activeContracts = contractService.findByStatus("ACTIVE");
-                List<EmploymentContract> allContracts = contractService.findAll();
-
-                BigDecimal totalPayroll = BigDecimal.ZERO;
-                for (EmploymentContract c : activeContracts) {
-                    if (c.getSalaryBase() != null) {
-                        totalPayroll = totalPayroll.add(c.getSalaryBase());
-                    }
-                }
-
-                return new ReportData(
-                        activeContracts.size(),
-                        allContracts.size(),
-                        totalPayroll
-                );
-            }
-        };
-
-        task.setOnSucceeded(e -> {
-            ReportData data = task.getValue();
-            Platform.runLater(() -> displayReports(data));
-        });
-
-        task.setOnFailed(e -> {
-            logger.error("Failed to load reports", task.getException());
-            Platform.runLater(() -> {
-                contentPane.getChildren().clear();
-                contentPane.getChildren().add(createEmptyState(I18n.get("finance.admin.reports.error")));
-            });
-        });
-
-        AppThreadPool.execute(task);
-    }
-
-    private void displayReports(ReportData data) {
-        contentPane.getChildren().clear();
-
-        Label headerLabel = new Label(I18n.get("finance.admin.reports.title"));
-        headerLabel.getStyleClass().addAll("text-lg", "font-bold");
-        contentPane.getChildren().add(headerLabel);
-
-        FlowPane statsGrid = new FlowPane(16, 16);
-        statsGrid.setPadding(new Insets(16, 0, 0, 0));
-
-        // Active Contracts stat
-        statsGrid.getChildren().add(createStatCard(
-                I18n.get("finance.admin.reports.active_contracts"),
-                String.valueOf(data.activeContractCount)));
-
-        // Total Contracts stat
-        statsGrid.getChildren().add(createStatCard(
-                I18n.get("finance.admin.reports.total_contracts"),
-                String.valueOf(data.totalContractCount)));
-
-        // Total Payroll stat
-        statsGrid.getChildren().add(createStatCard(
-                I18n.get("finance.admin.reports.total_payroll"),
-                data.totalPayroll.toPlainString() + " TND"));
-
-        // Average Salary stat
-        BigDecimal avgSalary = data.activeContractCount > 0
-                ? data.totalPayroll.divide(BigDecimal.valueOf(data.activeContractCount), 2, java.math.RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
-        statsGrid.getChildren().add(createStatCard(
-                I18n.get("finance.admin.reports.avg_salary"),
-                avgSalary.toPlainString() + " TND"));
-
-        contentPane.getChildren().add(statsGrid);
-    }
-
-    // ==================== Helper Methods ====================
-
-    private HBox createDetailRow(String label, String value) {
-        HBox row = new HBox(8);
-        row.setAlignment(Pos.CENTER_LEFT);
-
-        Label labelNode = new Label(label + ":");
-        labelNode.getStyleClass().addAll("font-bold", "text-muted");
-        labelNode.setMinWidth(Region.USE_PREF_SIZE);
-
-        Label valueNode = new Label(value != null ? value : "-");
-        valueNode.setWrapText(true);
-
-        row.getChildren().addAll(labelNode, valueNode);
-        return row;
-    }
-
-    private TLEmptyState createEmptyState(String icon, String title, String description) {
-        TLEmptyState empty = new TLEmptyState(icon, title, description);
-        VBox.setVgrow(empty, Priority.ALWAYS);
-        return empty;
-    }
-
-    private TLEmptyState createEmptyState(String message) {
-        return createEmptyState(SvgIcons.DOLLAR_SIGN, message, "");
-    }
-
-    private TLLoadingState createLoadingIndicator() {
-        return new TLLoadingState();
-    }
-
-    private TLCard createStatCard(String title, String value) {
-        TLCard card = new TLCard();
-        card.setPrefWidth(220);
-
-        VBox content = new VBox(8);
-
-        Label titleLbl = new Label(title);
-        titleLbl.getStyleClass().addAll("text-xs", "text-muted");
-
-        Label valueLbl = new Label(value);
-        valueLbl.getStyleClass().addAll("text-2xl", "font-bold");
-
-        content.getChildren().addAll(titleLbl, valueLbl);
-        card.setContent(content);
-        return card;
-    }
-
-    private TLBadge.Variant getContractBadgeVariant(String status) {
-        if (status == null) return TLBadge.Variant.DEFAULT;
-        return switch (status) {
-            case "ACTIVE" -> TLBadge.Variant.SUCCESS;
-            case "PENDING_SIGNATURE", "DRAFT" -> TLBadge.Variant.SECONDARY;
-            case "TERMINATED", "EXPIRED" -> TLBadge.Variant.DESTRUCTIVE;
-            default -> TLBadge.Variant.DEFAULT;
-        };
-    }
-
-    // ==================== Inner Classes ====================
-
-    /**
-     * Simple data holder for report statistics.
-     */
-    private record ReportData(int activeContractCount, int totalContractCount, BigDecimal totalPayroll) {}
-
-    // ==================== Team Overview Tab (from branch) ====================
-
-    private List<EmployeeSummaryRow> allEmployees = new ArrayList<>();
-
-    private void showTeamTab() {
-        contentPane.getChildren().clear();
-        contentPane.getChildren().add(createLoadingIndicator());
-
-        Task<List<EmployeeSummaryRow>> task = new Task<>() {
-            @Override
-            protected List<EmployeeSummaryRow> call() throws Exception {
-                return financeDataService.getEmployeeSummaries();
-            }
-        };
-
         task.setOnSucceeded(e -> Platform.runLater(() -> {
-            contentPane.getChildren().clear();
-            allEmployees = task.getValue();
-            if (allEmployees == null || allEmployees.isEmpty()) {
-                contentPane.getChildren().add(createEmptyState(SvgIcons.DOLLAR_SIGN, "No employees found", "No employee data available."));
+            if (getScene() != null) TLToast.success(getScene(), "Success", "Bank account updated");
+            handleRefreshBankAccounts();
+        }));
+        task.setOnFailed(e -> Platform.runLater(() -> {
+            logger.error("Failed to update bank account", task.getException());
+            if (getScene() != null) TLToast.error(getScene(), "Error", "Failed to update bank account");
+        }));
+                AppThreadPool.execute(task);
+    }
+
+    @FXML
+    private void handleDeleteBankAccount() {
+        BankAccountRow selected = bankAccountTable != null ? bankAccountTable.getSelectionModel().getSelectedItem() : null;
+        if (selected == null) {
+            if (getScene() != null) TLToast.warning(getScene(), "Selection", "Select a bank account to delete");
+            return;
+        }
+        Task<Void> task = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                financeDataService.deleteBankAccount(selected.getId());
+                return null;
+            }
+        };
+        task.setOnSucceeded(e -> Platform.runLater(() -> {
+            if (getScene() != null) TLToast.success(getScene(), "Success", "Bank account deleted");
+            handleRefreshBankAccounts();
+        }));
+        task.setOnFailed(e -> Platform.runLater(() -> {
+            logger.error("Failed to delete bank account", task.getException());
+            if (getScene() != null) TLToast.error(getScene(), "Error", "Failed to delete bank account");
+        }));
+        AppThreadPool.execute(task);
+    }
+
+    @FXML
+    private void handleClearBankForm() {
+        if (bank_userIdCombo != null) bank_userIdCombo.setValue(null);
+        if (bank_nameField != null) bank_nameField.setText("");
+        if (bank_ibanField != null) bank_ibanField.setText("");
+        if (bank_swiftField != null) bank_swiftField.setText("");
+        if (bank_currencyCombo != null) bank_currencyCombo.setValue("TND");
+        if (bank_primaryCombo != null) bank_primaryCombo.setValue("No");
+        if (bank_verifiedCombo != null) bank_verifiedCombo.setValue("Unverified");
+        if (bankAccountTable != null) bankAccountTable.getSelectionModel().clearSelection();
+    }
+
+    @FXML
+    private void handleRefreshBankAccounts() {
+        if (bankAccountTable != null && bankAccountTable.getItems() != null) {
+            try {
+                bankAccountTable.getItems().setAll(financeDataService.getAllBankAccounts());
+                if (bank_countLabel != null) bank_countLabel.setText("Total: " + bankAccountTable.getItems().size());
+            } catch (Exception e) { logger.error("Refresh bank", e); }
+        }
+    }
+
+    // ==================== Bonus CRUD ====================
+
+    @FXML
+    private void handleAddBonus() {
+        if (bonus_userIdCombo == null || bonus_amountField == null) return;
+        String selected = bonus_userIdCombo.getValue();
+        if (selected == null || !selected.contains(" - ")) {
+            if (getScene() != null) TLToast.warning(getScene(), "Validation", "Select an employee");
+            return;
+        }
+        int userId = Integer.parseInt(selected.substring(0, selected.indexOf(" - ")).trim());
+        String amountText = bonus_amountField.getText() != null ? bonus_amountField.getText().trim() : "";
+        String reason = bonus_reasonField != null && bonus_reasonField.getText() != null ? bonus_reasonField.getText().trim() : "";
+
+        if (amountText.isEmpty()) {
+            if (getScene() != null) TLToast.warning(getScene(), "Validation", "Amount is required");
+            return;
+        }
+        double amount;
+        try {
+            amount = Double.parseDouble(amountText);
+        } catch (NumberFormatException e) {
+            if (getScene() != null) TLToast.warning(getScene(), "Validation", "Invalid amount");
+            return;
+        }
+
+        String dateAwarded = LocalDate.now().toString();
+        BonusRow bonus = new BonusRow(0, userId, "", amount, reason, dateAwarded);
+
+        Task<Void> task = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                financeDataService.addBonus(bonus);
+                return null;
+            }
+        };
+        task.setOnSucceeded(e -> Platform.runLater(() -> {
+            if (getScene() != null) TLToast.success(getScene(), "Success", "Bonus added");
+            handleClearBonusForm();
+            handleRefreshBonuses();
+        }));
+        task.setOnFailed(e -> Platform.runLater(() -> {
+            logger.error("Failed to add bonus", task.getException());
+            if (getScene() != null) TLToast.error(getScene(), "Error", "Failed to add bonus");
+        }));
+        AppThreadPool.execute(task);
+    }
+
+    @FXML
+    private void handleUpdateBonus() {
+        BonusRow selected = bonusTable != null ? bonusTable.getSelectionModel().getSelectedItem() : null;
+        if (selected == null) {
+            if (getScene() != null) TLToast.warning(getScene(), "Selection", "Select a bonus to update");
+            return;
+        }
+        if (bonus_amountField == null) return;
+
+        String amountText = bonus_amountField.getText() != null ? bonus_amountField.getText().trim() : "";
+        if (amountText.isEmpty()) {
+            if (getScene() != null) TLToast.warning(getScene(), "Validation", "Amount is required");
+            return;
+        }
+        double amount;
+        try {
+            amount = Double.parseDouble(amountText);
+        } catch (NumberFormatException e) {
+            if (getScene() != null) TLToast.warning(getScene(), "Validation", "Invalid amount");
+            return;
+        }
+
+        selected.setAmount(amount);
+        selected.setReason(bonus_reasonField != null && bonus_reasonField.getText() != null ? bonus_reasonField.getText().trim() : "");
+
+        Task<Void> task = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                financeDataService.updateBonus(selected);
+                return null;
+            }
+        };
+        task.setOnSucceeded(e -> Platform.runLater(() -> {
+            if (getScene() != null) TLToast.success(getScene(), "Success", "Bonus updated");
+            handleRefreshBonuses();
+        }));
+        task.setOnFailed(e -> Platform.runLater(() -> {
+            logger.error("Failed to update bonus", task.getException());
+            if (getScene() != null) TLToast.error(getScene(), "Error", "Failed to update bonus");
+        }));
+        AppThreadPool.execute(task);
+    }
+
+    @FXML
+    private void handleDeleteBonus() {
+        BonusRow selected = bonusTable != null ? bonusTable.getSelectionModel().getSelectedItem() : null;
+        if (selected == null) {
+            if (getScene() != null) TLToast.warning(getScene(), "Selection", "Select a bonus to delete");
+            return;
+        }
+        Task<Void> task = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                financeDataService.deleteBonus(selected.getId());
+                return null;
+            }
+        };
+        task.setOnSucceeded(e -> Platform.runLater(() -> {
+            if (getScene() != null) TLToast.success(getScene(), "Success", "Bonus deleted");
+            handleRefreshBonuses();
+        }));
+        task.setOnFailed(e -> Platform.runLater(() -> {
+            logger.error("Failed to delete bonus", task.getException());
+            if (getScene() != null) TLToast.error(getScene(), "Error", "Failed to delete bonus");
+        }));
+        AppThreadPool.execute(task);
+    }
+
+    @FXML
+    private void handleClearBonusForm() {
+        if (bonus_userIdCombo != null) bonus_userIdCombo.setValue(null);
+        if (bonus_amountField != null) bonus_amountField.setText("");
+        if (bonus_reasonField != null) bonus_reasonField.setText("");
+        if (bonusTable != null) bonusTable.getSelectionModel().clearSelection();
+    }
+
+    @FXML
+    private void handleRefreshBonuses() {
+        if (bonusTable != null && bonusTable.getItems() != null) {
+            try {
+                bonusTable.getItems().setAll(financeDataService.getAllBonuses());
+                if (bonus_countLabel != null) bonus_countLabel.setText("Total: " + bonusTable.getItems().size());
+            } catch (Exception e) { logger.error("Refresh bonuses", e); }
+        }
+    }
+
+    // ==================== Payslip CRUD ====================
+
+    @FXML
+    private void handleCalculatePayslip() {
+        if (payslip_baseSalaryField == null) return;
+        try {
+            double baseSalary = parseDoubleOrZero(payslip_baseSalaryField.getText());
+            double overtime = parseDoubleOrZero(payslip_overtimeField != null ? payslip_overtimeField.getText() : "0");
+            double overtimeRate = parseDoubleOrZero(payslip_overtimeRateField != null ? payslip_overtimeRateField.getText() : "0");
+            double bonuses = parseDoubleOrZero(payslip_bonusesField != null ? payslip_bonusesField.getText() : "0");
+            double otherDeductions = parseDoubleOrZero(payslip_otherDeductionsField != null ? payslip_otherDeductionsField.getText() : "0");
+
+            double overtimeTotal = overtime * overtimeRate;
+            double gross = baseSalary + overtimeTotal + bonuses;
+            double cnss = gross * 0.0918;
+            double irpp = (gross - cnss) * 0.26;
+            double totalDeductions = cnss + irpp + otherDeductions;
+            double net = gross - totalDeductions;
+
+            if (payslip_grossLabel != null) payslip_grossLabel.setText(String.format("%.2f TND", gross));
+            if (payslip_cnssLabel != null) payslip_cnssLabel.setText(String.format("%.2f TND", cnss));
+            if (payslip_irppLabel != null) payslip_irppLabel.setText(String.format("%.2f TND", irpp));
+            if (payslip_totalDeductionsLabel != null) payslip_totalDeductionsLabel.setText(String.format("%.2f TND", totalDeductions));
+            if (payslip_netLabel != null) payslip_netLabel.setText(String.format("%.2f TND", net));
+        } catch (Exception e) {
+            logger.warn("Failed to calculate payslip", e);
+        }
+    }
+
+    private double parseDoubleOrZero(String text) {
+        if (text == null || text.trim().isEmpty()) return 0;
+        try { return Double.parseDouble(text.trim()); } catch (NumberFormatException e) { return 0; }
+    }
+
+    @FXML
+    private void handleAddPayslip() {
+        if (payslip_userIdCombo == null || payslip_monthCombo == null || payslip_yearCombo == null) return;
+        String selected = payslip_userIdCombo.getValue();
+        if (selected == null || !selected.contains(" - ")) {
+            if (getScene() != null) TLToast.warning(getScene(), "Validation", "Select an employee");
+            return;
+        }
+        int userId = Integer.parseInt(selected.substring(0, selected.indexOf(" - ")).trim());
+        Integer month = payslip_monthCombo.getValue();
+        Integer year = payslip_yearCombo.getValue();
+        if (month == null || year == null) {
+            if (getScene() != null) TLToast.warning(getScene(), "Validation", "Select month and year");
+            return;
+        }
+
+        double baseSalary = parseDoubleOrZero(payslip_baseSalaryField != null ? payslip_baseSalaryField.getText() : "0");
+        double overtime = parseDoubleOrZero(payslip_overtimeField != null ? payslip_overtimeField.getText() : "0");
+        double overtimeRate = parseDoubleOrZero(payslip_overtimeRateField != null ? payslip_overtimeRateField.getText() : "0");
+        double bonuses = parseDoubleOrZero(payslip_bonusesField != null ? payslip_bonusesField.getText() : "0");
+        double otherDeductions = parseDoubleOrZero(payslip_otherDeductionsField != null ? payslip_otherDeductionsField.getText() : "0");
+        String currency = payslip_currencyCombo != null ? payslip_currencyCombo.getValue() : "TND";
+        String status = payslip_statusCombo != null ? payslip_statusCombo.getValue() : "DRAFT";
+
+        double overtimeTotal = overtime * overtimeRate;
+        PayslipRow payslip = new PayslipRow(0, userId, "", month, year, baseSalary, overtime, overtimeTotal, bonuses, currency, status);
+        payslip.setOtherDeductions(otherDeductions);
+
+        Task<Void> task = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                financeDataService.addPayslip(payslip);
+                return null;
+            }
+        };
+        task.setOnSucceeded(e -> Platform.runLater(() -> {
+            if (getScene() != null) TLToast.success(getScene(), "Success", "Payslip added");
+            handleClearPayslipForm();
+            handleRefreshPayslips();
+        }));
+        task.setOnFailed(e -> Platform.runLater(() -> {
+            Throwable ex = task.getException();
+            logger.error("Failed to add payslip", ex);
+            String msg = "Failed to add payslip";
+            String exMsg = getExceptionMessage(ex);
+            if (exMsg != null && (exMsg.contains("Duplicate entry") || exMsg.contains("uq_payslip_period"))) {
+                msg = "A payslip already exists for this employee, month and year. Select it and use Update or choose another period.";
+            }
+            if (getScene() != null) TLToast.error(getScene(), "Error", msg);
+        }));
+        AppThreadPool.execute(task);
+    }
+
+    /** Unwrap exception message for user-facing errors. */
+    private static String getExceptionMessage(Throwable t) {
+        while (t != null) {
+            String m = t.getMessage();
+            if (m != null && !m.isBlank()) return m;
+            t = t.getCause();
+        }
+        return null;
+    }
+
+    @FXML
+    private void handleUpdatePayslip() {
+        PayslipRow selected = payslipTable != null ? payslipTable.getSelectionModel().getSelectedItem() : null;
+        if (selected == null) {
+            if (getScene() != null) TLToast.warning(getScene(), "Selection", "Select a payslip to update");
+            return;
+        }
+
+        selected.setMonth(payslip_monthCombo != null ? payslip_monthCombo.getValue() : selected.getMonth());
+        selected.setYear(payslip_yearCombo != null ? payslip_yearCombo.getValue() : selected.getYear());
+        selected.setBaseSalary(parseDoubleOrZero(payslip_baseSalaryField != null ? payslip_baseSalaryField.getText() : "0"));
+        selected.setOvertime(parseDoubleOrZero(payslip_overtimeField != null ? payslip_overtimeField.getText() : "0"));
+        double overtimeRate = parseDoubleOrZero(payslip_overtimeRateField != null ? payslip_overtimeRateField.getText() : "0");
+        selected.setOvertimeTotal(selected.getOvertime() * overtimeRate);
+        selected.setBonuses(parseDoubleOrZero(payslip_bonusesField != null ? payslip_bonusesField.getText() : "0"));
+        selected.setOtherDeductions(parseDoubleOrZero(payslip_otherDeductionsField != null ? payslip_otherDeductionsField.getText() : "0"));
+        selected.setCurrency(payslip_currencyCombo != null ? payslip_currencyCombo.getValue() : selected.getCurrency());
+        selected.setStatus(payslip_statusCombo != null ? payslip_statusCombo.getValue() : selected.getStatus());
+        selected.calculateTotals();
+
+        Task<Void> task = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                financeDataService.updatePayslip(selected);
+                return null;
+            }
+        };
+        task.setOnSucceeded(e -> Platform.runLater(() -> {
+            if (getScene() != null) TLToast.success(getScene(), "Success", "Payslip updated");
+            handleRefreshPayslips();
+        }));
+        task.setOnFailed(e -> Platform.runLater(() -> {
+            logger.error("Failed to update payslip", task.getException());
+            if (getScene() != null) TLToast.error(getScene(), "Error", "Failed to update payslip");
+        }));
+        AppThreadPool.execute(task);
+    }
+
+    @FXML
+    private void handleDeletePayslip() {
+        PayslipRow selected = payslipTable != null ? payslipTable.getSelectionModel().getSelectedItem() : null;
+        if (selected == null) {
+            if (getScene() != null) TLToast.warning(getScene(), "Selection", "Select a payslip to delete");
+            return;
+        }
+        Task<Void> task = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                financeDataService.deletePayslip(selected.getId());
+                return null;
+            }
+        };
+        task.setOnSucceeded(e -> Platform.runLater(() -> {
+            if (getScene() != null) TLToast.success(getScene(), "Success", "Payslip deleted");
+            handleRefreshPayslips();
+        }));
+        task.setOnFailed(e -> Platform.runLater(() -> {
+            logger.error("Failed to delete payslip", task.getException());
+            if (getScene() != null) TLToast.error(getScene(), "Error", "Failed to delete payslip");
+        }));
+        AppThreadPool.execute(task);
+    }
+
+    @FXML
+    private void handleClearPayslipForm() {
+        if (payslip_userIdCombo != null) payslip_userIdCombo.setValue(null);
+        if (payslip_monthCombo != null) payslip_monthCombo.setValue(LocalDate.now().getMonthValue());
+        if (payslip_yearCombo != null) payslip_yearCombo.setValue(LocalDate.now().getYear());
+        if (payslip_currencyCombo != null) payslip_currencyCombo.setValue("TND");
+        if (payslip_statusCombo != null) payslip_statusCombo.setValue("DRAFT");
+        if (payslip_baseSalaryField != null) payslip_baseSalaryField.setText("");
+        if (payslip_overtimeField != null) payslip_overtimeField.setText("");
+        if (payslip_overtimeRateField != null) payslip_overtimeRateField.setText("");
+        if (payslip_bonusesField != null) payslip_bonusesField.setText("");
+        if (payslip_otherDeductionsField != null) payslip_otherDeductionsField.setText("");
+        if (payslip_grossLabel != null) payslip_grossLabel.setText("0.00 TND");
+        if (payslip_cnssLabel != null) payslip_cnssLabel.setText("0.00 TND");
+        if (payslip_irppLabel != null) payslip_irppLabel.setText("0.00 TND");
+        if (payslip_totalDeductionsLabel != null) payslip_totalDeductionsLabel.setText("0.00 TND");
+        if (payslip_netLabel != null) payslip_netLabel.setText("0.00 TND");
+        if (payslipTable != null) payslipTable.getSelectionModel().clearSelection();
+    }
+
+    @FXML
+    private void handleRefreshPayslips() {
+        if (payslipTable != null && payslipTable.getItems() != null) {
+            try {
+                payslipTable.getItems().setAll(financeDataService.getAllPayslips());
+                if (payslip_countLabel != null) payslip_countLabel.setText("Total: " + payslipTable.getItems().size());
+            } catch (Exception e) { logger.error("Refresh payslips", e); }
+        }
+    }
+
+    @FXML
+    private void handleExportPayslipPDF() {
+        PayslipRow selected = payslipTable != null ? payslipTable.getSelectionModel().getSelectedItem() : null;
+        if (selected == null) {
+            if (getScene() != null) TLToast.warning(getScene(), "Selection", "Select a payslip to export");
+            return;
+        }
+        Stage stage = null;
+        if (payslip_pdfBtn != null && payslip_pdfBtn.getScene() != null && payslip_pdfBtn.getScene().getWindow() instanceof Stage) {
+            stage = (Stage) payslip_pdfBtn.getScene().getWindow();
+        } else if (getScene() != null && getScene().getWindow() instanceof Stage) {
+            stage = (Stage) getScene().getWindow();
+        }
+        if (stage == null) {
+            if (getScene() != null) TLToast.error(getScene(), "Error", "Cannot show save dialog.");
+            return;
+        }
+        String empName = selected.getEmployeeName() != null ? selected.getEmployeeName() : "Employé";
+        File result = PDFGenerator.generatePayslipPDF(selected, empName, stage);
+        if (result != null && getScene() != null) {
+            TLToast.success(getScene(), "Export", "Bulletin enregistré : " + result.getName());
+        }
+    }
+
+    @FXML
+    private void handleGenerateEmployeeReport() {
+        if (report_employeeCombo == null) return;
+        String selected = report_employeeCombo.getValue();
+        if (selected == null || selected.isBlank()) {
+            if (getScene() != null) TLToast.warning(getScene(), I18n.get("common.select") != null ? I18n.get("common.select") : "Select", "Select an employee to generate the report.");
                 return;
             }
-
-            // Stats
-            double totalGross = 0;
-            double totalNet = 0;
-            int bankIssues = 0;
-            for (EmployeeSummaryRow emp : allEmployees) {
-                totalGross += emp.getCurrentSalary();
-                totalNet += emp.getLastNetPay();
-                if (!"Verifié".equalsIgnoreCase(emp.getBankStatus())) {
-                    bankIssues++;
-                }
+        int employeeId;
+        String employeeName;
+        int dash = selected.indexOf(" - ");
+        if (dash >= 0) {
+            try {
+                employeeId = Integer.parseInt(selected.substring(0, dash).trim());
+                employeeName = selected.substring(dash + 3).trim();
+            } catch (NumberFormatException e) {
+                if (getScene() != null) TLToast.error(getScene(), "Error", "Invalid employee selection.");
+                return;
             }
-
-            HBox statsRow = new HBox(12);
-            statsRow.getChildren().addAll(
-                    createStatMiniCard("Effectif Total", String.valueOf(allEmployees.size()), "👥", "#3b82f6"),
-                    createStatMiniCard("Masse Salariale Brut", formatDouble(totalGross) + " T.", "💰", "#8b5cf6"),
-                    createStatMiniCard("Total Déboursé Net", formatDouble(totalNet) + " T.", "💸", "#10b981"),
-                    createStatMiniCard("Alertes Bancaires", String.valueOf(bankIssues), "⚠️", bankIssues > 0 ? "#ef4444" : "#22c55e")
-            );
-
-            // Employee cards
-            FlowPane cardFlow = new FlowPane(12, 12);
-            cardFlow.setPadding(new Insets(12));
-            for (EmployeeSummaryRow emp : allEmployees) {
-                cardFlow.getChildren().add(createEmployeeCard(emp));
+        } else {
+            if (getScene() != null) TLToast.warning(getScene(), "Select", "Select an employee from the list.");
+                return;
             }
-
-            ScrollPane scrollPane = new ScrollPane(cardFlow);
-            scrollPane.setFitToWidth(true);
-            scrollPane.getStyleClass().add("bg-transparent");
-            VBox.setVgrow(scrollPane, Priority.ALWAYS);
-
-            contentPane.getChildren().addAll(statsRow, scrollPane);
+        Stage stage = null;
+        if (report_generateBtn != null && report_generateBtn.getScene() != null && report_generateBtn.getScene().getWindow() instanceof Stage) {
+            stage = (Stage) report_generateBtn.getScene().getWindow();
+        } else if (getScene() != null && getScene().getWindow() instanceof Stage) {
+            stage = (Stage) getScene().getWindow();
+        }
+        if (stage == null) {
+            if (getScene() != null) TLToast.error(getScene(), "Error", "Cannot show save dialog.");
+            return;
+        }
+        String safeName = (employeeName != null ? employeeName : "Employe").replaceAll("[^a-zA-Z0-9_-]", "_");
+        String defaultName = "Rapport_Financier_" + safeName + "_" + LocalDate.now() + ".pdf";
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Enregistrer le rapport financier");
+        fileChooser.setInitialFileName(defaultName);
+        fileChooser.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter("Rapports PDF (*.pdf)", "*.pdf"),
+            new FileChooser.ExtensionFilter("Fichiers HTML (*.html)", "*.html")
+        );
+        File chosenFile = fileChooser.showSaveDialog(stage);
+        if (chosenFile == null) return;
+        FileChooser.ExtensionFilter selectedFilter = fileChooser.getSelectedExtensionFilter();
+        final File targetFile = PDFGenerator.ensureExtension(chosenFile, selectedFilter);
+        final int empId = employeeId;
+        final String empName = employeeName != null ? employeeName : "Employé";
+        Task<File> task = new Task<>() {
+            @Override
+            protected File call() throws Exception {
+                String contractInfo = buildContractInfoHtml(empId);
+                String bankInfo = buildBankInfoHtml(empId);
+                String bonusInfo = buildBonusInfoHtml(empId);
+                String payslipInfo = buildPayslipInfoHtml(empId);
+                String summary = buildReportSummary(empId, empName);
+                return PDFGenerator.generateToFile(targetFile, empId, empName,
+                    contractInfo, bankInfo, bonusInfo, payslipInfo, summary);
+            }
+        };
+        task.setOnSucceeded(e -> Platform.runLater(() -> {
+            File pdf = task.getValue();
+            if (pdf != null && getScene() != null) {
+                TLToast.success(getScene(), "Rapport généré", "Enregistré : " + pdf.getAbsolutePath());
+            }
         }));
-
         task.setOnFailed(e -> Platform.runLater(() -> {
-            contentPane.getChildren().clear();
-            contentPane.getChildren().add(createEmptyState("Failed to load team data"));
+            logger.error("Failed to generate report", task.getException());
+            if (getScene() != null) TLToast.error(getScene(), "Erreur", "Échec de la génération du rapport.");
         }));
-
         AppThreadPool.execute(task);
     }
-
-    private HBox createStatMiniCard(String title, String value, String icon, String color) {
-        HBox box = new HBox(12);
-        box.setAlignment(Pos.CENTER_LEFT);
-        box.setPrefWidth(220);
-        box.setStyle("-fx-background-color: -fx-background; -fx-padding: 12; " +
-                "-fx-background-radius: 12; -fx-border-color: -fx-border; -fx-border-width: 1;");
-
-        Label iconLbl = new Label(icon);
-        iconLbl.setStyle("-fx-font-size: 20px; -fx-min-width: 40px; -fx-min-height: 40px; " +
-                "-fx-alignment: center; -fx-background-color: " + color + "22; -fx-text-fill: " + color +
-                "; -fx-background-radius: 10;");
-
-        VBox texts = new VBox(2);
-        Label titleLbl = new Label(title);
-        titleLbl.setStyle("-fx-text-fill: -fx-muted-foreground; -fx-font-size: 11px;");
-        Label valueLbl = new Label(value);
-        valueLbl.setStyle("-fx-font-weight: bold; -fx-text-fill: -fx-foreground; -fx-font-size: 14px;");
-        texts.getChildren().addAll(titleLbl, valueLbl);
-        box.getChildren().addAll(iconLbl, texts);
-        return box;
-    }
-
-    private VBox createEmployeeCard(EmployeeSummaryRow emp) {
-        VBox card = new VBox(8);
-        card.setAlignment(Pos.CENTER);
-        card.setPrefSize(160, 110);
-        card.setMinWidth(160);
-
-        String baseStyle = "-fx-background-color: -fx-card; -fx-background-radius: 16; " +
-                "-fx-border-color: -fx-border; -fx-border-width: 1; -fx-border-radius: 16; -fx-cursor: hand; -fx-padding: 12;";
-
-        card.setStyle(baseStyle);
-
-        Label avatar = new Label(getInitials(emp.getFullName()));
-        avatar.setStyle("-fx-background-color: " + getAvatarColor(emp.getUserId()) +
-                "; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; " +
-                "-fx-min-width: 36px; -fx-min-height: 36px; -fx-max-width: 36px; -fx-max-height: 36px; " +
-                "-fx-background-radius: 18; -fx-alignment: center;");
-
-        Label name = new Label(emp.getFullName());
-        name.setStyle("-fx-font-weight: bold; -fx-text-fill: -fx-foreground; -fx-font-size: 13px;");
-        name.setWrapText(false);
-        name.setTooltip(new Tooltip(emp.getFullName()));
-
-        Label pos = new Label(emp.getPosition());
-        pos.setStyle("-fx-text-fill: -fx-muted-foreground; -fx-font-size: 11px;");
-        pos.setTooltip(new Tooltip(emp.getPosition()));
-
-        card.getChildren().addAll(avatar, name, pos);
-
-        card.setOnMouseEntered(e -> card.setStyle(baseStyle +
-                "-fx-background-color: -fx-control-inner-background; -fx-border-color: -fx-muted-foreground;"));
-        card.setOnMouseExited(e -> card.setStyle(baseStyle));
-
-        return card;
-    }
-
-    private String getInitials(String name) {
-        if (name == null || name.isBlank()) return "?";
-        String[] parts = name.split("\\s+");
-        if (parts.length >= 2) {
-            return (parts[0].substring(0, 1) + parts[parts.length - 1].substring(0, 1)).toUpperCase();
-        }
-        return name.substring(0, Math.min(2, name.length())).toUpperCase();
-    }
-
-    private String getAvatarColor(int id) {
-        String[] colors = {"#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"};
-        return colors[id % colors.length];
-    }
-
-    private String formatDouble(double v) {
-        return String.format(Locale.FRANCE, "%,.0f", v);
-    }
-
-    // ==================== Chatbot Tab (from branch) ====================
-
-    private VBox chatMessageContainer;
-    private TextField chatQuestionField;
-    private ScrollPane chatScrollPane;
-
-    private void showChatbotTab() {
-        contentPane.getChildren().clear();
-
-        TLCard chatCard = new TLCard();
-        chatCard.setHeader(chatbotService.isUsingAI() ? "Assistant Ma Paie (IA)" : "Assistant Ma Paie");
-
-        VBox body = new VBox(12);
-        body.setPrefHeight(500);
-
-        // Chat messages area
-        chatMessageContainer = new VBox(10);
-        chatMessageContainer.setPadding(new Insets(10));
-
-        chatScrollPane = new ScrollPane(chatMessageContainer);
-        chatScrollPane.setFitToWidth(true);
-        chatScrollPane.getStyleClass().add("bg-transparent");
-        VBox.setVgrow(chatScrollPane, Priority.ALWAYS);
-
-        // Welcome message
-        String welcome = chatbotService.isUsingAI()
-                ? "Bonjour ! Je suis l'assistant IA. Posez-moi vos questions sur la paie : bulletins, salaire net/brut, CNSS, IRPP, primes, contrats, comptes bancaires."
-                : "Bonjour ! Je réponds uniquement aux questions sur votre paie : bulletins, salaire net/brut, CNSS, IRPP, primes, contrats, comptes bancaires.";
-        appendChatMessage("Assistant", welcome);
-
-        // Input area
-        HBox inputBox = new HBox(8);
-        inputBox.setAlignment(Pos.CENTER_LEFT);
-        chatQuestionField = new TextField();
-        chatQuestionField.setPromptText("Posez votre question...");
-        chatQuestionField.setPrefWidth(400);
-        HBox.setHgrow(chatQuestionField, Priority.ALWAYS);
-
-        TLButton sendBtn = new TLButton("Envoyer", TLButton.ButtonVariant.PRIMARY);
-        sendBtn.setOnAction(e -> handleChatSend());
-        chatQuestionField.setOnAction(e -> handleChatSend());
-
-        inputBox.getChildren().addAll(chatQuestionField, sendBtn);
-
-        body.getChildren().addAll(chatScrollPane, inputBox);
-        chatCard.setContent(body);
-
-        contentPane.getChildren().add(chatCard);
-    }
-
-    private void handleChatSend() {
-        if (chatQuestionField == null || chatMessageContainer == null) return;
-        String question = chatQuestionField.getText();
-        if (question == null || question.isBlank()) return;
-        chatQuestionField.clear();
-
-        appendChatMessage("Vous", question);
-
-        FinanceChatbotService.FinanceChatContext context = buildChatContext();
-        String answer = chatbotService.answer(question, context);
-        appendChatMessage("Assistant", answer);
-
-        if (chatScrollPane != null) {
-            chatScrollPane.setVvalue(1.0);
-        }
-    }
-
-    private void appendChatMessage(String who, String text) {
-        if (chatMessageContainer == null || text == null) return;
-        String displayText = text.replace("**", "");
-        String style = "Vous".equals(who)
-                ? "-fx-background-color: rgba(59,130,246,0.2); -fx-padding: 10 14; -fx-background-radius: 12; " +
-                  "-fx-border-color: rgba(59,130,246,0.4); -fx-border-radius: 12; -fx-border-width: 1; " +
-                  "-fx-text-fill: -fx-foreground; -fx-font-size: 13px;"
-                : "-fx-background-color: rgba(0,196,167,0.12); -fx-padding: 10 14; -fx-background-radius: 12; " +
-                  "-fx-border-color: rgba(0,196,167,0.3); -fx-border-radius: 12; -fx-border-width: 1; " +
-                  "-fx-text-fill: -fx-foreground; -fx-font-size: 13px;";
-
-        Label lbl = new Label(displayText);
-        lbl.setWrapText(true);
-        lbl.setMinWidth(200);
-        lbl.setPrefWidth(600);
-        lbl.setMaxWidth(Double.MAX_VALUE);
-        lbl.setStyle(style);
-
-        Label header = new Label(who + " :");
-        header.setStyle("-fx-font-weight: bold; -fx-text-fill: -fx-muted-foreground; -fx-font-size: 11px;");
-
-        VBox box = new VBox(4, header, lbl);
-        box.setStyle("-fx-alignment: TOP_LEFT;");
-        chatMessageContainer.getChildren().add(box);
-    }
-
-    private FinanceChatbotService.FinanceChatContext buildChatContext() {
-        String lastPeriod = null;
-        String lastNet = null;
-        String employeeName = currentUser != null ? currentUser.getFullName() : null;
-        int employeeId = currentUser != null ? currentUser.getId() : -1;
-
+    @FXML private void handleCalculateTax() {
+        if (tax_grossField == null || tax_grossField.getText() == null || tax_grossField.getText().trim().isEmpty()) return;
         try {
-            List<PayslipRow> payslips = financeDataService.getPayslipsByUserId(employeeId);
-            if (!payslips.isEmpty()) {
-                payslips.sort(Comparator.comparingInt(PayslipRow::getYear).reversed()
-                        .thenComparingInt(PayslipRow::getMonth).reversed());
-                PayslipRow last = payslips.get(0);
-                lastPeriod = monthFr(last.getMonth()) + " " + last.getYear();
-                lastNet = formatDouble(last.getNet());
-            }
-        } catch (Exception ignored) {}
-
-        Map<String, FinanceChatbotService.EmployeeSnapshot> byName = new HashMap<>();
-        for (EmployeeSummaryRow emp : allEmployees) {
-            String name = emp.getFullName();
-            if (name == null || name.isBlank()) continue;
-            String period = null;
-            String net = emp.getLastNetPay() > 0 ? formatDouble(emp.getLastNetPay()) : null;
-            try {
-                List<PayslipRow> ps = financeDataService.getPayslipsByUserId(emp.getUserId());
-                if (!ps.isEmpty()) {
-                    ps.sort(Comparator.comparingInt(PayslipRow::getYear).reversed()
-                            .thenComparingInt(PayslipRow::getMonth).reversed());
-                    period = monthFr(ps.get(0).getMonth()) + " " + ps.get(0).getYear();
-                    if (net == null) net = formatDouble(ps.get(0).getNet());
-                }
-            } catch (Exception ignored) {}
-            String salary = emp.getCurrentSalary() > 0 ? formatDouble(emp.getCurrentSalary()) : null;
-            String key = normalizeForChat(name);
-            if (!key.isEmpty())
-                byName.put(key, new FinanceChatbotService.EmployeeSnapshot(name, net, period, salary));
-        }
-
-        return new FinanceChatbotService.FinanceChatContext(employeeName, lastPeriod, lastNet, byName);
+            double gross = Double.parseDouble(tax_grossField.getText().trim());
+            double cnss = gross * 0.0918;
+            double irpp = (gross - cnss) * 0.26;
+            double totalDeduct = cnss + irpp;
+            double net = gross - totalDeduct;
+            if (tax_grossResult != null) tax_grossResult.setText(String.format("%.2f TND", gross));
+            if (tax_cnssResult != null) tax_cnssResult.setText(String.format("%.2f TND", cnss));
+            if (tax_irppResult != null) tax_irppResult.setText(String.format("%.2f TND", irpp));
+            if (tax_totalDeductResult != null) tax_totalDeductResult.setText(String.format("%.2f TND", totalDeduct));
+            if (tax_netResult != null) tax_netResult.setText(String.format("%.2f TND", net));
+            if (tax_rateResult != null) tax_rateResult.setText(String.format("%.1f%%", gross > 0 ? (totalDeduct / gross * 100) : 0));
+            if (tax_resultsBox != null) { tax_resultsBox.setVisible(true); tax_resultsBox.setManaged(true); }
+            if (tax_hintBox != null) { tax_hintBox.setVisible(false); tax_hintBox.setManaged(false); }
+        } catch (NumberFormatException e) { logger.warn("Invalid tax input"); }
     }
 
-    private static String normalizeForChat(String s) {
-        if (s == null) return "";
-        return s.toLowerCase(Locale.FRENCH)
-                .replaceAll("[àâä]", "a").replaceAll("[éèêë]", "e").replaceAll("[îï]", "i")
-                .replaceAll("[ôö]", "o").replaceAll("[ùûü]", "u")
-                .replaceAll("[^a-z0-9\\s]", " ").replaceAll("\\s+", " ").trim();
-    }
+    // ─── Report PDF: HTML builders (for generate employee report) ───────────
 
     private static final String[] MONTHS_FR = {"Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-            "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"};
+        "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"};
 
-    private String monthFr(int m) {
-        return (m >= 1 && m <= 12) ? MONTHS_FR[m - 1] : "?";
+    private String buildContractInfoHtml(int empId) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("<div class=\"salary-grid\">");
+        NumberFormat nf = NumberFormat.getIntegerInstance(Locale.FRANCE);
+        try {
+            List<ContractRow> userContracts = financeDataService.getContractsByUserId(empId);
+            if (userContracts.isEmpty()) {
+                sb.append("<p class=\"report-field-value\" style=\"color:#6a7f96;\">Aucun contrat trouvé.</p>");
+                sb.append("</div>");
+                return sb.toString();
+            }
+            for (ContractRow c : userContracts) {
+                String pos = escapeHtml(c.getPosition() != null ? c.getPosition() : "—");
+                String posCap = capitalizeWords(pos);
+                double sal = c.getSalary();
+                String typeStr = escapeHtml(c.getType() != null ? c.getType().toUpperCase(Locale.FRENCH) : "—");
+                String startStr = escapeHtml(c.getStartDate() != null ? c.getStartDate() : "—");
+                String endStr = escapeHtml((c.getEndDate() != null && !c.getEndDate().isBlank()) ? c.getEndDate() : "—");
+                sb.append("<div class=\"salary-card\">");
+                sb.append("<div class=\"report-field\"><span class=\"report-field-label\">Position :</span> <span class=\"report-field-value\">").append(posCap).append("</span></div>");
+                sb.append("<div class=\"report-field\"><span class=\"report-field-label\">Type :</span> <span class=\"report-field-value\">").append(typeStr).append("</span></div>");
+                sb.append("<div class=\"report-field\"><span class=\"report-field-label\">Salaire mensuel :</span> <span class=\"report-field-value\">").append(nf.format((long) sal)).append(" <span class=\"currency\">TND</span></span></div>");
+                sb.append("<div class=\"report-field\"><span class=\"report-field-label\">Début :</span> <span class=\"report-field-value\">").append(startStr).append("</span></div>");
+                sb.append("<div class=\"report-field\"><span class=\"report-field-label\">Fin :</span> <span class=\"report-field-value\">").append(endStr).append("</span></div>");
+                sb.append("</div>");
+            }
+        } catch (Exception e) {
+            sb.append("<p class=\"report-field-value\" style=\"color:#6a7f96;\">Erreur chargement contrats.</p>");
+        }
+        sb.append("</div>");
+        return sb.toString();
+    }
+
+    private String buildBankInfoHtml(int empId) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("<div class=\"bank-grid\">");
+        try {
+            List<BankAccountRow> userBanks = financeDataService.getBankAccountsByUserId(empId);
+            if (userBanks.isEmpty()) {
+                sb.append("<p class=\"report-field-value\" style=\"color:#6a7f96;\">Aucun compte bancaire.</p>");
+                sb.append("</div>");
+                return sb.toString();
+            }
+            for (BankAccountRow b : userBanks) {
+                String bankName = escapeHtml(b.getBankName() != null ? b.getBankName() : "—");
+                String iban = escapeHtml(b.getIban() != null ? b.getIban() : "—");
+                sb.append("<div class=\"bank-card\">");
+                sb.append("<div class=\"report-field\"><span class=\"report-field-label\">Banque :</span> <span class=\"report-field-value\">").append(capitalizeWords(bankName)).append("</span></div>");
+                sb.append("<div class=\"report-field\"><span class=\"report-field-label\">IBAN :</span> <span class=\"report-field-value\">").append(iban).append("</span></div>");
+                sb.append("</div>");
+            }
+        } catch (Exception e) {
+            sb.append("<p class=\"report-field-value\" style=\"color:#6a7f96;\">Erreur chargement comptes.</p>");
+        }
+        sb.append("</div>");
+        return sb.toString();
+    }
+
+    private String buildBonusInfoHtml(int empId) {
+        try {
+            List<BonusRow> list = financeDataService.getBonusesByUserId(empId);
+            if (list.isEmpty()) return "<p class=\"report-field-value\" style=\"color:#6a7f96;\">Aucune prime.</p>";
+            double total = list.stream().mapToDouble(BonusRow::getAmount).sum();
+            String label = list.size() == 1 && list.get(0).getReason() != null && !list.get(0).getReason().isEmpty()
+                ? capitalizeWords(escapeHtml(list.get(0).getReason()))
+                : (list.size() > 1 ? "Total des primes" : "Prime mensuelle");
+            StringBuilder sb = new StringBuilder();
+            sb.append("<div class=\"bonus-badge\">");
+            sb.append("<div class=\"report-field\"><span class=\"report-field-label\">Montant total :</span> <span class=\"b-amount\">")
+                .append(String.format(Locale.FRANCE, "%.0f", total))
+                .append(" <span class=\"b-currency\">TND</span></span></div>");
+            sb.append("<div class=\"report-field\"><span class=\"report-field-label\">Désignation :</span> <span class=\"b-label\">")
+                .append(label).append("</span></div>");
+            sb.append("</div>");
+            return sb.toString();
+        } catch (Exception e) {
+            return "<p class=\"report-field-value\" style=\"color:#6a7f96;\">Erreur chargement primes.</p>";
+        }
+    }
+
+    private String buildPayslipInfoHtml(int empId) {
+        StringBuilder sb = new StringBuilder();
+        try {
+            List<PayslipRow> userPayslips = financeDataService.getPayslipsByUserId(empId);
+            if (userPayslips.isEmpty()) return "<p class=\"report-field-value\" style=\"color:#6a7f96;\">Aucun bulletin de paie récent.</p>";
+            NumberFormat nfDecimal = NumberFormat.getNumberInstance(Locale.FRANCE);
+            nfDecimal.setMinimumFractionDigits(2);
+            nfDecimal.setMaximumFractionDigits(2);
+            for (PayslipRow p : userPayslips) {
+                int m = p.getMonth(), y = p.getYear();
+                String periodLabel = (m >= 1 && m <= 12) ? (MONTHS_FR[m - 1] + " " + y) : (p.getPeriod() != null ? p.getPeriod() : "—");
+                boolean paid = p.getStatus() != null && (p.getStatus().equalsIgnoreCase("PAID") || p.getStatus().equalsIgnoreCase("PAYÉ"));
+                String tag = paid ? "Payé" : "En attente";
+                sb.append("<div class=\"payslip-row\"><table><tr>");
+                sb.append("<td style=\"width:38%;\"><div class=\"payslip-col-label\">Période :</div><div class=\"payslip-col-value\">").append(escapeHtml(periodLabel)).append("</div></td>");
+                sb.append("<td style=\"width:42%;\"><div class=\"payslip-col-label\">Net à payer :</div><div class=\"payslip-net\">").append(nfDecimal.format(p.getNet())).append(" <span class=\"payslip-net-currency\">TND</span></div></td>");
+                sb.append("<td style=\"text-align:right;\"><div class=\"payslip-col-label\">Statut :</div><span class=\"tag\">").append(escapeHtml(tag)).append("</span></td>");
+                sb.append("</tr></table></div>");
+            }
+        } catch (Exception e) {
+            sb.append("<p class=\"report-field-value\" style=\"color:#6a7f96;\">Erreur chargement bulletins.</p>");
+        }
+        return sb.toString();
+    }
+
+    private String buildReportSummary(int empId, String employeeName) {
+        String name = (employeeName != null && !employeeName.isBlank()) ? employeeName : "L'employé";
+        NumberFormat nf = NumberFormat.getNumberInstance(Locale.FRANCE);
+        nf.setMinimumFractionDigits(2);
+        nf.setMaximumFractionDigits(2);
+        try {
+            List<ContractRow> contracts = financeDataService.getContractsByUserId(empId);
+            List<PayslipRow> payslips = new ArrayList<>(financeDataService.getPayslipsByUserId(empId));
+            payslips.sort(Comparator.comparingInt(PayslipRow::getYear).reversed().thenComparingInt(PayslipRow::getMonth).reversed());
+            List<BonusRow> bonuses = financeDataService.getBonusesByUserId(empId);
+            List<BankAccountRow> banks = financeDataService.getBankAccountsByUserId(empId);
+            StringBuilder sb = new StringBuilder();
+            ContractRow active = contracts.stream()
+                .filter(c -> "ACTIVE".equalsIgnoreCase(c.getStatus()) || "ACTIF".equalsIgnoreCase(c.getStatus()))
+                .findFirst().orElse(contracts.isEmpty() ? null : contracts.get(0));
+            if (active != null) {
+                sb.append(name).append(" occupe le poste de ").append(active.getPosition() != null ? active.getPosition() : "—")
+                    .append(" en ").append(active.getType() != null ? active.getType().toUpperCase() : "—");
+                sb.append(" (salaire de base : ").append(nf.format(active.getSalary())).append(" TND). ");
+            } else {
+                sb.append(name).append(" n'a pas de contrat actif enregistré. ");
+            }
+            if (!payslips.isEmpty()) {
+                PayslipRow last = payslips.get(0);
+                String period = (last.getMonth() >= 1 && last.getMonth() <= 12) ? (MONTHS_FR[last.getMonth() - 1] + " " + last.getYear()) : "";
+                if (!period.isEmpty()) sb.append(" ; le dernier (").append(period).append(") s'élève à ").append(nf.format(last.getNet())).append(" TND net");
+                sb.append(". ");
+            }
+            if (!bonuses.isEmpty()) {
+                double totalBonus = bonuses.stream().mapToDouble(BonusRow::getAmount).sum();
+                sb.append(bonuses.size()).append(" prime(s) versée(s) (total : ").append(nf.format(totalBonus)).append(" TND). ");
+            }
+            if (!banks.isEmpty()) sb.append(banks.size()).append(" compte(s) bancaire(s) enregistré(s) pour le virement du salaire.");
+            return sb.toString().trim();
+        } catch (Exception e) {
+            return name + " — données financières indisponibles.";
+        }
+    }
+
+    private static String capitalizeWords(String s) {
+        if (s == null || s.isBlank()) return s == null ? "" : s.trim();
+        String t = s.trim();
+        StringBuilder sb = new StringBuilder();
+        boolean cap = true;
+        for (int i = 0; i < t.length(); i++) {
+            char c = t.charAt(i);
+            if (Character.isWhitespace(c)) { cap = true; sb.append(c); }
+            else if (cap) { sb.append(Character.toUpperCase(c)); cap = false; }
+            else sb.append(Character.toLowerCase(c));
+        }
+        return sb.toString();
+    }
+
+    private static String escapeHtml(String s) {
+        if (s == null) return "";
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
     }
 }

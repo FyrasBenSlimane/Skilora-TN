@@ -21,6 +21,8 @@ public class EmploymentContract {
     private LocalDate endDate;
     private String contractType;
     private String status;
+    private String companyName;
+    private String position;
     private String pdfUrl;
     private boolean isSigned;
     private LocalDateTime signedDate;
@@ -74,6 +76,12 @@ public class EmploymentContract {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public String getCompanyName() { return companyName; }
+    public void setCompanyName(String companyName) { this.companyName = companyName; }
+
+    public String getPosition() { return position; }
+    public void setPosition(String position) { this.position = position; }
 
     public String getPdfUrl() { return pdfUrl; }
     public void setPdfUrl(String pdfUrl) { this.pdfUrl = pdfUrl; }

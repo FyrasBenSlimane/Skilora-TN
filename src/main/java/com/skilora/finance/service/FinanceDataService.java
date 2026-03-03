@@ -206,17 +206,23 @@ public class FinanceDataService {
     }
 
     public void addBankAccount(BankAccountRow b) throws SQLException {
-        String sql = "INSERT INTO bank_accounts (user_id, bank_name, iban, swift, currency, is_primary, is_verified) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String accountHolder = b.getAccountHolder();
+        if (accountHolder == null || accountHolder.isBlank()) {
+            accountHolder = getUserFullName(b.getUserId());
+            if (accountHolder == null || accountHolder.isBlank()) accountHolder = "Account Holder";
+        }
+        String sql = "INSERT INTO bank_accounts (user_id, bank_name, account_holder, iban, swift_bic, currency, is_primary, is_verified) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, b.getUserId());
             stmt.setString(2, b.getBankName());
-            stmt.setString(3, b.getIban());
-            stmt.setString(4, b.getSwift());
-            stmt.setString(5, b.getCurrency());
-            stmt.setBoolean(6, b.getIsPrimary());
-            stmt.setBoolean(7, b.getIsVerified());
+            stmt.setString(3, accountHolder);
+            stmt.setString(4, b.getIban());
+            stmt.setString(5, b.getSwift());
+            stmt.setString(6, b.getCurrency());
+            stmt.setBoolean(7, b.getIsPrimary());
+            stmt.setBoolean(8, b.getIsVerified());
             stmt.executeUpdate();
         }
     }
@@ -391,22 +397,88 @@ public class FinanceDataService {
     }
 
     public void addPayslip(PayslipRow p) throws SQLException {
-        String sql = "INSERT INTO payslips (user_id, month, year, base_salary, overtime_hours, "
-                + "overtime_total, bonuses, other_deductions, currency, status) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        int contractId = p.getContractId();
+        if (contractId <= 0) {
+            contractId = getFirstEmploymentContractIdForUser(p.getUserId());
+            if (contractId <= 0) {
+                throw new SQLException("No employment contract found for this employee. Create a contract first.");
+            }
+        }
+        double gross = p.getBaseSalary() + p.getOvertimeTotal() + p.getBonuses();
+        double cnss = gross * 0.0918;
+        double irpp = (gross - cnss) * 0.26;
+        double net = gross - cnss - irpp - p.getOtherDeductions();
+
+        String sql = "INSERT INTO payslips (contract_id, user_id, period_month, period_year, "
+                + "gross_salary, net_salary, cnss_employee, cnss_employer, irpp, other_deductions, "
+                + "bonuses, currency, payment_status) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')";
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, p.getUserId());
-            stmt.setInt(2, p.getMonth());
-            stmt.setInt(3, p.getYear());
-            stmt.setDouble(4, p.getBaseSalary());
-            stmt.setDouble(5, p.getOvertime());
-            stmt.setDouble(6, p.getOvertimeTotal());
-            stmt.setDouble(7, p.getBonuses());
-            stmt.setDouble(8, p.getOtherDeductions());
-            stmt.setString(9, p.getCurrency());
-            stmt.setString(10, p.getStatus());
+            stmt.setInt(1, contractId);
+            stmt.setInt(2, p.getUserId());
+            stmt.setInt(3, p.getMonth());
+            stmt.setInt(4, p.getYear());
+            stmt.setDouble(5, gross);
+            stmt.setDouble(6, net);
+            stmt.setDouble(7, cnss);
+            stmt.setDouble(8, gross * 0.1657);
+            stmt.setDouble(9, irpp);
+            stmt.setDouble(10, p.getOtherDeductions());
+            stmt.setDouble(11, p.getBonuses());
+            stmt.setString(12, p.getCurrency());
             stmt.executeUpdate();
+        }
+    }
+
+    /**
+     * Returns the first employment contract id for the user (from employment_contracts table).
+     * If none exists, creates one from the finance "contracts" table so payslips can be added.
+     */
+    public int getFirstEmploymentContractIdForUser(int userId) throws SQLException {
+        String sql = "SELECT id FROM employment_contracts WHERE user_id = ? ORDER BY id DESC LIMIT 1";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, userId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) return rs.getInt("id");
+        }
+        // No employment_contract: try to create one from the "contracts" table (Finance Admin tab)
+        String sel = "SELECT id, user_id, company_Name, type, position, salary, start_date, end_date, status FROM contracts WHERE user_id = ? ORDER BY id DESC LIMIT 1";
+        try (Connection conn = getConnection();
+             PreparedStatement selStmt = conn.prepareStatement(sel)) {
+            selStmt.setInt(1, userId);
+            ResultSet rs = selStmt.executeQuery();
+            if (!rs.next()) return 0;
+            double salary = rs.getDouble("salary");
+            if (rs.wasNull()) salary = 0;
+            java.sql.Date startDate = rs.getDate("start_date");
+            if (startDate == null) startDate = java.sql.Date.valueOf(java.time.LocalDate.now());
+            java.sql.Date endDate = rs.getDate("end_date");
+            String contractType = rs.getString("type");
+            if (contractType == null || contractType.isBlank()) contractType = "CDI";
+            String status = rs.getString("status");
+            if (status == null || status.isBlank()) status = "ACTIVE";
+            String companyName = rs.getString("company_Name");
+            if (companyName == null) companyName = "";
+            String position = rs.getString("position");
+            if (position == null) position = "";
+
+            String ins = "INSERT INTO employment_contracts (user_id, salary_base, currency, start_date, end_date, contract_type, status, company_name, position) VALUES (?, ?, 'TND', ?, ?, ?, ?, ?, ?)";
+            try (PreparedStatement insStmt = conn.prepareStatement(ins, PreparedStatement.RETURN_GENERATED_KEYS)) {
+                insStmt.setInt(1, userId);
+                insStmt.setDouble(2, salary);
+                insStmt.setDate(3, startDate);
+                insStmt.setDate(4, endDate);
+                insStmt.setString(5, contractType);
+                insStmt.setString(6, status);
+                insStmt.setString(7, companyName);
+                insStmt.setString(8, position);
+                insStmt.executeUpdate();
+                try (ResultSet keys = insStmt.getGeneratedKeys()) {
+                    return keys.next() ? keys.getInt(1) : 0;
+                }
+            }
         }
     }
 

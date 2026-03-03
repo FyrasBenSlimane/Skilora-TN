@@ -6,7 +6,7 @@ package com.skilora.finance.entity;
  */
 public class BankAccountRow {
     private int id, userId;
-    private String employeeName, bankName, iban, swift, currency;
+    private String employeeName, bankName, iban, swift, currency, accountHolder;
     private boolean isPrimary, isVerified;
 
     public BankAccountRow(int id, int userId, String employeeName, String bankName, String iban,
@@ -20,6 +20,7 @@ public class BankAccountRow {
         this.currency = currency;
         this.isPrimary = isPrimary;
         this.isVerified = isVerified;
+        this.accountHolder = employeeName;
     }
 
     public int getId() { return id; }
@@ -29,6 +30,10 @@ public class BankAccountRow {
 
     public String getEmployeeName() { return employeeName; }
     public void setEmployeeName(String employeeName) { this.employeeName = employeeName; }
+
+    /** Name of the account holder (required by DB). Defaults to employee name. */
+    public String getAccountHolder() { return accountHolder != null ? accountHolder : employeeName; }
+    public void setAccountHolder(String accountHolder) { this.accountHolder = accountHolder; }
 
     public String getBankName() { return bankName; }
     public void setBankName(String bankName) { this.bankName = bankName; }

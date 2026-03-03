@@ -25,7 +25,7 @@ import com.google.gson.JsonObject;
 public class FinanceChatbotAIService {
 
     private static final String OPENAI_URL = "https://api.openai.com/v1/chat/completions";
-    private static final String MODEL = "gpt-4o-mini";
+    private static final String MODEL = "gpt-4.1-mini";
     private static final int MAX_TOKENS = 600;
     private static final int MAX_TOKENS_SUMMARY = 400;
     private static final int TIMEOUT_SECONDS = 30;
