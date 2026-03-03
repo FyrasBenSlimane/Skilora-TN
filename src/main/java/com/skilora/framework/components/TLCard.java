@@ -22,6 +22,7 @@ public class TLCard extends VBox {
     private VBox header;
     private VBox body;
     private VBox footer;
+    private String title;
 
     public TLCard() {
         getStylesheets().add(STYLESHEET);
@@ -56,7 +57,21 @@ public class TLCard extends VBox {
         // Simple controls don't benefit from bitmap caching; it wastes GPU texture memory
     }
 
+    /** FXML: title="..." maps to header. */
+    public String getTitle() {
+        return title;
+    }
+
+    /** FXML: title="..." sets the card header text. */
+    public void setTitle(String title) {
+        this.title = title;
+        if (title != null && !title.isEmpty()) {
+            setHeader(title);
+        }
+    }
+
     public void setHeader(String title) {
+        this.title = title;
         header.getChildren().clear();
         Label titleLabel = new Label(title);
         titleLabel.getStyleClass().add("card-title");

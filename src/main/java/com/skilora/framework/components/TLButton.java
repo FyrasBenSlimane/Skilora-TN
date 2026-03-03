@@ -24,7 +24,7 @@ public class TLButton extends Button {
     }
 
     public enum ButtonSize {
-        SM, MD, LG
+        SM, MD, LG, LARGE
     }
 
     private ButtonVariant variant = ButtonVariant.PRIMARY;
@@ -73,7 +73,7 @@ public class TLButton extends Button {
         return switch (s) {
             case SM -> "btn-sm";
             case MD -> "btn";
-            case LG -> "btn-lg";
+            case LG, LARGE -> "btn-lg";
         };
     }
 
