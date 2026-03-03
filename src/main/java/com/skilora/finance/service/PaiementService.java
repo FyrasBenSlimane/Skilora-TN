@@ -57,9 +57,6 @@ public class PaiementService {
 
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            if (conn == null) {
-                throw new SQLException("Connexion DB indisponible (OFFLINE MODE).");
-            }
             stmt.setDouble(1, p.getMontant());
             LocalDateTime dt = p.getDateHeure() != null ? p.getDateHeure() : LocalDateTime.now();
             stmt.setTimestamp(2, Timestamp.valueOf(dt));
@@ -91,9 +88,6 @@ public class PaiementService {
 
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            if (conn == null) {
-                throw new SQLException("Connexion DB indisponible (OFFLINE MODE).");
-            }
             stmt.setString(1, referenceProjet);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {

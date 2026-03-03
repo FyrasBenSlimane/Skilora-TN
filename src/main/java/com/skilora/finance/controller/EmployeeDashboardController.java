@@ -132,7 +132,7 @@ public class EmployeeDashboardController implements Initializable {
     }
 
     private void setupPayslipTable() {
-        payslipTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        payslipTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_SUBSEQUENT_COLUMNS);
         col_period.setCellValueFactory(new PropertyValueFactory<>("period"));
         col_base.setCellValueFactory(new PropertyValueFactory<>("baseSalary"));
         col_gross.setCellValueFactory(new PropertyValueFactory<>("gross"));
@@ -271,6 +271,7 @@ public class EmployeeDashboardController implements Initializable {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void buildSalaryChart() {
         try {
             List<PayslipRow> payslips = financeService.getPayslipsByUserId(currentUserId);

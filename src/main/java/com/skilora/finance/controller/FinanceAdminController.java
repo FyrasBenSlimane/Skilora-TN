@@ -8,7 +8,6 @@ import com.skilora.user.service.UserService;
 import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.DialogUtils;
 import com.skilora.utils.I18n;
-import com.skilora.utils.SvgIcons;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -16,10 +15,7 @@ import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.control.*;
-import javafx.scene.layout.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -175,15 +171,7 @@ public class FinanceAdminController implements Initializable {
     private final ObservableList<EmploymentContract> contractData = FXCollections.observableArrayList();
 
     private final ContractService contractService = ContractService.getInstance();
-    private final PayslipService payslipService = PayslipService.getInstance();
-    private final ExchangeRateService exchangeRateService = ExchangeRateService.getInstance();
-    private final CurrencyApiService currencyApiService = CurrencyApiService.getInstance();
-    private final PaymentTransactionService paymentTransactionService = PaymentTransactionService.getInstance();
-    private final BankAccountService bankAccountService = BankAccountService.getInstance();
-    private final EscrowService escrowService = EscrowService.getInstance();
-    private final TaxConfigurationService taxConfigurationService = TaxConfigurationService.getInstance();
     private final FinanceDataService financeDataService = FinanceDataService.getInstance();
-    private final FinanceChatbotService chatbotService = FinanceChatbotService.getInstance();
     private final UserService userService = UserService.getInstance();
 
     @Override
@@ -414,18 +402,18 @@ public class FinanceAdminController implements Initializable {
         if (result.isPresent() && result.get() == ButtonType.OK) {
             int id = selectedContract.getId();
             Task<Boolean> task = new Task<>() {
-                @Override
+            @Override
                 protected Boolean call() throws Exception {
                     return contractService.delete(id);
-                }
-            };
-            task.setOnSucceeded(e -> {
+            }
+        };
+        task.setOnSucceeded(e -> {
                 handleClearContractForm();
                 handleRefreshContracts();
                 if (getScene() != null) TLToast.success(getScene(), I18n.get("finance.admin.contract.deleted"), "");
             });
             task.setOnFailed(e -> showContractError(I18n.get("finance.admin.contracts.error") + ": " + (task.getException() != null ? task.getException().getMessage() : "")));
-            AppThreadPool.execute(task);
+        AppThreadPool.execute(task);
         }
     }
 
@@ -604,7 +592,7 @@ public class FinanceAdminController implements Initializable {
             @Override
             protected List<User> call() { return userService.findAll(); }
         };
-        task.setOnSucceeded(e -> {
+                task.setOnSucceeded(e -> {
             List<User> users = task.getValue();
             if (users != null) {
                 ObservableList<String> items = FXCollections.observableArrayList();
@@ -615,7 +603,7 @@ public class FinanceAdminController implements Initializable {
                 combo.getItems().setAll(items);
             }
         });
-        AppThreadPool.execute(task);
+                AppThreadPool.execute(task);
     }
 
     // ==================== Bank Account CRUD ====================
@@ -646,7 +634,7 @@ public class FinanceAdminController implements Initializable {
         BankAccountRow account = new BankAccountRow(0, userId, employeeName, bankName, iban, swift, currency, isPrimary, isVerified);
         account.setAccountHolder(employeeName);
         Task<Void> task = new Task<>() {
-                @Override
+            @Override
             protected Void call() throws Exception {
                 financeDataService.addBankAccount(account);
                 return null;
@@ -670,8 +658,8 @@ public class FinanceAdminController implements Initializable {
             }
             if (getScene() != null) TLToast.error(getScene(), "Error", msg);
         }));
-            AppThreadPool.execute(task);
-        }
+        AppThreadPool.execute(task);
+    }
 
     @FXML
     private void handleUpdateBankAccount() {

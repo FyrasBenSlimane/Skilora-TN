@@ -54,7 +54,7 @@ public class EmployeurFinanceController implements Initializable {
     @FXML private Label kpi_cnss;
     @FXML private Label kpi_irpp;
 
-    @FXML private LineChart salaryChart;
+    @FXML private LineChart<String, Number> salaryChart;
     @FXML private CategoryAxis chartXAxis;
     @FXML private NumberAxis chartYAxis;
     @FXML private Label lbl_chart_info;
@@ -305,12 +305,11 @@ public class EmployeurFinanceController implements Initializable {
         if (chartXAxis != null) chartXAxis.setLabel("");
     }
 
-    @SuppressWarnings("unchecked")
     private void setupTableColumns() {
-        tbl_payslips.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        tbl_bonuses.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        tbl_banks.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        tbl_contracts.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        tbl_payslips.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+        tbl_bonuses.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+        tbl_banks.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+        tbl_contracts.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
         bind(col_ps_period, "period");
         bindMoney(col_ps_base, "baseSalary");
         bindMoney(col_ps_overtime, "overtimeTotal");
@@ -459,7 +458,8 @@ public class EmployeurFinanceController implements Initializable {
                 seriesNet.getData().add(new XYChart.Data<>(label, p.getNet()));
                 seriesGross.getData().add(new XYChart.Data<>(label, p.getGross()));
             }
-            salaryChart.getData().addAll(seriesGross, seriesNet);
+            salaryChart.getData().add(seriesGross);
+            salaryChart.getData().add(seriesNet);
             if (lbl_chart_info != null) lbl_chart_info.setText(recent.size() + " mois affiches");
             Platform.runLater(() -> {
                 styleSeries(seriesNet, "#6ee7b7");

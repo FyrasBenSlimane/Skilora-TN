@@ -15,13 +15,13 @@ import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 
 /**
- * SmsService — WhatsApp messaging via Twilio REST API.
+ * SmsService — WhatsApp messaging via Twilio REST API for Finance module.
  *
- * Configuration in config/application.properties:
- * twilio.account.sid=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
- * twilio.auth.token=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
- * twilio.from.number=whatsapp:+1XXXXXXXXXX
- * twilio.to.number=whatsapp:+216XXXXXXXX
+ * Configuration in .env:
+ * TWILIO_FINANCE_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ * TWILIO_FINANCE_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ * TWILIO_FINANCE_FROM_NUMBER=whatsapp:+1XXXXXXXXXX
+ * TWILIO_FINANCE_TO_NUMBER=whatsapp:+216XXXXXXXX
  *
  * Singleton with getInstance().
  */
@@ -41,10 +41,10 @@ public class SmsService {
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
 
-        this.accountSid = EnvConfig.get("twilio.account.sid", "").trim();
-        this.authToken = EnvConfig.get("twilio.auth.token", "").trim();
-        this.fromNumber = EnvConfig.get("twilio.from.number", "").trim();
-        this.toNumber = EnvConfig.get("twilio.to.number", "").trim();
+        this.accountSid = EnvConfig.get("twilio.finance.account.sid", "").trim();
+        this.authToken = EnvConfig.get("twilio.finance.auth.token", "").trim();
+        this.fromNumber = EnvConfig.get("twilio.finance.from.number", "").trim();
+        this.toNumber = EnvConfig.get("twilio.finance.to.number", "").trim();
 
         this.configured = !accountSid.isEmpty() && !authToken.isEmpty()
                 && !fromNumber.isEmpty() && !toNumber.isEmpty()

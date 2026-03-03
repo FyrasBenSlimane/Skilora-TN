@@ -348,7 +348,6 @@ public class PaiementController {
     private static class PaiementResult {
         final boolean success;
         final String stripePaymentId;
-        final boolean savedInDb;
         final String errorMessage;
 
         PaiementResult(boolean success, String stripePaymentId, boolean savedInDb) {
@@ -358,7 +357,6 @@ public class PaiementController {
         PaiementResult(boolean success, String stripePaymentId, boolean savedInDb, String errorMessage) {
             this.success = success;
             this.stripePaymentId = stripePaymentId;
-            this.savedInDb = savedInDb;
             this.errorMessage = errorMessage;
         }
     }
