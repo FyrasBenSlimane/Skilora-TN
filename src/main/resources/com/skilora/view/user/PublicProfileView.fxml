@@ -4,6 +4,8 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
 <?import javafx.scene.image.Image?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.AnchorPane?>
@@ -26,7 +28,7 @@
          </padding>
          
          <!-- Profile Header Card -->
-         <TLCard styleClass="profile-header-card">
+         <TLCard styleClass="profile-header-card" maxWidth="Infinity">
             <VBox spacing="0">
                <!-- Cover Image Area -->
                <StackPane prefHeight="180.0" styleClass="profile-cover">
@@ -94,17 +96,17 @@
                         <content>
                            <VBox spacing="24.0" style="-fx-padding: 24 0 0 0;">
                                <!-- About Card -->
-                               <TLCard title="About">
+                               <TLCard title="About" maxWidth="Infinity">
                                    <Label fx:id="bioLabel" styleClass="profile-bio" text="No bio provided." wrapText="true" />
                                </TLCard>
                                
                                <!-- Skills Card -->
-                               <TLCard title="Skills">
+                               <TLCard title="Skills" maxWidth="Infinity">
                                    <FlowPane fx:id="skillsContainer" hgap="8.0" vgap="8.0" />
                                </TLCard>
                                
                                <!-- Experience Card -->
-                               <TLCard title="Experience">
+                               <TLCard title="Experience" maxWidth="Infinity">
                                     <VBox fx:id="experienceContainer" spacing="0"/>
                                </TLCard>
                            </VBox>
@@ -126,21 +128,29 @@
                            </VBox>
                         </content>
                      </Tab>
+                     <Tab text="Certificates">
+                        <content>
+                           <VBox spacing="24.0" style="-fx-padding: 24 0 0 0;">
+                              <VBox fx:id="certificatesContainer" spacing="16.0" />
+                              <Label fx:id="emptyCertificatesLabel" text="No certificates earned yet." styleClass="text-muted" visible="false" />
+                           </VBox>
+                        </content>
+                     </Tab>
                   </tabs>
                </TabPane>
             </VBox>
             
             <!-- Right Column: Sidebar Stats -->
-            <VBox spacing="24.0" minWidth="300" maxWidth="300">
+            <VBox spacing="24.0" minWidth="240" maxWidth="300" prefWidth="260">
                 <!-- Stats Card -->
-                <TLCard title="Stats">
+                <TLCard title="Stats" maxWidth="Infinity">
                     <VBox spacing="16.0">
                         <HBox alignment="CENTER_LEFT" spacing="12">
                             <StackPane styleClass="stat-icon-bg">
                                 <SVGPath content="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" styleClass="icon-primary" />
                             </StackPane>
                             <VBox>
-                                <Label text="$45.00/hr" styleClass="stat-value" fx:id="rateLabel"/>
+                                <Label text="45.00 TND/hr" styleClass="stat-value" fx:id="rateLabel"/>
                                 <Label text="Hourly Rate" styleClass="stat-label"/>
                             </VBox>
                         </HBox>
@@ -168,7 +178,7 @@
                 </TLCard>
                 
                 <!-- Availability Card -->
-                <TLCard>
+                <TLCard maxWidth="Infinity">
                     <HBox alignment="CENTER_LEFT" spacing="12">
                          <Circle radius="5" fill="#4caf50" />
                          <VBox>

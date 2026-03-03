@@ -13,7 +13,8 @@
     
     <HBox spacing="24" alignment="CENTER_LEFT">
         <VBox spacing="4">
-            <Label text="" styleClass="h2"/>
+            <Label fx:id="titleLabel" text="" styleClass="notifications-page-title"/>
+            <Label fx:id="subtitleLabel" text="" styleClass="notifications-page-subtitle"/>
             <Label fx:id="statsLabel" text="" styleClass="text-muted"/>
         </VBox>
         <Region HBox.hgrow="ALWAYS"/>

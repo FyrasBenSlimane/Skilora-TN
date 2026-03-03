@@ -55,11 +55,18 @@
 
             <TLTextField fx:id="fullNameField" label="" promptText=""/>
             <TLTextField fx:id="usernameField" label="" promptText=""/>
-            <TLTextField fx:id="emailField" label="" promptText=""/>
+
+            <!-- Email field with verification button -->
+            <HBox spacing="8" alignment="CENTER_LEFT">
+                <TLTextField fx:id="emailField" label="" promptText="" HBox.hgrow="ALWAYS"/>
+                <TLButton fx:id="verifyEmailBtn" text="Vérifier" variant="OUTLINE" onAction="#handleVerifyEmail"/>
+            </HBox>
+            <Label fx:id="emailVerifiedLabel" visible="false" managed="false" styleClass="text-sm, text-success"/>
+
             <TLPasswordField fx:id="passwordField" label="" promptText=""/>
             <TLPasswordField fx:id="confirmPasswordField" label="" promptText=""/>
-            
-            <TLButton fx:id="registerBtn" text="" variant="PRIMARY" maxWidth="Infinity" onAction="#handleRegister"/>
+
+            <TLButton fx:id="registerBtn" text="" variant="PRIMARY" maxWidth="Infinity" onAction="#handleRegister" disable="true"/>
             
             <HBox alignment="CENTER">
                 <Label fx:id="dividerLabel" text="" styleClass="text-xs, text-muted"/>

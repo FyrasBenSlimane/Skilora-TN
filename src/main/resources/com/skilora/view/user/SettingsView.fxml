@@ -23,7 +23,7 @@
         <Label fx:id="settingsSubtitleLabel" text="" styleClass="text-muted"/>
     </VBox>
 
-    <VBox spacing="12">
+    <VBox spacing="16" styleClass="card" style="-fx-padding: 24;">
         <Label fx:id="appearanceLabel" text="" styleClass="h3"/>
         <TLSeparator/>
         <HBox spacing="12" alignment="CENTER_LEFT">
@@ -36,7 +36,7 @@
         </HBox>
     </VBox>
 
-    <VBox spacing="12">
+    <VBox spacing="16" styleClass="card" style="-fx-padding: 24;">
         <Label fx:id="notificationsLabel" text="" styleClass="h3"/>
         <TLSeparator/>
         <HBox spacing="12" alignment="CENTER_LEFT">
@@ -53,7 +53,7 @@
         </HBox>
     </VBox>
 
-    <VBox spacing="12">
+    <VBox spacing="16" styleClass="card" style="-fx-padding: 24;">
         <Label fx:id="languageSectionLabel" text="" styleClass="h3"/>
         <TLSeparator/>
         <HBox spacing="12" alignment="CENTER_LEFT">
@@ -62,16 +62,26 @@
         </HBox>
     </VBox>
 
-    <VBox spacing="12">
+    <VBox spacing="16" styleClass="card" style="-fx-padding: 24;">
         <Label fx:id="securitySectionLabel" text="" styleClass="h3"/>
         <TLSeparator/>
         <HBox spacing="12" alignment="CENTER_LEFT">
             <Label fx:id="changePasswordLabel" text="" minWidth="200"/>
             <TLButton fx:id="changePasswordBtn" text="" variant="OUTLINE" onAction="#handleChangePassword"/>
         </HBox>
+        <TLSeparator/>
+        <!-- Two-Factor Authentication Section -->
+        <VBox spacing="8">
+            <HBox spacing="12" alignment="CENTER_LEFT">
+                <Label fx:id="twoFactorAuthLabel" text="Two-Factor Authentication" minWidth="200"/>
+                <TLSwitch fx:id="twoFactorAuthSwitch"/>
+            </HBox>
+            <Label fx:id="twoFactorAuthStatusLabel" text="" styleClass="text-sm"/>
+            <Label fx:id="twoFactorAuthDescription" text="Add an extra layer of security to your account" styleClass="text-sm, text-muted" wrapText="true"/>
+        </VBox>
     </VBox>
 
-    <VBox spacing="12">
+    <VBox spacing="16" styleClass="card" style="-fx-padding: 24;">
         <Label fx:id="advancedPrefsLabel" text="" styleClass="h3"/>
         <TLSeparator/>
         <HBox spacing="12" alignment="CENTER_LEFT">
@@ -84,7 +94,7 @@
         </HBox>
     </VBox>
 
-    <VBox spacing="12">
+    <VBox spacing="16" styleClass="card" style="-fx-padding: 24;">
         <Label fx:id="dangerZoneLabel" text="" styleClass="h3"/>
         <TLSeparator/>
         <HBox spacing="12" alignment="CENTER_LEFT">

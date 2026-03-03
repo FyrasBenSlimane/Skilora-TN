@@ -42,6 +42,15 @@
                 </HBox>
             </VBox>
 
+            <VBox spacing="16">
+                <Label fx:id="cvSectionLabel" text="" styleClass="h4"/>
+                <HBox spacing="12" alignment="CENTER_LEFT">
+                    <TLButton fx:id="uploadCvBtn" text="" onAction="#handleUploadCv"/>
+                    <TLButton fx:id="removeCvBtn" text="" variant="GHOST" onAction="#handleRemoveCv"/>
+                </HBox>
+                <Label fx:id="cvStatusLabel" text="" styleClass="text-muted, text-xs"/>
+            </VBox>
+
             <TLSeparator/>
             
             <VBox spacing="16">

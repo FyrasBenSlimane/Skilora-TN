@@ -5,344 +5,348 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Verify Certificate | Skilora Tunisia</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #6366f1;
-            --primary-dark: #4f46e5;
-            --secondary: #ec4899;
-            --bg: #0f172a;
-            --card-bg: rgba(30, 41, 59, 0.7);
-            --text: #f8fafc;
-            --text-muted: #94a3b8;
+            --bg: #09090b;
+            --card-bg: #111113;
+            --gold: #c9a84c;
+            --gold-light: #d4b86a;
+            --text: #fafafa;
+            --text-muted: #71717a;
+            --text-subtle: #3f3f46;
+            --border: #27272a;
             --success: #10b981;
+            --error: #ef4444;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background-color: var(--bg);
-            background-image:
-                radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
-                radial-gradient(circle at 100% 100%, rgba(236, 72, 153, 0.15) 0%, transparent 50%);
             color: var(--text);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            overflow-x: hidden;
+            padding: 20px;
         }
 
-        .container {
-            width: 90%;
-            max-width: 800px;
-            perspective: 1000px;
-        }
-
-        .verification-card {
-            background: var(--card-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 24px;
-            padding: 3rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            animation: cardEntrance 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-            position: relative;
-            overflow: hidden;
-        }
-
-        @keyframes cardEntrance {
-            from {
-                opacity: 0;
-                transform: translateY(40px) rotateX(-5deg);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0) rotateX(0);
-            }
-        }
-
-        .verification-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
+        .page-wrapper {
             width: 100%;
-            height: 4px;
-            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            max-width: 860px;
+            animation: fadeIn 0.8s ease forwards;
         }
 
-        .header {
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Verification badge ── */
+        .verification-status {
             text-align: center;
-            margin-bottom: 3rem;
-        }
-
-        .logo {
-            font-size: 2rem;
-            font-weight: 800;
-            background: linear-gradient(90deg, #fff, #94a3b8);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 0.5rem;
+            margin-bottom: 24px;
         }
 
         .badge {
             display: inline-flex;
             align-items: center;
-            background: rgba(16, 185, 129, 0.1);
-            color: var(--success);
-            padding: 0.5rem 1rem;
+            gap: 8px;
+            padding: 8px 20px;
             border-radius: 99px;
-            font-size: 0.875rem;
+            font-size: 14px;
             font-weight: 600;
-            border: 1px solid rgba(16, 185, 129, 0.2);
-            margin-top: 1rem;
-            gap: 0.5rem;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            background: rgba(16, 185, 129, 0.08);
+            color: var(--success);
         }
+        .badge svg { width: 16px; height: 16px; }
 
-        .badge svg {
-            width: 16px;
-            height: 16px;
-        }
-
-        .content-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            margin-bottom: 3rem;
+        /* ── Certificate card (mirrors the JavaFX renderer) ── */
+        .certificate {
+            background: var(--card-bg);
+            border: 2px solid var(--gold);
+            border-radius: 12px;
+            padding: 48px 56px 36px;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 0 60px rgba(201, 168, 76, 0.08);
         }
 
         @media (max-width: 640px) {
-            .content-grid {
-                grid-template-columns: 1fr;
-            }
+            .certificate { padding: 32px 24px 28px; }
         }
 
-        .info-group {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            padding-bottom: 1rem;
+        .ornamental-line {
+            width: 200px;
+            height: 1px;
+            background: var(--gold);
+            opacity: 0.4;
+            margin: 0 auto 20px;
         }
 
-        .label {
-            font-size: 0.75rem;
+        .cert-emblem {
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--gold-light);
+            letter-spacing: 2px;
+            margin-bottom: 4px;
+        }
+
+        .cert-header {
+            font-size: 11px;
+            font-weight: 400;
+            color: var(--gold);
+            letter-spacing: 6px;
             text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--text-muted);
-            margin-bottom: 0.5rem;
+            margin-bottom: 20px;
         }
 
-        .value {
-            font-size: 1.125rem;
+        .cert-certifies {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .cert-name {
+            font-size: 32px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 12px;
+        }
+
+        .cert-separator {
+            width: 300px;
+            height: 1px;
+            background: var(--border);
+            margin: 0 auto 12px;
+        }
+
+        .cert-completed-text {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .cert-formation {
+            font-size: 20px;
             font-weight: 600;
+            color: var(--gold-light);
+            margin-bottom: 24px;
         }
 
-        .cert-id-tag {
-            font-family: 'Courier New', monospace;
-            background: rgba(255, 255, 255, 0.05);
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
+        /* ── Signatures ── */
+        .signatures {
+            display: flex;
+            justify-content: center;
+            gap: 60px;
+            margin-bottom: 20px;
         }
 
-        .footer-note {
-            text-align: center;
-            font-size: 0.875rem;
+        .sig-block { text-align: center; min-width: 140px; }
+
+        .sig-image-wrap {
+            margin: 0 auto 6px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .sig-image-wrap img { display: block; }
+
+        .sig-line {
+            width: 140px;
+            height: 1px;
+            background: var(--text-subtle);
+            margin: 0 auto 6px;
+        }
+
+        .sig-name {
+            font-size: 11px;
+            font-weight: 600;
+            color: #d4d4d8;
+        }
+
+        .sig-title {
+            font-size: 9px;
             color: var(--text-muted);
-            margin-top: 2rem;
+        }
+
+        /* ── Meta info ── */
+        .cert-date {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .cert-number {
+            font-family: 'SF Mono', 'Courier New', monospace;
+            font-size: 10px;
+            color: var(--text-subtle);
+            margin-bottom: 4px;
+        }
+
+        .cert-hash {
+            font-family: 'SF Mono', 'Courier New', monospace;
+            font-size: 9px;
+            color: var(--border);
+        }
+
+        .ornamental-line-bottom {
+            width: 200px;
+            height: 1px;
+            background: var(--gold);
+            opacity: 0.4;
+            margin: 16px auto 0;
+        }
+
+        /* ── Footer ── */
+        .footer {
+            text-align: center;
+            margin-top: 24px;
+            font-size: 13px;
+            color: var(--text-muted);
             line-height: 1.6;
         }
 
-        .footer-note a {
-            color: var(--primary);
-            text-decoration: none;
+        .footer a { color: var(--gold); text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+
+        .powered-by {
+            margin-top: 16px;
+            font-size: 11px;
+            color: var(--text-subtle);
+            letter-spacing: 1px;
         }
 
-        /* Micro-animations */
-        .info-group {
-            animation: fadeIn 0.5s ease forwards;
-            opacity: 0;
-        }
-
-        .info-group:nth-child(1) {
-            animation-delay: 0.4s;
-        }
-
-        .info-group:nth-child(2) {
-            animation-delay: 0.5s;
-        }
-
-        .info-group:nth-child(3) {
-            animation-delay: 0.6s;
-        }
-
-        .info-group:nth-child(4) {
-            animation-delay: 0.7s;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateX(-10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        .floating {
-            position: absolute;
-            width: 150px;
-            height: 150px;
-            background: var(--primary);
-            filter: blur(80px);
-            opacity: 0.2;
-            border-radius: 50%;
-            z-index: -1;
-            animation: float 20s infinite alternate;
-        }
-
-        @keyframes float {
-            0% {
-                transform: translate(0, 0);
-            }
-
-            100% {
-                transform: translate(100px, 50px);
-            }
-        }
+        /* Error state */
+        .certificate.invalid { border-color: var(--error); }
     </style>
 </head>
 
 <body>
-    <div class="floating" style="top: 10%; left: 10%;"></div>
-    <div class="floating" style="bottom: 20%; right: 10%; background: var(--secondary);"></div>
+    <div class="page-wrapper">
+        <div class="verification-status">
+            <div class="badge" id="badge">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span id="badge-text">Verified Certificate</span>
+            </div>
+        </div>
 
-    <div class="container">
-        <div class="verification-card">
-            <div class="header">
-                <div class="logo">SKILORA TUNISIA</div>
-                <p style="color: var(--text-muted);">Certificate Verification Service</p>
-                <div class="badge">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    Valid Certificate
+        <div class="certificate" id="certificate">
+            <div class="ornamental-line"></div>
+            <div class="cert-emblem">✦ SKILORA ✦</div>
+            <div class="cert-header">CERTIFICATE OF COMPLETION</div>
+
+            <div class="cert-certifies">This certifies that</div>
+            <div class="cert-name" id="holder-name">...</div>
+            <div class="cert-separator"></div>
+            <div class="cert-completed-text">has successfully completed the formation</div>
+            <div class="cert-formation" id="training-title">...</div>
+
+            <div class="signatures" id="signatures-row">
+                <div class="sig-block" id="director-sig-block">
+                    <div class="sig-line" id="director-sig-line"></div>
+                    <div class="sig-image-wrap" id="director-sig-image-wrap" style="display: none;"><img id="director-sig-img" alt="Director signature" style="max-width: 140px; max-height: 56px; object-fit: contain;"></div>
+                    <div class="sig-name" id="director-sig-name">Director</div>
+                    <div class="sig-title">Formation Director</div>
+                </div>
+                <div class="sig-block">
+                    <div class="sig-line"></div>
+                    <div class="sig-name">Skilora</div>
+                    <div class="sig-title">Platform</div>
                 </div>
             </div>
 
-            <div class="content-grid">
-                <div class="info-group">
-                    <div class="label">Certificate Holder</div>
-                    <div class="value" id="holder-name">Fyras Ben Slimane</div>
-                </div>
-                <div class="info-group">
-                    <div class="label">Training Program</div>
-                    <div class="value" id="training-title">Advanced JavaFX Development</div>
-                </div>
-                <div class="info-group">
-                    <div class="label">Completion Date</div>
-                    <div class="value" id="completion-date">February 23, 2026</div>
-                </div>
-                <div class="info-group">
-                    <div class="label">Certificate ID</div>
-                    <div class="value cert-id-tag" id="cert-id">SKL-4FD2A8B1</div>
-                </div>
-            </div>
+            <div class="cert-date" id="completion-date">...</div>
+            <div class="cert-number" id="cert-id">...</div>
+            <div class="cert-hash" id="cert-hash"></div>
+            <div class="ornamental-line-bottom"></div>
+        </div>
 
-            <p class="footer-note">
-                This certificate is verified as authentic. Skilora Tunisia guarantees the completion of the mentioned
-                training program by the holder on the specified date.
-                <br><br>
-                For more information, visit <a href="#">skilora.tn</a>
-            </p>
+        <div class="footer">
+            This certificate has been verified as authentic by Skilora Tunisia.
+            <div class="powered-by">SKILORA TUNISIA — Certificate Verification</div>
         </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Extract certificate ID from URL path
-            // Supports both formats:
-            //   /verify/SKL-ABC123 (new format using certificate ID)
-            //   /verify/certificate/TOKEN (old format using token)
             const pathParts = window.location.pathname.split('/').filter(p => p.length > 0);
             let certificateId = null;
             let isTokenFormat = false;
 
-            // Check if it's the old token format (/verify/certificate/TOKEN)
             const certificateIndex = pathParts.indexOf('certificate');
             if (certificateIndex >= 0 && certificateIndex < pathParts.length - 1) {
                 certificateId = pathParts[pathParts.length - 1];
                 isTokenFormat = true;
             } else if (pathParts.length > 0) {
-                // New format: /verify/SKL-ABC123
                 certificateId = pathParts[pathParts.length - 1];
             }
 
             if (certificateId && certificateId !== 'verification_page.html') {
-                document.getElementById('cert-id').textContent = 'Loading...';
-
-                // Build absolute URL using the server's origin so mobile devices
-                // on any IP resolve to the correct backend API automatically.
-                let apiUrl;
-                if (isTokenFormat) {
-                    // Old format: use token API endpoint
-                    apiUrl = window.location.origin + `/api/verify/token/${certificateId}`;
-                } else {
-                    // New format: use certificate ID API endpoint
-                    apiUrl = window.location.origin + `/api/verify/${certificateId}`;
-                }
+                let apiUrl = isTokenFormat
+                    ? window.location.origin + '/api/verify/token/' + certificateId
+                    : window.location.origin + '/api/verify/' + certificateId;
 
                 fetch(apiUrl)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP ${response.status}`);
-                        }
-                        return response.json();
-                    })
+                    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
                     .then(data => {
                         if (data.status === 'valid') {
                             document.getElementById('holder-name').textContent = data.holderName;
                             document.getElementById('training-title').textContent = data.trainingTitle;
-                            document.getElementById('completion-date').textContent = data.completionDate;
-                            document.getElementById('cert-id').textContent = data.certId;
+                            document.getElementById('completion-date').textContent = 'Issued: ' + data.completionDate;
+                            document.getElementById('cert-id').textContent = 'Certificate No: ' + data.certId;
+                            if (data.directorSignature) {
+                                const wrap = document.getElementById('director-sig-image-wrap');
+                                const img = document.getElementById('director-sig-img');
+                                const line = document.getElementById('director-sig-line');
+                                const nameLabel = document.getElementById('director-sig-name');
+                                if (wrap && img) {
+                                    wrap.style.display = 'block';
+                                    if (line) line.style.display = 'none';
+                                    if (nameLabel) nameLabel.style.display = 'none';
+                                    img.onerror = function() {
+                                        wrap.style.display = 'none';
+                                        if (line) line.style.display = 'block';
+                                        if (nameLabel) nameLabel.style.display = 'block';
+                                    };
+                                    img.src = 'data:image/png;base64,' + data.directorSignature;
+                                }
+                            }
                         } else {
                             handleInvalid(data.message || 'Invalid Certificate');
                         }
                     })
                     .catch(err => {
-                        console.error('Error fetching verification:', err);
+                        console.error('Verification error:', err);
                         handleInvalid('Connection Error');
                     });
             } else {
                 handleInvalid('Missing Certificate ID');
             }
 
-            function handleInvalid(reason = 'Invalid Certificate') {
-                document.querySelector('.badge').style.background = 'rgba(239, 68, 68, 0.1)';
-                document.querySelector('.badge').style.color = '#ef4444';
-                document.querySelector('.badge').style.borderColor = 'rgba(239, 68, 68, 0.2)';
-                document.querySelector('.badge').innerHTML = `
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                    ${reason}
-                `;
-                document.getElementById('holder-name').textContent = '---';
-                document.getElementById('training-title').textContent = '---';
-                document.getElementById('completion-date').textContent = '---';
-                document.getElementById('cert-id').textContent = '---';
-                document.querySelector('.footer-note').textContent = 'This certificate could not be verified. Please contact Skilora support if you believe this is an error.';
+            function handleInvalid(reason) {
+                const badge = document.getElementById('badge');
+                badge.style.background = 'rgba(239, 68, 68, 0.08)';
+                badge.style.color = '#ef4444';
+                badge.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                badge.querySelector('svg path').setAttribute('d', 'M6 18L18 6M6 6l12 12');
+                document.getElementById('badge-text').textContent = reason;
+                document.getElementById('certificate').classList.add('invalid');
+                document.getElementById('holder-name').textContent = '—';
+                document.getElementById('training-title').textContent = '—';
+                document.getElementById('completion-date').textContent = '—';
+                document.getElementById('cert-id').textContent = '—';
+                document.querySelector('.footer').textContent =
+                    'This certificate could not be verified. Please contact Skilora support.';
             }
         });
     </script>

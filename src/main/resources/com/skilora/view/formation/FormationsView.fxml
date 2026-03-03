@@ -5,35 +5,39 @@
 <?import javafx.geometry.Insets?>
 <?import com.skilora.framework.components.*?>
 
-<VBox xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.skilora.formation.controller.FormationsController"
-      spacing="24"
-      styleClass="transparent-bg">
-    <padding><Insets top="32" right="32" bottom="32" left="32"/></padding>
+<StackPane xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="com.skilora.formation.controller.FormationsController"
+           styleClass="transparent-bg">
+    <VBox spacing="24" styleClass="transparent-bg">
+        <padding><Insets top="32" right="32" bottom="32" left="32"/></padding>
 
-    <HBox spacing="16" alignment="CENTER_LEFT">
-        <VBox spacing="4">
-            <Label fx:id="titleLabel" text="" styleClass="h2"/>
-            <Label fx:id="statsLabel" text="" styleClass="text-muted"/>
+        <HBox spacing="16" alignment="CENTER_LEFT">
+            <VBox spacing="4">
+                <Label fx:id="titleLabel" text="" styleClass="h2"/>
+                <Label fx:id="statsLabel" text="" styleClass="text-muted"/>
+            </VBox>
+            <Region HBox.hgrow="ALWAYS"/>
+            <TLButton fx:id="certificatesBtn" text="" variant="OUTLINE" onAction="#handleCertificates"/>
+            <TLButton fx:id="refreshBtn" text="" variant="OUTLINE" onAction="#handleRefresh"/>
+        </HBox>
+
+        <HBox fx:id="categoryBox" spacing="8" alignment="CENTER_LEFT"/>
+
+        <TLTextField fx:id="searchField" promptText="" prefWidth="400"/>
+
+        <!-- Course grid (default view) -->
+        <VBox fx:id="gridContainer">
+            <FlowPane fx:id="formationsGrid" hgap="16" vgap="16"/>
+
+            <VBox fx:id="emptyState" spacing="12" alignment="CENTER" visible="false" managed="false"
+                  styleClass="p-48">
+            </VBox>
         </VBox>
-        <Region HBox.hgrow="ALWAYS"/>
-        <TLButton fx:id="certificatesBtn" text="" variant="OUTLINE" onAction="#handleCertificates"/>
-        <TLButton fx:id="refreshBtn" text="" variant="OUTLINE" onAction="#handleRefresh"/>
-    </HBox>
 
-    <HBox fx:id="categoryBox" spacing="8" alignment="CENTER_LEFT"/>
-
-    <TLTextField fx:id="searchField" promptText="" prefWidth="400"/>
-
-    <!-- Course grid (default view) -->
-    <VBox fx:id="gridContainer">
-        <FlowPane fx:id="formationsGrid" hgap="16" vgap="16"/>
-
-        <VBox fx:id="emptyState" spacing="12" alignment="CENTER" visible="false" managed="false"
-              styleClass="p-48">
-        </VBox>
+        <!-- Course detail section (shown when a course is selected) -->
+        <VBox fx:id="courseDetailContainer" spacing="20" visible="false" managed="false"/>
     </VBox>
 
-    <!-- Course detail section (shown when a course is selected) -->
-    <VBox fx:id="courseDetailContainer" spacing="20" visible="false" managed="false"/>
-</VBox>
+    <!-- Chatbot overlay: floating assistant (positioned by MainView when view is shown) -->
+    <StackPane fx:id="chatbotContainer" alignment="BOTTOM_RIGHT" pickOnBounds="false"/>
+</StackPane>
