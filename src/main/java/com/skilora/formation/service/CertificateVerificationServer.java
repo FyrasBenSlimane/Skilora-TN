@@ -158,37 +158,61 @@ public class CertificateVerificationServer {
         json.append("\"status\":\"valid\"");
         json.append(",\"certId\":\"").append(escapeJson(cert.getCertificateNumber())).append("\"");
 
-        // Holder name
+        // Holder name — try direct userId first, then fallback via enrollment
         String holderName = "Unknown";
         try {
-            Optional<User> user = UserService.getInstance().findById(cert.getUserId());
-            if (user.isPresent()) {
-                User u = user.get();
-                holderName = (u.getFullName() != null && !u.getFullName().isBlank())
-                        ? u.getFullName() : u.getUsername();
+            int uid = cert.getUserId();
+            if (uid <= 0) {
+                // Fallback: resolve user via enrollment
+                var enrollment = com.skilora.formation.service.EnrollmentService.getInstance()
+                        .findById(cert.getEnrollmentId());
+                if (enrollment != null) uid = enrollment.getUserId();
+            }
+            if (uid > 0) {
+                Optional<User> user = UserService.getInstance().findById(uid);
+                if (user.isPresent()) {
+                    User u = user.get();
+                    holderName = (u.getFullName() != null && !u.getFullName().isBlank())
+                            ? u.getFullName() : u.getUsername();
+                }
             }
         } catch (Exception e) {
             logger.warn("Could not resolve user for certificate: {}", e.getMessage());
         }
         json.append(",\"holderName\":\"").append(escapeJson(holderName)).append("\"");
 
-        // Formation title
+        // Formation title and director signature — try direct formationId first, then fallback via enrollment
         String formationTitle = "Unknown Formation";
+        String directorSignature = null;
         try {
-            Formation formation = FormationService.getInstance().findById(cert.getFormationId());
-            if (formation != null) {
-                formationTitle = formation.getTitle();
+            int fid = cert.getFormationId();
+            if (fid <= 0) {
+                // Fallback: resolve formation via enrollment
+                var enrollment = com.skilora.formation.service.EnrollmentService.getInstance()
+                        .findById(cert.getEnrollmentId());
+                if (enrollment != null) fid = enrollment.getFormationId();
+            }
+            if (fid > 0) {
+                Formation formation = FormationService.getInstance().findById(fid);
+                if (formation != null) {
+                    formationTitle = formation.getTitle();
+                    String sig = formation.getDirectorSignature();
+                    if (sig != null && !sig.isBlank()) directorSignature = sig;
+                }
             }
         } catch (Exception e) {
             logger.warn("Could not resolve formation for certificate: {}", e.getMessage());
         }
         json.append(",\"trainingTitle\":\"").append(escapeJson(formationTitle)).append("\"");
+        if (directorSignature != null) {
+            json.append(",\"directorSignature\":\"").append(escapeJson(directorSignature)).append("\"");
+        }
 
         // Completion date
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MMMM dd, yyyy");
         String date = cert.getCompletedAt() != null
                 ? cert.getCompletedAt().format(fmt)
-                : cert.getIssuedDate().format(fmt);
+                : (cert.getIssuedDate() != null ? cert.getIssuedDate().format(fmt) : "Unknown");
         json.append(",\"completionDate\":\"").append(escapeJson(date)).append("\"");
 
         json.append("}");
@@ -206,6 +230,7 @@ public class CertificateVerificationServer {
      * Gets the local IP address for LAN access.
      */
     public static String getLocalIPAddress() {
+        String bestIP = null;
         try {
             Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
             while (interfaces.hasMoreElements()) {
@@ -215,12 +240,26 @@ public class CertificateVerificationServer {
                 while (addresses.hasMoreElements()) {
                     InetAddress addr = addresses.nextElement();
                     if (addr instanceof Inet4Address && !addr.isLoopbackAddress()) {
-                        return addr.getHostAddress();
+                        String ip = addr.getHostAddress();
+                        // Prefer real LAN IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+                        if (ip.startsWith("192.168.") || ip.startsWith("10.")) {
+                            return ip; // Best match — real WiFi/LAN
+                        }
+                        if (ip.startsWith("172.")) {
+                            int second = Integer.parseInt(ip.split("\\.")[1]);
+                            if (second >= 16 && second <= 31) return ip;
+                        }
+                        // Store as fallback (might be self-assigned like 192.0.0.2)
+                        if (bestIP == null) bestIP = ip;
                     }
                 }
             }
         } catch (SocketException e) {
             logger.warn("Could not determine local IP address: {}", e.getMessage());
+        }
+        if (bestIP != null) {
+            logger.warn("No standard LAN IP found; using {} — phone must be on same WiFi network", bestIP);
+            return bestIP;
         }
         return "localhost";
     }

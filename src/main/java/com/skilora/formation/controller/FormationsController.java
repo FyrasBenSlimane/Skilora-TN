@@ -16,6 +16,7 @@ import com.skilora.formation.entity.FormationModule;
 import com.skilora.formation.entity.Enrollment;
 import com.skilora.formation.entity.Achievement;
 import com.skilora.formation.entity.Certificate;
+import com.skilora.formation.entity.FormationRating;
 import com.skilora.user.entity.User;
 import com.skilora.formation.service.FormationService;
 import com.skilora.formation.service.FormationModuleService;
@@ -24,8 +25,10 @@ import com.skilora.formation.service.AchievementService;
 import com.skilora.formation.service.CertificateGenerationService;
 import com.skilora.formation.service.CertificateService;
 import com.skilora.formation.service.LessonProgressService;
+import com.skilora.formation.service.FormationRatingService;
 import com.skilora.formation.enums.FormationLevel;
 import com.skilora.utils.UiUtils;
+import com.skilora.framework.components.TLStarRating;
 
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -58,11 +61,24 @@ import com.skilora.finance.entity.BankAccount;
 import com.skilora.finance.entity.PaymentTransaction;
 import com.skilora.finance.service.BankAccountService;
 import com.skilora.finance.service.PaymentTransactionService;
+import com.skilora.formation.service.CertificateVerificationServer;
+import com.skilora.framework.components.FormationChatbotWidget;
 import com.skilora.utils.AppThreadPool;
 import com.skilora.utils.I18n;
 import com.skilora.utils.SvgIcons;
 
+import javafx.embed.swing.SwingFXUtils;
+import javafx.scene.SnapshotParameters;
+import javafx.scene.image.ImageView;
+import javafx.scene.image.WritableImage;
+import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
+import javafx.stage.FileChooser;
+
+import java.awt.image.BufferedImage;
+import java.io.File;
 import java.math.BigDecimal;
+import javax.imageio.ImageIO;
 
 /**
  * FormationsController - Training/Courses view for job seekers.
@@ -80,6 +96,7 @@ public class FormationsController implements Initializable {
     private final AchievementService achievementService = AchievementService.getInstance();
     private final CertificateGenerationService certificateGenerationService = CertificateGenerationService.getInstance();
     private final LessonProgressService lessonProgressService = LessonProgressService.getInstance();
+    private final FormationRatingService formationRatingService = FormationRatingService.getInstance();
     
     private User currentUser;
 
@@ -99,6 +116,7 @@ public class FormationsController implements Initializable {
     @FXML private VBox courseDetailContainer;
     @FXML private TLButton refreshBtn;
     @FXML private TLButton certificatesBtn;
+    @FXML private StackPane chatbotContainer;
 
     private List<Formation> allFormations;
     private Map<Integer, Enrollment> userEnrollments = new HashMap<>();
@@ -214,6 +232,7 @@ public class FormationsController implements Initializable {
         task.setOnSucceeded(e -> Platform.runLater(() -> {
             allFormations = task.getValue();
             applyFilters();
+            setupChatbot();
             logger.info("Loaded {} formations from database", allFormations.size());
         }));
 
@@ -222,10 +241,28 @@ public class FormationsController implements Initializable {
             Platform.runLater(() -> {
                 allFormations = new ArrayList<>();
                 applyFilters();
+                setupChatbot();
             });
         });
 
         AppThreadPool.execute(task);
+    }
+
+    /**
+     * Setup the floating chatbot widget (Assistant Formations) in the overlay container.
+     * Called after formations are loaded so the chatbot has the current list.
+     */
+    private void setupChatbot() {
+        if (chatbotContainer == null) return;
+        chatbotContainer.getChildren().clear();
+        List<Formation> list = allFormations != null ? allFormations : new ArrayList<>();
+        FormationChatbotWidget widget = new FormationChatbotWidget(list);
+        chatbotContainer.getChildren().add(widget);
+        StackPane.setAlignment(widget, Pos.BOTTOM_RIGHT);
+    }
+
+    public StackPane getChatbotContainer() {
+        return chatbotContainer;
     }
 
     private void applyFilters() {
@@ -322,6 +359,33 @@ public class FormationsController implements Initializable {
         durationLabel.getStyleClass().add("text-muted");
         metaRow.getChildren().addAll(providerLabel, durationLabel);
 
+        // Rating stats row (aggregate from all users)
+        HBox ratingRow = new HBox(8);
+        ratingRow.setAlignment(Pos.CENTER_LEFT);
+        AppThreadPool.execute(() -> {
+            try {
+                FormationRatingService.RatingStatistics stats = formationRatingService.getStatistics(formation.getId());
+                if (stats.getTotalRatings() > 0) {
+                    Platform.runLater(() -> {
+                        Label avgLbl = new Label(String.format("%.1f", stats.getAverageRating()));
+                        avgLbl.setGraphic(SvgIcons.filledIcon(SvgIcons.STAR, 12, "#facc15"));
+                        avgLbl.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
+
+                        Label countLbl = new Label("(" + stats.getTotalRatings() + ")");
+                        countLbl.getStyleClass().add("text-muted");
+
+                        Label thumbsLbl = new Label(stats.getLikeCount() + " \u25b2  " + stats.getDislikeCount() + " \u25bc");
+                        thumbsLbl.getStyleClass().add("text-muted");
+                        thumbsLbl.setStyle("-fx-font-size: 11px;");
+
+                        ratingRow.getChildren().setAll(avgLbl, countLbl, thumbsLbl);
+                    });
+                }
+            } catch (Exception ex) {
+                logger.debug("Could not load rating stats for card: {}", ex.getMessage());
+            }
+        });
+
         // Check if user is enrolled
         Enrollment enrollment = userEnrollments.get(formation.getId());
         
@@ -339,7 +403,7 @@ public class FormationsController implements Initializable {
             continueBtn.setMaxWidth(Double.MAX_VALUE);
             continueBtn.setOnAction(e -> showCourseDetail(formation, enrollment));
             
-            content.getChildren().addAll(badgeRow, titleLabel, descLabel, metaRow, new TLSeparator(), progressBox, continueBtn);
+            content.getChildren().addAll(badgeRow, titleLabel, descLabel, metaRow, ratingRow, new TLSeparator(), progressBox, continueBtn);
 
             // View Certificate button (when completed)
             if (enrollment.getProgress() >= 100.0) {
@@ -350,10 +414,9 @@ public class FormationsController implements Initializable {
                     AppThreadPool.execute(() -> {
                         Certificate cert = certificateService.findByEnrollment(enrollment.getId());
                         Platform.runLater(() -> {
-                            if (cert != null && formationsGrid.getScene() != null) {
-                                javafx.stage.Stage stage = (javafx.stage.Stage) formationsGrid.getScene().getWindow();
+                            if (cert != null) {
                                 String userName = currentUser != null ? currentUser.getFullName() : "";
-                                CertificateViewController.show(stage, cert, userName, formation.getTitle());
+                                showCertificateInline(cert, userName, formation.getTitle(), formation.getDirectorSignature());
                             } else {
                                 TLToast.info(formationsGrid.getScene(), I18n.get("certificate.title"), I18n.get("formations.certificates.not_found"));
                             }
@@ -384,7 +447,7 @@ public class FormationsController implements Initializable {
             detailsBtn.setMaxWidth(Double.MAX_VALUE);
             detailsBtn.setOnAction(e -> showCourseDetail(formation, null));
             
-            content.getChildren().addAll(badgeRow, titleLabel, descLabel, metaRow, sep, detailsBtn, enrollBtn);
+            content.getChildren().addAll(badgeRow, titleLabel, descLabel, metaRow, ratingRow, sep, detailsBtn, enrollBtn);
         }
 
         card.getContent().add(content);
@@ -472,15 +535,38 @@ public class FormationsController implements Initializable {
             progressBox.setPadding(new Insets(16));
             Label progTitle = new Label(I18n.get("formations.detail.your_progress"));
             progTitle.getStyleClass().add("h4");
+
+            // Stats row: Total / Completed / Remaining
+            int totalModules = formation.getLessonCount();
+            int completedModules = lessonProgressService.getCompletedLessonsCount(enrollment.getId());
+            int remainingModules = Math.max(0, totalModules - completedModules);
+
+            HBox statsRow = new HBox(24);
+            statsRow.setAlignment(Pos.CENTER_LEFT);
+            Label totalLbl = new Label(I18n.get("progress.stat.total") + ": " + totalModules);
+            totalLbl.getStyleClass().add("text-muted");
+            Label completedLbl = new Label(I18n.get("progress.stat.completed") + ": " + completedModules);
+            completedLbl.setStyle("-fx-text-fill: #22c55e; -fx-font-weight: bold;");
+            Label remainingLbl = new Label(I18n.get("progress.stat.remaining") + ": " + remainingModules);
+            remainingLbl.getStyleClass().add("text-muted");
+            statsRow.getChildren().addAll(totalLbl, completedLbl, remainingLbl);
+
             Label progLabel = new Label(I18n.get("formations.completion", String.format("%.0f", enrollment.getProgress())));
             progLabel.getStyleClass().add("text-muted");
             TLProgress progressBar = new TLProgress(enrollment.getProgress() / 100.0);
             progressBar.setMaxWidth(Double.MAX_VALUE);
             progressBar.setPrefHeight(10);
-            progressBox.getChildren().addAll(progTitle, progLabel, progressBar);
+            progressBox.getChildren().addAll(progTitle, statsRow, progLabel, progressBar);
 
-            // Certificate button if 100%
+            // Completed label + Certificate/Quiz buttons if 100%
             if (enrollment.getProgress() >= 100.0) {
+                Label completedTag = new Label("\u2713 " + I18n.get("progress.stat.completed"));
+                completedTag.setStyle("-fx-text-fill: #22c55e; -fx-font-weight: bold; -fx-font-size: 14px;");
+                progressBox.getChildren().add(completedTag);
+
+                HBox actionRow = new HBox(12);
+                actionRow.setAlignment(Pos.CENTER_LEFT);
+
                 TLButton certBtn = new TLButton(I18n.get("certificate.view"), TLButton.ButtonVariant.PRIMARY);
                 certBtn.setGraphic(SvgIcons.icon(SvgIcons.CHECK_CIRCLE, 16));
                 certBtn.setOnAction(e -> {
@@ -490,15 +576,21 @@ public class FormationsController implements Initializable {
                             if (cert != null && formationsGrid.getScene() != null) {
                                 javafx.stage.Stage stage = (javafx.stage.Stage) formationsGrid.getScene().getWindow();
                                 String userName = currentUser != null ? currentUser.getFullName() : "";
-                                CertificateViewController.show(stage, cert, userName, formation.getTitle());
+                                CertificateViewController.show(stage, cert, userName, formation.getTitle(), formation.getDirectorSignature());
                             }
                         });
                     });
                 });
-                progressBox.getChildren().add(certBtn);
+                actionRow.getChildren().add(certBtn);
+                progressBox.getChildren().add(actionRow);
             }
             progressCard.getContent().add(progressBox);
             courseDetailContainer.getChildren().add(progressCard);
+
+            // ── Rating section (only when completed) ──
+            if (enrollment.getProgress() >= 100.0 && currentUser != null) {
+                buildRatingCard(formation, courseDetailContainer);
+            }
         } else {
             // Not enrolled — show enroll button
             TLCard enrollCard = new TLCard();
@@ -747,6 +839,311 @@ public class FormationsController implements Initializable {
         loadUserEnrollments();
     }
 
+    // ─── Rating Card Builder ─────────────────────────────────────────────────
+
+    /**
+     * Builds and appends a rating card (stars + like/dislike) to the given container.
+     * Only shown when the user has completed the formation.
+     * If the user has already rated, their existing rating is displayed with update option.
+     */
+    private void buildRatingCard(Formation formation, VBox container) {
+        int userId = currentUser.getId();
+        int formationId = formation.getId();
+
+        TLCard ratingCard = new TLCard();
+        VBox ratingContent = new VBox(12);
+        ratingContent.setPadding(new Insets(16));
+
+        Label ratingTitle = new Label(I18n.get("formation.rating.title"));
+        ratingTitle.getStyleClass().add("h4");
+
+        Label ratingDesc = new Label(I18n.get("formation.rating.description"));
+        ratingDesc.getStyleClass().add("text-muted");
+        ratingDesc.setWrapText(true);
+
+        // Star rating row
+        VBox starsBox = new VBox(6);
+        Label starsLabel = new Label(I18n.get("formation.rating.stars"));
+        starsLabel.getStyleClass().addAll("text-sm", "font-bold");
+        TLStarRating starRating = new TLStarRating(0);
+        starsBox.getChildren().addAll(starsLabel, starRating);
+
+        // Like / Dislike buttons
+        HBox likeRow = new HBox(12);
+        likeRow.setAlignment(Pos.CENTER_LEFT);
+
+        TLButton likeBtn = new TLButton(I18n.get("formation.rating.like"), TLButton.ButtonVariant.OUTLINE);
+        likeBtn.setGraphic(SvgIcons.icon(SvgIcons.THUMB_UP, 16));
+
+        TLButton dislikeBtn = new TLButton(I18n.get("formation.rating.dislike"), TLButton.ButtonVariant.OUTLINE);
+        dislikeBtn.setGraphic(SvgIcons.icon(SvgIcons.THUMB_DOWN, 16));
+
+        // Track selected like/dislike state: [0] = null(neutral), true(liked), false(disliked)
+        final Boolean[] likedState = {null};
+
+        likeBtn.setOnAction(e -> {
+            if (Boolean.TRUE.equals(likedState[0])) {
+                likedState[0] = null; // toggle off
+                likeBtn.setVariant(TLButton.ButtonVariant.OUTLINE);
+                dislikeBtn.setVariant(TLButton.ButtonVariant.OUTLINE);
+            } else {
+                likedState[0] = true;
+                likeBtn.setVariant(TLButton.ButtonVariant.PRIMARY);
+                dislikeBtn.setVariant(TLButton.ButtonVariant.DANGER);
+            }
+        });
+
+        dislikeBtn.setOnAction(e -> {
+            if (Boolean.FALSE.equals(likedState[0])) {
+                likedState[0] = null; // toggle off
+                likeBtn.setVariant(TLButton.ButtonVariant.OUTLINE);
+                dislikeBtn.setVariant(TLButton.ButtonVariant.OUTLINE);
+            } else {
+                likedState[0] = false;
+                likeBtn.setVariant(TLButton.ButtonVariant.OUTLINE);
+                dislikeBtn.setVariant(TLButton.ButtonVariant.DANGER);
+            }
+        });
+
+        likeRow.getChildren().addAll(likeBtn, dislikeBtn);
+
+        // Submit / Update button
+        TLButton submitBtn = new TLButton(I18n.get("formation.rating.submit"), TLButton.ButtonVariant.PRIMARY);
+        submitBtn.setMaxWidth(300);
+
+        // Aggregate stats row (shown below the form)
+        HBox statsRow = new HBox(16);
+        statsRow.setAlignment(Pos.CENTER_LEFT);
+
+        submitBtn.setOnAction(e -> {
+            int stars = starRating.getRating();
+            if (stars < 1) {
+                TLToast.info(formationsGrid.getScene(), I18n.get("formation.rating.title"),
+                        I18n.get("formation.rating.stars"));
+                return;
+            }
+            submitBtn.setDisable(true);
+            AppThreadPool.execute(() -> {
+                try {
+                    formationRatingService.submitRating(userId, formationId, likedState[0], stars);
+                    Platform.runLater(() -> {
+                        boolean isUpdate = I18n.get("formation.rating.update").equals(submitBtn.getText());
+                        TLToast.success(formationsGrid.getScene(), I18n.get("formation.rating.title"),
+                                isUpdate ? I18n.get("formation.rating.updated") : I18n.get("formation.rating.submitted"));
+                        submitBtn.setText(I18n.get("formation.rating.update"));
+                        submitBtn.setDisable(false);
+                        refreshRatingStats(formationId, statsRow);
+                    });
+                } catch (Exception ex) {
+                    logger.error("Failed to submit rating", ex);
+                    Platform.runLater(() -> {
+                        TLToast.error(formationsGrid.getScene(), I18n.get("formation.rating.title"), ex.getMessage());
+                        submitBtn.setDisable(false);
+                    });
+                }
+            });
+        });
+
+        ratingContent.getChildren().addAll(ratingTitle, ratingDesc, starsBox, likeRow, submitBtn);
+
+        // Load existing rating (if any) in background
+        AppThreadPool.execute(() -> {
+            try {
+                java.util.Optional<FormationRating> existing = formationRatingService.getUserRating(userId, formationId);
+                FormationRatingService.RatingStatistics stats = formationRatingService.getStatistics(formationId);
+
+                Platform.runLater(() -> {
+                    if (existing.isPresent()) {
+                        FormationRating r = existing.get();
+                        starRating.setRating(r.getStarRating());
+
+                        if (Boolean.TRUE.equals(r.getIsLiked())) {
+                            likedState[0] = true;
+                            likeBtn.setVariant(TLButton.ButtonVariant.PRIMARY);
+                        } else if (Boolean.FALSE.equals(r.getIsLiked())) {
+                            likedState[0] = false;
+                            dislikeBtn.setVariant(TLButton.ButtonVariant.DANGER);
+                        }
+
+                        submitBtn.setText(I18n.get("formation.rating.update"));
+                        ratingTitle.setText(I18n.get("formation.rating.your_rating"));
+                    }
+
+                    // Show aggregate stats
+                    if (stats.getTotalRatings() > 0) {
+                        Label avgLabel = new Label(String.format("%.1f", stats.getAverageRating()));
+                        avgLabel.setGraphic(SvgIcons.filledIcon(SvgIcons.STAR, 14, "#facc15"));
+                        avgLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+
+                        Label countLabel = new Label(I18n.get("formation.rating.avg",
+                                String.format("%.1f", stats.getAverageRating()),
+                                String.valueOf(stats.getTotalRatings())));
+                        countLabel.getStyleClass().add("text-muted");
+
+                        Label likesLabel = new Label(String.valueOf(stats.getLikeCount()));
+                        likesLabel.setGraphic(SvgIcons.icon(SvgIcons.THUMB_UP, 12, "-fx-muted-foreground"));
+                        likesLabel.getStyleClass().add("text-muted");
+
+                        Label dislikesLabel = new Label(String.valueOf(stats.getDislikeCount()));
+                        dislikesLabel.setGraphic(SvgIcons.icon(SvgIcons.THUMB_DOWN, 12, "-fx-muted-foreground"));
+                        dislikesLabel.getStyleClass().add("text-muted");
+
+                        statsRow.getChildren().setAll(avgLabel, countLabel, likesLabel, dislikesLabel);
+                        if (!ratingContent.getChildren().contains(statsRow)) {
+                            ratingContent.getChildren().add(statsRow);
+                        }
+                    }
+                });
+            } catch (Exception ex) {
+                logger.debug("Could not load existing rating: {}", ex.getMessage());
+            }
+        });
+
+        ratingCard.getContent().add(ratingContent);
+        container.getChildren().add(ratingCard);
+    }
+
+    /**
+     * Refreshes the aggregate rating stats row for a formation.
+     */
+    private void refreshRatingStats(int formationId, HBox statsRow) {
+        AppThreadPool.execute(() -> {
+            try {
+                FormationRatingService.RatingStatistics stats = formationRatingService.getStatistics(formationId);
+                Platform.runLater(() -> {
+                    if (stats.getTotalRatings() > 0) {
+                        Label avgLabel = new Label(String.format("%.1f", stats.getAverageRating()));
+                        avgLabel.setGraphic(SvgIcons.filledIcon(SvgIcons.STAR, 14, "#facc15"));
+                        avgLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+
+                        Label countLabel = new Label(I18n.get("formation.rating.avg",
+                                String.format("%.1f", stats.getAverageRating()),
+                                String.valueOf(stats.getTotalRatings())));
+                        countLabel.getStyleClass().add("text-muted");
+
+                        Label likesLabel = new Label(String.valueOf(stats.getLikeCount()));
+                        likesLabel.setGraphic(SvgIcons.icon(SvgIcons.THUMB_UP, 12, "-fx-muted-foreground"));
+                        likesLabel.getStyleClass().add("text-muted");
+
+                        Label dislikesLabel = new Label(String.valueOf(stats.getDislikeCount()));
+                        dislikesLabel.setGraphic(SvgIcons.icon(SvgIcons.THUMB_DOWN, 12, "-fx-muted-foreground"));
+                        dislikesLabel.getStyleClass().add("text-muted");
+
+                        statsRow.getChildren().setAll(avgLabel, countLabel, likesLabel, dislikesLabel);
+                    }
+                });
+            } catch (Exception ex) {
+                logger.debug("Could not refresh rating stats: {}", ex.getMessage());
+            }
+        });
+    }
+
+    // ─── Inline Certificate View ─────────────────────────────────────────────
+
+    /**
+     * Shows a certificate inline in the main content area (replacing the grid),
+     * with back button, download PDF, and QR code actions.
+     *
+     * @param directorSignatureBase64 optional base64 PNG of the formation director's signature
+     */
+    private void showCertificateInline(Certificate cert, String recipientName, String formationTitle, String directorSignatureBase64) {
+        // Hide grid, show detail
+        gridContainer.setVisible(false);
+        gridContainer.setManaged(false);
+        categoryBox.setVisible(false);
+        categoryBox.setManaged(false);
+        if (searchField != null) {
+            searchField.setVisible(false);
+            searchField.setManaged(false);
+        }
+        courseDetailContainer.getChildren().clear();
+        courseDetailContainer.setVisible(true);
+        courseDetailContainer.setManaged(true);
+
+        // ── Back button row ──
+        HBox backRow = new HBox(12);
+        backRow.setAlignment(Pos.CENTER_LEFT);
+        TLButton backBtn = new TLButton(I18n.get("common.back"), TLButton.ButtonVariant.OUTLINE);
+        backBtn.setGraphic(SvgIcons.icon(SvgIcons.ARROW_LEFT, 14));
+        backBtn.setOnAction(e -> hideCourseDetail());
+
+        Label headerLabel = new Label(I18n.get("certificate.title"));
+        headerLabel.getStyleClass().add("h3");
+
+        Region hSpacer = new Region();
+        HBox.setHgrow(hSpacer, Priority.ALWAYS);
+        backRow.getChildren().addAll(backBtn, headerLabel, hSpacer);
+
+        // ── Render the certificate card (with formation director signature when provided) ──
+        StackPane certNode = CertificateRenderer.render(cert, recipientName, formationTitle, directorSignatureBase64);
+
+        // Center the certificate
+        HBox certWrapper = new HBox();
+        certWrapper.setAlignment(Pos.CENTER);
+        certWrapper.setPadding(new Insets(16, 0, 16, 0));
+        certWrapper.getChildren().add(certNode);
+
+        // ── Action buttons ──
+        HBox actions = new HBox(12);
+        actions.setAlignment(Pos.CENTER);
+        actions.setPadding(new Insets(8, 0, 8, 0));
+
+        TLButton downloadPdfBtn = new TLButton(I18n.get("certificate.download"), TLButton.ButtonVariant.OUTLINE);
+        downloadPdfBtn.setGraphic(SvgIcons.icon(SvgIcons.SAVE, 14));
+        downloadPdfBtn.setOnAction(e -> {
+            if (formationsGrid.getScene() != null) {
+                javafx.stage.Stage stage = (javafx.stage.Stage) formationsGrid.getScene().getWindow();
+                CertificateViewController.saveCertificateAsPdf(certNode, recipientName, formationTitle, stage);
+            }
+        });
+
+        TLButton qrBtn = new TLButton("QR Code", TLButton.ButtonVariant.OUTLINE);
+        qrBtn.setGraphic(SvgIcons.icon(SvgIcons.SHIELD_CHECK, 14));
+        qrBtn.setOnAction(e -> {
+            if (formationsGrid.getScene() != null) {
+                javafx.stage.Stage stage = (javafx.stage.Stage) formationsGrid.getScene().getWindow();
+                CertificateViewController.showQRCodeDialog(cert, formationTitle, stage);
+            }
+        });
+
+        actions.getChildren().addAll(downloadPdfBtn, qrBtn);
+
+        // ── Certificate info card ──
+        TLCard infoCard = new TLCard();
+        VBox infoContent = new VBox(8);
+        infoContent.setPadding(new Insets(16));
+
+        Label certNumLabel = new Label(I18n.get("certificate.number") + " " +
+                (cert.getCertificateNumber() != null ? cert.getCertificateNumber() : "—"));
+        certNumLabel.getStyleClass().add("text-muted");
+
+        String dateStr = cert.getIssuedDate() != null
+                ? cert.getIssuedDate().format(java.time.format.DateTimeFormatter.ofPattern("MMMM dd, yyyy"))
+                : "—";
+        Label issuedLabel = new Label(I18n.get("certificate.issued") + " " + dateStr);
+        issuedLabel.getStyleClass().add("text-muted");
+
+        if (cert.getHashValue() != null && !cert.getHashValue().isBlank()) {
+            String hashShort = cert.getHashValue().length() > 24
+                    ? cert.getHashValue().substring(0, 24) + "..."
+                    : cert.getHashValue();
+            Label hashLabel = new Label("Verification: " + hashShort);
+            hashLabel.getStyleClass().addAll("text-2xs", "text-muted");
+            infoContent.getChildren().addAll(certNumLabel, issuedLabel, hashLabel);
+        } else {
+            infoContent.getChildren().addAll(certNumLabel, issuedLabel);
+        }
+
+        infoCard.getContent().add(infoContent);
+
+        courseDetailContainer.getChildren().addAll(backRow, certWrapper, actions, infoCard);
+    }
+
+    private static String sanitizeFileName(String name) {
+        if (name == null) return "Unknown";
+        return name.replaceAll("[<>:\"/\\\\|?*]", "_").replaceAll("\\s+", "_").trim();
+    }
+
     /**
      * Marks a module complete using LessonProgressService for proper per-module tracking,
      * then refreshes the inline course detail view.
@@ -773,16 +1170,7 @@ public class FormationsController implements Initializable {
             if (finalProgress >= 100.0) {
                 int certId = certificateGenerationService.completeAndCertify(enrollment.getId());
                 Platform.runLater(() -> {
-                    TLToast.success(formationsGrid.getScene(), I18n.get("common.success"),
-                            I18n.get("formations.module.completed_cert"));
-                    if (certId > 0) {
-                        Certificate cert = certificateService.findById(certId);
-                        if (cert != null && formationsGrid.getScene() != null) {
-                            javafx.stage.Stage stage = (javafx.stage.Stage) formationsGrid.getScene().getWindow();
-                            String userName = currentUser != null ? currentUser.getFullName() : "";
-                            CertificateViewController.show(stage, cert, userName, formation.getTitle());
-                        }
-                    }
+                    showCompletionCongrats(formation, certId);
                     // Refresh the detail view
                     showCourseDetail(formation, enrollment);
                 });
@@ -1039,18 +1427,7 @@ public class FormationsController implements Initializable {
                 int certId = certificateGenerationService.completeAndCertify(enrollment.getId());
                 Platform.runLater(() -> {
                     if (parentDialog != null) parentDialog.close();
-                    if (certId > 0) {
-                        TLToast.success(formationsGrid.getScene(), I18n.get("common.success"), I18n.get("formations.module.completed_cert"));
-                        // Auto-show the certificate
-                        Certificate cert = certificateService.findById(certId);
-                        if (cert != null && formationsGrid.getScene() != null) {
-                            javafx.stage.Stage stage = (javafx.stage.Stage) formationsGrid.getScene().getWindow();
-                            String userName = currentUser != null ? currentUser.getFullName() : "";
-                            CertificateViewController.show(stage, cert, userName, formation.getTitle());
-                        }
-                    } else {
-                        TLToast.success(formationsGrid.getScene(), I18n.get("common.success"), I18n.get("formations.module.completed"));
-                    }
+                    showCompletionCongrats(formation, certId);
                     loadUserEnrollments();
                 });
                 return;
@@ -1062,6 +1439,52 @@ public class FormationsController implements Initializable {
                 loadUserEnrollments();
             });
         });
+    }
+
+    /**
+     * Show a congratulations dialog when a formation is completed.
+     * Offers "View Certificate" and "Close" options instead of auto-opening the certificate.
+     */
+    private void showCompletionCongrats(Formation formation, int certId) {
+        TLDialog<ButtonType> dialog = new TLDialog<>();
+        dialog.setTitle(I18n.get("common.success"));
+        dialog.setDialogTitle("🎉 " + I18n.get("formations.module.completed_cert"));
+        dialog.setDescription(formation.getTitle());
+
+        VBox body = new VBox(16);
+        body.setAlignment(Pos.CENTER);
+        body.setPadding(new Insets(20));
+
+        Label congratsLabel = new Label("🏆");
+        congratsLabel.setStyle("-fx-font-size: 48px;");
+
+        Label messageLabel = new Label(I18n.get("formations.module.completed_cert"));
+        messageLabel.getStyleClass().add("h4");
+        messageLabel.setWrapText(true);
+        messageLabel.setAlignment(Pos.CENTER);
+
+        body.getChildren().addAll(congratsLabel, messageLabel);
+
+        if (certId > 0) {
+            TLButton viewCertBtn = new TLButton(I18n.get("certificate.view"), TLButton.ButtonVariant.PRIMARY);
+            viewCertBtn.setGraphic(SvgIcons.icon(SvgIcons.FILE_TEXT, 16));
+            viewCertBtn.setOnAction(e -> {
+                dialog.close();
+                AppThreadPool.execute(() -> {
+                    Certificate cert = certificateService.findById(certId);
+                    if (cert != null) {
+                        String userName = currentUser != null ? currentUser.getFullName() : "";
+                        Platform.runLater(() -> showCertificateInline(cert, userName, formation.getTitle(), formation.getDirectorSignature()));
+                    }
+                });
+            });
+            body.getChildren().add(viewCertBtn);
+        }
+
+        dialog.setContent(body);
+        dialog.addButton(ButtonType.CLOSE);
+        dialog.styleButtons();
+        dialog.showAndWait();
     }
 
     @FXML
@@ -1128,7 +1551,7 @@ public class FormationsController implements Initializable {
                     certBox.getChildren().add(new Label(I18n.get("formations.certificates.empty")));
                 } else {
                     for (Certificate cert : certs) {
-                        certBox.getChildren().add(buildCertificateCard(cert));
+                        certBox.getChildren().add(buildCertificateCard(cert, dialog));
                     }
                 }
 
@@ -1139,7 +1562,7 @@ public class FormationsController implements Initializable {
         dialog.showAndWait();
     }
 
-    private TLCard buildCertificateCard(Certificate cert) {
+    private TLCard buildCertificateCard(Certificate cert, TLDialog<?> parentDialog) {
         TLCard card = new TLCard();
         VBox content = new VBox(8);
         content.setPadding(new Insets(12));
@@ -1157,15 +1580,21 @@ public class FormationsController implements Initializable {
         HBox actions = new HBox(8);
         actions.setAlignment(Pos.CENTER_LEFT);
 
-        TLButton verifyBtn = new TLButton(I18n.get("certificate.verify"), TLButton.ButtonVariant.OUTLINE);
-        verifyBtn.setGraphic(SvgIcons.icon(SvgIcons.SHIELD_CHECK, 14));
-        verifyBtn.setOnAction(e -> showCertificateDetails(cert));
+        TLButton viewBtn = new TLButton(I18n.get("certificate.view"), TLButton.ButtonVariant.OUTLINE);
+        viewBtn.setGraphic(SvgIcons.icon(SvgIcons.CHECK_CIRCLE, 14));
+        viewBtn.setOnAction(e -> {
+            if (parentDialog != null) parentDialog.close();
+            showCertificateDetails(cert);
+        });
 
         TLButton dlBtn = new TLButton(I18n.get("certificate.download"), TLButton.ButtonVariant.OUTLINE);
-        dlBtn.setGraphic(SvgIcons.icon(SvgIcons.FILE_TEXT, 14));
-        dlBtn.setOnAction(e -> openCertificatePdf(cert));
+        dlBtn.setGraphic(SvgIcons.icon(SvgIcons.SAVE, 14));
+        dlBtn.setOnAction(e -> {
+            if (parentDialog != null) parentDialog.close();
+            openCertificatePdf(cert);
+        });
 
-        actions.getChildren().addAll(verifyBtn, dlBtn);
+        actions.getChildren().addAll(viewBtn, dlBtn);
 
         content.getChildren().addAll(formationTitle, number, issued, actions);
         card.getContent().add(content);
@@ -1188,42 +1617,56 @@ public class FormationsController implements Initializable {
     private void showCertificateDetails(Certificate cert) {
         if (cert == null) return;
 
-        // Resolve formation title from enrollment
+        // Resolve formation title and director signature from enrollment
         AppThreadPool.execute(() -> {
             String formationTitle = I18n.get("formations.certificates.unknown_formation");
+            String directorSignature = null;
             String recipientName = currentUser != null ? currentUser.getFullName() : "";
             try {
                 Enrollment enrollment = enrollmentService.findById(cert.getEnrollmentId());
                 if (enrollment != null) {
                     Formation f = formationService.findById(enrollment.getFormationId());
-                    if (f != null) formationTitle = f.getTitle();
+                    if (f != null) {
+                        formationTitle = f.getTitle();
+                        directorSignature = f.getDirectorSignature();
+                    }
                 }
             } catch (Exception ignored) {}
 
             final String title = formationTitle;
             final String name = recipientName;
-            Platform.runLater(() -> {
-                if (formationsGrid.getScene() != null) {
-                    javafx.stage.Stage stage = (javafx.stage.Stage) formationsGrid.getScene().getWindow();
-                    CertificateViewController.show(stage, cert, name, title);
-                }
-            });
+            final String sig = directorSignature;
+            Platform.runLater(() -> showCertificateInline(cert, name, title, sig));
         });
     }
 
     private void openCertificatePdf(Certificate cert) {
-        String url = cert != null ? cert.getPdfUrl() : null;
-        if (url == null || url.isBlank()) {
-            TLToast.info(formationsGrid.getScene(), I18n.get("certificate.title"), I18n.get("formations.certificates.no_pdf"));
-            return;
-        }
-        try {
-            if (java.awt.Desktop.isDesktopSupported()) {
-                java.awt.Desktop.getDesktop().browse(new java.net.URI(url));
-            }
-        } catch (Exception ex) {
-            TLToast.error(formationsGrid.getScene(), I18n.get("common.error"), I18n.get("formations.certificates.open_pdf_failed"));
-        }
+        if (cert == null) return;
+        // Resolve formation title and director signature for the certificate render
+        AppThreadPool.execute(() -> {
+            String formationTitle = "Certificate";
+            String directorSignature = null;
+            String recipientName = currentUser != null ? currentUser.getFullName() : "";
+            try {
+                Enrollment enrollment = enrollmentService.findById(cert.getEnrollmentId());
+                if (enrollment != null) {
+                    Formation f = formationService.findById(enrollment.getFormationId());
+                    if (f != null) {
+                        formationTitle = f.getTitle();
+                        directorSignature = f.getDirectorSignature();
+                    }
+                }
+            } catch (Exception ignored) {}
+            final String title = formationTitle;
+            final String name = recipientName;
+            final String sig = directorSignature;
+            Platform.runLater(() -> {
+                StackPane certNode = CertificateRenderer.render(cert, name, title, sig);
+                javafx.stage.Stage stage = formationsGrid.getScene() != null
+                        ? (javafx.stage.Stage) formationsGrid.getScene().getWindow() : null;
+                if (stage != null) CertificateViewController.saveCertificateAsPdf(certNode, name, title, stage);
+            });
+        });
     }
 
     private void handleEnroll(Formation formation) {

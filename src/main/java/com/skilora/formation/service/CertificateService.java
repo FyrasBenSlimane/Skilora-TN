@@ -318,6 +318,17 @@ public class CertificateService {
         c.setQrCode(rs.getString("qr_code"));
         c.setHashValue(rs.getString("hash_value"));
         c.setPdfUrl(rs.getString("pdf_url"));
+        // Map additional columns added by schema migration
+        try {
+            c.setUserId(rs.getInt("user_id"));
+            c.setFormationId(rs.getInt("formation_id"));
+            String token = rs.getString("verification_token");
+            if (token != null) c.setVerificationToken(token);
+            Timestamp completedAt = rs.getTimestamp("completed_at");
+            if (completedAt != null) c.setCompletedAt(completedAt.toLocalDateTime());
+        } catch (SQLException ignored) {
+            // Columns may not exist in older schemas
+        }
         return c;
     }
 }

@@ -3,25 +3,19 @@ package com.skilora.formation.controller;
 import com.skilora.formation.entity.Certificate;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.print.PrinterJob;
-import javafx.scene.SnapshotParameters;
 import javafx.scene.control.Label;
 import javafx.scene.effect.DropShadow;
-import javafx.scene.image.WritableImage;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
-import javafx.stage.FileChooser;
-import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.io.File;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -32,7 +26,7 @@ import java.time.format.DateTimeFormatter;
  *   <li>Gold ornamental border</li>
  *   <li>Professional typography</li>
  *   <li>Certificate number and QR hash</li>
- *   <li>Export to PNG and Print functionality</li>
+ *   <li>Export to PDF functionality</li>
  * </ul>
  */
 public class CertificateRenderer {
@@ -46,14 +40,22 @@ public class CertificateRenderer {
     private static final Color TEXT_MUTED = Color.web("#71717a");
 
     /**
-     * Build the full certificate view as a JavaFX node.
-     *
-     * @param cert          the Certificate entity
-     * @param recipientName the full name of the certificate holder
-     * @param formationTitle the title of the completed formation
-     * @return a StackPane containing the rendered certificate
+     * Build the full certificate view as a JavaFX node (no formation director signature).
      */
     public static StackPane render(Certificate cert, String recipientName, String formationTitle) {
+        return render(cert, recipientName, formationTitle, null);
+    }
+
+    /**
+     * Build the full certificate view as a JavaFX node.
+     *
+     * @param cert                   the Certificate entity
+     * @param recipientName          the full name of the certificate holder
+     * @param formationTitle         the title of the completed formation
+     * @param directorSignatureBase64 optional base64-encoded PNG of the formation director's signature (from Formation.directorSignature)
+     * @return a StackPane containing the rendered certificate
+     */
+    public static StackPane render(Certificate cert, String recipientName, String formationTitle, String directorSignatureBase64) {
         StackPane card = new StackPane();
         card.setPrefSize(CERT_WIDTH, CERT_HEIGHT);
         card.setMaxSize(CERT_WIDTH, CERT_HEIGHT);
@@ -83,22 +85,25 @@ public class CertificateRenderer {
         Label headerLabel = new Label("CERTIFICATE OF COMPLETION");
         headerLabel.setFont(Font.font("Inter", FontWeight.NORMAL, 11));
         headerLabel.setTextFill(GOLD);
-        headerLabel.setStyle("-fx-letter-spacing: 8;");
+        headerLabel.setStyle("-fx-text-fill: #c9a84c; -fx-letter-spacing: 8;");
 
         // Logo / Emblem
         Label emblem = new Label("✦ SKILORA ✦");
         emblem.setFont(Font.font("Inter", FontWeight.BOLD, 14));
         emblem.setTextFill(GOLD_LIGHT);
+        emblem.setStyle("-fx-text-fill: #d4b86a;");
 
         // "This certifies that"
         Label certifiesLabel = new Label("This certifies that");
         certifiesLabel.setFont(Font.font("Inter", FontWeight.NORMAL, 12));
         certifiesLabel.setTextFill(TEXT_MUTED);
+        certifiesLabel.setStyle("-fx-text-fill: #71717a;");
 
         // Recipient name
         Label nameLabel = new Label(recipientName != null ? recipientName : "—");
         nameLabel.setFont(Font.font("Inter", FontWeight.BOLD, 28));
         nameLabel.setTextFill(Color.WHITE);
+        nameLabel.setStyle("-fx-text-fill: white;");
 
         // Separator
         Line nameLine = new Line(0, 0, 300, 0);
@@ -109,11 +114,13 @@ public class CertificateRenderer {
         Label completedLabel = new Label("has successfully completed the formation");
         completedLabel.setFont(Font.font("Inter", FontWeight.NORMAL, 12));
         completedLabel.setTextFill(TEXT_MUTED);
+        completedLabel.setStyle("-fx-text-fill: #71717a;");
 
         // Formation title
         Label formationLabel = new Label(formationTitle != null ? formationTitle : "—");
         formationLabel.setFont(Font.font("Inter", FontWeight.SEMI_BOLD, 18));
         formationLabel.setTextFill(GOLD_LIGHT);
+        formationLabel.setStyle("-fx-text-fill: #d4b86a;");
         formationLabel.setWrapText(true);
         formationLabel.setTextAlignment(TextAlignment.CENTER);
 
@@ -124,10 +131,12 @@ public class CertificateRenderer {
         Label dateLabel = new Label("Issued: " + dateStr);
         dateLabel.setFont(Font.font("Inter", FontWeight.NORMAL, 10));
         dateLabel.setTextFill(TEXT_MUTED);
+        dateLabel.setStyle("-fx-text-fill: #71717a;");
 
         Label certNumLabel = new Label("Certificate No: " + (cert.getCertificateNumber() != null ? cert.getCertificateNumber() : "—"));
         certNumLabel.setFont(Font.font("SF Mono", FontWeight.NORMAL, 9));
-        certNumLabel.setTextFill(Color.web("#3f3f46"));
+        certNumLabel.setTextFill(Color.web("#a1a1aa"));
+        certNumLabel.setStyle("-fx-text-fill: #a1a1aa;");
 
         // Hash verification
         String hashShort = cert.getHashValue() != null && cert.getHashValue().length() > 16
@@ -135,7 +144,8 @@ public class CertificateRenderer {
                 : (cert.getHashValue() != null ? cert.getHashValue() : "—");
         Label hashLabel = new Label("Verification: " + hashShort);
         hashLabel.setFont(Font.font("SF Mono", FontWeight.NORMAL, 8));
-        hashLabel.setTextFill(Color.web("#27272a"));
+        hashLabel.setTextFill(Color.web("#71717a"));
+        hashLabel.setStyle("-fx-text-fill: #71717a;");
 
         // Bottom ornamental line
         Line bottomLine = createOrnamentalLine();
@@ -146,8 +156,8 @@ public class CertificateRenderer {
         Region spacer2 = new Region();
         spacer2.setPrefHeight(8);
 
-        // ── Signature blocks ──
-        HBox signatureRow = buildSignatureRow();
+        // ── Signature blocks (left = director signature image or placeholder; right = Skilora) ──
+        HBox signatureRow = buildSignatureRow(directorSignatureBase64);
 
         content.getChildren().addAll(
                 topLine,
@@ -171,67 +181,63 @@ public class CertificateRenderer {
         return card;
     }
 
+
     /**
-     * Export the certificate to a PNG file.
+     * Build a row with two signature blocks: Director (image or placeholder) and Platform.
      *
-     * @param certNode the rendered certificate StackPane
-     * @param stage    the parent stage for the file chooser
+     * @param directorSignatureBase64 optional base64 PNG of the formation director's signature
      */
-    public static void exportToPNG(StackPane certNode, Stage stage) {
-        FileChooser chooser = new FileChooser();
-        chooser.setTitle("Save Certificate");
-        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PNG Image", "*.png"));
-        chooser.setInitialFileName("skilora_certificate.png");
-
-        File file = chooser.showSaveDialog(stage);
-        if (file == null) return;
-
-        try {
-            SnapshotParameters params = new SnapshotParameters();
-            params.setFill(Color.TRANSPARENT);
-            WritableImage snapshot = certNode.snapshot(params, null);
-
-            BufferedImage bImage = javafx.embed.swing.SwingFXUtils.fromFXImage(snapshot, null);
-            ImageIO.write(bImage, "png", file);
-
-            logger.info("Certificate exported to: {}", file.getAbsolutePath());
-        } catch (Exception e) {
-            logger.error("Failed to export certificate: {}", e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Print the certificate using the system printer.
-     *
-     * @param certNode the rendered certificate StackPane
-     */
-    public static void print(StackPane certNode) {
-        PrinterJob job = PrinterJob.createPrinterJob();
-        if (job != null && job.showPrintDialog(certNode.getScene().getWindow())) {
-            boolean success = job.printPage(certNode);
-            if (success) {
-                job.endJob();
-                logger.info("Certificate printed successfully.");
-            }
-        }
-    }
-
-    /**
-     * Build a row with two signature blocks: Director and Platform.
-     */
-    private static HBox buildSignatureRow() {
+    private static HBox buildSignatureRow(String directorSignatureBase64) {
         HBox row = new HBox(60);
         row.setAlignment(Pos.CENTER);
         row.setPadding(new Insets(8, 0, 4, 0));
-        row.getChildren().addAll(
-                buildSignatureBlock("Director", "Formation Director"),
-                buildSignatureBlock("Skilora", "Platform")
-        );
+        VBox leftBlock = isDirectorSignaturePresent(directorSignatureBase64)
+                ? buildDirectorSignatureImageBlock(directorSignatureBase64)
+                : buildSignatureBlock("Director", "Formation Director");
+        row.getChildren().addAll(leftBlock, buildSignatureBlock("Skilora", "Platform"));
         return row;
+    }
+
+    private static boolean isDirectorSignaturePresent(String base64) {
+        return base64 != null && !base64.isBlank();
+    }
+
+    /**
+     * Build the left signature block with the formation director's drawn signature image.
+     * Uses a data URL so the Image loads without leaving streams open.
+     */
+    private static VBox buildDirectorSignatureImageBlock(String directorSignatureBase64) {
+        VBox block = new VBox(4);
+        block.setAlignment(Pos.CENTER);
+        block.setMinWidth(160);
+        try {
+            String dataUrl = "data:image/png;base64," + directorSignatureBase64.trim();
+            Image img = new Image(dataUrl);
+            if (img.isError()) {
+                logger.debug("Director signature image failed to load, using placeholder");
+                return buildSignatureBlock("Director", "Formation Director");
+            }
+            ImageView iv = new ImageView(img);
+            iv.setFitWidth(140);
+            iv.setFitHeight(56);
+            iv.setPreserveRatio(true);
+            iv.setSmooth(true);
+            block.getChildren().add(iv);
+        } catch (Exception e) {
+            logger.debug("Could not decode director signature image, using placeholder: {}", e.getMessage());
+            return buildSignatureBlock("Director", "Formation Director");
+        }
+        Label titleLabel = new Label("Formation Director");
+        titleLabel.setFont(Font.font("Inter", FontWeight.NORMAL, 9));
+        titleLabel.setTextFill(GOLD_LIGHT);
+        titleLabel.setStyle("-fx-text-fill: #d4b86a;");
+        block.getChildren().add(titleLabel);
+        return block;
     }
 
     /**
      * Build a single signature block with a line, name, and title.
+     * Uses gold for the signature name and line so they are clearly visible on the dark certificate.
      */
     private static VBox buildSignatureBlock(String name, String title) {
         VBox block = new VBox(4);
@@ -239,16 +245,18 @@ public class CertificateRenderer {
         block.setMinWidth(160);
 
         Line sigLine = new Line(0, 0, 140, 0);
-        sigLine.setStroke(Color.web("#3f3f46"));
-        sigLine.setStrokeWidth(0.8);
+        sigLine.setStroke(GOLD);
+        sigLine.setStrokeWidth(1.2);
 
         Label nameLabel = new Label(name);
-        nameLabel.setFont(Font.font("Inter", FontWeight.SEMI_BOLD, 10));
-        nameLabel.setTextFill(Color.web("#d4d4d8"));
+        nameLabel.setFont(Font.font("Inter", FontWeight.SEMI_BOLD, 11));
+        nameLabel.setTextFill(GOLD);
+        nameLabel.setStyle("-fx-text-fill: #c9a84c;");
 
         Label titleLabel = new Label(title);
-        titleLabel.setFont(Font.font("Inter", FontWeight.NORMAL, 8));
-        titleLabel.setTextFill(TEXT_MUTED);
+        titleLabel.setFont(Font.font("Inter", FontWeight.NORMAL, 9));
+        titleLabel.setTextFill(GOLD_LIGHT);
+        titleLabel.setStyle("-fx-text-fill: #d4b86a;");
 
         block.getChildren().addAll(sigLine, nameLabel, titleLabel);
         return block;
