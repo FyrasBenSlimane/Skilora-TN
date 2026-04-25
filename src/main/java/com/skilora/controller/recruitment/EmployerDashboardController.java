@@ -88,30 +88,44 @@ public class EmployerDashboardController {
             protected DashboardData call() throws Exception {
                 DashboardData data = new DashboardData();
 
-                // 1. Job Offers Data
-                List<JobOffer> offers = jobService.findJobOffersByCompanyOwner(currentUser.getId());
-                data.totalOffers = offers.size();
-                data.activeOffers = (int) offers.stream()
-                        .filter(o -> o.getStatus() == JobStatus.ACTIVE || o.getStatus() == JobStatus.OPEN)
-                        .count();
-                data.closedOffers = (int) offers.stream()
-                        .filter(o -> o.getStatus() == JobStatus.CLOSED)
-                        .count();
+                // 1. Job offers (never fail whole dashboard)
+                try {
+                    List<JobOffer> offers = jobService.findJobOffersByCompanyOwner(currentUser.getId());
+                    data.totalOffers = offers.size();
+                    data.activeOffers = (int) offers.stream()
+                            .filter(o -> {
+                                JobStatus s = o.getStatus();
+                                return s == JobStatus.ACTIVE || s == JobStatus.OPEN;
+                            })
+                            .count();
+                    data.closedOffers = (int) offers.stream()
+                            .filter(o -> o.getStatus() == JobStatus.CLOSED)
+                            .count();
+                } catch (Exception ex) {
+                    logger.error("Employer dashboard: job offers load failed", ex);
+                }
 
-                // 2. Applications Data
-                List<Application> apps = appService.getApplicationsByCompanyOwner(currentUser.getId());
-                data.totalApplications = apps.size();
-                data.pendingApps = (int) apps.stream().filter(a -> a.getStatus() == Application.Status.PENDING).count();
-                data.acceptedApps = (int) apps.stream().filter(a -> a.getStatus() == Application.Status.ACCEPTED)
-                        .count();
-                data.rejectedApps = (int) apps.stream().filter(a -> a.getStatus() == Application.Status.REJECTED)
-                        .count();
+                // 2. Applications
+                try {
+                    List<Application> apps = appService.getApplicationsByCompanyOwner(currentUser.getId());
+                    data.totalApplications = apps.size();
+                    data.pendingApps = (int) apps.stream()
+                            .filter(a -> a.getStatus() == Application.Status.PENDING).count();
+                    data.acceptedApps = (int) apps.stream()
+                            .filter(a -> a.getStatus() == Application.Status.ACCEPTED).count();
+                    data.rejectedApps = (int) apps.stream()
+                            .filter(a -> a.getStatus() == Application.Status.REJECTED).count();
+                } catch (Exception ex) {
+                    logger.error("Employer dashboard: applications load failed", ex);
+                }
 
-                // 3. Interviews Data
-                List<Interview> interviews = interviewService.getInterviewsForEmployer(currentUser.getId());
-                data.scheduledInterviews = interviews.size();
-
-                // 4. Next 3 upcoming interviews for countdown display
+                // 3–4. Interviews
+                try {
+                    List<Interview> interviews = interviewService.getInterviewsForEmployer(currentUser.getId());
+                    data.scheduledInterviews = interviews.size();
+                } catch (Exception ex) {
+                    logger.error("Employer dashboard: interviews list failed", ex);
+                }
                 try {
                     data.upcomingInterviews = interviewService.getUpcomingInterviewsForEmployer(currentUser.getId(), 3);
                 } catch (Exception ex) {
@@ -122,8 +136,24 @@ public class EmployerDashboardController {
             }
         };
 
-        task.setOnSucceeded(e -> updateUI(task.getValue()));
-        task.setOnFailed(e -> logger.error("Failed to load dashboard data", task.getException()));
+        task.setOnSucceeded(e -> {
+            try {
+                updateUI(task.getValue());
+            } catch (Exception ex) {
+                logger.error("Employer dashboard UI update failed", ex);
+            }
+        });
+        task.setOnFailed(e -> {
+            Throwable t = task.getException();
+            logger.error("Failed to load dashboard data", t);
+            javafx.application.Platform.runLater(() -> {
+                try {
+                    updateUI(new DashboardData());
+                } catch (Exception ex) {
+                    logger.error("Employer dashboard fallback UI failed", ex);
+                }
+            });
+        });
 
         Thread thread = new Thread(task);
         thread.setDaemon(true);
@@ -131,6 +161,11 @@ public class EmployerDashboardController {
     }
 
     private void updateUI(DashboardData data) {
+        if (data == null || statsGrid == null || activityList == null || quickActionsContainer == null) {
+            logger.warn("Employer dashboard: null data or missing FXML nodes (statsGrid / activityList / quickActions)");
+            return;
+        }
+
         statsGrid.getChildren().clear();
 
         // Main Stats

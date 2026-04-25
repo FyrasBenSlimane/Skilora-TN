@@ -1,24 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.VBox?>
 
-<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.skilora.controller.usermanagement.DashboardController"
-      styleClass="page-container" spacing="20">
-    <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
-    <VBox styleClass="page-header" spacing="4">
-        <Label text="Tableau de bord" styleClass="page-title"/>
-        <Label text="Vue d'ensemble de votre activité." styleClass="page-subtitle"/>
+<VBox xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.skilora.controller.usermanagement.DashboardController"
+      spacing="24" styleClass="page-container">
+    <padding>
+        <Insets top="24" right="24" bottom="32" left="24"/>
+    </padding>
+
+    <!-- Greeting (filled by controller) -->
+    <VBox fx:id="headerSection" spacing="4">
+        <Label fx:id="greetingLabel" styleClass="page-title" text="…"/>
+        <Label fx:id="subGreetingLabel" styleClass="page-subtitle" text="…"/>
     </VBox>
-    <HBox spacing="20" alignment="TOP_LEFT">
-        <VBox styleClass="card-panel" spacing="12" HBox.hgrow="ALWAYS" maxWidth="Infinity">
-            <Label text="Offres récentes" styleClass="form-title"/>
-            <Label text="Aucune offre récente." styleClass="text-muted"/>
-        </VBox>
-        <VBox styleClass="card-panel" spacing="12" maxWidth="280">
-            <Label text="Raccourcis" styleClass="form-title"/>
-            <Button text="Fil d'actualité" maxWidth="Infinity"/>
-            <Button text="Publier une offre" maxWidth="Infinity"/>
-        </VBox>
-    </HBox>
+
+    <!-- Quick actions -->
+    <VBox fx:id="quickActionsSection" spacing="8">
+        <Label fx:id="quickActionsTitle" styleClass="form-title" text="…"/>
+        <FlowPane fx:id="actionsContainer" hgap="12" vgap="12"/>
+    </VBox>
+
+    <!-- Stats -->
+    <VBox fx:id="statsSection" spacing="8">
+        <Label fx:id="statsTitle" styleClass="form-title" text="…"/>
+        <FlowPane fx:id="statsGrid" hgap="16" vgap="16"/>
+    </VBox>
+
+    <!-- Activity -->
+    <VBox fx:id="activitySection" spacing="8">
+        <Label fx:id="activityTitle" styleClass="form-title" text="…"/>
+        <VBox fx:id="activityList" spacing="4"/>
+    </VBox>
 </VBox>

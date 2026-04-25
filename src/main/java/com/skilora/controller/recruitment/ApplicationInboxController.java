@@ -16,10 +16,13 @@ import org.slf4j.LoggerFactory;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.geometry.Pos;
+import javafx.geometry.Side;
+import javafx.scene.control.TableView;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
@@ -27,6 +30,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.Parent;
 import javafx.scene.layout.HBox;
 
 import java.net.URL;
@@ -34,6 +38,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.ResourceBundle;
 
+import com.skilora.utils.DialogUtils;
 import com.skilora.utils.I18n;
 
 /**
@@ -367,15 +372,20 @@ public class ApplicationInboxController implements Initializable {
                 if (empty) {
                     setGraphic(null);
                 } else {
-                    ApplicationRow app = getTableView().getItems().get(getIndex());
-
                     moreBtn.setOnAction(e -> {
+                        TableView<ApplicationRow> tv = getTableView();
+                        int idx = getIndex();
+                        if (tv == null || idx < 0 || idx >= tv.getItems().size()) {
+                            return;
+                        }
+                        final ApplicationRow rowData = tv.getItems().get(idx);
+
                         TLDropdownMenu menu = new TLDropdownMenu();
-                        menu.addItem(I18n.get("inbox.view_profile"), ev -> handleViewProfile(app));
-                        menu.addItem(I18n.get("inbox.review"), ev -> handleReview(app));
-                        menu.addItem(I18n.get("inbox.accept"), ev -> handleAccept(app));
-                        menu.addItem(I18n.get("inbox.reject"), ev -> handleReject(app));
-                        menu.show(moreBtn, javafx.geometry.Side.BOTTOM, 0, 4);
+                        menu.addItem(I18n.get("inbox.view_profile"), ev -> handleViewProfile(rowData));
+                        menu.addItem(I18n.get("inbox.review"), ev -> handleReview(rowData));
+                        menu.addItem(I18n.get("inbox.accept"), ev -> handleAccept(rowData));
+                        menu.addItem(I18n.get("inbox.reject"), ev -> handleReject(rowData));
+                        menu.showWithinWindow(moreBtn, Side.BOTTOM, 4);
                     });
 
                     setGraphic(moreBtn);
@@ -556,7 +566,7 @@ public class ApplicationInboxController implements Initializable {
             // Load FXML
             javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
                     getClass().getResource("/com/skilora/view/recruitment/ApplicationDetailsView.fxml"));
-            javafx.scene.layout.VBox root = loader.load();
+            Parent root = loader.load();
 
             ApplicationDetailsController controller = loader.getController();
             if (controller != null) {
@@ -594,13 +604,16 @@ public class ApplicationInboxController implements Initializable {
         Thread t = new Thread(() -> {
             try {
                 applicationService.updateStatus(app.getApplicationId(), Status.ACCEPTED);
-                javafx.application.Platform.runLater(() -> {
+                Platform.runLater(() -> {
                     app.setStatus("ACCEPTED");
                     applicationsTable.refresh();
                     updateStats();
                 });
             } catch (Exception ex) {
                 logger.error("Failed to accept application", ex);
+                Platform.runLater(() -> DialogUtils.showError("Erreur",
+                        "Impossible d'accepter la candidature : "
+                                + (ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName())));
             }
         }, "AcceptAppThread");
         t.setDaemon(true);
@@ -611,13 +624,16 @@ public class ApplicationInboxController implements Initializable {
         Thread t = new Thread(() -> {
             try {
                 applicationService.updateStatus(app.getApplicationId(), Status.REVIEWING);
-                javafx.application.Platform.runLater(() -> {
+                Platform.runLater(() -> {
                     app.setStatus("REVIEW");
                     applicationsTable.refresh();
                     updateStats();
                 });
             } catch (Exception ex) {
                 logger.error("Failed to set application to reviewing", ex);
+                Platform.runLater(() -> DialogUtils.showError("Erreur",
+                        "Impossible de mettre en révision : "
+                                + (ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName())));
             }
         }, "ReviewAppThread");
         t.setDaemon(true);
@@ -628,13 +644,16 @@ public class ApplicationInboxController implements Initializable {
         Thread t = new Thread(() -> {
             try {
                 applicationService.updateStatus(app.getApplicationId(), Status.REJECTED);
-                javafx.application.Platform.runLater(() -> {
+                Platform.runLater(() -> {
                     app.setStatus("REJECTED");
                     applicationsTable.refresh();
                     updateStats();
                 });
             } catch (Exception ex) {
                 logger.error("Failed to reject application", ex);
+                Platform.runLater(() -> DialogUtils.showError("Erreur",
+                        "Impossible de refuser la candidature : "
+                                + (ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName())));
             }
         }, "RejectAppThread");
         t.setDaemon(true);

@@ -61,7 +61,6 @@ public class MainView extends TLAppLayout {
     private Node cachedPostJobView;
     private Node cachedApplicationInboxView;
     private Node cachedMyOffersView;
-    private Node cachedActiveOffersView;
 
     public MainView(User user) {
         super();
@@ -186,9 +185,6 @@ public class MainView extends TLAppLayout {
                         createNavButton(I18n.get("nav.users"),
                                 "M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z",
                                 this::showUsersView),
-                        createNavButton(I18n.get("nav.active_offers"),
-                                "M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z",
-                                this::showActiveOffersView),
                         createNavButton(I18n.get("nav.reports"), "M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z",
                                 this::showReportsView),
                         createNavButton(I18n.get("nav.settings"),
@@ -646,7 +642,6 @@ public class MainView extends TLAppLayout {
                     cachedPostJobView = null;
                     cachedApplicationInboxView = null;
                     cachedMyOffersView = null;
-                    cachedActiveOffersView = null;
                     cachedReportsView = null;
                     cachedInterviewsView = null;
 
@@ -732,11 +727,18 @@ public class MainView extends TLAppLayout {
     }
 
     public void showJobDetails(com.skilora.model.entity.recruitment.JobOpportunity job) {
-        centerStack.getChildren().clear();
-
+        if (job == null) {
+            return;
+        }
         try {
-            FXMLLoader loader = new FXMLLoader(
-                    getClass().getResource("/com/skilora/view/recruitment/JobDetailsView.fxml"));
+            java.net.URL fxmlUrl = MainView.class.getResource("/com/skilora/view/recruitment/JobDetailsView.fxml");
+            if (fxmlUrl == null) {
+                com.skilora.utils.DialogUtils.showError("Erreur",
+                        "Interface des détails d'offre introuvable (classpath).");
+                return;
+            }
+
+            FXMLLoader loader = new FXMLLoader(fxmlUrl);
             VBox jobDetailsContent = loader.load();
 
             com.skilora.controller.recruitment.JobDetailsController controller = loader.getController();
@@ -745,10 +747,7 @@ public class MainView extends TLAppLayout {
                 controller.setCurrentUser(currentUser);
                 controller.setCallbacks(
                         this::showFeedView,
-                        () -> {
-                            // Open application dialog
-                            openApplicationDialog(job);
-                        });
+                        () -> openApplicationDialog(job));
             }
 
             TLScrollArea scrollArea = new TLScrollArea(jobDetailsContent);
@@ -756,11 +755,16 @@ public class MainView extends TLAppLayout {
             scrollArea.setFitToHeight(true);
             scrollArea.setStyle("-fx-background-color: transparent;");
 
+            centerStack.getChildren().clear();
             centerStack.getChildren().add(scrollArea);
             animateEntry(jobDetailsContent, 0);
 
         } catch (Exception e) {
             logger.error("Failed to load JobDetailsView", e);
+            com.skilora.utils.DialogUtils.showError("Erreur",
+                    "Impossible d'ouvrir cette offre. "
+                            + (e.getLocalizedMessage() != null ? e.getLocalizedMessage()
+                                    : e.getClass().getSimpleName()));
         }
     }
 
@@ -1082,29 +1086,10 @@ public class MainView extends TLAppLayout {
             animateEntry(content, 0);
         } catch (Exception e) {
             logger.error("Failed to load offer details", e);
-        }
-    }
-
-    private void showActiveOffersView() {
-        centerStack.getChildren().clear();
-
-        // Always recreate to refresh data
-        try {
-            FXMLLoader loader = new FXMLLoader(
-                    getClass().getResource("/com/skilora/view/recruitment/ActiveOffersView.fxml"));
-            VBox activeOffersContent = loader.load();
-
-            TLScrollArea scrollArea = new TLScrollArea(activeOffersContent);
-            scrollArea.setFitToWidth(true);
-            scrollArea.setFitToHeight(true);
-            scrollArea.getStyleClass().add("transparent-bg");
-
-            cachedActiveOffersView = scrollArea;
-            centerStack.getChildren().add(cachedActiveOffersView);
-            animateEntry(activeOffersContent, 0);
-
-        } catch (Exception e) {
-            logger.error("Failed to load ActiveOffersView", e);
+            com.skilora.utils.DialogUtils.showError("Erreur",
+                    "Impossible d'ouvrir cette offre. "
+                            + (e.getLocalizedMessage() != null ? e.getLocalizedMessage()
+                                    : e.getClass().getSimpleName()));
         }
     }
 

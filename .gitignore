@@ -33,3 +33,4 @@ tmp/
 .env.local
 *.env
 python/recruitment_api/.env
+secrets.txt

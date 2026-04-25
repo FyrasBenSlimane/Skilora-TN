@@ -14,7 +14,7 @@
     <Label text="Lettre de motivation (optionnel)" styleClass="label"/>
     <TLTextarea fx:id="coverLetterField" prefRowCount="6" wrapText="true"/>
     <HBox spacing="12">
-        <TLButton fx:id="cancelBtn" text="Annuler"/>
-        <TLButton fx:id="submitBtn" text="Envoyer ma candidature"/>
+        <TLButton fx:id="cancelBtn" text="Annuler" onAction="#handleCancel"/>
+        <TLButton fx:id="submitBtn" text="Envoyer ma candidature" onAction="#submitApplication"/>
     </HBox>
 </VBox>

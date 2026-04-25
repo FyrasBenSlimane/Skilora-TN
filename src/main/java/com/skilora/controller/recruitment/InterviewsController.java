@@ -11,7 +11,12 @@ import com.skilora.framework.components.TLBadge;
 import com.skilora.framework.components.TLDialog;
 import com.skilora.framework.components.InterviewCountdownWidget;
 
+import javafx.application.Platform;
 import javafx.concurrent.Task;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
+import javafx.scene.control.Button;
+import javafx.scene.control.DialogEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
@@ -30,8 +35,16 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URL;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import com.skilora.utils.I18n;
@@ -55,9 +68,19 @@ public class InterviewsController implements Initializable {
     private final ApplicationService applicationService = ApplicationService.getInstance();
     private User currentUser;
     private List<Application> allInterviews;
+    /** Application ids that have a row in {@code interviews} (from last successful load). */
+    private Set<Integer> scheduledApplicationIds = Set.of();
+    /** Interview rows for this employer keyed by application id (from last load). */
+    private Map<Integer, Interview> interviewByApplicationId = Map.of();
     private ToggleGroup filterGroup;
     private String currentFilter = "ALL";
-    private boolean isLoading = false;
+    /** Only the latest load may update the UI (avoids stale data when a refresh is requested during an in-flight load). */
+    private final AtomicInteger loadGeneration = new AtomicInteger(0);
+
+    private record InterviewsPageData(
+            List<Application> applications,
+            Set<Integer> scheduledIds,
+            Map<Integer, Interview> interviewsByAppId) {}
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -99,15 +122,9 @@ public class InterviewsController implements Initializable {
 
     private void loadData() {
         if (currentUser == null) return;
-        
-        // Prevent multiple simultaneous loads
-        if (isLoading) {
-            logger.debug("Load already in progress, skipping duplicate call");
-            return;
-        }
-        
-        isLoading = true;
-        
+
+        final int generation = loadGeneration.incrementAndGet();
+
         // Clear existing data first
         if (interviewsContainer != null) {
             interviewsContainer.getChildren().clear();
@@ -117,43 +134,80 @@ public class InterviewsController implements Initializable {
             statsLabel.setText(I18n.get("common.loading"));
         }
 
-        Task<List<Application>> task = new Task<>() {
+        Task<InterviewsPageData> task = new Task<>() {
             @Override
-            protected List<Application> call() throws Exception {
-                // Get both eligible candidates AND scheduled interviews
-                List<Application> allCandidates = interviewService.getEligibleInterviewCandidatesForEmployer(currentUser.getId());
-                
-                // Get scheduled interviews and convert them to Application objects
-                List<Interview> scheduledInterviews = interviewService.getInterviewsForEmployer(currentUser.getId());
-                
-                for (Interview interview : scheduledInterviews) {
-                    try {
-                        Application app = applicationService.getApplicationById(interview.getApplicationId());
-                        if (app != null) {
-                            // Set transient fields from interview
-                            app.setCandidateName(interview.getCandidateName());
-                            app.setJobTitle(interview.getJobTitle());
-                            app.setCompanyName(interview.getCompanyName());
-                            allCandidates.add(app);
-                        }
-                    } catch (Exception e) {
-                        logger.error("Error loading application for interview {}", interview.getId(), e);
+            protected InterviewsPageData call() throws Exception {
+                LinkedHashMap<Integer, Application> byId = new LinkedHashMap<>();
+
+                try {
+                    List<Application> eligible = interviewService.getEligibleInterviewCandidatesForEmployer(
+                            currentUser.getId());
+                    for (Application a : eligible) {
+                        byId.put(a.getId(), a);
                     }
+                } catch (Exception ex) {
+                    logger.error("Interviews page: eligible candidates query failed", ex);
                 }
-                
-                return allCandidates;
+
+                Map<Integer, Interview> ivByApp = new HashMap<>();
+                try {
+                    List<Interview> scheduledInterviews = interviewService.getInterviewsForEmployer(currentUser.getId());
+                    for (Interview interview : scheduledInterviews) {
+                        ivByApp.put(interview.getApplicationId(), interview);
+                        try {
+                            Application app = applicationService.getApplicationById(interview.getApplicationId());
+                            if (app != null && !byId.containsKey(app.getId())) {
+                                if (interview.getCandidateName() != null && !interview.getCandidateName().isBlank()) {
+                                    app.setCandidateName(interview.getCandidateName());
+                                }
+                                if (interview.getJobTitle() != null) {
+                                    app.setJobTitle(interview.getJobTitle());
+                                }
+                                if (interview.getCompanyName() != null) {
+                                    app.setCompanyName(interview.getCompanyName());
+                                }
+                                byId.put(app.getId(), app);
+                            }
+                        } catch (Exception e) {
+                            logger.error("Error loading application for interview {}", interview.getId(), e);
+                        }
+                    }
+                } catch (Exception ex) {
+                    logger.error("Interviews page: scheduled interviews query failed", ex);
+                }
+
+                Set<Integer> scheduledIds;
+                try {
+                    scheduledIds = interviewService.findScheduledApplicationIds(byId.keySet());
+                } catch (Exception ex) {
+                    logger.warn("Batch scheduled interview lookup failed, falling back to employer list: {}", ex.getMessage());
+                    scheduledIds = new HashSet<>(ivByApp.keySet());
+                }
+
+                return new InterviewsPageData(new ArrayList<>(byId.values()), scheduledIds, Collections.unmodifiableMap(new HashMap<>(ivByApp)));
             }
         };
 
         task.setOnSucceeded(e -> {
-            isLoading = false;
-            allInterviews = task.getValue();
+            if (generation != loadGeneration.get()) {
+                return;
+            }
+            InterviewsPageData data = task.getValue();
+            allInterviews = data.applications();
+            scheduledApplicationIds = data.scheduledIds();
+            interviewByApplicationId = data.interviewsByAppId();
             applyFilters();
         });
 
         task.setOnFailed(e -> {
-            isLoading = false;
+            if (generation != loadGeneration.get()) {
+                return;
+            }
             logger.error("Failed to load interviews", task.getException());
+            allInterviews = new ArrayList<>();
+            scheduledApplicationIds = Set.of();
+            interviewByApplicationId = Map.of();
+            applyFilters();
             if (statsLabel != null) {
                 statsLabel.setText(I18n.get("interviews.error"));
             }
@@ -171,28 +225,12 @@ public class InterviewsController implements Initializable {
         if ("ALL".equals(currentFilter)) {
             filtered = allInterviews;
         } else if ("SCHEDULED".equals(currentFilter)) {
-            // Filter to applications that have interviews scheduled
             filtered = allInterviews.stream()
-                .filter(app -> {
-                    try {
-                        return interviewService.getInterviewByApplicationId(app.getId()).isPresent();
-                    } catch (Exception e) {
-                        logger.error("Error checking interview for application {}", app.getId(), e);
-                        return false;
-                    }
-                })
+                .filter(app -> scheduledApplicationIds.contains(app.getId()))
                 .collect(Collectors.toList());
         } else if ("UNSCHEDULED".equals(currentFilter)) {
-            // Filter to applications without interviews
             filtered = allInterviews.stream()
-                .filter(app -> {
-                    try {
-                        return interviewService.getInterviewByApplicationId(app.getId()).isEmpty();
-                    } catch (Exception e) {
-                        logger.error("Error checking interview for application {}", app.getId(), e);
-                        return true;
-                    }
-                })
+                .filter(app -> !scheduledApplicationIds.contains(app.getId()))
                 .collect(Collectors.toList());
         } else {
             filtered = allInterviews;
@@ -214,15 +252,8 @@ public class InterviewsController implements Initializable {
         emptyState.setVisible(false);
         emptyState.setManaged(false);
 
-        // Count scheduled vs unscheduled
         long scheduledCount = interviews.stream()
-            .filter(app -> {
-                try {
-                    return interviewService.getInterviewByApplicationId(app.getId()).isPresent();
-                } catch (Exception e) {
-                    return false;
-                }
-            })
+            .filter(app -> scheduledApplicationIds.contains(app.getId()))
             .count();
         
         if (statsLabel != null) {
@@ -232,6 +263,17 @@ public class InterviewsController implements Initializable {
         for (Application app : interviews) {
             interviewsContainer.getChildren().add(createInterviewCard(app));
         }
+    }
+
+    private static String resolveCandidateDisplayName(Application app) {
+        String n = app.getCandidateName();
+        if (n != null && !n.isBlank()) {
+            return n;
+        }
+        if (app.getCandidateProfileId() > 0) {
+            return I18n.get("interviews.candidate_num", app.getCandidateProfileId());
+        }
+        return I18n.get("interviews.candidate_application_ref", app.getId());
     }
 
     private TLCard createInterviewCard(Application app) {
@@ -244,7 +286,7 @@ public class InterviewsController implements Initializable {
         HBox topRow = new HBox(12);
         topRow.setAlignment(Pos.CENTER_LEFT);
 
-        Label nameLabel = new Label(app.getCandidateName() != null ? app.getCandidateName() : I18n.get("interviews.candidate_num", app.getCandidateProfileId()));
+        Label nameLabel = new Label(resolveCandidateDisplayName(app));
         nameLabel.getStyleClass().add("h4");
 
         TLBadge statusBadge = new TLBadge(app.getStatus().getDisplayName(), TLBadge.Variant.DEFAULT);
@@ -303,33 +345,28 @@ public class InterviewsController implements Initializable {
             dateLabel.setMaxWidth(Double.MAX_VALUE);
         }
 
-        // ── Check if interview is already scheduled ───────────────
-        final Interview[] existingInterviewRef = new Interview[1];
-        boolean hasInterview = false;
-        try {
-            var interviewOpt = interviewService.getInterviewByApplicationId(app.getId());
-            if (interviewOpt.isPresent()) {
-                hasInterview = true;
-                existingInterviewRef[0] = interviewOpt.get();
+        final boolean booked = scheduledApplicationIds.contains(app.getId());
+        final Interview[] interviewRef = new Interview[1];
+        interviewRef[0] = interviewByApplicationId.get(app.getId());
+        if (interviewRef[0] == null && booked) {
+            try {
+                interviewRef[0] = interviewService.getInterviewByApplicationId(app.getId()).orElse(null);
+            } catch (Exception ex) {
+                logger.error("Error loading interview row for application {}", app.getId(), ex);
             }
-        } catch (Exception e) {
-            logger.error("Error checking interview for application {}", app.getId(), e);
         }
-
-        final boolean hasInterviewFinal    = hasInterview;
-        final Interview existingInterviewFinal = existingInterviewRef[0];
 
         // ── Interview details row (each piece on its own label) ───
         VBox interviewDetailsBox = null;
         InterviewCountdownWidget countdown = null;
 
-        if (hasInterviewFinal && existingInterviewFinal != null) {
+        if (interviewRef[0] != null) {
             interviewDetailsBox = new VBox(4);
 
             // Scheduled date/time
-            if (existingInterviewFinal.getInterviewDate() != null) {
+            if (interviewRef[0].getInterviewDate() != null) {
                 Label planLabel = new Label("📅 Planifié : "
-                        + existingInterviewFinal.getInterviewDate().format(DATE_FMT));
+                        + interviewRef[0].getInterviewDate().format(DATE_FMT));
                 planLabel.getStyleClass().add("text-muted");
                 planLabel.setWrapText(true);
                 planLabel.setMaxWidth(Double.MAX_VALUE);
@@ -337,9 +374,9 @@ public class InterviewsController implements Initializable {
             }
 
             // Location
-            if (existingInterviewFinal.getLocation() != null
-                    && !existingInterviewFinal.getLocation().isEmpty()) {
-                Label ivLocLabel = new Label("📍 " + existingInterviewFinal.getLocation());
+            if (interviewRef[0].getLocation() != null
+                    && !interviewRef[0].getLocation().isEmpty()) {
+                Label ivLocLabel = new Label("📍 " + interviewRef[0].getLocation());
                 ivLocLabel.getStyleClass().add("text-muted");
                 ivLocLabel.setWrapText(true);
                 ivLocLabel.setMaxWidth(Double.MAX_VALUE);
@@ -347,14 +384,14 @@ public class InterviewsController implements Initializable {
             }
 
             // Type
-            if (existingInterviewFinal.getInterviewType() != null) {
-                Label typeLabel = new Label("🎯 " + existingInterviewFinal.getInterviewType().getDisplayName());
+            if (interviewRef[0].getInterviewType() != null) {
+                Label typeLabel = new Label("🎯 " + interviewRef[0].getInterviewType().getDisplayName());
                 typeLabel.getStyleClass().add("text-muted");
                 interviewDetailsBox.getChildren().add(typeLabel);
             }
 
             // Live countdown badge
-            countdown = InterviewCountdownWidget.of(existingInterviewFinal.getInterviewDate());
+            countdown = InterviewCountdownWidget.of(interviewRef[0].getInterviewDate());
         }
 
         // ── Actions ──────────────────────────────────────────────
@@ -362,9 +399,9 @@ public class InterviewsController implements Initializable {
         HBox actionsRow = new HBox(8);
         actionsRow.setAlignment(Pos.CENTER_RIGHT);
 
-        if (hasInterviewFinal) {
+        if (booked) {
             TLButton editBtn = new TLButton(I18n.get("interviews.edit"), TLButton.ButtonVariant.OUTLINE);
-            editBtn.setOnAction(e -> openScheduleDialog(app, existingInterviewFinal));
+            editBtn.setOnAction(e -> openScheduleDialog(app, interviewRef[0]));
             actionsRow.getChildren().add(editBtn);
         } else {
             TLButton scheduleBtn = new TLButton(I18n.get("interviews.schedule"), TLButton.ButtonVariant.PRIMARY);
@@ -392,8 +429,18 @@ public class InterviewsController implements Initializable {
             ScheduleInterviewController controller = loader.getController();
             if (controller != null) {
                 controller.setup(app, existingInterview, () -> {
-                    // Refresh after scheduling
-                    loadData();
+                    // Align with fiche candidature: statut ENTRETIEN + rechargement après commit SQL
+                    Thread refresh = new Thread(() -> {
+                        try {
+                            applicationService.updateStatus(app.getId(), Application.Status.INTERVIEW);
+                            app.setStatus(Application.Status.INTERVIEW);
+                        } catch (Exception ex) {
+                            logger.warn("Could not set application status to INTERVIEW after scheduling: {}", ex.getMessage());
+                        }
+                        Platform.runLater(InterviewsController.this::loadData);
+                    }, "InterviewScheduled-Refresh");
+                    refresh.setDaemon(true);
+                    refresh.start();
                 });
             }
             
@@ -410,20 +457,33 @@ public class InterviewsController implements Initializable {
             javafx.scene.control.ButtonType saveBtnType = new javafx.scene.control.ButtonType(I18n.get("common.save"), javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
             javafx.scene.control.ButtonType cancelBtnType = new javafx.scene.control.ButtonType(I18n.get("common.cancel"), javafx.scene.control.ButtonBar.ButtonData.CANCEL_CLOSE);
             dialog.getDialogPane().getButtonTypes().addAll(saveBtnType, cancelBtnType);
-            
+
+            // Sauvegarde explicite sur le bouton : le resultConverter seul est parfois peu fiable avec TLDialog.
+            EventHandler<DialogEvent> previousOnShowing = dialog.getOnShowing();
+            dialog.setOnShowing(ev -> {
+                if (previousOnShowing != null) {
+                    previousOnShowing.handle(ev);
+                }
+                Button saveBtn = (Button) dialog.getDialogPane().lookupButton(saveBtnType);
+                if (saveBtn != null && controller != null) {
+                    saveBtn.addEventFilter(ActionEvent.ACTION, evt -> {
+                        evt.consume();
+                        if (controller.validateAndSave()) {
+                            dialog.setResult(Boolean.TRUE);
+                            dialog.close();
+                        }
+                    });
+                }
+            });
+
             dialog.setResultConverter(btnType -> {
-                if (btnType == saveBtnType && controller != null) {
-                    if (controller.validateAndSave()) {
-                        return true; // Return true to indicate success
-                    }
+                if (btnType == cancelBtnType) {
+                    return Boolean.FALSE;
                 }
                 return null;
             });
-            
-            dialog.showAndWait().ifPresent(result -> {
-                // Data already saved by controller, just refresh
-                loadData();
-            });
+
+            dialog.showAndWait();
             
         } catch (Exception e) {
             logger.error("Failed to open schedule interview dialog", e);

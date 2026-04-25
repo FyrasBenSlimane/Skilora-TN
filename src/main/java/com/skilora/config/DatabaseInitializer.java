@@ -6,10 +6,14 @@ import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * DatabaseInitializer
@@ -51,6 +55,10 @@ public class DatabaseInitializer {
             if (!hasApplications) {
                 createApplicationsTable(stmt);
             }
+            // Older DBs may have applications without custom_cv_url (INSERT then fails)
+            ensureApplicationsTableColumns(stmt);
+            // Legacy schemas: id NOT NULL without AUTO_INCREMENT → "Field 'id' doesn't have a default value"
+            ensureLegacyIdsAutoIncrement(conn);
 
             // Create password_reset_tokens table if missing
             if (!hasPasswordResetTokens) {
@@ -76,6 +84,8 @@ public class DatabaseInitializer {
             if (!tableExists(stmt, "interviews")) {
                 createInterviewsTable(stmt);
             }
+            // Legacy DBs: table existed before interview_type / notes / status columns were added
+            ensureInterviewsTableColumns(stmt);
 
             // Migrate existing data: populate interview_candidates with ACCEPTED applications
             migrateInterviewCandidates(stmt);
@@ -99,6 +109,9 @@ public class DatabaseInitializer {
 
                 // Fix all application relationships to ensure employers can see all applications
                 fixAllApplicationRelationships(stmt);
+
+                // Tables may be created above; re-run id fixes before early exit
+                ensureLegacyIdsAutoIncrement(conn);
 
                 if (hasSkills) {
                     logger.info("Database schema is up-to-date.");
@@ -199,6 +212,362 @@ public class DatabaseInitializer {
             logger.info("Created 'applications' table.");
         } catch (SQLException e) {
             logger.error("Error creating applications table: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Align legacy {@code applications} tables with code that INSERTs {@code custom_cv_url}.
+     */
+    private static void ensureApplicationsTableColumns(Statement stmt) {
+        if (!tableExists(stmt, "applications")) {
+            return;
+        }
+        try {
+            if (!columnExists(stmt, "applications", "custom_cv_url")) {
+                stmt.execute("ALTER TABLE applications ADD COLUMN custom_cv_url TEXT NULL");
+                logger.info("Added column applications.custom_cv_url (migration).");
+            }
+        } catch (SQLException e) {
+            logger.warn("Could not add applications.custom_cv_url: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Ensures {@code id} is AUTO_INCREMENT on core tables (fixes MySQL
+     * "Field 'id' doesn't have a default value" on INSERT without id).
+     * Uses a fresh {@link Statement} per query to avoid driver/statement state issues,
+     * {@code SHOW CREATE TABLE} for detection (more reliable than INFORMATION_SCHEMA.EXTRA),
+     * and retries with {@code ADD PRIMARY KEY (id)} when MODIFY alone fails.
+     */
+    private static void ensureLegacyIdsAutoIncrement(Connection conn) {
+        String[] tables = {
+                "applications", "profiles", "skills", "experiences",
+                "job_offer_skills", "interview_candidates", "interviews",
+                "companies", "job_offers"
+        };
+        for (String t : tables) {
+            ensurePrimaryKeyAutoIncrement(conn, t);
+        }
+    }
+
+    private static boolean tableExists(Connection conn, String tableName) {
+        try (Statement s = conn.createStatement();
+                ResultSet rs = s.executeQuery("SELECT 1 FROM `" + tableName + "` LIMIT 1")) {
+            return true;
+        } catch (SQLException e) {
+            return false;
+        }
+    }
+
+    private static boolean columnExistsOnConnection(Connection conn, String tableName, String columnName) {
+        try (Statement s = conn.createStatement();
+                ResultSet rs = s.executeQuery(
+                        "SELECT `" + columnName + "` FROM `" + tableName + "` LIMIT 1")) {
+            return true;
+        } catch (SQLException e) {
+            return false;
+        }
+    }
+
+    private static boolean ddlLineForIdHasAutoIncrement(String createTableDdl) {
+        if (createTableDdl == null) {
+            return false;
+        }
+        for (String raw : createTableDdl.split("\n")) {
+            String line = raw.trim().replace("\r", "").toLowerCase().replace("`", "");
+            if (line.startsWith("id ") || line.startsWith("id\t")) {
+                return line.contains("auto_increment");
+            }
+        }
+        return false;
+    }
+
+    private static String readIdDataType(Connection conn, String tableName) {
+        String dataType = "INT";
+        String schema;
+        try {
+            schema = conn.getCatalog();
+        } catch (SQLException e) {
+            return dataType;
+        }
+        if (schema == null || schema.isBlank()) {
+            return dataType;
+        }
+        String escSchema = schema.replace("'", "''");
+        String safeTable = tableName.replace("'", "");
+        String sql = "SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '"
+                + escSchema + "' AND TABLE_NAME = '" + safeTable + "' AND COLUMN_NAME = 'id'";
+        try (Statement s = conn.createStatement();
+                ResultSet rs = s.executeQuery(sql)) {
+            if (rs.next()) {
+                String dt = rs.getString(1);
+                if (dt != null && dt.equalsIgnoreCase("bigint")) {
+                    dataType = "BIGINT";
+                }
+            }
+        } catch (SQLException ignored) {
+        }
+        return dataType;
+    }
+
+    /**
+     * Next AUTO_INCREMENT value: {@code MAX(id)+1}, minimum 1. Avoids #1062 when enabling AUTO_INCREMENT
+     * if the engine would otherwise start resequencing from 1 while id=1 already exists.
+     */
+    private static long readNextAutoIncrementValue(Connection conn, String tableName) {
+        String safe = tableName.replace("`", "").replace("'", "");
+        try (Statement s = conn.createStatement();
+                ResultSet rs = s.executeQuery("SELECT COALESCE(MAX(id), 0) + 1 FROM `" + safe + "`")) {
+            if (rs.next()) {
+                return Math.max(1L, rs.getLong(1));
+            }
+        } catch (SQLException e) {
+            logger.debug("readNextAutoIncrementValue {}: {}", tableName, e.getMessage());
+        }
+        return 1L;
+    }
+
+    private static boolean hasDuplicatePrimaryKeyOnId(Connection conn, String tableName) throws SQLException {
+        String safe = tableName.replace("`", "").replace("'", "");
+        try (Statement s = conn.createStatement();
+                ResultSet rs = s.executeQuery(
+                        "SELECT id FROM `" + safe + "` GROUP BY id HAVING COUNT(*) > 1 LIMIT 1")) {
+            return rs.next();
+        }
+    }
+
+    /**
+     * Rows with {@code id <= 0} break {@code ALTER … AUTO_INCREMENT} (#1062 duplicate '1'): MySQL may try
+     * to assign 1 while a row already has id 1. Renumber those rows to unused positive ids and update
+     * {@code interview_candidates} / {@code interviews}.
+     */
+    private static void fixApplicationsNonPositivePrimaryKeys(Connection conn) {
+        try (Statement enable = conn.createStatement()) {
+            enable.execute("SET FOREIGN_KEY_CHECKS = 0");
+        } catch (SQLException e) {
+            logger.warn("SET FOREIGN_KEY_CHECKS=0 before applications id fix: {}", e.getMessage());
+        }
+        try {
+            while (true) {
+                int badId;
+                boolean haveNonPositive;
+                try (Statement s = conn.createStatement();
+                        ResultSet rs = s.executeQuery("SELECT MIN(id) AS m FROM applications WHERE id <= 0")) {
+                    haveNonPositive = rs.next() && rs.getObject("m") != null;
+                    badId = haveNonPositive ? rs.getInt("m") : 0;
+                }
+                if (!haveNonPositive) {
+                    break;
+                }
+                long maxPositive;
+                try (Statement s = conn.createStatement();
+                        ResultSet rs = s.executeQuery("SELECT COALESCE(MAX(id), 0) FROM applications WHERE id > 0")) {
+                    rs.next();
+                    maxPositive = rs.getLong(1);
+                }
+                long newId = maxPositive + 1;
+                if (newId < 1) {
+                    newId = 1;
+                }
+                while (applicationIdExists(conn, newId)) {
+                    newId++;
+                }
+                if (tableExists(conn, "interview_candidates")) {
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE interview_candidates SET application_id = ? WHERE application_id = ?")) {
+                        ps.setLong(1, newId);
+                        ps.setInt(2, badId);
+                        ps.executeUpdate();
+                    }
+                }
+                if (tableExists(conn, "interviews")) {
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "UPDATE interviews SET application_id = ? WHERE application_id = ?")) {
+                        ps.setLong(1, newId);
+                        ps.setInt(2, badId);
+                        ps.executeUpdate();
+                    }
+                }
+                try (PreparedStatement ps = conn.prepareStatement("UPDATE applications SET id = ? WHERE id = ?")) {
+                    ps.setLong(1, newId);
+                    ps.setInt(2, badId);
+                    int n = ps.executeUpdate();
+                    if (n == 0) {
+                        break;
+                    }
+                }
+                logger.info("Renumbered applications.id from {} to {} (non-positive PK before AUTO_INCREMENT)", badId,
+                        newId);
+            }
+        } catch (SQLException e) {
+            logger.warn("fixApplicationsNonPositivePrimaryKeys: {}", e.getMessage());
+        }
+    }
+
+    private static boolean applicationIdExists(Connection conn, long id) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT 1 FROM applications WHERE id = ? LIMIT 1")) {
+            ps.setLong(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    private static void ensurePrimaryKeyAutoIncrement(Connection conn, String tableName) {
+        if (!tableExists(conn, tableName) || !columnExistsOnConnection(conn, tableName, "id")) {
+            return;
+        }
+        String ddl;
+        try (Statement s = conn.createStatement();
+                ResultSet rs = s.executeQuery("SHOW CREATE TABLE `" + tableName + "`")) {
+            if (!rs.next()) {
+                return;
+            }
+            ddl = rs.getString(2);
+        } catch (SQLException e) {
+            logger.debug("SHOW CREATE TABLE {} failed: {}", tableName, e.getMessage());
+            return;
+        }
+        if (ddlLineForIdHasAutoIncrement(ddl)) {
+            return;
+        }
+        String dataType = readIdDataType(conn, tableName);
+
+        if ("applications".equals(tableName)) {
+            try {
+                if (hasDuplicatePrimaryKeyOnId(conn, "applications")) {
+                    logger.error("applications.id has duplicate values; fix data manually, then restart.");
+                    return;
+                }
+            } catch (SQLException e) {
+                logger.warn("Duplicate PK check failed: {}", e.getMessage());
+            }
+            fixApplicationsNonPositivePrimaryKeys(conn);
+        }
+
+        // phpMyAdmin often uses a new connection per query, so SET FOREIGN_KEY_CHECKS does not
+        // "stick" to the next ALTER. Dropping every FK that references applications.id avoids #1834.
+        int droppedRefsToApplications = 0;
+        if ("applications".equals(tableName)) {
+            try {
+                droppedRefsToApplications = dropForeignKeysReferencingTable(conn, "applications");
+            } catch (SQLException e) {
+                logger.warn("Could not drop FKs referencing applications: {}", e.getMessage());
+            }
+        }
+
+        long nextAutoInc = readNextAutoIncrementValue(conn, tableName);
+        String autoIncClause = ", AUTO_INCREMENT = " + nextAutoInc;
+
+        try (Statement fk = conn.createStatement()) {
+            fk.execute("SET FOREIGN_KEY_CHECKS = 0");
+        } catch (SQLException e) {
+            logger.warn("Could not SET FOREIGN_KEY_CHECKS=0 for {}: {}", tableName, e.getMessage());
+        }
+        try {
+            try (Statement s = conn.createStatement()) {
+                s.execute("ALTER TABLE `" + tableName + "` MODIFY COLUMN `id` " + dataType + " NOT NULL AUTO_INCREMENT"
+                        + autoIncClause);
+                logger.info("Migration: {}.id is now AUTO_INCREMENT (next={})", tableName, nextAutoInc);
+                return;
+            } catch (SQLException e) {
+                logger.warn("ALTER MODIFY id failed for {}: {}", tableName, e.getMessage());
+            }
+            try (Statement s = conn.createStatement()) {
+                s.execute("ALTER TABLE `" + tableName + "` ADD PRIMARY KEY (`id`)");
+                logger.info("Migration: added PRIMARY KEY on {}.id", tableName);
+            } catch (SQLException e) {
+                logger.debug("ADD PRIMARY KEY skipped for {}: {}", tableName, e.getMessage());
+            }
+            nextAutoInc = readNextAutoIncrementValue(conn, tableName);
+            autoIncClause = ", AUTO_INCREMENT = " + nextAutoInc;
+            try (Statement s = conn.createStatement()) {
+                s.execute("ALTER TABLE `" + tableName + "` MODIFY COLUMN `id` " + dataType + " NOT NULL AUTO_INCREMENT"
+                        + autoIncClause);
+                logger.info("Migration: {}.id AUTO_INCREMENT (after PK step, next={})", tableName, nextAutoInc);
+            } catch (SQLException e) {
+                logger.error("Could not fix {}.id AUTO_INCREMENT: {}", tableName, e.getMessage());
+            }
+        } finally {
+            try (Statement s = conn.createStatement()) {
+                s.execute("SET FOREIGN_KEY_CHECKS = 1");
+            } catch (SQLException e) {
+                logger.error("Failed to SET FOREIGN_KEY_CHECKS=1 after migrating {}: {}", tableName, e.getMessage());
+            }
+            if ("applications".equals(tableName) && droppedRefsToApplications > 0) {
+                restoreApplicationsIncomingForeignKeys(conn);
+            }
+        }
+    }
+
+    /**
+     * Drops every foreign key on other tables that reference {@code referencedTable}.id
+     * (needed before ALTER … MODIFY on MySQL #1834 when session FK checks do not persist).
+     *
+     * @return number of constraints dropped
+     */
+    private static int dropForeignKeysReferencingTable(Connection conn, String referencedTable) throws SQLException {
+        String schema = conn.getCatalog();
+        if (schema == null || schema.isBlank()) {
+            return 0;
+        }
+        String escSchema = schema.replace("'", "''");
+        String escRef = referencedTable.replace("'", "''");
+        String q = "SELECT DISTINCT kcu.TABLE_NAME, kcu.CONSTRAINT_NAME "
+                + "FROM information_schema.KEY_COLUMN_USAGE kcu "
+                + "WHERE kcu.TABLE_SCHEMA = '" + escSchema + "' "
+                + "AND kcu.REFERENCED_TABLE_NAME = '" + escRef + "' "
+                + "AND kcu.REFERENCED_COLUMN_NAME = 'id'";
+        List<String[]> pairs = new ArrayList<>();
+        try (Statement s = conn.createStatement();
+                ResultSet rs = s.executeQuery(q)) {
+            while (rs.next()) {
+                pairs.add(new String[] { rs.getString(1), rs.getString(2) });
+            }
+        }
+        int n = 0;
+        for (String[] p : pairs) {
+            String tbl = p[0].replace("`", "");
+            String cst = p[1].replace("`", "");
+            try (Statement s = conn.createStatement()) {
+                s.execute("ALTER TABLE `" + tbl + "` DROP FOREIGN KEY `" + cst + "`");
+                n++;
+                logger.info("Dropped FK {} on table {} (referenced {})", cst, tbl, referencedTable);
+            } catch (SQLException e) {
+                logger.warn("Could not drop FK {} on {}: {}", cst, tbl, e.getMessage());
+            }
+        }
+        return n;
+    }
+
+    /**
+     * Recreates FKs from {@code interview_candidates} and {@code interviews} to {@code applications(id)}
+     * (same ON DELETE CASCADE as in {@link #createInterviewCandidatesTable} / {@link #createInterviewsTable}).
+     */
+    private static void restoreApplicationsIncomingForeignKeys(Connection conn) {
+        try (Statement s = conn.createStatement()) {
+            if (tableExists(conn, "interview_candidates")) {
+                try {
+                    s.execute("ALTER TABLE interview_candidates "
+                            + "ADD CONSTRAINT fk_interview_candidates_application "
+                            + "FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE");
+                    logger.info("Recreated FK interview_candidates.application_id -> applications.id");
+                } catch (SQLException e) {
+                    logger.warn("Could not recreate interview_candidates -> applications FK: {}", e.getMessage());
+                }
+            }
+            if (tableExists(conn, "interviews")) {
+                try {
+                    s.execute("ALTER TABLE interviews "
+                            + "ADD CONSTRAINT fk_interviews_application "
+                            + "FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE");
+                    logger.info("Recreated FK interviews.application_id -> applications.id");
+                } catch (SQLException e) {
+                    logger.warn("Could not recreate interviews -> applications FK: {}", e.getMessage());
+                }
+            }
+        } catch (SQLException e) {
+            logger.warn("restoreApplicationsIncomingForeignKeys: {}", e.getMessage());
         }
     }
 
@@ -316,6 +685,60 @@ public class DatabaseInitializer {
             logger.info("Created 'interviews' table.");
         } catch (SQLException e) {
             logger.error("Error creating interviews table: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Adds columns expected by {@link com.skilora.service.recruitment.InterviewService} when an old
+     * {@code interviews} table exists without them ({@code CREATE TABLE IF NOT EXISTS} does not alter it).
+     */
+    private static void ensureInterviewsTableColumns(Statement stmt) {
+        if (!tableExists(stmt, "interviews")) {
+            return;
+        }
+        try {
+            // Legacy: column was named scheduled_date; code uses interview_date. INSERT omitted scheduled_date → MySQL error.
+            if (columnExists(stmt, "interviews", "scheduled_date")) {
+                if (!columnExists(stmt, "interviews", "interview_date")) {
+                    stmt.execute("ALTER TABLE interviews CHANGE COLUMN scheduled_date interview_date DATETIME NOT NULL");
+                    logger.info("Renamed interviews.scheduled_date -> interview_date (migration).");
+                } else {
+                    stmt.execute("ALTER TABLE interviews MODIFY COLUMN scheduled_date DATETIME NULL");
+                    logger.info("Legacy interviews.scheduled_date set to NULLABLE (application uses interview_date).");
+                }
+            }
+            if (!columnExists(stmt, "interviews", "interview_date")) {
+                stmt.execute(
+                        "ALTER TABLE interviews ADD COLUMN interview_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
+                logger.info("Added column interviews.interview_date (migration).");
+            }
+            if (!columnExists(stmt, "interviews", "interview_type")) {
+                stmt.execute("ALTER TABLE interviews ADD COLUMN interview_type VARCHAR(50) DEFAULT 'IN_PERSON'");
+                logger.info("Added column interviews.interview_type (migration).");
+            }
+            if (!columnExists(stmt, "interviews", "notes")) {
+                stmt.execute("ALTER TABLE interviews ADD COLUMN notes TEXT NULL");
+                logger.info("Added column interviews.notes (migration).");
+            }
+            if (!columnExists(stmt, "interviews", "status")) {
+                stmt.execute("ALTER TABLE interviews ADD COLUMN status VARCHAR(30) DEFAULT 'SCHEDULED'");
+                logger.info("Added column interviews.status (migration).");
+            }
+            if (!columnExists(stmt, "interviews", "location")) {
+                stmt.execute("ALTER TABLE interviews ADD COLUMN location VARCHAR(255) NULL");
+                logger.info("Added column interviews.location (migration).");
+            }
+            if (!columnExists(stmt, "interviews", "created_at")) {
+                stmt.execute("ALTER TABLE interviews ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP");
+                logger.info("Added column interviews.created_at (migration).");
+            }
+            if (!columnExists(stmt, "interviews", "updated_at")) {
+                stmt.execute(
+                        "ALTER TABLE interviews ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+                logger.info("Added column interviews.updated_at (migration).");
+            }
+        } catch (SQLException e) {
+            logger.warn("Could not migrate interviews table columns: {}", e.getMessage());
         }
     }
 
@@ -579,14 +1002,53 @@ public class DatabaseInitializer {
      */
     private static void ensureTestUsers(Statement stmt) {
         try {
+            if (!tableExists(stmt, "users")) {
+                logger.warn("users table is missing; skipping test user seed");
+                return;
+            }
+
             // Hash for password "emp123" using BCrypt
             String emp123Hash = BCrypt.hashpw("emp123", BCrypt.gensalt(12));
             // Hash for password "yosr123" using BCrypt
             String yosr123Hash = BCrypt.hashpw("yosr123", BCrypt.gensalt(12));
-            
+            // Hash for password "admin123" using BCrypt (demo administrator)
+            String admin123Hash = BCrypt.hashpw("admin123", BCrypt.gensalt(12));
+
+            int updated;
+            int created;
+
+            // Fix admin user role if the row exists under another role
+            String fixAdmin = "UPDATE users SET role = 'ADMIN' WHERE username = 'admin' AND role != 'ADMIN'";
+            updated = stmt.executeUpdate(fixAdmin);
+            if (updated > 0) {
+                logger.info("Fixed {} user(s) named admin to role ADMIN", updated);
+            }
+
+            // Create admin user if it doesn't exist
+            String createAdmin = String.format(
+                    "INSERT INTO users (username, email, password, role, full_name, is_verified, is_active) "
+                            + "SELECT 'admin', 'admin@skilora.com', '%s', 'ADMIN', 'Administrator', TRUE, TRUE "
+                            + "WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'admin')",
+                    admin123Hash.replace("'", "''"));
+            created = stmt.executeUpdate(createAdmin);
+            if (created > 0) {
+                logger.info("Created admin test user (username: admin, password: admin123)");
+            }
+
+            // Existing row with username admin but wrong hash (or legacy password) would make login fail;
+            // keep demo admin aligned with admin123 on every startup.
+            String syncAdminDemo = String.format(
+                    "UPDATE users SET password = '%s', role = 'ADMIN', email = 'admin@skilora.com', "
+                            + "is_verified = TRUE, is_active = TRUE WHERE username = 'admin'",
+                    admin123Hash.replace("'", "''"));
+            int syncedAdmin = stmt.executeUpdate(syncAdminDemo);
+            if (syncedAdmin > 0) {
+                logger.info("Demo admin password and role synchronized (login: admin / admin123)");
+            }
+
             // Fix employer user role if it exists (check for any variation of employer username)
             String fixEmployer = "UPDATE users SET role = 'EMPLOYER' WHERE (username = 'employer' OR username LIKE 'employer%') AND role != 'EMPLOYER'";
-            int updated = stmt.executeUpdate(fixEmployer);
+            updated = stmt.executeUpdate(fixEmployer);
             if (updated > 0) {
                 logger.info("Fixed {} employer user(s) role to EMPLOYER", updated);
             }
@@ -598,9 +1060,19 @@ public class DatabaseInitializer {
                 "WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'employer')",
                 emp123Hash.replace("'", "''") // Escape single quotes in SQL
             );
-            int created = stmt.executeUpdate(createEmployer);
+            created = stmt.executeUpdate(createEmployer);
             if (created > 0) {
                 logger.info("Created employer test user (username: employer, password: emp123)");
+            }
+
+            // Keep demo employer password aligned with emp123 (same issue as admin if row pre-existed).
+            String syncEmployerDemo = String.format(
+                    "UPDATE users SET password = '%s', role = 'EMPLOYER', email = 'employer@skilora.com', "
+                            + "is_verified = TRUE, is_active = TRUE WHERE username = 'employer'",
+                    emp123Hash.replace("'", "''"));
+            int syncedEmployer = stmt.executeUpdate(syncEmployerDemo);
+            if (syncedEmployer > 0) {
+                logger.info("Demo employer password and role synchronized (login: employer / emp123)");
             }
 
             // Fix trainer user role if it exists

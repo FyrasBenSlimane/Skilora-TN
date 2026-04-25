@@ -8,6 +8,8 @@ import com.skilora.model.entity.usermanagement.Profile;
 import com.skilora.service.recruitment.InterviewService;
 import com.skilora.service.usermanagement.ProfileService;
 import com.skilora.service.notification.WhatsAppNotificationService;
+import com.skilora.utils.DialogUtils;
+import com.skilora.utils.I18n;
 import javafx.fxml.FXML;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
@@ -84,9 +86,19 @@ public class ScheduleInterviewController {
 
     /** Validates inputs and saves the interview. Returns true if saved successfully. */
     public boolean validateAndSave() {
-        if (application == null) return false;
+        if (application == null) {
+            DialogUtils.showError(I18n.get("interviews.save.error.title"), I18n.get("interviews.save.error.bad_application"));
+            return false;
+        }
+        if (application.getId() <= 0) {
+            DialogUtils.showError(I18n.get("interviews.save.error.title"), I18n.get("interviews.save.error.bad_application"));
+            return false;
+        }
         LocalDate date = datePicker != null ? datePicker.getValue() : LocalDate.now();
-        if (date == null) return false;
+        if (date == null) {
+            DialogUtils.showError(I18n.get("interviews.save.error.title"), I18n.get("interviews.save.error.no_date"));
+            return false;
+        }
         LocalTime time = LocalTime.of(14, 0);
         if (timeField != null && timeField.getText() != null && !timeField.getText().trim().isEmpty()) {
             try {
@@ -122,6 +134,8 @@ public class ScheduleInterviewController {
             return true;
         } catch (Exception e) {
             logger.error("Save interview failed", e);
+            String detail = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            DialogUtils.showError(I18n.get("interviews.save.error.title"), detail);
             return false;
         }
     }

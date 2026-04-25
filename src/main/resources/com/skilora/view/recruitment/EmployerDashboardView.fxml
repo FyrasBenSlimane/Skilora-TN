@@ -1,15 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.*?>
 <?import com.skilora.framework.components.TLButton?>
 
-<ScrollPane xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="com.skilora.controller.recruitment.EmployerDashboardController"
-            fitToWidth="true" fitToHeight="false"
-            styleClass="page-container" hbarPolicy="NEVER">
-<VBox spacing="28">
+<!-- Root must be the node with fx:controller so @FXML fields inject reliably -->
+<VBox xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.skilora.controller.recruitment.EmployerDashboardController"
+      spacing="28" styleClass="page-container">
     <padding><Insets top="28" right="28" bottom="36" left="28"/></padding>
 
     <!-- Greeting -->
@@ -30,4 +28,3 @@
         <VBox fx:id="activityList" spacing="8"/>
     </VBox>
 </VBox>
-</ScrollPane>

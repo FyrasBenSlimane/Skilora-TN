@@ -1,6 +1,7 @@
 package com.skilora.controller.recruitment;
 
 import com.skilora.framework.components.TLButton;
+import com.skilora.framework.components.TLDialog;
 import com.skilora.framework.components.TLTextarea;
 import com.skilora.model.entity.usermanagement.User;
 import com.skilora.service.recruitment.ApplicationService;
@@ -9,11 +10,13 @@ import com.skilora.service.usermanagement.ProfileService;
 import com.skilora.utils.I18n;
 import com.skilora.utils.Validators;
 import javafx.fxml.FXML;
-import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.application.Platform;
 import javafx.stage.FileChooser;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,16 +83,13 @@ public class ApplicationDialogController {
         coverLetterField.setTextAreaHeight(200);
         coverLetterField.setTextAreaRowCount(8);
         
-        // Setup cancel button
         if (cancelBtn != null) {
             cancelBtn.setText(I18n.get("common.cancel"));
             cancelBtn.setVariant(TLButton.ButtonVariant.OUTLINE);
-            cancelBtn.setOnAction(e -> handleCancel());
         }
-        
+
         submitBtn.setText(I18n.get("application.submit"));
         submitBtn.setVariant(TLButton.ButtonVariant.PRIMARY);
-        submitBtn.setOnAction(e -> submitApplication());
         if (cvAnalysisLabel != null) {
             cvAnalysisLabel.setText("");
         }
@@ -272,6 +272,7 @@ public class ApplicationDialogController {
         }
     }
     
+    @FXML
     private void handleCancel() {
         if (dialogStage != null) {
             dialogStage.close();
@@ -279,35 +280,22 @@ public class ApplicationDialogController {
             ((Stage) cancelBtn.getScene().getWindow()).close();
         }
     }
-    
+
+    /**
+     * Runs on the JavaFX thread. DB work runs on a background thread so the UI
+     * stays responsive and feedback dialogs stack correctly on this stage.
+     */
+    @FXML
     private void submitApplication() {
-        // First, check if job offer is still open (not CLOSED)
-        try {
-            com.skilora.service.recruitment.JobService jobService = com.skilora.service.recruitment.JobService.getInstance();
-            com.skilora.model.entity.recruitment.JobOffer offer = jobService.findJobOfferById(jobOfferId);
-            
-            if (offer == null) {
-                showError(I18n.get("application.offer_not_found", "Cette offre d'emploi n'existe plus."));
-                if (dialogStage != null) {
-                    dialogStage.close();
-                }
-                return;
-            }
-            
-            if (offer.getStatus() == com.skilora.model.enums.JobStatus.CLOSED) {
-                showError(I18n.get("application.offer_closed", "Cette offre d'emploi est fermée. Vous ne pouvez plus postuler."));
-                if (dialogStage != null) {
-                    dialogStage.close();
-                }
-                return;
-            }
-        } catch (Exception e) {
-            logger.error("Error checking job offer status before submission", e);
-            showError(I18n.get("application.error", "Erreur lors de la vérification de l'offre."));
+        if (submitBtn != null && submitBtn.isDisable()) {
             return;
         }
-        
-        // Validate CV is selected (mandatory)
+
+        if (currentUser == null) {
+            showError(I18n.get("application.error", "Session invalide. Veuillez vous reconnecter."));
+            return;
+        }
+
         if (selectedCvFile == null || cvFilePath == null) {
             showError(I18n.get("application.cv.required", "Le CV est obligatoire"));
             if (selectCvBtn != null) {
@@ -318,102 +306,204 @@ public class ApplicationDialogController {
         if (selectCvBtn != null) {
             selectCvBtn.getStyleClass().remove("input-error");
         }
-        
-        // Validate cover letter (optional but if provided, must be valid)
-        String coverLetter = coverLetterField.getText() != null ? coverLetterField.getText().trim() : "";
+
+        String coverLetter = coverLetterField != null && coverLetterField.getText() != null
+                ? coverLetterField.getText().trim()
+                : "";
         if (!coverLetter.isEmpty()) {
             if (!Validators.maxLength(coverLetter, 2000)) {
-                showError(I18n.get("application.cover_letter_max_length", "La lettre de motivation ne peut pas dépasser 2000 caractères"));
+                showError(I18n.get("application.cover_letter_max_length",
+                        "La lettre de motivation ne peut pas dépasser 2000 caractères"));
                 if (coverLetterField != null) {
                     coverLetterField.getStyleClass().add("textarea-error");
                 }
-            return;
-            }
-            if (Validators.minLength(coverLetter, 10)) {
-                // Minimum 10 characters if provided
+                return;
             }
         }
         if (coverLetterField != null) {
             coverLetterField.getStyleClass().remove("textarea-error");
         }
-        
-        // Get or create profile for current user
-        ProfileService profileService = ProfileService.getInstance();
-        try {
-            com.skilora.model.entity.usermanagement.Profile profile = profileService.findProfileByUserId(currentUser.getId());
-            
-            // Create profile automatically if it doesn't exist
-            if (profile == null) {
-                profile = new com.skilora.model.entity.usermanagement.Profile();
-                profile.setUserId(currentUser.getId());
-                // Use user's full name if available, otherwise use username
-                String fullName = currentUser.getFullName();
-                if (fullName == null || fullName.trim().isEmpty()) {
-                    fullName = currentUser.getUsername();
+
+        final String coverLetterFinal = coverLetter;
+        final String cvPathFinal = cvFilePath;
+        final int offerIdFinal = jobOfferId;
+        final User userFinal = currentUser;
+
+        if (submitBtn != null) {
+            submitBtn.setDisable(true);
+            submitBtn.setText(I18n.get("application.sending", "Envoi en cours…"));
+        }
+
+        Thread worker = new Thread(() -> {
+            try {
+                com.skilora.service.recruitment.JobService jobService =
+                        com.skilora.service.recruitment.JobService.getInstance();
+                com.skilora.model.entity.recruitment.JobOffer offer = jobService.findJobOfferById(offerIdFinal);
+
+                if (offer == null) {
+                    Platform.runLater(() -> {
+                        showError(I18n.get("application.offer_not_found", "Cette offre d'emploi n'existe plus."));
+                        if (dialogStage != null) {
+                            dialogStage.close();
+                        }
+                    });
+                    return;
                 }
-                String[] nameParts = fullName.split(" ", 2);
-                profile.setFirstName(nameParts.length > 0 ? nameParts[0] : currentUser.getUsername());
-                profile.setLastName(nameParts.length > 1 ? nameParts[1] : "");
-                profile.setCvUrl(cvFilePath); // Save CV URL in profile
-                
-                int profileId = profileService.createProfile(profile);
-                profile.setId(profileId);
-            } else {
-                // Update CV URL in existing profile
-                profile.setCvUrl(cvFilePath);
-                profileService.updateProfile(profile);
+                if (offer.getStatus() == com.skilora.model.enums.JobStatus.CLOSED) {
+                    Platform.runLater(() -> {
+                        showError(I18n.get("application.offer_closed",
+                                "Cette offre d'emploi est fermée. Vous ne pouvez plus postuler."));
+                        if (dialogStage != null) {
+                            dialogStage.close();
+                        }
+                    });
+                    return;
+                }
+
+                ProfileService profileService = ProfileService.getInstance();
+                com.skilora.model.entity.usermanagement.Profile profile =
+                        profileService.findProfileByUserId(userFinal.getId());
+
+                if (profile == null) {
+                    profile = new com.skilora.model.entity.usermanagement.Profile();
+                    profile.setUserId(userFinal.getId());
+                    String fullName = userFinal.getFullName();
+                    if (fullName == null || fullName.trim().isEmpty()) {
+                        fullName = userFinal.getUsername() != null ? userFinal.getUsername() : "User";
+                    }
+                    String trimmed = fullName.trim();
+                    String[] nameParts = trimmed.split("\\s+", 2);
+                    String firstName = !nameParts[0].isEmpty()
+                            ? nameParts[0]
+                            : (userFinal.getUsername() != null ? userFinal.getUsername() : "User");
+                    // ProfileService.validateProfile requires non-blank last name
+                    String lastName = nameParts.length > 1 && !nameParts[1].trim().isEmpty()
+                            ? nameParts[1].trim()
+                            : firstName;
+                    profile.setFirstName(firstName);
+                    profile.setLastName(lastName);
+                    profile.setCvUrl(cvPathFinal);
+                    int profileId = profileService.createProfile(profile);
+                    profile.setId(profileId);
+                } else {
+                    profile.setCvUrl(cvPathFinal);
+                    profileService.updateProfile(profile);
+                }
+
+                ApplicationService appService = ApplicationService.getInstance();
+                if (appService.hasApplied(offerIdFinal, profile.getId())) {
+                    Platform.runLater(() -> {
+                        showError(I18n.get("application.already_applied_message",
+                                "Vous avez déjà postulé à cette offre d'emploi."));
+                        if (dialogStage != null) {
+                            dialogStage.close();
+                        }
+                    });
+                    return;
+                }
+
+                int applicationId = appService.apply(offerIdFinal, profile.getId(), coverLetterFinal, cvPathFinal);
+                final int profileIdForUi = profile.getId();
+
+                Platform.runLater(() -> {
+                    if (applicationId > 0) {
+                        showSuccess(I18n.get("application.success"));
+                        if (onSuccess != null) {
+                            onSuccess.run();
+                        }
+                        if (dialogStage != null) {
+                            dialogStage.close();
+                        }
+                    } else {
+                        try {
+                            if (appService.hasApplied(offerIdFinal, profileIdForUi)) {
+                                showError(I18n.get("application.already_applied_message",
+                                        "Vous avez déjà postulé à cette offre d'emploi."));
+                            } else {
+                                showError(I18n.get("application.error"));
+                            }
+                        } catch (SQLException e) {
+                            logger.error("Error re-checking application state", e);
+                            showError(I18n.get("application.error"));
+                        }
+                        restoreSubmitButton();
+                    }
+                });
+            } catch (SQLException e) {
+                logger.error("Error submitting application", e);
+                Platform.runLater(() -> {
+                    String base = I18n.get("application.database_error");
+                    String detail = e.getMessage();
+                    if (detail != null && !detail.isBlank()) {
+                        base = base + "\n" + detail;
+                    }
+                    showError(base);
+                    restoreSubmitButton();
+                });
+            } catch (Throwable t) {
+                logger.error("Unexpected error submitting application", t);
+                Platform.runLater(() -> {
+                    String extra = t.getMessage() != null ? ("\n" + t.getMessage()) : "";
+                    showError(I18n.get("application.error") + extra);
+                    restoreSubmitButton();
+                });
             }
-            
-            // Check if candidate has already applied before submitting
-            ApplicationService appService = ApplicationService.getInstance();
-            if (appService.hasApplied(jobOfferId, profile.getId())) {
-                showError(I18n.get("application.already_applied_message", "Vous avez déjà postulé à cette offre d'emploi."));
-                if (dialogStage != null) {
-                    dialogStage.close();
-                }
-                return;
-            }
-            
-            // Submit application with CV URL
-            int applicationId = appService.apply(jobOfferId, profile.getId(), coverLetter, cvFilePath);
-            
-            if (applicationId > 0) {
-                showSuccess(I18n.get("application.success"));
-                if (onSuccess != null) {
-                    onSuccess.run();
-                }
-                if (dialogStage != null) {
-                    dialogStage.close();
-                }
-            } else {
-                // Check if it's because already applied
-                if (appService.hasApplied(jobOfferId, profile.getId())) {
-                    showError(I18n.get("application.already_applied_message", "Vous avez déjà postulé à cette offre d'emploi."));
-            } else {
-                showError(I18n.get("application.error"));
-                }
-            }
-            
-        } catch (SQLException e) {
-            logger.error("Error submitting application", e);
-            showError(I18n.get("application.database_error"));
+        }, "application-submit");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    private void restoreSubmitButton() {
+        if (submitBtn != null) {
+            submitBtn.setDisable(false);
+            submitBtn.setText(I18n.get("application.submit"));
         }
     }
     
-    private void showError(String message) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle(I18n.get("error.title"));
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
+    /**
+     * Owner for blocking alerts: must be the application modal stage so dialogs appear
+     * on top (otherwise JavaFX may stack them behind the modal and the UI looks "dead").
+     */
+    private Window resolveAlertOwner() {
+        if (dialogStage != null) {
+            return dialogStage;
+        }
+        if (submitBtn != null && submitBtn.getScene() != null && submitBtn.getScene().getWindow() != null) {
+            return submitBtn.getScene().getWindow();
+        }
+        return null;
     }
-    
+
+    private void showError(String message) {
+        TLDialog<ButtonType> dialog = new TLDialog<>();
+        Window owner = resolveAlertOwner();
+        if (owner != null) {
+            dialog.initOwner(owner);
+            dialog.initModality(Modality.WINDOW_MODAL);
+        } else {
+            dialog.initModality(Modality.APPLICATION_MODAL);
+        }
+        dialog.setTitle(I18n.get("error.title"));
+        dialog.setDialogTitle(I18n.get("error.title"));
+        dialog.setDescription(message);
+        dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK);
+        dialog.showAndWait();
+    }
+
     private void showSuccess(String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(I18n.get("success.title"));
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
+        TLDialog<ButtonType> dialog = new TLDialog<>();
+        Window owner = resolveAlertOwner();
+        if (owner != null) {
+            dialog.initOwner(owner);
+            dialog.initModality(Modality.WINDOW_MODAL);
+        } else {
+            dialog.initModality(Modality.APPLICATION_MODAL);
+        }
+        dialog.setTitle(I18n.get("success.title"));
+        dialog.setDialogTitle(I18n.get("success.title"));
+        dialog.setDescription(message);
+        dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK);
+        dialog.showAndWait();
     }
 }
 

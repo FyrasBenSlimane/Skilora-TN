@@ -15,6 +15,9 @@ import com.skilora.service.recruitment.JobService;
 import com.skilora.service.usermanagement.ProfileService;
 
 import javafx.application.Platform;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
+import javafx.scene.control.DialogEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Pos;
@@ -661,9 +664,27 @@ public class ApplicationDetailsController {
             dialog.setDescription("Définissez la date, l'heure et le type d'entretien.");
             dialog.setContent(content);
             dialog.getDialogPane().getButtonTypes().addAll(saveBtnType, cancelBtnType);
+
+            EventHandler<DialogEvent> previousOnShowing = dialog.getOnShowing();
+            dialog.setOnShowing(ev -> {
+                if (previousOnShowing != null) {
+                    previousOnShowing.handle(ev);
+                }
+                Button saveBtn = (Button) dialog.getDialogPane().lookupButton(saveBtnType);
+                if (saveBtn != null && ctrl != null) {
+                    saveBtn.addEventFilter(ActionEvent.ACTION, evt -> {
+                        evt.consume();
+                        if (ctrl.validateAndSave()) {
+                            dialog.setResult(Boolean.TRUE);
+                            dialog.close();
+                        }
+                    });
+                }
+            });
             dialog.setResultConverter(btn -> {
-                if (btn == saveBtnType && ctrl != null && ctrl.validateAndSave())
-                    return true;
+                if (btn == cancelBtnType) {
+                    return Boolean.FALSE;
+                }
                 return null;
             });
             dialog.showAndWait();

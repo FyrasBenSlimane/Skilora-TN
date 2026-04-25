@@ -1,0 +1,437 @@
+================================================================================
+  SKILORA TUNISIA — DOCUMENTATION TECHNIQUE
+  APIs et logique métier avancée
+================================================================================
+  Document rédigé en français — Objectif : compréhension, maintenance et
+  présentation des fonctionnalités implémentées (APIs, calculs métier, exports).
+================================================================================
+
+TABLE DES MATIÈRES
+-----------------
+1. Calcul du temps restant avant un entretien (countdown)
+2. Logique de score de matching (CV / compétences vs offres d'emploi)
+3. Génération et export du CV en PDF
+4. Statistiques et calculs des tableaux de bord
+5. Système de notification d'entretien (WhatsApp)
+
+================================================================================
+1. CALCUL DU TEMPS RESTANT AVANT UN ENTRETIEN (COUNTDOWN)
+================================================================================
+
+--- OBJECTIF ---
+Afficher en temps réel le temps restant avant la date/heure d'un entretien
+planifié, avec mise à jour automatique et code couleur selon l'urgence.
+
+--- EMPLACEMENT DANS LE PROJET ---
+
+  • Composant UI (widget réutilisable) :
+    src/main/java/com/skilora/framework/components/InterviewCountdownWidget.java
+
+  • Utilisation du widget :
+    - src/main/java/com/skilora/controller/recruitment/InterviewsController.java
+      (détails d'un entretien : badge countdown à côté des infos planifiées)
+    - src/main/java/com/skilora/controller/recruitment/EmployerDashboardController.java
+      (section "Prochains entretiens" avec countdown par entretien)
+    - src/main/java/com/skilora/controller/usermanagement/UserDashboardController.java
+      (section "Vos prochains entretiens" pour le candidat)
+
+--- CLASSES ET MÉTHODES ---
+
+  • InterviewCountdownWidget (extends HBox)
+    - Constructeur : InterviewCountdownWidget(LocalDateTime interviewDate)
+    - renderCountdown() : recalcule les secondes restantes, met à jour le texte
+      et la couleur du badge, et adapte l’intervalle de la Timeline (30 s ou 1 s).
+    - buildText(long totalSeconds) : formatage du texte affiché selon les secondes
+      (ex. "Dans 2 j 3 h", "Dans 45 min", "Imminent !", "En cours maintenant",
+      "Entretien passé").
+    - pickColor(long totalSeconds) : couleur de fond du badge (navy, blue, amber,
+      orange, red, green, gray selon la proximité de l’entretien).
+    - pickTextColor(long totalSeconds) : couleur du texte (blanc ou gris si passé).
+    - buildTimeline(int intervalSeconds) : crée la Timeline JavaFX qui appelle
+      renderCountdown() à intervalle régulier.
+    - of(LocalDateTime interviewDate) : factory statique qui retourne null si
+      la date est null, sinon une nouvelle instance du widget.
+    - stop() : arrête la Timeline (évite les fuites mémoire à la fermeture).
+
+--- LOGIQUE MÉTIER ---
+
+  • Calcul du temps restant :
+    totalSeconds = ChronoUnit.SECONDS.between(LocalDateTime.now(), interviewDate)
+
+  • Mise à jour :
+    - Par défaut : toutes les 30 secondes (TICK_LONG_SEC).
+    - Si moins de 2 minutes restantes : toutes les 1 seconde (TICK_SHORT_SEC)
+      pour un compte à rebours plus précis.
+
+  • Cycle de vie :
+    - La Timeline est démarrée quand le widget est attaché à une Scene
+      (sceneProperty().addListener) et arrêtée quand il est détaché.
+
+  • Seuils de couleur (secondes restantes) :
+    - > 2 jours  : navy (#1e40af)
+    - 6 h – 2 j   : blue (#2563eb)
+    - 1 h – 6 h   : amber (#d97706)
+    - < 1 h       : orange (#ea580c)
+    - < 5 min     : red (#dc2626)
+    - En cours    : green (#166534)
+    - Passé > 1 h : gray (#374151)
+
+  • Thread : les mises à jour du label sont faites sur le fil JavaFX
+    (Platform.runLater si appel depuis un autre thread).
+
+================================================================================
+2. LOGIQUE DE SCORE DE MATCHING (CV / COMPÉTENCES VS OFFRES)
+================================================================================
+
+--- OBJECTIF ---
+Calculer un score de compatibilité (0–100) entre le profil candidat (compétences +
+expériences) et une offre d’emploi (compétences requises + mots-clés de la
+description), avec détail des compétences correspondantes et manquantes.
+
+--- EMPLACEMENT DANS LE PROJET ---
+
+  • Service de matching (cœur du calcul) :
+    src/main/java/com/skilora/service/recruitment/CvMatchingService.java
+
+  • Couche « intelligence » (appels asynchrones / agrégation) :
+    src/main/java/com/skilora/service/recruitment/RecruitmentIntelligenceService.java
+
+  • Modèles :
+    - src/main/java/com/skilora/model/entity/recruitment/JobOffer.java
+      (requiredSkills, description, title)
+    - src/main/java/com/skilora/model/entity/usermanagement/Skill.java
+    - src/main/java/com/skilora/model/entity/usermanagement/Experience.java
+
+  • Utilisation du matching :
+    - Feed (liste d’offres avec score par offre) :
+      src/main/java/com/skilora/controller/recruitment/FeedController.java
+    - Détail d’une candidature (onglet Matching) :
+      src/main/java/com/skilora/controller/recruitment/ApplicationDetailsController.java
+    - Détail d’une offre (côté candidat) :
+      src/main/java/com/skilora/controller/recruitment/JobDetailsController.java
+    - Boîte de réception candidatures (colonne Match) :
+      src/main/java/com/skilora/controller/recruitment/ApplicationInboxController.java
+
+--- CLASSES ET MÉTHODES PRINCIPALES ---
+
+  • CvMatchingService (singleton)
+    - calculate(int profileId, int jobOfferId) : retourne un MatchResult complet
+      (score, compétences matchées, compétences manquantes, nombre total requis).
+    - calculateScore(int profileId, int jobOfferId) : retourne uniquement le score (int).
+    - buildCorpus(List<Skill>, List<Experience>) : construit le corpus de tokens
+      du candidat (sans requête DB), pour réutilisation en batch.
+    - scoreFromCorpus(Set<String> corpus, List<String> requiredSkills,
+      String description, String title) : score à partir d’un corpus déjà construit
+      (utilisé par le Feed pour éviter N×3 requêtes DB).
+    - scoreCandidateProfile(int profileId) : score global « qualité » du profil
+      (complétude, nombre de compétences, expériences, CV uploadé), 0–100.
+
+  • Classe interne MatchResult
+    - score, matchedSkills, missingSkills, totalRequired
+    - label() : libellé ("Excellent", "Très bon", "Bon", "Partiel", "Faible")
+    - colorHex() : couleur CSS selon le score
+    - EMPTY : résultat vide en cas d’erreur ou données manquantes
+
+  • Méthodes internes (logique de matching) :
+    - buildCandidateCorpus(skills, exps) : agrège noms de compétences, alias,
+      titres et descriptions d’expériences, normalisés en tokens minuscules.
+    - skillPresent(String required, Set<String> corpus) : vérifie si la compétence
+      requise est « présente » dans le corpus (exact, contient/est contenu, alias,
+      correspondance partielle sur les 5 premiers caractères).
+    - extractTechKeywords(description, title) : extrait les mots-clés techniques
+      de la description et du titre (hors stop-words, tokens 2–30 caractères,
+      max 25 termes).
+    - normalise(String), normaliseList(List), tokenise(String, Set),
+      expandAliases(term, set), aliasesOf(term) : utilitaires de normalisation
+      et synonymes.
+
+--- LOGIQUE MÉTIER ---
+
+  • Algorithme du score (calculate / scoreFromCorpus) :
+    1. Construire le « corpus candidat » : compétences + alias (table SYNONYMS)
+      + tokens issus des expériences (poste, description).
+    2. Récupérer les compétences requises de l’offre (liste normalisée).
+    3. Partie « compétences requises » (poids 70 %) :
+       - Pour chaque compétence requise : skillPresent(requis, corpus) → matched ou missing.
+       - skillPortion = nombre matchées / nombre total requis (1.0 si liste vide).
+    4. Partie « mots-clés description » (poids 30 %) :
+       - extractTechKeywords(description, title) → liste de mots-clés.
+       - descPortion = (nombre de mots-clés trouvés dans le corpus) / nombre de mots-clés
+         (ou skillPortion si pas de mots-clés).
+    5. Score final : (skillPortion × 70) + (descPortion × 30), arrondi, plafonné à 100.
+
+  • Synonymes / alias : une table statique (SYNONYMS) mappe des termes canoniques
+    (ex. "javascript", "spring boot") vers des variantes (js, es6, spring, etc.).
+    La détection est bidirectionnelle (requis ↔ corpus).
+
+  • Score « qualité candidat » (scoreCandidateProfile) :
+    - Complétude profil : 25 pts (prénom, nom, téléphone, localisation, date de naissance).
+    - Compétences : jusqu’à 35 pts (par compétence, plafond 10, bonus si ≥ 5).
+    - Expériences : jusqu’à 30 pts (1, 2, 3+ expériences).
+    - CV uploadé : 10 pts.
+    - Total plafonné à 100.
+
+  • Performance Feed : au chargement du feed, un seul corpus est construit
+    (3 requêtes : profil, compétences, expériences), puis scoreFromCorpus est
+    appelé pour chaque offre sans requête supplémentaire.
+
+================================================================================
+3. GÉNÉRATION ET EXPORT DU CV EN PDF
+================================================================================
+
+--- OBJECTIF ---
+Produire un CV au format PDF professionnel et compatible ATS à partir des
+données saisies dans le formulaire « Créer mon CV », sans service externe
+(utilisation d’Apache PDFBox).
+
+--- EMPLACEMENT DANS LE PROJET ---
+
+  • Service d’export PDF :
+    src/main/java/com/skilora/service/export/CvPdfExportService.java
+
+  • Modèle de données du formulaire CV :
+    src/main/java/com/skilora/model/cv/CvData.java
+    (fullName, jobTitle, email, phone, location, linkedIn, website, summary,
+     experiences, educations, skills, certifications, projects + classes internes
+     ExperienceEntry, EducationEntry, CertificationEntry, ProjectEntry)
+
+  • Contrôleur du formulaire et déclenchement de l’export :
+    src/main/java/com/skilora/controller/usermanagement/CvGeneratorController.java
+
+  • Vue FXML :
+    src/main/resources/com/skilora/view/usermanagement/CvGeneratorView.fxml
+
+  • Point d’entrée utilisateur : tableau de bord candidat, action rapide
+    « Créer mon CV » (UserDashboardController.openCvGenerator()).
+
+--- CLASSES ET MÉTHODES ---
+
+  • CvPdfExportService
+    - export(CvData data, File outputFile) : point d’entrée principal ; génère
+      le PDF et l’enregistre dans outputFile (écrase si existant).
+    - newPage() : ajoute une page A4, réinitialise le ContentStream et currentY.
+    - ensureSpace(float needed) : crée une nouvelle page si l’espace restant
+      est insuffisant.
+    - drawHeader(data) : bandeau bleu navy, nom, titre, ligne de contacts.
+    - drawSection(title, content) : titre de section + trait + contenu.
+    - drawExperiences, drawEducations, drawSkills, drawCertifications,
+      drawProjects : dessin de chaque bloc de contenu.
+    - drawString, drawParagraph, drawBullet, drawKeyValue : primitives de dessin.
+    - wrapText(text, font, size, maxW) : découpage des lignes selon la largeur.
+    - sanitize(String) : remplacement de caractères spéciaux pour Helvetica/PDF.
+
+  • CvGeneratorController
+    - setup(User user) : initialise avec l’utilisateur courant et pré-remplit
+      depuis le profil (loadAndPopulate → ProfileService + populateFromProfile).
+    - handleGeneratePdf() : vérifie le nom, ouvre un FileChooser, construit
+      CvData via collectFormData(), lance l’export dans un thread dédié (non bloquant),
+      puis met à jour le statut et affiche une alerte en cas de succès.
+    - collectFormData() : parcourt tous les champs (personnel, skills Area,
+      containers d’expériences, formations, certifications, projets) et remplit
+      un objet CvData (avec tv() pour extraire le texte des contrôles stockés
+      dans UserData des VBox).
+
+--- LOGIQUE MÉTIER ---
+
+  • Mise en page : A4, marges 48 pt, largeur contenu = PAGE_W - 2×MARGIN_X.
+    En-tête fixe ~130 pt ; sections successives avec espacement et saut de page
+    automatique si nécessaire.
+
+  • Ordre des sections dans le PDF : Résumé → Expérience → Formation →
+    Compétences → Certifications → Projets (chaque section n’est dessinée que
+    si les données correspondantes sont non vides).
+
+  • Polices : Helvetica (Bold, Regular, Oblique) pour compatibilité et lisibilité.
+  • Couleurs : header #0f2850, accent #2563eb, texte #111827, secondaire #6b7280.
+
+  • Export asynchrone : le clic sur « Générer le PDF » désactive le bouton,
+    affiche « Génération en cours... », et exécute pdfService.export(data, file)
+    dans un thread daemon ; le retour à l’UI (succès/erreur) se fait via
+    Platform.runLater.
+
+================================================================================
+4. STATISTIQUES ET CALCULS DES TABLEAUX DE BORD
+================================================================================
+
+--- OBJECTIF ---
+Fournir aux utilisateurs (candidats et recruteurs) des tableaux de bord avec
+statistiques agrégées et listes contextuelles (prochains entretiens,
+recommandations, candidatures récentes).
+
+--- EMPLACEMENT DANS LE PROJET ---
+
+  • Tableau de bord candidat (USER) :
+    src/main/java/com/skilora/controller/usermanagement/UserDashboardController.java
+
+  • Tableau de bord recruteur (EMPLOYER) :
+    src/main/java/com/skilora/controller/recruitment/EmployerDashboardController.java
+
+  • Données profil (complétude, détails) :
+    src/main/java/com/skilora/service/usermanagement/ProfileService.java
+    (getProfileWithDetails, calculateProfileCompletion)
+
+  • Données recrutement (offres, candidatures, entretiens) :
+    src/main/java/com/skilora/service/recruitment/JobService.java
+    src/main/java/com/skilora/service/recruitment/ApplicationService.java
+    src/main/java/com/skilora/service/recruitment/InterviewService.java
+
+  • Score candidat et recommandations :
+    src/main/java/com/skilora/service/recruitment/RecruitmentIntelligenceService.java
+    (scoreCandidate, recommendJobs)
+
+--- CLASSES ET MÉTHODES (TABLEAU DE BORD CANDIDAT) ---
+
+  • UserDashboardController
+    - initializeContext(user, ...) : initialise le contexte, greeting, actions
+      rapides, libellés, puis loadDashboardData().
+    - loadDashboardData() : Task en arrière-plan qui :
+      1. Récupère le profil (findProfileByUserId).
+      2. Complétude : getProfileWithDetails(profile.getId()) → completionPercentage.
+      3. Recommandations : intelligenceService.recommendJobs(profileId, null, 3).
+      4. Candidatures : applicationService.getApplicationsByProfile(profileId) ;
+        appCount = taille ; interviewCount = nombre de candidatures au statut INTERVIEW.
+      5. Score talent : intelligenceService.scoreCandidate(profileId).
+      6. Prochains entretiens : interviewService.getUpcomingInterviewsForCandidate(profileId).
+    - updateUI(DashboardData) : met à jour la carte profil (%), les 4 cartes
+      de stats (candidatures, entretiens, score de match, vues profil), la section
+      « Vos prochains entretiens » (avec InterviewCountdownWidget), les listes
+      recommandations et candidatures récentes.
+
+  • ProfileService
+    - getProfileWithDetails(profileId) : retourne une Map contenant profile,
+      skills, experiences, completionPercentage.
+    - calculateProfileCompletion(profile, skills, experiences) : 12 champs
+      considérés (prénom, nom, téléphone, localisation, date de naissance, photo,
+      CV compte double, compétences présentes, ≥3 compétences, expériences
+      présentes, ≥1 expérience). Pourcentage = (completedFields * 100) / 12.
+
+--- CLASSES ET MÉTHODES (TABLEAU DE BORD RECRUTEUR) ---
+
+  • EmployerDashboardController
+    - loadDashboardData() : Task qui :
+      1. Offres : jobService.findJobOffersByCompanyOwner(userId) ;
+        totalOffers, activeOffers (ACTIVE/OPEN), closedOffers (CLOSED).
+      2. Candidatures : appService.getApplicationsByCompanyOwner(userId) ;
+        totalApplications, pendingApps, acceptedApps, rejectedApps.
+      3. Entretiens : interviewService.getInterviewsForEmployer(userId) → scheduledInterviews.
+      4. Prochains entretiens : interviewService.getUpcomingInterviewsForEmployer(userId, 3).
+    - updateUI(DashboardData) : 4 cartes (Offres postées, Candidatures,
+      Entretiens, Taux d’acceptation), section « Prochains entretiens » avec
+      countdown par entretien (buildEmployerInterviewRow), puis éléments d’activité.
+
+  • InterviewService
+    - getUpcomingInterviewsForCandidate(profileId) : entretiens SCHEDULED
+      pour ce profil, triés par date ascendante.
+    - getUpcomingInterviewsForEmployer(employerUserId, limit) : prochains
+      entretiens SCHEDULED pour les offres du recruteur, avec i.interview_date >= NOW(),
+      triés par date, LIMIT limit.
+
+--- LOGIQUE MÉTIER ---
+
+  • Taux d’acceptation (recruteur) :
+    totalApplications > 0 ? (acceptedApps * 100 / totalApplications) % : 0 %.
+
+  • Données affichées : toutes les statistiques sont calculées côté serveur
+    (requêtes SQL / services), puis exposées via des objets DashboardData
+    internes aux contrôleurs. Aucune API REST dédiée : chargement asynchrone
+    via JavaFX Task depuis les services métier.
+
+================================================================================
+5. SYSTÈME DE NOTIFICATION D'ENTRETIEN (WHATSAPP)
+================================================================================
+
+--- OBJECTIF ---
+Envoyer au candidat une notification WhatsApp automatique lorsqu’un entretien
+est planifié (date, heure, lieu, type), de manière non bloquante pour l’UI.
+
+--- EMPLACEMENT DANS LE PROJET ---
+
+  • Service de notification :
+    src/main/java/com/skilora/service/notification/WhatsAppNotificationService.java
+
+  • Déclenchement après enregistrement d’un entretien :
+    src/main/java/com/skilora/controller/recruitment/ScheduleInterviewController.java
+    (validateAndSave() → saveOrUpdate(interview) → sendWhatsAppNotification(...))
+
+  • Configuration :
+    src/main/resources/config/application.properties
+    (twilio.account.sid, twilio.auth.token, twilio.whatsapp.from,
+     whatsapp.notifications.enabled)
+
+  • Récupération du numéro du candidat :
+    ProfileService.findProfileById(application.getCandidateProfileId())
+    → profile.getPhone()
+
+--- CLASSES ET MÉTHODES ---
+
+  • WhatsAppNotificationService (singleton)
+    - getInstance() : retourne l’instance unique.
+    - sendInterviewScheduledNotification(Interview interview, Application application,
+      String phoneNumber) : point d’entrée public. Vérifie enabled, isConfigured(),
+      numéro non vide ; normalise le numéro (normalizePhone), construit le message
+      (buildMessage), lance un thread daemon qui appelle sendMessage(toPhone, body).
+    - isConfigured() : vérifie que accountSid et authToken sont renseignés et
+      ne commencent pas par "YOUR_".
+    - normalizePhone(raw) : passage au format E.164 (ex. 0X / 216X → +216X,
+      8 chiffres tunisiens → +216 + 8 chiffres).
+    - buildMessage(interview, application) : message en français avec nom candidat,
+      poste, date (dd/MM/yyyy), heure (HH:mm), type d’entretien, lieu, signature Skilora.
+    - sendMessage(toPhone, body) : POST HTTP vers l’API Twilio Messages
+      (URL avec accountSid), body en x-www-form-urlencoded (To=whatsapp:..., From=...,
+      Body=...), authentification Basic (accountSid:authToken en Base64).
+
+  • ScheduleInterviewController
+    - validateAndSave() : valide date/heure/lieu/type, crée ou met à jour
+      l’entité Interview, remplit les champs transitoires (candidateName,
+      jobTitle, companyName), appelle InterviewService.saveOrUpdate(toSave),
+      puis sendWhatsAppNotification(toSave, application).
+    - sendWhatsAppNotification(interview, application) : thread daemon qui
+      charge le profil du candidat (ProfileService.findProfileById), récupère
+      le téléphone, et appelle WhatsAppNotificationService.getInstance()
+        .sendInterviewScheduledNotification(interview, application, phone).
+
+--- LOGIQUE MÉTIER ---
+
+  • Pas d’email ni SMS dans l’application Java actuelle : uniquement WhatsApp
+    via l’API Twilio. Le flag whatsapp.notifications.enabled permet de
+    désactiver l’envoi sans retirer le code.
+
+  • Envoi asynchrone : aucun blocage de l’UI ; en cas d’échec HTTP, l’erreur
+    est loguée (logger.error), l’utilisateur a déjà vu la confirmation
+    d’enregistrement de l’entretien.
+
+  • Contenu du message : salutation, nom de l’entreprise (Skilora Tunisia),
+    poste, date, heure, type, lieu, encouragement et signature.
+
+  • Dépendance : Java 11+ java.net.http.HttpClient (pas de dépendance Maven
+    supplémentaire pour HTTP). Twilio exige un compte et une configuration
+    (Sandbox ou numéro approuvé) pour l’envoi effectif.
+
+================================================================================
+  RÉSUMÉ DES FICHIERS CLÉS PAR FONCTIONNALITÉ
+================================================================================
+
+  Countdown entretien    : InterviewCountdownWidget.java,
+                           InterviewsController, EmployerDashboardController,
+                           UserDashboardController, Interview (entity)
+
+  Matching CV/offre      : CvMatchingService.java, MatchResult,
+                           RecruitmentIntelligenceService,
+                           FeedController, ApplicationDetailsController,
+                           JobDetailsController, ApplicationInboxController,
+                           JobOpportunity (matchPercentage), Application (matchPercentage)
+
+  Export CV PDF          : CvPdfExportService.java, CvData.java,
+                           CvGeneratorController.java, CvGeneratorView.fxml
+
+  Tableaux de bord       : UserDashboardController, EmployerDashboardController,
+                           ProfileService.getProfileWithDetails, calculateProfileCompletion,
+                           InterviewService (getUpcoming*), ApplicationService, JobService
+
+  Notification entretien : WhatsAppNotificationService.java,
+                           ScheduleInterviewController.validateAndSave,
+                           application.properties (Twilio)
+
+================================================================================
+  FIN DU DOCUMENT
+================================================================================

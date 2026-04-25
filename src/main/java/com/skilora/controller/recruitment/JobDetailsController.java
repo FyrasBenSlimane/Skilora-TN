@@ -16,6 +16,8 @@ import org.slf4j.LoggerFactory;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * JobDetailsController - Displays detailed information about a job opportunity
@@ -53,12 +55,26 @@ public class JobDetailsController {
     
     public void setJob(JobOpportunity job) {
         this.currentJob = job;
-        populateJobDetails();
+        try {
+            populateJobDetails();
+        } catch (Exception e) {
+            logger.error("Failed to render job details", e);
+            if (jobTitle != null) {
+                jobTitle.setText(I18n.get("jobdetails.not_specified"));
+            }
+            if (jobDescription != null) {
+                jobDescription.setText(I18n.get("jobdetails.no_description"));
+            }
+        }
     }
     
     public void setCurrentUser(com.skilora.model.entity.usermanagement.User user) {
         this.currentUser = user;
-        populateJobDetails(); // Re-populate to update button state
+        try {
+            populateJobDetails();
+        } catch (Exception e) {
+            logger.error("Failed to refresh job details for user", e);
+        }
     }
     
     public void setCallbacks(Runnable onBack, Runnable onApply) {
@@ -88,14 +104,25 @@ public class JobDetailsController {
             }
         }
         
-        // Company initials
-        String company = companyDisplayName;
-        if (company != null && !company.isEmpty()) {
-            String[] words = company.split("\\s+");
-            String initials = words.length >= 2 
-                ? (words[0].substring(0, 1) + words[1].substring(0, 1)).toUpperCase()
-                : company.substring(0, Math.min(2, company.length())).toUpperCase();
+        // Company initials (split can yield empty tokens — substring(0,1) would crash)
+        String company = companyDisplayName != null ? companyDisplayName.trim() : "";
+        if (!company.isEmpty()) {
+            List<String> words = new ArrayList<>();
+            for (String w : company.split("\\s+")) {
+                if (w != null && !w.isEmpty()) {
+                    words.add(w);
+                }
+            }
+            String initials;
+            if (words.size() >= 2) {
+                initials = (words.get(0).substring(0, 1) + words.get(1).substring(0, 1)).toUpperCase();
+            } else {
+                String w0 = words.get(0);
+                initials = w0.substring(0, Math.min(2, w0.length())).toUpperCase();
+            }
             companyInitials.setText(initials);
+        } else {
+            companyInitials.setText("?");
         }
         
         // Location & Type
@@ -106,7 +133,7 @@ public class JobDetailsController {
         jobType.setText("💼 " + (currentJob.getType() != null ? currentJob.getType() : "Full-Time"));
         
         // Posted date
-        if (currentJob.getPostedDate() != null) {
+        if (currentJob.getPostedDate() != null && !currentJob.getPostedDate().isBlank()) {
             try {
                 LocalDate posted = LocalDate.parse(currentJob.getPostedDate());
                 long daysAgo = ChronoUnit.DAYS.between(posted, LocalDate.now());
@@ -117,6 +144,8 @@ public class JobDetailsController {
             } catch (Exception e) {
                 postedDate.setText("🕐 " + currentJob.getPostedDate());
             }
+        } else if (postedDate != null) {
+            postedDate.setText("🕐 —");
         }
         
         // Description - show FULL description without truncation (all information posted by employer)
@@ -158,37 +187,67 @@ public class JobDetailsController {
         extractAndDisplayBenefits(currentJob.getDescription());
 
         // Stats - deterministic based on job hash to avoid random flicker
-        int hash = Math.abs((currentJob.getTitle() + currentJob.getSource()).hashCode());
+        String titleKey = currentJob.getTitle() != null ? currentJob.getTitle() : "";
+        String sourceKey = currentJob.getSource() != null ? currentJob.getSource() : "";
+        int hash = Math.abs((titleKey + sourceKey).hashCode());
         applicantCount.setText(String.valueOf(10 + (hash % 40)));
         viewCount.setText(String.valueOf(50 + (hash % 200)));
-        
+
         // Disable Apply button if offer is closed and show "Fermée" in red
         if (isOfferClosed && applyBtn != null) {
             applyBtn.setDisable(true);
             applyBtn.setText("Fermée");
-            // Use DANGER variant for red color
             applyBtn.setVariant(TLButton.ButtonVariant.DANGER);
-            // Ensure button is visible (not grayed out when disabled)
             applyBtn.setOpacity(1.0);
-        } else if (applyBtn != null && currentJob != null && currentJob.getId() > 0 && currentUser != null) {
-            // Check if candidate has already applied
+        } else if (applyBtn != null) {
+            applyBtn.setDisable(false);
+            applyBtn.setText("Postuler");
+            applyBtn.setVariant(TLButton.ButtonVariant.PRIMARY);
+            applyBtn.setOpacity(1.0);
+            // DB check off the FX thread so opening the page stays responsive
+            scheduleApplyButtonStateRefresh();
+        }
+
+        loadAiInsights();
+    }
+
+    /**
+     * hasApplied() hits the DB — running it here used to block the UI when opening details.
+     */
+    private void scheduleApplyButtonStateRefresh() {
+        if (currentJob == null || currentUser == null || currentJob.getId() <= 0) {
+            return;
+        }
+        final int jobId = currentJob.getId();
+        final int userId = currentUser.getId();
+        Thread t = new Thread(() -> {
             try {
-                com.skilora.service.usermanagement.ProfileService profileService = com.skilora.service.usermanagement.ProfileService.getInstance();
-                com.skilora.model.entity.usermanagement.Profile profile = profileService.findProfileByUserId(currentUser.getId());
-                if (profile != null && profile.getId() > 0) {
-                    com.skilora.service.recruitment.ApplicationService appService = com.skilora.service.recruitment.ApplicationService.getInstance();
-                    if (appService.hasApplied(currentJob.getId(), profile.getId())) {
+                com.skilora.service.usermanagement.ProfileService profileService =
+                        com.skilora.service.usermanagement.ProfileService.getInstance();
+                com.skilora.model.entity.usermanagement.Profile profile =
+                        profileService.findProfileByUserId(userId);
+                if (profile == null || profile.getId() <= 0) {
+                    return;
+                }
+                com.skilora.service.recruitment.ApplicationService appService =
+                        com.skilora.service.recruitment.ApplicationService.getInstance();
+                boolean applied = appService.hasApplied(jobId, profile.getId());
+                Platform.runLater(() -> {
+                    if (applyBtn == null || currentJob == null || currentJob.getId() != jobId) {
+                        return;
+                    }
+                    if (applied) {
                         applyBtn.setDisable(true);
                         applyBtn.setText("✓ " + I18n.get("jobdetails.applied", "Candidature envoyée"));
                         applyBtn.setVariant(TLButton.ButtonVariant.SECONDARY);
                     }
-                }
+                });
             } catch (Exception e) {
-                // Ignore errors - button will remain enabled
+                logger.debug("Apply button state check skipped: {}", e.getMessage());
             }
-        }
-
-        loadAiInsights();
+        }, "job-details-apply-check");
+        t.setDaemon(true);
+        t.start();
     }
 
     private void loadAiInsights() {
@@ -349,11 +408,9 @@ public class JobDetailsController {
                 "Cette offre d'emploi est fermée. Vous ne pouvez plus postuler.");
             return; // Stop here - do NOT change button or call onApply
         }
-        
-        // Only proceed if offer is open
-        applyBtn.setText("✓ " + I18n.get("jobdetails.applied"));
-        applyBtn.setDisable(true);
-        
+
+        // Open the application dialog; do not mark as "applied" here — success is
+        // confirmed only after submit inside the dialog (otherwise Cancel leaves a false state).
         if (onApply != null) {
             onApply.run();
         }

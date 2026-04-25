@@ -157,13 +157,12 @@ public class ApplicationService {
      * Includes job title and company name via JOINs.
      */
     public List<Application> getApplicationsByProfile(int profileId) throws SQLException {
+        // Avoid joining optional AI tables (may be missing on older DBs); scores default to 0 here.
         String sql = "SELECT a.*, jo.title AS job_title, jo.location AS job_location, " +
-                "c.name AS company_name, cms.match_percentage, cs.score AS candidate_score " +
+                "c.name AS company_name, 0 AS match_percentage, 0 AS candidate_score " +
                 "FROM applications a " +
                 "JOIN job_offers jo ON a.job_offer_id = jo.id " +
                 "LEFT JOIN companies c ON jo.company_id = c.id " +
-                "LEFT JOIN candidate_match_scores cms ON cms.profile_id = a.candidate_profile_id AND cms.job_offer_id = a.job_offer_id " +
-                "LEFT JOIN candidate_scores cs ON cs.profile_id = a.candidate_profile_id " +
                 "WHERE a.candidate_profile_id = ? " +
                 "ORDER BY a.applied_date DESC";
 
@@ -192,12 +191,12 @@ public class ApplicationService {
      */
     public List<Application> getApplicationsByJobOffer(int jobOfferId) throws SQLException {
         String sql = "SELECT a.*, jo.title AS job_title, " +
-                "CONCAT(p.first_name, ' ', p.last_name) AS candidate_name, cms.match_percentage, cs.score AS candidate_score " +
+                "CASE WHEN p.id IS NOT NULL THEN CONCAT(COALESCE(p.first_name,''), ' ', COALESCE(p.last_name,'')) "
+                + "ELSE NULL END AS candidate_name, "
+                + "0 AS match_percentage, 0 AS candidate_score " +
                 "FROM applications a " +
                 "JOIN job_offers jo ON a.job_offer_id = jo.id " +
-                "JOIN profiles p ON a.candidate_profile_id = p.id " +
-                "LEFT JOIN candidate_match_scores cms ON cms.profile_id = a.candidate_profile_id AND cms.job_offer_id = a.job_offer_id " +
-                "LEFT JOIN candidate_scores cs ON cs.profile_id = a.candidate_profile_id " +
+                "LEFT JOIN profiles p ON a.candidate_profile_id = p.id " +
                 "WHERE a.job_offer_id = ? " +
                 "ORDER BY a.applied_date DESC";
 
@@ -209,7 +208,7 @@ public class ApplicationService {
                 while (rs.next()) {
                     Application app = mapResultSet(rs);
                     app.setJobTitle(rs.getString("job_title"));
-                    app.setCandidateName(rs.getString("candidate_name"));
+                    applyCandidateDisplayName(rs, app);
                     app.setMatchPercentage(rs.getInt("match_percentage"));
                     app.setCandidateScore(rs.getInt("candidate_score"));
                     apps.add(app);
@@ -252,15 +251,13 @@ public class ApplicationService {
                 "CASE " +
                 "  WHEN p.first_name IS NOT NULL AND p.last_name IS NOT NULL THEN CONCAT(p.first_name, ' ', p.last_name) " +
                 "  WHEN p.first_name IS NOT NULL THEN p.first_name " +
-                "  ELSE CONCAT('Candidat #', a.candidate_profile_id) " +
+                "  ELSE NULL " +
                 "END AS candidate_name, " +
-                "COALESCE(c.name, 'Entreprise') AS company_name, cms.match_percentage, cs.score AS candidate_score " +
+                "COALESCE(c.name, 'Entreprise') AS company_name, 0 AS match_percentage, 0 AS candidate_score " +
                 "FROM applications a " +
                 "LEFT JOIN job_offers jo ON a.job_offer_id = jo.id " +
                 "LEFT JOIN companies c ON jo.company_id = c.id " +
                 "LEFT JOIN profiles p ON a.candidate_profile_id = p.id " +
-                "LEFT JOIN candidate_match_scores cms ON cms.profile_id = a.candidate_profile_id AND cms.job_offer_id = a.job_offer_id " +
-                "LEFT JOIN candidate_scores cs ON cs.profile_id = a.candidate_profile_id " +
                 "WHERE (c.owner_id = ? OR jo.company_id = ?) " +
                 "ORDER BY a.applied_date DESC";
 
@@ -276,11 +273,7 @@ public class ApplicationService {
                     Application app = mapResultSet(rs);
                     app.setJobTitle(rs.getString("job_title"));
                     app.setJobLocation(rs.getString("job_location"));
-                    String candidateName = rs.getString("candidate_name");
-                    if (candidateName == null || candidateName.trim().isEmpty()) {
-                        candidateName = "Candidat #" + app.getCandidateProfileId();
-                    }
-                    app.setCandidateName(candidateName);
+                    applyCandidateDisplayName(rs, app);
                     app.setCompanyName(rs.getString("company_name"));
                     app.setMatchPercentage(rs.getInt("match_percentage"));
                     app.setCandidateScore(rs.getInt("candidate_score"));
@@ -373,42 +366,52 @@ public class ApplicationService {
      * When status is ACCEPTED, automatically add to interview_candidates table.
      */
     public boolean updateStatus(int applicationId, Status newStatus) throws SQLException {
-        Connection conn = DatabaseConfig.getInstance().getConnection();
-        try {
+        try (Connection conn = DatabaseConfig.getInstance().getConnection()) {
             conn.setAutoCommit(false);
-            
-            // Update application status
-        String sql = "UPDATE applications SET status = ? WHERE id = ?";
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, newStatus.name());
-            stmt.setInt(2, applicationId);
-                int rows = stmt.executeUpdate();
-                
+            try {
+                String sql = "UPDATE applications SET status = ? WHERE id = ?";
+                int rows;
+                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                    stmt.setString(1, newStatus.name());
+                    stmt.setInt(2, applicationId);
+                    rows = stmt.executeUpdate();
+                }
+
                 if (rows > 0 && newStatus == Status.ACCEPTED) {
-                    // Add to interview_candidates table when application is accepted
                     addToInterviewCandidates(conn, applicationId);
                 } else if (rows > 0 && newStatus != Status.ACCEPTED) {
-                    // Remove from interview_candidates if status changes from ACCEPTED
                     removeFromInterviewCandidates(conn, applicationId);
                 }
-                
+
                 conn.commit();
                 if (rows > 0) {
                     sendStatusChangeNotification(applicationId, newStatus);
                 }
                 return rows > 0;
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
             }
-        } catch (SQLException e) {
-            conn.rollback();
-            throw e;
-        } finally {
-            conn.setAutoCommit(true);
         }
     }
     
     /**
      * Add application to interview_candidates table when accepted.
      */
+    private boolean profileRowExists(Connection conn, int profileId) throws SQLException {
+        if (profileId <= 0) {
+            return false;
+        }
+        try (PreparedStatement ps = conn.prepareStatement("SELECT 1 FROM profiles WHERE id = ? LIMIT 1")) {
+            ps.setInt(1, profileId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
     private void addToInterviewCandidates(Connection conn, int applicationId) throws SQLException {
         // Get application details
         String selectSql = "SELECT candidate_profile_id, job_offer_id FROM applications WHERE id = ?";
@@ -418,7 +421,14 @@ public class ApplicationService {
                 if (rs.next()) {
                     int candidateProfileId = rs.getInt("candidate_profile_id");
                     int jobOfferId = rs.getInt("job_offer_id");
-                    
+
+                    if (!profileRowExists(conn, candidateProfileId)) {
+                        logger.warn(
+                                "Skipping interview_candidates insert: applications.id={} has candidate_profile_id={} with no row in profiles (fix data or create profile).",
+                                applicationId, candidateProfileId);
+                        return;
+                    }
+
                     // Get company_id from job_offer
                     int companyId = 0;
                     String companySql = "SELECT company_id FROM job_offers WHERE id = ?";
@@ -483,15 +493,13 @@ public class ApplicationService {
                 "CASE " +
                 "  WHEN p.first_name IS NOT NULL AND p.last_name IS NOT NULL THEN CONCAT(p.first_name, ' ', p.last_name) " +
                 "  WHEN p.first_name IS NOT NULL THEN p.first_name " +
-                "  ELSE CONCAT('Candidat #', a.candidate_profile_id) " +
+                "  ELSE NULL " +
                 "END AS candidate_name, " +
-                "COALESCE(c.name, 'Entreprise') AS company_name, cms.match_percentage, cs.score AS candidate_score " +
+                "COALESCE(c.name, 'Entreprise') AS company_name, 0 AS match_percentage, 0 AS candidate_score " +
                 "FROM applications a " +
                 "INNER JOIN job_offers jo ON a.job_offer_id = jo.id " +
                 "LEFT JOIN companies c ON jo.company_id = c.id " +
                 "LEFT JOIN profiles p ON a.candidate_profile_id = p.id " +
-                "LEFT JOIN candidate_match_scores cms ON cms.profile_id = a.candidate_profile_id AND cms.job_offer_id = a.job_offer_id " +
-                "LEFT JOIN candidate_scores cs ON cs.profile_id = a.candidate_profile_id " +
                 "WHERE a.id = ?";
 
         try (Connection conn = DatabaseConfig.getInstance().getConnection();
@@ -502,11 +510,7 @@ public class ApplicationService {
                     Application app = mapResultSet(rs);
                     app.setJobTitle(rs.getString("job_title"));
                     app.setJobLocation(rs.getString("job_location"));
-                    String candidateName = rs.getString("candidate_name");
-                    if (candidateName == null || candidateName.trim().isEmpty()) {
-                        candidateName = "Candidat #" + app.getCandidateProfileId();
-                    }
-                    app.setCandidateName(candidateName);
+                    applyCandidateDisplayName(rs, app);
                     app.setCompanyName(rs.getString("company_name"));
                     app.setMatchPercentage(rs.getInt("match_percentage"));
                     app.setCandidateScore(rs.getInt("candidate_score"));
@@ -552,11 +556,24 @@ public class ApplicationService {
 
     // ==================== Helper ====================
 
+    /** Sets {@code candidateName} from SQL column, or a profile-based fallback; null if unknown (UI uses application id). */
+    private static void applyCandidateDisplayName(ResultSet rs, Application app) throws SQLException {
+        String candidateName = rs.getString("candidate_name");
+        if (candidateName != null) {
+            candidateName = candidateName.trim();
+        }
+        if (candidateName == null || candidateName.isEmpty()) {
+            candidateName = app.getCandidateProfileId() > 0 ? "Candidat #" + app.getCandidateProfileId() : null;
+        }
+        app.setCandidateName(candidateName);
+    }
+
     private Application mapResultSet(ResultSet rs) throws SQLException {
         Application app = new Application();
         app.setId(rs.getInt("id"));
         app.setJobOfferId(rs.getInt("job_offer_id"));
-        app.setCandidateProfileId(rs.getInt("candidate_profile_id"));
+        int cp = rs.getInt("candidate_profile_id");
+        app.setCandidateProfileId(rs.wasNull() ? 0 : cp);
         app.setCoverLetter(rs.getString("cover_letter"));
         app.setCustomCvUrl(rs.getString("custom_cv_url"));
 

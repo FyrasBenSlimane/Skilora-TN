@@ -58,7 +58,8 @@ public class FeedController implements Initializable {
     private boolean isLoadingMore = false;
     private Task<List<JobOpportunity>> currentLoadTask = null;
     private long lastLoadMoreTime = 0;
-    private static final long LOAD_MORE_THROTTLE_MS = 400;
+    private static final long LOAD_MORE_THROTTLE_MS = 700;
+    private PauseTransition loadMoreDebounce;
 
     private java.util.function.Consumer<JobOpportunity> onJobClick;
     private java.util.function.Consumer<JobOpportunity> onApplyClick;
@@ -116,6 +117,8 @@ public class FeedController implements Initializable {
         if (scrollPane != null && grid != null) {
             grid.prefWidthProperty().bind(scrollPane.widthProperty());
             grid.minWidthProperty().bind(scrollPane.widthProperty());
+            scrollPane.setCache(true);
+            scrollPane.setCacheHint(javafx.scene.CacheHint.SPEED);
         }
         setupEventHandlers();
     }
@@ -132,14 +135,29 @@ public class FeedController implements Initializable {
             searchField.getControl().setOnKeyReleased(e -> pause.playFromStart());
         }
 
-        // Infinite scroll (throttled to avoid lag)
+        // Infinite scroll: debounce so vvalue churn while dragging the scrollbar
+        // does not repeatedly append cards (major source of scroll jank).
         if (scrollPane != null) {
-            scrollPane.vvalueProperty().addListener((obs, oldVal, newVal) -> {
-                if (newVal.doubleValue() < 0.8 || isLoadingMore || !hasMoreCards()) return;
+            loadMoreDebounce = new PauseTransition(Duration.millis(320));
+            loadMoreDebounce.setOnFinished(ev -> {
+                if (scrollPane == null || isLoadingMore || !hasMoreCards()) {
+                    return;
+                }
+                if (scrollPane.getVvalue() < 0.88) {
+                    return;
+                }
                 long now = System.currentTimeMillis();
-                if (now - lastLoadMoreTime < LOAD_MORE_THROTTLE_MS) return;
+                if (now - lastLoadMoreTime < LOAD_MORE_THROTTLE_MS) {
+                    return;
+                }
                 lastLoadMoreTime = now;
                 loadMoreCardsQuietly();
+            });
+            scrollPane.vvalueProperty().addListener((obs, oldVal, newVal) -> {
+                if (newVal.doubleValue() < 0.82) {
+                    return;
+                }
+                loadMoreDebounce.playFromStart();
             });
         }
     }
